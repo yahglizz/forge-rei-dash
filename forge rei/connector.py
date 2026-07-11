@@ -1068,6 +1068,7 @@ import toolkit_blast   # noqa: E402  — Wholesaler Toolkit: buyer blast (deal s
 import toolkit_pipeline  # noqa: E402  — Wholesaler Toolkit: local reminder overlay
 import toolkit_contracts  # noqa: E402  — Wholesaler Toolkit: sandbox contract approvals
 import agents_history  # noqa: E402  — shared agent chat threads (dash + mobile + Telegram)
+import daily_brief  # noqa: E402  — daily ops brief pushed to Telegram (run-from-anywhere)
 
 
 def _deal_prefill(contact_id):
@@ -1602,6 +1603,91 @@ def _watchdog_forever():
         time.sleep(every)
 
 
+def _gather_brief_stats():
+    """Assemble the daily-brief numbers from the live engines. Best-effort — any
+    piece that errors is simply omitted, never blocks the brief."""
+    stats = {"date": daily_brief.date_label()}
+    try:
+        d = api_dashboard(None) or {}
+        stats["replies"] = d.get("activeConversations")
+        stats["openOpps"] = d.get("openOpportunities")
+        stats["pipelineValue"] = d.get("pipelineValue")
+        stats["appointments"] = d.get("appointments")
+    except Exception:
+        pass
+    try:
+        counts = (SCOUT.summary() or {}).get("counts") or {}
+        stats["hot"] = counts.get("asap")
+        stats["warm"] = counts.get("warm")
+    except Exception:
+        pass
+    try:
+        stats["approvals"] = len(MARCUS.proposals_list())
+    except Exception:
+        pass
+    try:
+        leads = (SCOUT.leads("asap") or {}).get("leads") or []
+        stats["topLeads"] = [{"name": l.get("name"), "last": l.get("lastMessage")}
+                             for l in leads[:3]]
+    except Exception:
+        pass
+    try:
+        import cost_tracker
+        stats["spendLine"] = cost_tracker.digest_line()
+    except Exception:
+        pass
+    try:
+        stats["staleAgents"] = [l.get("label") or l.get("loop")
+                                for l in forge_heartbeat.snapshot()
+                                if l.get("status") == "red"]
+    except Exception:
+        pass
+    return stats
+
+
+def _maybe_daily_brief(force=False):
+    """Send the brief if due (or forced). Only marks-sent on a real send or when
+    Telegram is simply not configured, so a transient failure retries next cycle."""
+    if not force and not daily_brief.due():
+        return {"sent": False, "reason": "not due"}
+    stats = _gather_brief_stats()
+    text = daily_brief.build_text(stats)
+    sent, note = False, ""
+    try:
+        res = telegram_io.send(text, dedupe_key="daily_brief:" + daily_brief.today_key())
+        if isinstance(res, dict) and (res.get("ok") or res.get("skipped")):
+            sent = True
+        else:
+            note = (res or {}).get("error") if isinstance(res, dict) else "send failed"
+    except Exception as e:  # noqa: BLE001
+        note = str(e)
+    # Mark the day done on a real send, or when there's no bot to send through
+    # (don't hammer a missing config every cycle). Transient errors stay unmarked.
+    if sent or (note and "not configured" in note):
+        daily_brief.mark_sent()
+    return {"sent": sent, "text": text, "note": note, "stats": stats}
+
+
+def _brief_scheduler_forever():
+    """Box-only daily-brief clock. Checks every few minutes; the send is guarded by
+    daily_brief.due() (past the set hour, once per day). Quiet while clocked out."""
+    if not LOOPS_ENABLED:
+        return
+    time.sleep(90)
+    every = max(60, int(os.environ.get("FORGE_BRIEF_CHECK_SEC", "300")))
+    while True:
+        try:
+            if not forge_ops.paused():
+                _maybe_daily_brief()
+        except Exception:
+            pass
+        try:
+            forge_heartbeat.beat("daily_brief", every, "Daily brief")
+        except Exception:
+            pass
+        time.sleep(every)
+
+
 def _tg_handoff(conv_id):
     """Telegram '🤝 Hand to Marcus' → Marcus screens the lead AND drafts a reply, then
     the draft comes straight back to Telegram as an ✅ Approve / 🗑 Dismiss proposal —
@@ -1871,6 +1957,13 @@ def api_notify_settings(_q):
 
 def api_test_mode(_q):
     return test_mode.status()
+
+
+def api_brief(_q):
+    """Pull today's ops brief on demand (mobile/desktop): the config + a live
+    preview of the exact text the scheduled Telegram push would send."""
+    return {"ok": True, "config": daily_brief.config(),
+            "text": daily_brief.build_text(_gather_brief_stats())}
 
 
 # Daily grind auto-sync — count today's GHL activity (messages out, conversations,
@@ -2153,6 +2246,7 @@ ROUTES = {
     "/api/toolkit/contracts/status": api_toolkit_contracts_status,
     "/api/toolkit/contracts/mytemplates": api_toolkit_contracts_mytemplates,
     "/api/agents/history": api_agents_history,
+    "/api/brief": api_brief,
     "/api/toolkit/calc/config": api_toolkit_calc_config,
     "/api/buyers/list": api_buyers_list,
     "/api/buyers/match": api_buyers_match,
@@ -2213,7 +2307,7 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", 
             "/api/toolkit/pipeline/days-in-stage",
             "/api/toolkit/contracts/list", "/api/toolkit/contracts/templates",
             "/api/toolkit/contracts/status", "/api/toolkit/contracts/mytemplates",
-            "/api/agents/history",
+            "/api/agents/history", "/api/brief",
             "/api/buyers/list", "/api/buyers/match", "/api/buyers/dispo",
             "/api/outbound/status", "/api/outbound/calls",
             "/api/brain/activity", "/api/style/latest", "/api/goals/today",
@@ -2560,6 +2654,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/notify/settings",
                                    "/api/notify/test",
                                    "/api/ops/set",
+                                   "/api/brief/send",
+                                   "/api/brief/config",
                                    "/api/test-mode")):
             return self._send_json({"error": "unknown endpoint"}, 404)
         try:
@@ -2874,6 +2970,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = telegram_io.send_test()
             elif parsed.path == "/api/ops/set":
                 result = forge_ops.set_paused(bool(body.get("paused")))
+            elif parsed.path == "/api/brief/send":
+                result = _maybe_daily_brief(force=True)
+            elif parsed.path == "/api/brief/config":
+                result = daily_brief.set_config(enabled=body.get("enabled"),
+                                                hour=body.get("hour"))
             elif parsed.path == "/api/test-mode":
                 result = test_mode.update(body)
             else:
@@ -3020,6 +3121,13 @@ def main():
               f"{max(60, int(os.environ.get('FORGE_WATCHDOG_SEC', '300')))}s")
         tw = threading.Thread(target=_watchdog_forever, daemon=True)
         tw.start()
+        # Daily ops brief — one Telegram digest a day so the operation is legible from
+        # anywhere (no app/tunnel needed). Hour is operator-set; default 8am ET.
+        _bc = daily_brief.config()
+        print(f"   Daily brief: {'on' if _bc.get('enabled') else 'off'} · "
+              f"{_bc.get('hour')}:00 (box tz offset {_bc.get('tzOffset')}) → Telegram")
+        tb = threading.Thread(target=_brief_scheduler_forever, daemon=True)
+        tb.start()
     else:
         print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS=0) — UI/proxy only")
     print(f"   binding {HOST}:{PORT}")

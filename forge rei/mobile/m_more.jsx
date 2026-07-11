@@ -1027,6 +1027,7 @@ function MMContractsSheet(props) {
 // ---- the More menu -----------------------------------------------------------------
 
 const MM_MENU = [
+  { key: "brief", label: "Daily brief", sub: "Morning ops pulse → Telegram, from anywhere", ico: "Chat" },
   { key: "sendcontract", label: "Send Contract", sub: "Your template → DocuSign → seller email", ico: "Send" },
   { key: "buyers", label: "Buyers / Dispo", sub: "Cash-buyer roster + dispo worklist", ico: "User" },
   { key: "deals", label: "Deals", sub: "Deal sheets, MAO / offers, contracts", ico: "Doc" },
@@ -1035,6 +1036,108 @@ const MM_MENU = [
   { key: "costs", label: "Costs", sub: "Claude + SMS spend, monthly cap", ico: "Dollar" },
   { key: "health", label: "System health", sub: "Loop heartbeats, disk, alerts", ico: "Heart" },
 ];
+
+// ---- Daily brief — the run-from-anywhere morning pulse -------------------------------
+function MMBriefText(props) {
+  // The API text carries Telegram HTML (<b>) + escaped &amp;/&lt;/&gt; — render it as
+  // plain text for the mobile preview.
+  const t = String(props.text || "")
+    .replace(/<\/?b>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  return (
+    <div style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5 }}>{t}</div>
+  );
+}
+
+function MMBriefSheet(props) {
+  const { data, error, loading, refresh } = window.useApiM("/api/brief", { interval: 0 });
+  const cfg = (data && data.config) || {};
+  const [busy, setBusy] = useStateMM(null);   // "toggle" | "hour" | "send"
+  const [msg, setMsg] = useStateMM(null);      // {ok, text}
+  const HOURS = [6, 7, 8, 9, 10, 18];
+
+  async function saveCfg(patch, tag) {
+    setBusy(tag); setMsg(null);
+    try { await window.apiPostM("/api/brief/config", patch); refresh(); }
+    catch (e) { setMsg({ ok: false, text: "Save failed: " + (e.message || "error") }); }
+    setBusy(null);
+  }
+  async function sendNow() {
+    setBusy("send"); setMsg(null);
+    try {
+      const r = await window.apiPostM("/api/brief/send", {});
+      setMsg(r && r.sent
+        ? { ok: true, text: "Sent to Telegram ✓" }
+        : { ok: false, text: (r && r.note) ? ("Not sent: " + r.note) : "Not sent — check Telegram config" });
+      refresh();
+    } catch (e) { setMsg({ ok: false, text: "Send failed: " + (e.message || "error") }); }
+    setBusy(null);
+  }
+
+  const lastSent = cfg.lastSentAt
+    ? window.timeAgoM(cfg.lastSentAt) : "not yet today";
+
+  return (
+    <div className="m-sheet">
+      <window.MHeader title="Daily brief" sub="Morning ops pulse → Telegram" onBack={props.onBack} />
+      <div className="m-sheet-body">
+        {loading && !data ? window.MSpin()
+          : error ? <MMErr msg={error} onRetry={refresh} />
+          : (
+            <React.Fragment>
+              <div className="m-card">
+                <div className="m-row">
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>Auto-send each morning</div>
+                    <div className="m-fade" style={{ marginTop: 2 }}>
+                      {cfg.enabled ? "On — pushes daily to your Telegram" : "Off — pull it here anytime"}
+                    </div>
+                  </div>
+                  <window.MBtn kind={cfg.enabled ? "ok" : "ghost"} disabled={busy === "toggle"}
+                    style={{ flex: "none", padding: "10px 14px" }}
+                    onClick={() => saveCfg({ enabled: !cfg.enabled }, "toggle")}>
+                    {busy === "toggle" ? "…" : (cfg.enabled ? "On" : "Off")}
+                  </window.MBtn>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <div className="m-fade" style={{ marginBottom: 6 }}>
+                    Send hour (your time{cfg.localTime ? " · now " + cfg.localTime : ""})
+                  </div>
+                  <div className="m-seg">
+                    {HOURS.map((h) => (
+                      <window.MChip key={h} active={cfg.hour === h} onClick={() => saveCfg({ hour: h }, "hour")}>
+                        {(h % 12 || 12) + (h < 12 ? "a" : "p")}
+                      </window.MChip>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="m-card">
+                <div className="m-row" style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>Today's brief</span>
+                  <span className="m-fade" style={{ fontSize: 11 }}>last push {lastSent}</span>
+                </div>
+                <MMBriefText text={data && data.text} />
+              </div>
+
+              <window.MBtn kind="ok" onClick={sendNow} disabled={busy === "send"}>
+                {busy === "send" ? "Sending…" : "Send me the brief now"}
+              </window.MBtn>
+              {msg && (
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginTop: 8,
+                  color: msg.ok ? "var(--green, #22C55E)" : "var(--red, #EF4444)" }}>
+                  {msg.ok ? "✓ " : ""}{msg.text}
+                </div>
+              )}
+              <div className="m-fade" style={{ fontSize: 11, marginTop: 4 }}>
+                Delivered by the box's Telegram bot — reaches you anywhere, no tunnel needed.
+              </div>
+            </React.Fragment>
+          )}
+      </div>
+    </div>
+  );
+}
 
 function MMorePage() {
   const [open, setOpen] = useStateMM(null);
@@ -1079,6 +1182,7 @@ function MMorePage() {
         </window.MCard>
       </div>
 
+      {open === "brief" ? <MMBriefSheet onBack={close} /> : null}
       {open === "sendcontract" ? <MMSendContractSheet onBack={close} /> : null}
       {open === "buyers" ? <MMBuyersSheet onBack={close} /> : null}
       {open === "deals" ? <MMDealsSheet onBack={close} /> : null}
