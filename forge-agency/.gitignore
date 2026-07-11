@@ -1,0 +1,7 @@
+# Never commit real agency secrets or local data
+config/agency.env
+*.env
+!*.env.example
+data/*
+!data/.gitkeep
+.DS_Store

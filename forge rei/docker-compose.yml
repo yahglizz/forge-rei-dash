@@ -1,0 +1,51 @@
+# FORGE REI OS — OPTIONAL Docker Compose (alternative to the live systemd setup).
+#
+# No Postgres, no Redis: this app uses flat-file state and has no job queue, so
+# those services would be dead weight. They are intentionally omitted.
+#
+# Secrets and state are mounted as volumes (never baked into the image):
+#   ./secrets/ghl.env  ->  /opt/forge/marcus-wholesale-agent/config/ghl.env
+#   ./state            ->  /opt/forge/forge-rei/marcus_state   (Marcus memory)
+#   ./vault            ->  /opt/forge/vault                    (brain)
+#
+# Usage:
+#   mkdir -p secrets state vault
+#   cp /path/to/ghl.env secrets/ghl.env        # your real keys
+#   docker compose up -d --build
+#   curl localhost:7799/api/health
+
+services:
+  forge:
+    build: .
+    container_name: forge-reios
+    restart: always                      # auto-restart on crash + on daemon/reboot
+    ports:
+      - "127.0.0.1:7799:7799"            # bind to localhost; front with nginx for public
+    environment:
+      FORGE_HOST: "0.0.0.0"
+      FORGE_PORT: "7799"
+      FORGE_VAULT: "/opt/forge/vault"
+      FORGE_MARCUS: "1"                  # this container is the sole GHL poller
+      FORGE_QUIET_HOURS: "1"
+      FORGE_TZ: "America/New_York"
+      TZ: "America/New_York"
+    volumes:
+      - ./secrets/ghl.env:/opt/forge/marcus-wholesale-agent/config/ghl.env:ro
+      - ./secrets/scripts:/opt/forge/marcus-wholesale-agent/scripts:ro
+      - ./state:/opt/forge/forge-rei/marcus_state
+      - ./vault:/opt/forge/vault
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL public HTTPS front. Only enable AFTER you add Basic Auth, or you
+  # publish the whole control panel (send SMS, toggle agents) with no login.
+  # Uncomment + provide nginx.conf, htpasswd, and certbot-managed certs.
+  # ---------------------------------------------------------------------------
+  # nginx:
+  #   image: nginx:stable
+  #   restart: always
+  #   depends_on: [forge]
+  #   ports: ["80:80", "443:443"]
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/conf.d/forge.conf:ro
+  #     - ./htpasswd:/etc/nginx/.htpasswd:ro
+  #     - /etc/letsencrypt:/etc/letsencrypt:ro

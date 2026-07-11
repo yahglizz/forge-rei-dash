@@ -1,0 +1,23 @@
+# Secrets — NEVER commit
+deploy/keys/
+*.env
+*.env.backup
+ghl.env*
+*.pem
+*.key
+id_rsa*
+forge_droplet*
+
+# Runtime state / data
+marcus_state/
+ruvector.db
+*.log
+uploads/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+.thumbnail

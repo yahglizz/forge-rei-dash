@@ -1,0 +1,183 @@
+/* FORGE Mobile — overrides on top of ../styles.css tokens (Dark Luxury). */
+* { -webkit-tap-highlight-color: transparent; }
+/* Fixed app shell: the document itself never scrolls — .m-content is the ONE
+   scroller. This is the reliable iOS standalone-PWA pattern; relying on body
+   scroll with a sticky header + fixed tab bar leaves the page frozen on iOS. */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+body {
+  background: var(--bg, #050B18);
+  color: var(--text, #F1F5FB);
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+  margin: 0;
+  padding: 0;
+}
+#root { height: 100dvh; overflow: hidden; }
+
+.m-app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+.m-head {
+  flex: 0 0 auto; position: relative; z-index: 20;
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+  background: rgba(5, 11, 24, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.m-content {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 14px 14px 20px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.m-tabbar {
+  flex: 0 0 auto; position: relative; z-index: 30;
+  display: flex; justify-content: space-around; align-items: stretch;
+  padding: 8px 4px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  background: rgba(11, 18, 32, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.m-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 4px 2px; border: none; background: none;
+  color: var(--text-3, #64748B); font-size: 10px; font-weight: 600;
+  border-radius: 10px; cursor: pointer; font-family: inherit;
+}
+.m-tab.active { color: var(--blue, #4F7CFF); }
+
+.m-card {
+  background: var(--card, #101827);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 14px;
+}
+.m-btn {
+  border: none; border-radius: 12px; padding: 12px 16px;
+  font-size: 14px; font-weight: 700; font-family: inherit;
+  color: #fff; background: var(--blue, #4F7CFF); cursor: pointer;
+  min-height: 44px;
+}
+.m-btn:disabled { opacity: 0.45; }
+.m-btn.ghost { background: var(--card-2, #17203a); color: var(--text, #F1F5FB); }
+.m-btn.ok { background: linear-gradient(135deg, #22C55E, #16a34a); }
+.m-btn.no { background: var(--card-2, #17203a); color: var(--red, #EF4444); }
+.m-input {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg, #050B18); color: var(--text, #F1F5FB);
+  border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 12px;
+  padding: 12px 13px; font-size: 15px; font-family: inherit;
+  min-height: 44px; outline: none;
+}
+textarea.m-input { min-height: 72px; resize: vertical; line-height: 1.4; }
+input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus */
+
+.m-row { display: flex; align-items: center; gap: 10px; }
+.m-list-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 13px; border-radius: 14px;
+  background: var(--card, #101827);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.m-kpi { flex: 1; min-width: 0; text-align: center; padding: 10px 4px; }
+.m-kpi .v { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.m-kpi .l { font-size: 10px; color: var(--text-3, #64748B); margin-top: 2px; }
+
+/* Snapshot stat grid (Home) — 2×2 premium stat tiles with accent icon chips. */
+.m-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.m-stat {
+  background: var(--card, #101827);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px; padding: 13px 14px; min-width: 0;
+}
+.m-stat.tappable { cursor: pointer; transition: transform 0.08s ease, background 0.08s ease; }
+.m-stat.tappable:active { transform: scale(0.96); background: var(--card-2, #17203a); }
+.m-stat-ico {
+  width: 30px; height: 30px; border-radius: 9px;
+  display: grid; place-items: center; margin-bottom: 10px;
+}
+.m-stat-v { font-size: 23px; font-weight: 800; letter-spacing: -0.6px; line-height: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-stat-l { font-size: 10.5px; font-weight: 600; color: var(--text-3, #64748B);
+  margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Section header — quiet uppercase label + optional count pill, forms page zones. */
+.m-section { display: flex; align-items: center; gap: 9px; padding: 6px 2px 0; }
+.m-section-l { font-size: 11px; font-weight: 700; color: var(--text-2, #9FB0C7);
+  text-transform: uppercase; letter-spacing: 0.7px; flex: none; }
+.m-section-count { font-size: 10.5px; font-weight: 800; border-radius: 999px;
+  padding: 2px 8px; flex: none; }
+.m-section-line { flex: 1; height: 1px; background: rgba(255, 255, 255, 0.07); }
+.m-seg { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.m-seg::-webkit-scrollbar { display: none; }
+.m-chip {
+  border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 999px;
+  background: var(--card-2, #17203a); color: var(--text-2, #9FB0C7);
+  padding: 8px 13px; font-size: 12px; font-weight: 600; font-family: inherit;
+  white-space: nowrap; cursor: pointer;
+}
+.m-chip.active { background: var(--blue, #4F7CFF); color: #fff; border-color: transparent; }
+.m-hscroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -14px; padding: 0 14px; }
+.m-hscroll::-webkit-scrollbar { display: none; }
+.m-col { min-width: 82vw; scroll-snap-align: center; }
+.m-fade { color: var(--text-3, #64748B); font-size: 12px; }
+.m-sheet {
+  position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+  background: var(--bg, #050B18);
+}
+.m-sheet-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 14px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.m-sheet-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.m-sheet-foot { padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px); border-top: 1px solid rgba(255,255,255,0.06); }
+.m-bubble { max-width: 82%; border-radius: 16px; padding: 10px 13px; font-size: 14px; line-height: 1.4; }
+.m-bubble.in { background: var(--card, #101827); align-self: flex-start; }
+.m-bubble.out { background: var(--blue, #4F7CFF); color: #fff; align-self: flex-end; }
+
+/* Telegram-style agent chat (Agents tab) */
+.m-tg-feed {
+  flex: 1 1 auto; min-height: 220px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+  background: var(--card, #101827);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px; padding: 10px 12px;
+}
+.m-tg-date {
+  align-self: center; flex: none;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px;
+  color: var(--text-2, #9FB0C7);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px; padding: 3px 10px; margin: 10px 0 5px;
+}
+.m-tg-bubble {
+  max-width: 84%; padding: 7px 12px 7px;
+  font-size: 14.5px; line-height: 1.38;
+  white-space: pre-wrap; word-break: break-word;
+}
+.m-tg-bubble.in {
+  align-self: flex-start;
+  background: var(--card-2, #17203a);
+  border-radius: 16px 16px 16px 5px;
+}
+.m-tg-bubble.out {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #4F7CFF, #3D63D8);
+  color: #fff;
+  border-radius: 16px 16px 5px 16px;
+}
+.m-tg-meta {
+  display: inline-flex; gap: 4px; align-items: center;
+  font-size: 10px; opacity: 0.65;
+  float: right; margin: 8px -3px 0 9px;
+}
+.m-tg-compose { display: flex; align-items: flex-end; gap: 8px; }
+.m-tg-input { flex: 1; border-radius: 22px; }
+.m-tg-sendbtn {
+  width: 46px; height: 46px; min-width: 46px; flex: none;
+  border-radius: 50%; padding: 0;
+  display: grid; place-items: center;
+}

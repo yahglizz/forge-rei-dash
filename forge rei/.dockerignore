@@ -1,0 +1,18 @@
+# Never bake secrets / state / keys into the image
+deploy/keys/
+*.env
+*.env.backup
+ghl.env*
+*.pem
+*.key
+forge_droplet*
+marcus_state/
+ruvector.db
+uploads/
+*.log
+__pycache__/
+*.pyc
+.git/
+.DS_Store
+.thumbnail
+screenshots/

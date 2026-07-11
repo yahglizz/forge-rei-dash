@@ -1,0 +1,14 @@
+{
+  "name": "FORGE REI OS Mobile",
+  "short_name": "FORGE",
+  "start_url": "/mobile/index.html",
+  "scope": "/mobile/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050B18",
+  "theme_color": "#050B18",
+  "icons": [
+    { "src": "/assets/pwa-icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/assets/pwa-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# push.sh — run from YOUR MAC. Copies the app + secrets + brain to the droplet,
+# preserving the sibling layout the app expects, then runs setup remotely.
+#
+# Usage:  ./deploy/push.sh root@<droplet-ip>
+# Secrets travel Mac -> droplet over SSH only (never chat, never git).
+set -euo pipefail
+
+TARGET="${1:?usage: ./deploy/push.sh root@<droplet-ip>}"
+KEY="$HOME/.ssh/forge_droplet"
+SSH="ssh -i $KEY -o StrictHostKeyChecking=accept-new"
+DASH="/Users/yg4st/forge rei dash/forge rei"
+MARCUS="$HOME/Desktop/marcus-wholesale-agent"
+AGENCY="$(dirname "$DASH")/forge-agency"   # sibling of "forge rei/", in the main folder
+SCOUT="$(dirname "$DASH")/forge-scout"     # Scout agent: config knobs + seed skills
+SCREEN="$(dirname "$DASH")/forge-marcus"   # Marcus screening agent: config knobs + seed screening playbook
+TG="$(dirname "$DASH")/forge-telegram"     # Telegram alerts + tap-to-approve: config/telegram.env
+VAULT="$HOME/Desktop/Agentic-OS/vault"
+REMOTE="/opt/forge"
+PORT="${FORGE_PORT:-7799}"
+
+# ---------------------------------------------------------------------------
+# Validate BEFORE any rsync — never ship a broken state (CLAUDE.md Rule #1).
+# A syntax error in a .py crashes the box on restart; a bad .jsx white-screens the
+# live dashboard. Both are caught here on the Mac and abort the push (set -e).
+# ---------------------------------------------------------------------------
+echo "==> validate (python ast + jsx babel) before pushing"
+cd "$DASH"
+for f in *.py; do
+  python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" "$f" \
+    || { echo "!! PYTHON SYNTAX ERROR in $f — aborting deploy"; exit 1; }
+done
+echo "   python: all $(ls *.py | wc -l | tr -d ' ') files parse"
+if command -v node >/dev/null 2>&1; then
+  node "$DASH/deploy/valjsx.js" *.jsx \
+    || { echo "!! JSX validation failed — aborting deploy"; exit 1; }
+else
+  echo "   (node not found — skipping JSX transform check; install node to enable)"
+fi
+
+echo "==> make remote dirs"
+$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
+
+echo "==> push dashboard (deploy/keys excluded — never ship SSH keys/secret backups to the box)"
+rsync -az --delete -e "$SSH" \
+  --exclude '__pycache__' --exclude 'marcus_state' --exclude '*.log' \
+  --exclude 'deploy/keys' --exclude 'deploy/.cache' --exclude '.git' --exclude 'ruvector.db' --exclude 'uploads' \
+  "$DASH/" "$TARGET:$REMOTE/forge-rei/"
+
+echo "==> push secrets (ghl.env) + classifier scripts"
+rsync -az -e "$SSH" "$MARCUS/config/ghl.env" "$TARGET:$REMOTE/marcus-wholesale-agent/config/ghl.env"
+rsync -az -e "$SSH" "$MARCUS/scripts/" "$TARGET:$REMOTE/marcus-wholesale-agent/scripts/"
+
+echo "==> push agency secrets (agency.env) — SEPARATE GHL sub-account"
+if [ -f "$AGENCY/config/agency.env" ]; then
+  rsync -az -e "$SSH" "$AGENCY/config/agency.env" "$TARGET:$REMOTE/forge-agency/config/agency.env"
+else
+  echo "   (no $AGENCY/config/agency.env yet — skipping; agency GHL stays 'not connected')"
+fi
+if [ -d "$AGENCY/skills" ]; then
+  rsync -az -e "$SSH" "$AGENCY/skills/" "$TARGET:$REMOTE/forge-agency/skills/"
+fi
+
+echo "==> push Scout folder (config knobs + seed skills; learned playbook lives in the vault)"
+if [ -d "$SCOUT" ]; then
+  rsync -az -e "$SSH" --exclude '__pycache__' "$SCOUT/" "$TARGET:$REMOTE/forge-scout/"
+else
+  echo "   (no $SCOUT yet — skipping; Scout falls back to vault skills + wholesale key)"
+fi
+
+echo "==> push Marcus screening folder (config knobs + seed screening playbook; learned copy lives in the vault)"
+if [ -d "$SCREEN" ]; then
+  rsync -az -e "$SSH" --exclude '__pycache__' "$SCREEN/" "$TARGET:$REMOTE/forge-marcus/"
+else
+  echo "   (no $SCREEN yet — skipping; Marcus screening falls back to vault skills + wholesale key)"
+fi
+
+echo "==> push Telegram folder (config/telegram.env secret ships Mac -> box over SSH, like ghl.env)"
+if [ -d "$TG" ]; then
+  rsync -az -e "$SSH" --exclude '__pycache__' "$TG/" "$TARGET:$REMOTE/forge-telegram/"
+else
+  echo "   (no $TG yet — skipping; Telegram alerts stay 'not configured')"
+fi
+
+echo "==> push graphify knowledge graph"
+GRAPHIFY_SRC="$HOME/.graphify/global-graph.json"
+if [ -f "$GRAPHIFY_SRC" ]; then
+  $SSH "$TARGET" "mkdir -p /root/.graphify"
+  rsync -az -e "$SSH" "$GRAPHIFY_SRC" "$TARGET:/root/.graphify/global-graph.json"
+else
+  echo "   (no ~/.graphify/global-graph.json — skipping; graphify tab shows empty)"
+fi
+
+echo "==> push brain vault (learned voice/playbook carry over)"
+# --update: NEVER overwrite a box file that is newer than the Mac's. The box runs the
+# agents 24/7 and learns daily (8pm sweep) — its playbooks are the source of truth. Without
+# --update a deploy would revert the brain to the Mac's stale copy. --exclude .git preserves
+# the box's own commit history (the daily learn commits each write).
+rsync -az --update -e "$SSH" \
+  --exclude '.obsidian' --exclude '.git' --exclude '*.env' --exclude '.env' \
+  --exclude '*.pem' --exclude '*.key' "$VAULT/" "$TARGET:$REMOTE/vault/"
+
+echo "==> run setup on the droplet"
+$SSH "$TARGET" "bash $REMOTE/forge-rei/deploy/setup_droplet.sh"
+
+# ---------------------------------------------------------------------------
+# Post-deploy health gate — verify the box actually came back up (CLAUDE.md Rule #1:
+# SSH-verify service active, endpoints 200, secrets 404). Curls hit box localhost since
+# the dashboard is tailnet-private. Fails loud so a dead deploy can't pass silently.
+# ---------------------------------------------------------------------------
+echo "==> verify the box came back healthy"
+$SSH "$TARGET" "
+  set -e
+  systemctl is-active --quiet forge-reios || { echo '   !! forge-reios NOT active'; systemctl status forge-reios --no-pager -l | tail -20; exit 1; }
+  sleep 3
+  curl -fsS http://127.0.0.1:$PORT/api/health >/dev/null || { echo '   !! /api/health not 200'; exit 1; }
+  curl -fsS http://127.0.0.1:$PORT/api/system/health | grep -q '\"ok\"' || { echo '   !! /api/system/health missing ok'; exit 1; }
+  hc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/marcus_state/heartbeats.json); [ \"\$hc\" = 404 ] || { echo \"   !! heartbeats.json served (\$hc) — must 404\"; exit 1; }
+  sc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/../marcus-wholesale-agent/config/ghl.env); [ \"\$sc\" != 200 ] || { echo '   !! ghl.env is being served — secret leak'; exit 1; }
+  echo '   OK: service active · /api/health + /api/system/health 200 · heartbeats.json 404 · ghl.env not served'
+"
+
+echo
+echo "Done pushing. Finish on the box:  $SSH $TARGET  then run:  tailscale up"

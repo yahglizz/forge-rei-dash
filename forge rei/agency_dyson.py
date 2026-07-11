@@ -1,0 +1,479 @@
+"""agency_dyson.py — "Dyson", the Forge AI Agency EDIT agent.
+
+Dyson takes a client edit request and produces a DRAFT implementation plan:
+  - affected files / pages / workflows
+  - a risk level + why
+  - step-by-step implementation
+…then waits in the Approval Center. Nothing goes live until you approve.
+
+M1: draft generation uses a real Claude call grounded on Dyson's brain playbook
+(vault Skills/dyson-playbook.md, mtime-cached). Falls back to _PLAYBOOK heuristics
+when no key or the Claude call/parse fails — so the dashboard never errors.
+
+M3: apply(draft) fires on operator approval → calls agency_deploy.ship(client, draft).
+Returns {ok, detail, url?}. On no-key/failure: {ok:False, detail:"queued, needs key"}.
+
+Store: marcus_state/agency_dyson.json
+"""
+import forge_atomic
+import json
+import os
+import threading
+import time
+from pathlib import Path
+
+import agency_requests_io
+import agency_approvals_io
+import review_agent  # _claude(key, system, user, max_tokens), MODEL, _api_key()
+
+HERE = Path(__file__).resolve().parent
+STATE = HERE / "marcus_state" / "agency_dyson.json"
+_LOCK = threading.Lock()
+
+# --- Anthropic key (mirrors agency_agents._agency_key) -----------------------
+_AGENCY_ENV_CANDIDATES = [
+    HERE.parent / "forge-agency" / "config" / "agency.env",
+    Path.home() / "Desktop" / "forge-agency" / "config" / "agency.env",
+]
+
+
+def _agency_key():
+    """Return (key, source). Agency key wins; falls back to wholesale."""
+    k = os.environ.get("AGENCY_ANTHROPIC_API_KEY")
+    if k:
+        return k, "agency-env"
+    for p in _AGENCY_ENV_CANDIDATES:
+        if p.exists():
+            for line in p.read_text().splitlines():
+                s = line.strip()
+                if s.startswith("ANTHROPIC_API_KEY=") and not s.startswith("#"):
+                    v = s.split("=", 1)[1].strip()
+                    if v and not v.startswith("sk-ant-..."):
+                        return v, "agency"
+    wholesale = review_agent._api_key()
+    if wholesale:
+        return wholesale, "wholesale"
+    return None, None
+
+
+# --- brain skills (mtime-cached playbook, mirrors agency_agents._load_skills) -
+_SEED_SKILLS_DIRS = [
+    HERE.parent / "forge-agency" / "skills",
+    Path.home() / "Desktop" / "forge-agency" / "skills",
+]
+_SK_CACHE = {}  # agent_id -> (mtime_sig_tuple, text)
+_DYSON_PLAYBOOK_REL = "Skills/dyson-playbook.md"
+
+
+def _load_skills():
+    """Load Dyson's playbook: seed + brain vault version, mtime-cached.
+    Returns "" if neither source exists."""
+    try:
+        import brain_io
+        parts, sig = [], []
+        srcs = []
+        for d in _SEED_SKILLS_DIRS:
+            p = d / "dyson-playbook.md"
+            if p.is_file():
+                srcs.append(p)
+                break
+        srcs.append(brain_io.VAULT / _DYSON_PLAYBOOK_REL)
+        for p in srcs:
+            if p.is_file():
+                parts.append(p.read_text(errors="ignore"))
+                sig.append(p.stat().st_mtime)
+        sig_key = tuple(sig)
+        cached = _SK_CACHE.get("dyson")
+        if not cached or cached[0] != sig_key:
+            text = "\n\n".join(parts)
+            _SK_CACHE["dyson"] = (sig_key, text)
+            return text
+        return cached[1]
+    except Exception:
+        cached = _SK_CACHE.get("dyson")
+        return cached[1] if cached else ""
+
+STATUSES = ["draft", "approved", "revision", "rejected"]
+
+# Heuristic playbook per request type → (risk, affected-kinds, steps).
+# This is the mock "intelligence". Replace generate_draft() body with a real
+# Claude call that reads the live codebase to make this genuinely smart.
+_PLAYBOOK = {
+    "Website Edit": {
+        "risk": "low",
+        "affected": [("page", "target page"), ("file", "index.html / styles.css")],
+        "steps": [
+            "Locate the section the client referenced",
+            "Back up the current markup/styles",
+            "Apply copy / image / layout change",
+            "Preview on a staging URL",
+            "Publish after approval",
+        ],
+    },
+    "New Page": {
+        "risk": "medium",
+        "affected": [("file", "new page file"), ("file", "nav / sitemap"),
+                     ("workflow", "form/booking integration")],
+        "steps": [
+            "Scaffold the new page from the site template",
+            "Wire nav links + sitemap entry",
+            "Connect any forms/booking to the client's tool",
+            "SEO: title, meta, OG tags",
+            "Preview, QA on mobile, publish",
+        ],
+    },
+    "Bug Fix": {
+        "risk": "medium",
+        "affected": [("file", "suspect module"), ("workflow", "delivery webhook")],
+        "steps": [
+            "Reproduce the reported bug",
+            "Trace root cause (logs / network / config)",
+            "Apply the smallest safe fix",
+            "Add a guard / test so it can't regress",
+            "Verify end-to-end, then close",
+        ],
+    },
+    "Content Update": {
+        "risk": "low",
+        "affected": [("page", "content section")],
+        "steps": [
+            "Pull the new copy from the request",
+            "Update the section, keep formatting consistent",
+            "Proofread + check links",
+            "Publish after approval",
+        ],
+    },
+    "SEO": {
+        "risk": "low",
+        "affected": [("file", "meta tags"), ("file", "sitemap.xml / robots.txt")],
+        "steps": [
+            "Audit current titles / meta / headings",
+            "Apply target keywords naturally",
+            "Add schema markup where useful",
+            "Resubmit sitemap to Search Console",
+        ],
+    },
+    "Integration": {
+        "risk": "high",
+        "affected": [("workflow", "third-party API"), ("file", "config / env"),
+                     ("workflow", "n8n automation")],
+        "steps": [
+            "Confirm credentials + scopes (env placeholders only)",
+            "Build the integration behind a feature flag",
+            "Test with sandbox / test data",
+            "Add error handling + retries",
+            "Enable for the client after approval",
+        ],
+    },
+    "Design Change": {
+        "risk": "medium",
+        "affected": [("file", "styles.css / theme"), ("page", "affected pages")],
+        "steps": [
+            "Capture before screenshots",
+            "Apply the design change in CSS/theme tokens",
+            "Check responsive breakpoints",
+            "Side-by-side review, then publish",
+        ],
+    },
+    "AI Agent": {
+        "risk": "high",
+        "affected": [("workflow", "agent config"), ("file", "prompt / playbook"),
+                     ("workflow", "GHL / channel hookup")],
+        "steps": [
+            "Define the agent's job + guardrails",
+            "Draft the prompt + voice from the client's brand",
+            "Wire channels (chat / SMS / voice) in test mode",
+            "Dry-run on sample conversations",
+            "Go live after approval, monitor first 24h",
+        ],
+    },
+    "Other": {
+        "risk": "medium",
+        "affected": [("page", "TBD — Dyson will scope on review")],
+        "steps": [
+            "Clarify scope with the client",
+            "Identify affected files/pages/workflows",
+            "Draft the change",
+            "Review + approve + ship",
+        ],
+    },
+}
+
+_PRIORITY_BUMP = {"urgent": 1, "high": 1}  # bump risk a notch for hot requests
+_RISK_ORDER = ["low", "medium", "high"]
+
+
+def _bump_risk(risk, priority):
+    if priority in _PRIORITY_BUMP and risk in _RISK_ORDER:
+        i = min(_RISK_ORDER.index(risk) + _PRIORITY_BUMP[priority],
+                len(_RISK_ORDER) - 1)
+        return _RISK_ORDER[i]
+    return risk
+
+
+def _load():
+    if STATE.exists():
+        try:
+            d = json.loads(STATE.read_text())
+            if isinstance(d, dict) and isinstance(d.get("drafts"), list):
+                return d
+        except Exception:
+            pass
+    return {"drafts": [], "seq": 0}
+
+
+def _save(d):
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    forge_atomic.atomic_write_json(STATE, d)
+
+
+def list_drafts():
+    with _LOCK:
+        d = _load()
+        drafts = sorted(d.get("drafts", []),
+                        key=lambda x: x.get("createdAt") or 0, reverse=True)
+        return {"drafts": drafts, "count": len(drafts)}
+
+
+def _heuristic_draft_fields(req):
+    """Build draft fields from _PLAYBOOK heuristics. Returns (summary, risk,
+    riskReason, affected, steps) — exact same shape as the Claude path."""
+    rtype = req.get("type") or "Other"
+    play = _PLAYBOOK.get(rtype, _PLAYBOOK["Other"])
+    risk = _bump_risk(play["risk"], req.get("priority"))
+    risk_reason = (f"{rtype} for {req.get('clientName')} at "
+                   f"{req.get('priority')} priority. "
+                   + {"low": "Isolated, easily reversible.",
+                      "medium": "Touches shared files; needs QA before publish.",
+                      "high": "External systems / live behavior — review carefully."}[risk])
+    affected = [{"type": t, "name": n} for (t, n) in play["affected"]]
+    summary = (f"Dyson drafted a {len(play['steps'])}-step plan for "
+               f"this {rtype.lower()} ({risk} risk).")
+    return summary, risk, risk_reason, affected, list(play["steps"])
+
+
+def _claude_draft_fields(req):
+    """Ask Claude to produce draft fields. Returns (summary, risk, riskReason,
+    affected, steps) or raises on failure. Claude must return valid JSON."""
+    key, _ = _agency_key()
+    if not key:
+        raise RuntimeError("no anthropic key")
+
+    playbook = _load_skills()
+    playbook_block = (f"\n\n=== DYSON PLAYBOOK ===\n{playbook[:3000]}"
+                      if playbook else "")
+
+    system = (
+        "You are Dyson, the edit/build agent for Forge AI Agency. You produce "
+        "structured implementation plans for client website and code requests. "
+        "Return ONLY valid JSON (no markdown, no explanation) with these exact keys: "
+        "{\"summary\": str, \"risk\": \"low\"|\"medium\"|\"high\", "
+        "\"riskReason\": str, "
+        "\"affectedFiles\": [str], \"affectedPages\": [str], "
+        "\"steps\": [str], \"estimate\": str}. "
+        "summary: 1-sentence plan overview. "
+        "risk: low/medium/high. riskReason: one sentence justifying the risk. "
+        "affectedFiles: list of filenames/paths likely changed (can be empty list). "
+        "affectedPages: list of page/section names affected (can be empty list). "
+        "steps: numbered implementation steps as plain strings. "
+        "estimate: rough time estimate (e.g. '2-4 hours')." + playbook_block
+    )
+
+    req_details = (
+        f"Request type: {req.get('type', 'Other')}\n"
+        f"Client: {req.get('clientName', 'Unknown')}\n"
+        f"Title: {req.get('title', '')}\n"
+        f"Description: {req.get('description', '')}\n"
+        f"Priority: {req.get('priority', 'normal')}"
+    )
+
+    raw = review_agent._claude(key, system, req_details, max_tokens=800)
+
+    # Strip optional markdown fences before parsing.
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("```", 2)[1]
+        if cleaned.startswith("json"):
+            cleaned = cleaned[4:]
+        cleaned = cleaned.rsplit("```", 1)[0].strip()
+
+    parsed = json.loads(cleaned)
+
+    # Build affected list in the existing shape [{type, name}].
+    affected = []
+    for name in (parsed.get("affectedFiles") or []):
+        affected.append({"type": "file", "name": name})
+    for name in (parsed.get("affectedPages") or []):
+        affected.append({"type": "page", "name": name})
+    if not affected:
+        affected.append({"type": "page", "name": "TBD"})
+
+    risk = parsed.get("risk", "medium")
+    if risk not in _RISK_ORDER:
+        risk = "medium"
+
+    return (
+        parsed.get("summary", ""),
+        risk,
+        parsed.get("riskReason", ""),
+        affected,
+        [str(s) for s in (parsed.get("steps") or [])],
+    )
+
+
+def generate_draft(request_id):
+    """Build a draft plan from a request and queue it for approval.
+
+    M1: tries a real Claude call grounded on Dyson's brain playbook first.
+    Falls back to _PLAYBOOK heuristics if no key or Claude call/parse fails.
+    The draft shape is identical in both paths — nothing downstream changes.
+    """
+    req = agency_requests_io.get_request(request_id)
+    if not req:
+        return {"error": "request not found"}
+
+    # Try the real Claude path first; fall back silently on any failure.
+    try:
+        summary, risk, risk_reason, affected, steps = _claude_draft_fields(req)
+        source = "claude"
+    except Exception:
+        summary, risk, risk_reason, affected, steps = _heuristic_draft_fields(req)
+        source = "heuristic"
+
+    with _LOCK:
+        d = _load()
+        now = int(time.time() * 1000)
+        d["seq"] = d.get("seq", 0) + 1
+        draft = {
+            "id": f"d{d['seq']}_{now}",
+            "requestId": request_id,
+            "clientId": req.get("clientId"),
+            "clientName": req.get("clientName"),
+            "title": f"Plan: {req.get('title')}",
+            "summary": summary,
+            "affected": affected,
+            "risk": risk,
+            "riskReason": risk_reason,
+            "steps": steps,
+            "status": "draft",
+            "source": source,
+            "createdAt": now,
+        }
+        d.setdefault("drafts", []).append(draft)
+        _save(d)
+
+    # Hand off to the human-in-the-loop Approval Center.
+    agency_approvals_io.add(
+        "dyson", draft["id"], draft["title"], draft["summary"],
+        client=req.get("clientName", ""), risk=risk,
+        payload={"affected": [a["name"] for a in affected],
+                 "steps": draft["steps"], "requestId": request_id})
+
+    return {"ok": True, "draft": draft}
+
+
+def apply(draft):
+    """M3 execute: ship an approved draft via agency_deploy.ship(client, draft).
+
+    Called by the Approvals Center dispatcher (agency_approvals_io.decide) on
+    kind="dyson" + action="approve". Wave-2 wires the dispatch call.
+
+    Returns {ok, detail, url?}. On no deploy-key or any failure:
+    {ok: False, detail: "queued, needs GITHUB_TOKEN"} — never silent, never throws.
+    """
+    client = {"id": draft.get("clientId"), "name": draft.get("clientName", "")}
+    if not client["id"]:
+        client = draft.get("clientName", "")
+    draft_id = draft.get("id", "")
+
+    # Idempotency guard: two routes (Approvals Center + Dyson tab) can both call
+    # apply() for the same draft. Atomically claim it so the live deploy fires once.
+    # Released below if the ship fails, so the operator can retry after adding a key.
+    if draft_id:
+        with _LOCK:
+            d = _load()
+            cur = next((x for x in d.get("drafts", []) if x.get("id") == draft_id), None)
+            if cur is not None:
+                if cur.get("appliedAt"):
+                    return {"ok": True, "detail": "already shipped (idempotent)"}
+                cur["appliedAt"] = int(time.time() * 1000)
+                _save(d)
+
+    try:
+        import agency_deploy  # Lane E creates this (frozen name from plan §4 M4)
+        result = agency_deploy.ship(client, draft)
+        ok = bool(result.get("ok"))
+        detail = result.get("detail", "shipped" if ok else "deploy failed")
+        url = result.get("commitUrl") or result.get("prUrl")
+    except ImportError:
+        ok = False
+        detail = "queued, needs GITHUB_TOKEN (agency_deploy not yet available)"
+        url = None
+    except Exception as exc:
+        ok = False
+        detail = f"queued, needs GITHUB_TOKEN ({exc})"
+        url = None
+
+    # Write result note to the brain (best-effort).
+    note_text = (f"Dyson apply: draft {draft_id} for {draft.get('clientName', '')} — "
+                 f"{'shipped' if ok else 'queued'}: {detail}")
+    try:
+        import brain_io
+        stamp = time.strftime("%Y-%m-%d %H:%M")
+        brain_io.write_note(
+            f"Log/dyson-apply-{draft_id}.md",
+            f"---\nagent: dyson\nts: {stamp}\nok: {ok}\n---\n\n{note_text}",
+            reason=f"Dyson apply {draft_id} {stamp}",
+        )
+    except Exception:
+        pass
+
+    # Broadcast on the agent bus (best-effort).
+    try:
+        import agent_bus
+        agent_bus.send(
+            "dyson", "all", "status", note_text,
+            {"draftId": draft_id, "client": draft.get("clientName", ""), "ok": ok},
+        )
+    except Exception:
+        pass
+
+    # Release the idempotency claim on failure so a retry is possible.
+    if not ok and draft_id:
+        with _LOCK:
+            d = _load()
+            cur = next((x for x in d.get("drafts", []) if x.get("id") == draft_id), None)
+            if cur is not None and cur.get("appliedAt"):
+                cur.pop("appliedAt", None)
+                _save(d)
+
+    out = {"ok": ok, "detail": detail}
+    if url:
+        out["url"] = url
+    return out
+
+
+def decision(draft_id, action, note=None):
+    """Approve / revise / reject a Dyson draft (mirrors Approval Center).
+
+    On "approve": status is flipped to 'approved' AND apply() is called so the
+    live deploy fires immediately when this entry point is used directly.
+    The canonical M3 path is agency_approvals_io.decide → apply() (Wave-2 wires
+    the dispatch); this guard ensures correctness when decision() is called directly.
+    """
+    state_map = {"approve": "approved", "revise": "revision", "reject": "rejected"}
+    if action not in state_map:
+        return {"error": f"action must be one of {list(state_map)}"}
+    with _LOCK:
+        d = _load()
+        dr = next((x for x in d.get("drafts", []) if x.get("id") == draft_id), None)
+        if not dr:
+            return {"error": "draft not found"}
+        dr["status"] = state_map[action]
+        _save(d)
+        draft_snapshot = dict(dr)
+
+    result = {"ok": True, "draft": draft_snapshot}
+    if action == "approve":
+        result["apply"] = apply(draft_snapshot)
+    return result

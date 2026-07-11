@@ -1,0 +1,32 @@
+# ── Secrets — NEVER commit ──────────────────────────────────
+*.env
+*.env.backup
+ghl.env*
+*.pem
+*.key
+id_rsa*
+forge_droplet*
+deploy/keys/
+
+# ── Runtime state / data (business data stays off GitHub) ───
+marcus_state/
+uploads/
+*.log
+ruvector.db
+agentdb.rvf
+agentdb.rvf.lock
+graphify-out/
+
+# ── Sibling projects / session artifacts not part of the app ─
+marcus-wholesale-agent/
+codex-handoff/
+.claude/
+.claude-flow/
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.pyc
+
+# ── OS / editor ─────────────────────────────────────────────
+.DS_Store
+.thumbnail

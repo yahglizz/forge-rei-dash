@@ -1,0 +1,14 @@
+# Keep the Operation Brain focused on YOUR systems, not vendored libs / runtime junk.
+# Vendored Playwright copy (was 32,870 of 35,696 nodes — pure noise)
+marcus-wholesale-agent/playwright/
+
+# Runtime artifacts (logs, evidence, reports, agent state, screenshots)
+**/logs/
+**/*.log
+marcus-wholesale-agent/evidence/
+marcus-wholesale-agent/reports/
+forge rei/marcus_state/
+forge rei/screenshots/
+
+# graphify's own output
+graphify-out/

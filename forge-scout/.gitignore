@@ -1,0 +1,5 @@
+# Never commit real Scout config / secrets — keep only the example
+config/*.env
+*.env
+!*.env.example
+.DS_Store

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base href="/mobile/">
+<title>FORGE Mobile</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FORGE">
+<meta name="theme-color" content="#050B18">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="/assets/pwa-icon-180.png">
+<link rel="apple-touch-startup-image" href="/assets/splash-mobile.png">
+<link rel="icon" type="image/png" href="/assets/pwa-icon-180.png">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="mobile.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../live_sync.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="m_api.jsx"></script>
+<script type="text/babel" src="m_shell.jsx"></script>
+<script type="text/babel" src="m_home.jsx"></script>
+<script type="text/babel" src="m_convos.jsx"></script>
+<script type="text/babel" src="m_pipeline.jsx"></script>
+<script type="text/babel" src="m_calc.jsx"></script>
+<script type="text/babel" src="m_agents.jsx"></script>
+<script type="text/babel" src="m_more.jsx"></script>
+<script type="text/babel" src="m_app.jsx"></script>
+</body>
+</html>
