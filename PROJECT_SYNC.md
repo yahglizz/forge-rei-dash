@@ -5,11 +5,11 @@
 > Append new entries under Log — never delete old ones.
 
 ## Current State
-- **Last updated:** 2026-07-11 16:35 EDT
-- **Last updated by:** Codex
-- **Status:** Desktop dashboard and mobile app remain separate frontends with a shared connector revision channel for live cross-session updates; the change is deployed and verified on the 24/7 box.
-- **Known issues:** `/tmp/valjsx.js` is absent; validation used the repository's `deploy/valjsx.js` helper used by deployment.
-- **Next up:** Exercise a real approved write from each surface and confirm the other open surface refreshes immediately; retain normal polling for external GoHighLevel changes.
+- **Last updated:** 2026-07-11 17:05 EDT
+- **Last updated by:** Claude
+- **Status:** Project is now a git repo mirrored to https://github.com/yahglizz/forge-rei-dash (public). `deploy/push.sh` auto-commits + pushes to GitHub after every healthy deploy, so the repo always matches the live box. Box deploy path remains rsync via push.sh; the old `yahglizz/os` box cron pull (`/opt/forge/git-sync.sh`, every 60s) is dormant legacy.
+- **Known issues:** `/tmp/valjsx.js` is absent; validation used the repository's `deploy/valjsx.js` helper used by deployment. Box git-sync cron still points at frozen `yahglizz/os` — harmless no-op but should be repointed or removed (audit item).
+- **Next up:** Adversarial end-to-end review (grill-me-codex) of the whole app + box wiring; findings ledger will assign each fix an owner (Claude vs Codex).
 
 ## Log
 
@@ -46,3 +46,12 @@
 **Why:** Put both separate frontends and their shared `/api/sync` contract onto the 24/7 service.
 **Result:** `forge-reios` is active; `/api/sync`, `/live_sync.js`, and `/mobile/` return 200; `marcus_state/heartbeats.json` and the external `ghl.env` path return 404.
 **Follow-up needed:** Confirm an operator-approved write from dashboard and mobile while both are open; no API or config duplication is needed because both clients use the single connector state.
+
+---
+
+### 2026-07-11 17:05 EDT — Claude — GitHub mirror: repo init + auto-push on every deploy
+**Changed:** `.gitignore` (new, repo root), `forge rei/deploy/push.sh`, `PROJECT_SYNC.md`
+**What:** Initialized a git repo at the project root and pushed the full app (211 files) to https://github.com/yahglizz/forge-rei-dash (main). Added a best-effort GitHub mirror step to `deploy/push.sh` that runs after the post-deploy health gate: commits all changes and pushes to origin/main, warning (not failing) on push errors.
+**Why:** Operator asked for the app to live on GitHub and stay always up to date with the deployed box.
+**Result:** Initial push + first auto-mirror both verified (`c5a82fd..5677c67`). Secret scan before push: only placeholder `.env.example` values are tracked; `*.env`, `marcus_state/`, vault, and 318MB sibling `marcus-wholesale-agent/` are git-ignored. Deploy health gate passed.
+**Follow-up needed:** Repo is PUBLIC — operator should confirm or flip to private. Box cron `/opt/forge/git-sync.sh` still pulls frozen `yahglizz/os` every 60s (dormant no-op) — repoint or remove during the audit.
