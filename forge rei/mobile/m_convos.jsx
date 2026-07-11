@@ -44,11 +44,13 @@ function MCThread(props) {
     "/api/messages?contactId=" + encodeURIComponent(convo.contactId || ""), { interval: 15000 });
 
   const [draft, setDraft] = useStateMC("");
+  const [draftMeta, setDraftMeta] = useStateMC("");  // draft source tag (ai/template)
   const [drafting, setDrafting] = useStateMC(false);
   const [sending, setSending] = useStateMC(false);
   const [note, setNote] = useStateMC(null);        // { kind: "ok"|"err", text }
   const [pending, setPending] = useStateMC([]);    // optimistic outbound bubbles
   const endRef = useRefMC(null);
+  const hasDraft = !!draft.trim();
 
   const msgs = ((data && data.messages) || []).concat(
     pending.map((b) => ({ direction: "outbound", body: b, date: Date.now(), pending: true })));
@@ -58,20 +60,36 @@ function MCThread(props) {
     if (endRef.current) endRef.current.scrollIntoView({ block: "end" });
   }, [msgs.length, loading]);
 
-  // "Draft (AI)" — fills the textarea only. Operator edits, then taps Send.
-  async function doDraft() {
+  // "Draft (AI)" fills the textarea; "Redo" (variation=true) remakes a fresh,
+  // different reply off the same thread. Operator edits, then Approve & send.
+  async function doDraft(variation) {
     if (drafting || sending) return;
     setDrafting(true);
     setNote(null);
+    const prev = draft.trim();
+    const reqBody = { convId: convo.id, contactId: convo.contactId, name: convo.name };
+    if (variation && prev) {
+      reqBody.hint = ("Rewrite this reply completely differently — a new angle and a "
+        + "fresh opening. Do not reuse the wording of this previous draft: \"" + prev
+        + "\". Keep it short and in-voice.");
+    }
     try {
-      const r = await window.apiPostM("/api/reply/draft",
-        { convId: convo.id, contactId: convo.contactId, name: convo.name });
+      const r = await window.apiPostM("/api/reply/draft", reqBody);
       setDraft(r.draft || "");
-      setNote({ kind: "ok", text: "Draft ready" + (r.source ? " · " + r.source : "") + " — edit, then Send" });
+      setDraftMeta(r.source || "");
+      setNote({ kind: "ok", text: (variation ? "Fresh take ready" : "Draft ready")
+        + (r.source ? " · " + r.source : "") + " — edit, then Approve" });
     } catch (e) {
       setNote({ kind: "err", text: "Draft failed: " + e.message });
     }
     setDrafting(false);
+  }
+
+  // Dismiss — clear the AI draft without sending.
+  function doDismiss() {
+    setDraft("");
+    setDraftMeta("");
+    setNote(null);
   }
 
   // Send — window.confirm gates every send. Same POST as the desktop reply flow.
@@ -89,6 +107,7 @@ function MCThread(props) {
         name: convo.name, lastMessageDate: convo.lastMessageDate,
       });
       setDraft("");
+      setDraftMeta("");
       setNote({ kind: "ok", text: "Sent ✓" + (r && r.markedDone ? " · checked off Do Today" : "") });
       setTimeout(() => { refresh(); setPending((p) => p.slice(1)); }, 1200);
     } catch (e) {
@@ -147,17 +166,44 @@ function MCThread(props) {
             {note.text}
           </div>
         )}
+        {hasDraft && (
+          <div className="m-row" style={{ marginBottom: 6, gap: 6 }}>
+            <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: "var(--blue, #4F7CFF)" }}>
+              ✨ AI draft{draftMeta ? " · " + draftMeta : ""} — approve, redo, or edit
+            </span>
+          </div>
+        )}
         <textarea className="m-input" rows={2} value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={"Text " + ((convo.name || "").split(" ")[0] || "seller") + "…"} />
-        <div className="m-row" style={{ marginTop: 8 }}>
-          <window.MBtn kind="ghost" onClick={doDraft} disabled={drafting || sending} style={{ flex: 1 }}>
-            {drafting ? "Drafting…" : "Draft (AI)"}
-          </window.MBtn>
-          <window.MBtn kind="ok" onClick={doSend} disabled={sending || drafting || !draft.trim()} style={{ flex: 1 }}>
-            {sending ? "Sending…" : "Send"}
-          </window.MBtn>
-        </div>
+        {hasDraft ? (
+          <div className="m-row" style={{ marginTop: 8, gap: 6 }}>
+            <window.MBtn kind="ghost" onClick={() => doDraft(true)} disabled={drafting || sending}
+              style={{ flex: "none", padding: "10px 12px" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <MI.Refresh size={15} />{drafting ? "…" : "Redo"}
+              </span>
+            </window.MBtn>
+            <window.MBtn kind="no" onClick={doDismiss} disabled={sending}
+              style={{ flex: "none", padding: "10px 12px" }}>
+              <MI.X size={15} />
+            </window.MBtn>
+            <window.MBtn kind="ok" onClick={doSend} disabled={sending || drafting || !draft.trim()} style={{ flex: 1 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <MI.Check size={15} />{sending ? "Sending…" : "Approve & send"}
+              </span>
+            </window.MBtn>
+          </div>
+        ) : (
+          <div className="m-row" style={{ marginTop: 8 }}>
+            <window.MBtn kind="ghost" onClick={() => doDraft(false)} disabled={drafting || sending} style={{ flex: 1 }}>
+              {drafting ? "Drafting…" : "Draft (AI)"}
+            </window.MBtn>
+            <window.MBtn kind="ok" onClick={doSend} disabled={sending || drafting || !draft.trim()} style={{ flex: 1 }}>
+              {sending ? "Sending…" : "Send"}
+            </window.MBtn>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -237,4 +283,6 @@ function MConvosPage() {
   );
 }
 
-Object.assign(window, { MConvosPage });
+// MCThread + MCAvatar are exported so Home can open a seller's thread directly
+// when you tap a person (see m_home.jsx tap-to-open).
+Object.assign(window, { MConvosPage, MCThread, MCAvatar });

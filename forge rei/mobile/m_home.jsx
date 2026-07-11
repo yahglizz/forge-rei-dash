@@ -15,6 +15,7 @@ const MHPlayIco = window.MIcons.Play;
 const MHChatIco = window.MIcons.Chat;
 const MHBoardIco = window.MIcons.Board;
 const MHDollarIco = window.MIcons.Dollar;
+const MHRedoIco = window.MIcons.Refresh;   // remake an AI reply differently
 
 const MH_CLS_COLOR = {
   READY: "#22C55E", PRICE: "#F59E0B", NRN: "#8B5CF6",
@@ -161,23 +162,44 @@ function MHSection(props) {
 function MHApprovals(props) {
   const feed = props.feed;
   const [actBusy, setActBusy] = useStateMH(null);
+  const [regen, setRegen] = useStateMH({});       // pid -> regenerated reply text
+  const [regenBusy, setRegenBusy] = useStateMH(null);
   const list = (feed.data && feed.data.proposals) || [];
 
   async function act(kind, p) {
+    const text = regen[p.id] || p.suggestedReply;
     const q = kind === "approve"
-      ? ("Send Marcus's draft to " + p.name + "? This texts the seller.")
+      ? ('Send this reply to ' + p.name + '? This texts the seller.\n\n"' + text + '"')
       : ("Dismiss the drafted reply for " + p.name + "?");
     if (!window.confirm(q)) return;
     setActBusy(kind + p.id);
     try {
       if (kind === "approve") {
-        await window.apiPostM("/api/marcus/approve", { id: p.id, message: p.suggestedReply });
+        await window.apiPostM("/api/marcus/approve", { id: p.id, message: text });
       } else {
         await window.apiPostM("/api/marcus/dismiss", { id: p.id });
       }
     } catch (e) { window.alert("Marcus: " + e.message); }
     setActBusy(null);
     feed.refresh();
+  }
+
+  // Redo — remake a different reply off the same thread (no send). The fresh text
+  // replaces the shown draft and is what Approve will send. Reuses /api/reply/draft
+  // with a "make it different" hint; falls back gracefully if the thread can't draft.
+  async function redo(p) {
+    setRegenBusy(p.id);
+    try {
+      const r = await window.apiPostM("/api/reply/draft", {
+        convId: p.conversationId, contactId: p.contactId, name: p.name,
+        hint: ("Rewrite this reply completely differently — new angle, fresh opening. "
+          + "Do not reuse the wording of this draft: \"" + (regen[p.id] || p.suggestedReply || "")
+          + "\". Keep it short and in-voice."),
+      });
+      if (r && r.draft) setRegen((m) => ({ ...m, [p.id]: r.draft }));
+      else window.alert("Redo: " + ((r && r.error) || "no draft came back"));
+    } catch (e) { window.alert("Redo: " + e.message); }
+    setRegenBusy(null);
   }
 
   let body;
@@ -209,20 +231,29 @@ function MHApprovals(props) {
                 marginTop: 6, padding: "8px 11px", borderRadius: 10,
                 background: "var(--card-2, #17203a)", fontSize: 13, lineHeight: 1.45,
               }}>
-                {MHSnip(p.suggestedReply, 220)}
+                {MHSnip(regen[p.id] || p.suggestedReply, 220)}
+                {regen[p.id] && (
+                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: "var(--blue, #4F7CFF)" }}>
+                    · revised
+                  </span>
+                )}
               </div>
-              <div className="m-row" style={{ marginTop: 8 }}>
+              <div className="m-row" style={{ marginTop: 8, gap: 6 }}>
                 <window.MBtn kind="ok" style={{ flex: 1 }} disabled={actBusy === aKey}
                   onClick={() => act("approve", p)}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <MHCheckIco size={15} />{actBusy === aKey ? "Sending…" : "Approve"}
                   </span>
                 </window.MBtn>
-                <window.MBtn kind="no" style={{ flex: 1 }} disabled={actBusy === dKey}
-                  onClick={() => act("dismiss", p)}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <MHXIco size={15} />{actBusy === dKey ? "…" : "Dismiss"}
+                <window.MBtn kind="ghost" style={{ flex: "none", padding: "10px 12px" }}
+                  disabled={regenBusy === p.id || actBusy === aKey} onClick={() => redo(p)}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <MHRedoIco size={15} />{regenBusy === p.id ? "…" : "Redo"}
                   </span>
+                </window.MBtn>
+                <window.MBtn kind="no" style={{ flex: "none", padding: "10px 12px" }} disabled={actBusy === dKey}
+                  onClick={() => act("dismiss", p)}>
+                  <MHXIco size={15} />
                 </window.MBtn>
               </div>
             </div>
@@ -246,6 +277,7 @@ function MHHotLeads(props) {
   const path = "/api/scout/leads" + (bucket === "all" ? "" : "?bucket=" + bucket);
   const feed = window.useApiM(path, { interval: 30000 });
   const [handed, setHanded] = useStateMH({});
+  const [openConvo, setOpenConvo] = useStateMH(null);   // tap a person -> their thread
   const leads = (feed.data && feed.data.leads) || [];
 
   async function handoff(l) {
@@ -290,7 +322,7 @@ function MHHotLeads(props) {
               }}>
                 <MHFlameIco size={17} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setOpenConvo(l)}>
                 <div className="m-row" style={{ gap: 6 }}>
                   <span style={{ ...MH_ELLIPSIS, fontSize: 13.5, fontWeight: 700, minWidth: 0 }}>{l.name}</span>
                   <span style={{ fontSize: 11, fontWeight: 800, color: bc, flex: "none" }}>
@@ -303,6 +335,9 @@ function MHHotLeads(props) {
                 {l.lastMessage && <div className="m-fade" style={{ ...MH_ELLIPSIS, marginTop: 2 }}>“{MHSnip(l.lastMessage, 70)}”</div>}
                 {meta && <div className="m-fade" style={{ ...MH_ELLIPSIS, fontSize: 10.5, marginTop: 1 }}>{meta}</div>}
               </div>
+              <span onClick={() => setOpenConvo(l)} title="Open messages"
+                style={{ flex: "none", cursor: "pointer", color: "var(--text-3, #64748B)",
+                  fontSize: 18, fontWeight: 700, lineHeight: 1, padding: "0 2px" }}>›</span>
               <window.MBtn kind="ghost" style={{ flex: "none", padding: "10px 11px", fontSize: 12 }}
                 disabled={hs === "busy" || hs === "done"} onClick={() => handoff(l)}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -321,6 +356,7 @@ function MHHotLeads(props) {
   }
 
   return (
+    <React.Fragment>
     <window.MCard>
       <div className="m-row" style={{ marginBottom: 10, gap: 8 }}>
         <div className="m-seg" style={{ flex: 1, marginBottom: 0 }}>
@@ -336,6 +372,8 @@ function MHHotLeads(props) {
       </div>
       {body}
     </window.MCard>
+    {openConvo && <window.MCThread convo={openConvo} onClose={() => setOpenConvo(null)} />}
+    </React.Fragment>
   );
 }
 
@@ -346,6 +384,7 @@ function MHLeadsSheet(props) {
   const path = "/api/scout/leads" + (bucket === "all" ? "" : "?bucket=" + bucket);
   const feed = window.useApiM(path, { interval: 30000 });
   const [handed, setHanded] = useStateMH({});
+  const [openConvo, setOpenConvo] = useStateMH(null);   // tap a person -> their thread
   const leads = (feed.data && feed.data.leads) || [];
   const chips = MH_BUCKET_CHIPS.concat([["dead", "Dead"]]);
 
@@ -363,6 +402,7 @@ function MHLeadsSheet(props) {
   }
 
   return (
+    <React.Fragment>
     <div className="m-sheet">
       <div className="m-sheet-head">
         <button className="m-tab" style={{ flex: "none", minWidth: 44, minHeight: 44, padding: 4 }} onClick={props.onClose}>
@@ -407,7 +447,7 @@ function MHLeadsSheet(props) {
               }}>
                 <MHFlameIco size={17} />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setOpenConvo(l)}>
                 <div className="m-row" style={{ gap: 6 }}>
                   <span style={{ ...MH_ELLIPSIS, fontSize: 13.5, fontWeight: 700, minWidth: 0 }}>{l.name}</span>
                   <span style={{ fontSize: 11, fontWeight: 800, color: bc, flex: "none" }}>
@@ -420,6 +460,9 @@ function MHLeadsSheet(props) {
                 {l.lastMessage && <div className="m-fade" style={{ ...MH_ELLIPSIS, marginTop: 2 }}>“{MHSnip(l.lastMessage, 70)}”</div>}
                 {meta && <div className="m-fade" style={{ ...MH_ELLIPSIS, fontSize: 10.5, marginTop: 1 }}>{meta}</div>}
               </div>
+              <span onClick={() => setOpenConvo(l)} title="Open messages"
+                style={{ flex: "none", cursor: "pointer", color: "var(--text-3, #64748B)",
+                  fontSize: 18, fontWeight: 700, lineHeight: 1, padding: "0 2px" }}>›</span>
               <window.MBtn kind="ghost" style={{ flex: "none", padding: "10px 11px", fontSize: 12 }}
                 disabled={hs === "busy" || hs === "done"} onClick={() => handoff(l)}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -432,6 +475,8 @@ function MHLeadsSheet(props) {
         })}
       </div>
     </div>
+    {openConvo && <window.MCThread convo={openConvo} onClose={() => setOpenConvo(null)} />}
+    </React.Fragment>
   );
 }
 
