@@ -5,7 +5,7 @@
 > Append new entries under Log — never delete old ones.
 
 ## Current State
-- **Last updated:** 2026-07-11 18:10 EDT
+- **Last updated:** 2026-07-11 18:35 EDT
 - **Last updated by:** Claude
 - **Status:** Project is now a git repo mirrored to https://github.com/yahglizz/forge-rei-dash (public). `deploy/push.sh` auto-commits + pushes to GitHub after every healthy deploy, so the repo always matches the live box. Box deploy path remains rsync via push.sh; the old `yahglizz/os` box cron pull (`/opt/forge/git-sync.sh`, every 60s) is dormant legacy.
 - **Known issues:** `/tmp/valjsx.js` is absent; validation used the repository's `deploy/valjsx.js` helper used by deployment. (resolved 2026-07-11 18:00: box git-sync cron, script, and token-embedded `os` remote removed — F9.)
@@ -64,3 +64,12 @@
 **Why:** grill-me-codex audit converged (3 rounds, APPROVED); operator gave the one sign-off.
 **Result:** 68 py ast-clean, all JSX valjsx-clean, 13 suites green (contracts 20 tests). Health gate passed. Live-fire: Telegram ping ok, agent-chat history round-trip ok, sandbox envelope sent→voided through the new pending→sent path, live ARV ok, /api/agents/list serves 10 agents.
 **Follow-up needed:** None for the audit. Shared-API note: /api/agents/history is now consumed by desktop AND mobile; keep its shape stable.
+
+---
+
+### 2026-07-11 18:35 EDT — Claude — Mobile: AI-reply approve/redo/dismiss + tap-a-person → thread
+**Changed:** `forge rei/mobile/m_convos.jsx`, `forge rei/mobile/m_home.jsx`
+**What:** (1) AI reply drafts now get quick Approve / **Redo (remake differently)** / Dismiss — in the Convos thread footer (draft → 3-button approve row) AND the Home approval inbox (added a Redo button; regenerated text is what Approve sends). Redo reuses `/api/reply/draft` with a "rewrite differently" hint (no backend change; `/api/marcus/approve` already honors a `message` override). (2) Tapping a person on Home (Scout hot-leads list + the full Hot Leads sheet) opens that seller's message thread — `MCThread`/`MCAvatar` are now exported from m_convos and mounted from m_home using the lead's existing contactId/convId.
+**Why:** Operator wanted faster reply triage (remake a different AI reply in one tap) and direct person → messages navigation from Home.
+**Result:** Both mobile JSX validated (now gated on deploy per F6). Deployed + GitHub-mirrored (5f0365d..ce88b0e). Live-verified on the box via DOM drive: tapping a lead opens the thread; Draft (AI) returns a Claude draft and the footer switches to Redo / Approve & send; Home approvals render Approve / Redo / ✕.
+**Follow-up needed:** None. No shared-API changes (reused /api/reply/draft + /api/marcus/approve).
