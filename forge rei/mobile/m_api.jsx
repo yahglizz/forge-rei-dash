@@ -9,20 +9,23 @@ function useApiM(path, opts) {
   const [error, setError] = useStateMX(null);
   const [loading, setLoading] = useStateMX(true);
   const aliveMX = useRefMX(true);
+  const seqRefMX = useRefMX(0);
   const load = async () => {
+    const mySeq = ++seqRefMX.current;
     try {
       const r = await fetch(path);
       const j = await r.json();
-      if (!aliveMX.current) return;
+      if (!aliveMX.current || seqRefMX.current !== mySeq) return;
       setData(j);
       setError(j && j.error ? j.error : null);
     } catch (e) {
-      if (aliveMX.current) setError(e.message || "network error");
+      if (aliveMX.current && seqRefMX.current === mySeq) setError(e.message || "network error");
     } finally {
-      if (aliveMX.current) setLoading(false);
+      if (aliveMX.current && seqRefMX.current === mySeq) setLoading(false);
     }
   };
   useEffectMX(() => {
+    ++seqRefMX.current;
     aliveMX.current = true;
     setLoading(true);
     load();

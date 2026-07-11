@@ -640,25 +640,54 @@ function ScoutChatStrip() {
   );
 }
 
+function agentHistoryRowsP(rows) {
+  return (rows || []).map((m) => ({
+    role: m.role === "user" ? "user" : "ai",
+    text: m.text || "",
+    time: m.ts ? new Date(m.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "",
+    via: m.via,
+  }));
+}
+
 function AgentThread({ agent }) {
   const Icons = window.Icons;
   const [msgs, setMsgs] = useStateP([]);
   const [draft, setDraft] = useStateP("");
   const [typing, setTyping] = useStateP(false);
-  const feedRef = React.useRef(null);
+  const feedRef = useRefP(null);
+  const historyRunP = useRefP(0);
+  const mountedP = useRefP(true);
   const now = () => new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const historyPath = "/api/agents/history?agentId=" + encodeURIComponent(agent.id) + "&limit=60";
+
+  async function fetchAgentHistoryP() {
+    const res = await fetch(historyPath, { headers: { Accept: "application/json" } });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || ("HTTP " + res.status));
+    return agentHistoryRowsP(j.history);
+  }
 
   // Each agent keeps its own thread; reset the view when you switch agents.
-  React.useEffect(() => { setMsgs([]); setDraft(""); }, [agent.id]);
-  React.useEffect(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [msgs, typing]);
+  useEffectP(() => {
+    mountedP.current = true;
+    const myRun = ++historyRunP.current;
+    setMsgs([]); setDraft("");
+    fetchAgentHistoryP().then((rows) => {
+      if (!mountedP.current || historyRunP.current !== myRun) return;
+      setMsgs((local) => rows.concat(local.filter((m) => m.optimistic)));
+    }).catch(() => {});
+    return () => { mountedP.current = false; };
+  }, [agent.id]);
+  useEffectP(() => { if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight; }, [msgs, typing]);
 
   async function send() {
     const q = draft.trim();
     if (!q || typing) return;
     const history = msgs.slice(-8).map((m) => ({ role: m.role, text: m.text }));
-    setMsgs((m) => [...m, { role: "user", text: q, time: now() }]);
+    setMsgs((m) => [...m, { role: "user", text: q, time: now(), optimistic: true }]);
     setDraft(""); setTyping(true);
     let reply;
+    let sentOk = false;
     try {
       const res = await fetch("/api/agents/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -667,11 +696,18 @@ function AgentThread({ agent }) {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || ("HTTP " + res.status));
       reply = j.reply;
+      sentOk = true;
     } catch (e) {
       reply = "Couldn't reach me just now (" + (e.message || "connection error") + "). Make sure the connector is running.";
     }
     setTyping(false);
-    setMsgs((m) => [...m, { role: "ai", text: (reply || "").trim() || "On it.", time: now() }]);
+    setMsgs((m) => [...m, { role: "ai", text: (reply || "").trim() || "On it.", time: now(), optimistic: true }]);
+    if (sentOk && mountedP.current) {
+      try {
+        const rows = await fetchAgentHistoryP();
+        if (mountedP.current) setMsgs(rows);
+      } catch (e) { /* optimistic transcript remains visible if the refresh fails */ }
+    }
   }
 
   return (

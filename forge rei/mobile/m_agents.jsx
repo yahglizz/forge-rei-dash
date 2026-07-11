@@ -23,6 +23,7 @@ const MA_AGENTS = [
   { id: "eco", name: "Eco", color: "#2DD4BF", ep: "/api/agency/agents/chat", crew: "agency",
     role: "Agency Ads · Meta strategy, analysis + concepts" },
 ];
+const MA_DYNAMIC_COLORS = ["#EC4899", "#0EA5E9", "#F97316", "#A78BFA"];
 
 function MAKindColor(kind) {
   if (kind === "handoff") return "var(--violet, #8B5CF6)";
@@ -134,8 +135,20 @@ function MAgentsPage() {
   const [pending, setPending] = useStateMA(null); // optimistic {agentId, text, ts}
   const [sendErr, setSendErr] = useStateMA(null);
   const feedRefMA = useRefMA(null);
+  const rosterM = window.useApiM("/api/agents/list", { interval: 30000 });
+  const dynamicAgents = rosterM.error ? [] : ((rosterM.data && rosterM.data.agents) || [])
+    .filter((a) => a && a.id && !MA_AGENTS.some((fixed) => fixed.id === a.id))
+    .map((a, i) => ({
+      id: a.id,
+      name: a.name || "Agent",
+      color: MA_DYNAMIC_COLORS[i % MA_DYNAMIC_COLORS.length],
+      ep: "/api/agents/chat",
+      crew: "rei",
+      role: a.role || "Outbound voice agent · Retell",
+    }));
+  const agents = MA_AGENTS.concat(dynamicAgents);
 
-  const active = MA_AGENTS.find((a) => a.id === agentId) || MA_AGENTS[0];
+  const active = agents.find((a) => a.id === agentId) || agents[0];
   const draft = drafts[active.id] || "";
   const thinking = busyId === active.id;
 
@@ -211,7 +224,7 @@ function MAgentsPage() {
 
         {/* Agent picker + Bus toggle */}
         <div className="m-seg">
-          {MA_AGENTS.map((a) => (
+          {agents.map((a) => (
             <button key={a.id}
               className={"m-chip" + (!busMode && agentId === a.id ? " active" : "")}
               style={{ minHeight: 44 }}

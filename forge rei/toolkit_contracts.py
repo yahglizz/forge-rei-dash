@@ -466,14 +466,10 @@ def quick_send(body):
     if notes:
         blurb_bits.append(notes)
 
-    result = docusign_io.send_document(
-        seller_email, seller_name, doc_b64, row.get("name") or "Contract",
-        ext=row.get("ext", "pdf"), email_subject=subject,
-        email_blurb=" ".join(blurb_bits))
-    if not isinstance(result, dict) or not result.get("ok"):
-        error = (result or {}).get("error") if isinstance(result, dict) else "DocuSign send failed"
-        return {"error": str(error or "DocuSign send failed")}
-
+    # Durability: persist the ledger row BEFORE the DocuSign call so a crash
+    # mid-send can never leave a live envelope with no local record. Mirrors the
+    # main flow's convention: failures stay status="pending" with sendError set;
+    # the status poller only touches sent/signed rows that have an envelopeId.
     now = _now()
     deal_key = str(body.get("dealId") or f"quick-{now}")
     record = {
@@ -487,15 +483,39 @@ def quick_send(body):
                     "propertyAddress": address, "purchasePrice": price,
                     "terms": {"closingDate": closing, "notes": notes}},
         "approvalRequired": True,
-        "status": "sent",
+        "status": "pending",
         "createdAt": now, "updatedAt": now,
         "approvedAt": now, "approvedBy": operator, "approvalReason": "quick send",
-        "sentAt": now, "envelopeId": result.get("envelopeId"),
+        "sentAt": None, "envelopeId": None,
         "signedAt": None, "completedAt": None, "voidedAt": None,
         "voidReason": "", "sendError": "",
     }
     with _LOCK:
         data = _load()
+        data["contracts"][deal_key] = record
+        _save(data)
+
+    result = docusign_io.send_document(
+        seller_email, seller_name, doc_b64, row.get("name") or "Contract",
+        ext=row.get("ext", "pdf"), email_subject=subject,
+        email_blurb=" ".join(blurb_bits))
+    if not isinstance(result, dict) or not result.get("ok"):
+        error = (result or {}).get("error") if isinstance(result, dict) else "DocuSign send failed"
+        with _LOCK:
+            data = _load()
+            failed = data["contracts"].get(deal_key)
+            if isinstance(failed, dict):
+                failed.update(sendError=str(error or "DocuSign send failed"),
+                              updatedAt=_now())
+                _save(data)
+        return {"error": str(error or "DocuSign send failed"), "dealId": deal_key}
+
+    sent_at = _now()
+    with _LOCK:
+        data = _load()
+        record = data["contracts"].get(deal_key) or record
+        record.update(status="sent", sentAt=sent_at, updatedAt=sent_at,
+                      envelopeId=result.get("envelopeId"), sendError="")
         data["contracts"][deal_key] = record
         _save(data)
     return {"ok": True, "contract": record, "sandbox": True,

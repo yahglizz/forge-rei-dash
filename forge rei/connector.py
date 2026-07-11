@@ -1785,7 +1785,11 @@ telegram_ops.register({
 # thread you see in Telegram (and vice versa).
 def _tg_agent_chat(agent_id, message, history):
     try:
-        hist = history or agents_history.recent_for_context(agent_id)
+        # Always read the SHARED thread (dash + mobile + Telegram all record into
+        # agents_history). Telegram's own in-memory session history would fork the
+        # thread after its first exchange — ignore it unless the store is empty.
+        # (Audit F3, 2026-07-11.)
+        hist = agents_history.recent_for_context(agent_id) or history
         out = agents_chat.chat(ghl_get, LOCATION_ID, agent_id, message,
                                history=hist, scout=SCOUT, enable_commands=False)
         reply = (out or {}).get("reply", "") if isinstance(out, dict) else str(out or "")

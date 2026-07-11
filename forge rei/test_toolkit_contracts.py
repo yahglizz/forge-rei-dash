@@ -239,6 +239,26 @@ class UploadedTemplateTest(unittest.TestCase):
         self.assertEqual("env-9", row["envelopeId"])
         self.assertEqual("Yahjair", row["approvedBy"])
 
+    def test_quick_send_failure_keeps_pending_row_with_error(self):
+        """Audit F7: the ledger row is persisted BEFORE the DocuSign call, so a
+        failed (or crashed) send still leaves a trackable pending record."""
+        saved = toolkit_contracts.save_template("PA", self.PDF_URL)
+        with mock.patch.object(toolkit_contracts.docusign_io, "is_sandbox",
+                               return_value=True), \
+             mock.patch.object(toolkit_contracts.docusign_io, "configured",
+                               return_value=True), \
+             mock.patch.object(toolkit_contracts.docusign_io, "send_document",
+                               return_value={"error": "boom"}):
+            out = toolkit_contracts.quick_send({
+                "templateId": saved["template"]["id"], "operatorId": "Yahjair",
+                "sellerName": "Jane Seller", "sellerEmail": "jane@example.com",
+                "address": "12 Main, Dover DE", "price": 95000})
+        self.assertEqual("boom", out["error"])
+        row = toolkit_contracts.list_contracts()[0]
+        self.assertEqual("pending", row["status"])
+        self.assertEqual("boom", row["sendError"])
+        self.assertIsNone(row["envelopeId"])
+
 
 if __name__ == "__main__":
     unittest.main()

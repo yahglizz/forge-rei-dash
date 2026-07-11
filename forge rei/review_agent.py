@@ -44,43 +44,50 @@ def _api_key():
 
 
 def _claude(key, system, user, max_tokens=1200, tools=None):
+    messages = [{"role": "user", "content": user}]
     payload = {
         "model": MODEL,
         "max_tokens": max_tokens,
         "system": system,
-        "messages": [{"role": "user", "content": user}],
+        "messages": messages,
     }
     if tools:
         # e.g. [{"type": "web_search_20250305", "name": "web_search", "max_uses": 4}]
         payload["tools"] = tools
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=json.dumps(payload).encode(),
-        headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                 "content-type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=90) as r:
-            data = json.loads(r.read().decode())
-    except urllib.error.HTTPError as e:
-        # urllib's default str(e) is just "HTTP Error 400: Bad Request" — the
-        # real reason (low credit balance, rate limit, bad model) lives in the
-        # JSON body, which urllib discards. Read it so every agent's "reaching
-        # my brain" message shows the actual cause instead of an opaque code.
+    continuations = 0
+    while True:
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=json.dumps(payload).encode(),
+            headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                     "content-type": "application/json"},
+            method="POST",
+        )
         try:
-            body = json.loads(e.read().decode())
-            msg = (body.get("error") or {}).get("message") or str(e)
-        except Exception:  # noqa: BLE001
-            msg = str(e)
-        raise RuntimeError(f"Anthropic API error ({e.code}): {msg}") from None
-    try:  # cost telemetry — best-effort, never blocks the call
-        import cost_tracker
-        u = data.get("usage") or {}
-        cost_tracker.record_anthropic(MODEL, u.get("input_tokens"), u.get("output_tokens"))
-    except Exception:
-        pass
-    return "".join(b.get("text", "") for b in data.get("content", [])).strip()
+            with urllib.request.urlopen(req, timeout=90) as r:
+                data = json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            # urllib's default str(e) is just "HTTP Error 400: Bad Request" — the
+            # real reason (low credit balance, rate limit, bad model) lives in the
+            # JSON body, which urllib discards. Read it so every agent's "reaching
+            # my brain" message shows the actual cause instead of an opaque code.
+            try:
+                body = json.loads(e.read().decode())
+                msg = (body.get("error") or {}).get("message") or str(e)
+            except Exception:  # noqa: BLE001
+                msg = str(e)
+            raise RuntimeError(f"Anthropic API error ({e.code}): {msg}") from None
+        try:  # cost telemetry — best-effort, never blocks the call
+            import cost_tracker
+            u = data.get("usage") or {}
+            cost_tracker.record_anthropic(MODEL, u.get("input_tokens"), u.get("output_tokens"))
+        except Exception:
+            pass
+        if data.get("stop_reason") == "pause_turn" and continuations < 3:
+            messages.append({"role": "assistant", "content": data["content"]})
+            continuations += 1
+            continue
+        return "".join(b.get("text", "") for b in data.get("content", [])).strip()
 
 
 # The parallel analyst panel — each gets the full metrics, focuses on one lens.

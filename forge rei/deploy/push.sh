@@ -32,7 +32,9 @@ for f in *.py; do
 done
 echo "   python: all $(ls *.py | wc -l | tr -d ' ') files parse"
 if command -v node >/dev/null 2>&1; then
-  node "$DASH/deploy/valjsx.js" *.jsx \
+  # Desktop AND mobile JSX — a mobile Babel error white-screens the PWA silently,
+  # so both trees must pass before anything ships (audit F6, 2026-07-11).
+  node "$DASH/deploy/valjsx.js" *.jsx mobile/*.jsx \
     || { echo "!! JSX validation failed — aborting deploy"; exit 1; }
 else
   echo "   (node not found — skipping JSX transform check; install node to enable)"
