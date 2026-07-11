@@ -419,3 +419,23 @@ Done = pick deal → send PA or assignment → status visible → GHL auto-advan
   Access: Tailscale → http://100.87.232.91:7799/m → Share → Add to Home Screen.
   Gotcha logged: the `/m` alias requires the `<base>` tag — relative script
   srcs otherwise resolve to the web root and Babel silently renders nothing.
+
+### 2026-07-11 (later) — Calc: creative finance removed + accuracy pass; app: Daily Brief
+**Calc (toolkit, operator-directed).** Removed the "Creative finance" card
+(Sub-To / Seller finance / Novation) from BOTH the mobile calc (`m_calc.jsx`) and
+the desktop panels (`toolkit_calc.jsx`) — inputs no longer sent in the eval body.
+Backend `toolkit_calc.py` functions (seller_finance/subject_to/novation) + their
+tests are LEFT INTACT (reversible; 25 calc tests still green). Verified the
+remaining math is accurate: MAO = ARV×pct − repairs − fee (floored 0), repairs
+ceil-to-$500, buyer/internal ROI, ARV — all test-covered and consistent
+desktop↔mobile↔backend. Calc now: AI ARV finder · MAO · Repair estimator ·
+Deal views (internal/buyer) · Send offer.
+**Daily Brief (app-level, NOT a toolkit module).** New `daily_brief.py` +
+connector wiring: one Telegram digest a day (operator-set hour, box tz) of hot
+leads / replies waiting / drafts to approve / pipeline / appointments / spend +
+top-3 hot leads — so the operation is legible from anywhere with no app/tunnel.
+Endpoints `/api/brief` (GET preview+config), `/api/brief/send` (force),
+`/api/brief/config` (hour/enable). Scheduler thread (box-only, FORGE_MARCUS,
+quiet while clocked out) + `daily_brief` heartbeat (watchdog-monitored). Mobile
+More → "Daily brief" sheet (toggle, hour chips, live preview, send-now). Deployed
++ box scheduler fired a real brief; GitHub-mirrored.

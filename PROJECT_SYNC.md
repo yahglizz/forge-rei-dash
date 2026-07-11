@@ -5,7 +5,7 @@
 > Append new entries under Log — never delete old ones.
 
 ## Current State
-- **Last updated:** 2026-07-11 18:35 EDT
+- **Last updated:** 2026-07-11 18:45 EDT
 - **Last updated by:** Claude
 - **Status:** Project is now a git repo mirrored to https://github.com/yahglizz/forge-rei-dash (public). `deploy/push.sh` auto-commits + pushes to GitHub after every healthy deploy, so the repo always matches the live box. Box deploy path remains rsync via push.sh; the old `yahglizz/os` box cron pull (`/opt/forge/git-sync.sh`, every 60s) is dormant legacy.
 - **Known issues:** `/tmp/valjsx.js` is absent; validation used the repository's `deploy/valjsx.js` helper used by deployment. (resolved 2026-07-11 18:00: box git-sync cron, script, and token-embedded `os` remote removed — F9.)
@@ -73,3 +73,12 @@
 **Why:** Operator wanted faster reply triage (remake a different AI reply in one tap) and direct person → messages navigation from Home.
 **Result:** Both mobile JSX validated (now gated on deploy per F6). Deployed + GitHub-mirrored (5f0365d..ce88b0e). Live-verified on the box via DOM drive: tapping a lead opens the thread; Draft (AI) returns a Claude draft and the footer switches to Redo / Approve & send; Home approvals render Approve / Redo / ✕.
 **Follow-up needed:** None. No shared-API changes (reused /api/reply/draft + /api/marcus/approve).
+
+---
+
+### 2026-07-11 18:45 EDT — Claude — Calc: drop creative finance + accuracy pass; Daily Brief (run-from-anywhere)
+**Changed:** `forge rei/mobile/m_calc.jsx`, `forge rei/toolkit_calc.jsx`, `forge rei/daily_brief.py` (new), `forge rei/connector.py`, `forge rei/mobile/m_more.jsx`, `PLAN.md`
+**What:** (1) Removed the Creative finance card (Sub-To/Seller finance/Novation) from the mobile + desktop Deal Calculator; backend math functions/tests kept intact (reversible). Verified remaining calc math (MAO, repairs ceil-$500, buyer/internal ROI, ARV) accurate + consistent across surfaces; 25 calc tests green. (2) New Daily Brief: `daily_brief.py` + connector scheduler thread + `/api/brief` (GET), `/api/brief/send`, `/api/brief/config` (POST) — one Telegram digest a day (operator-set hour) of the whole op, pullable/triggerable from mobile More → "Daily brief". `daily_brief` heartbeat is watchdog-monitored.
+**Why:** Operator asked to strip creative finance, ensure calc accuracy, and add things that make the business runnable 24/7 from anywhere.
+**Result:** 69 py ast-clean, all JSX valjsx-clean. Deployed (67d2785..b3e9f9d) + GitHub-mirrored. Box scheduler fired a real brief (lastSentDay set, heartbeat registered). Mobile sheet DOM-verified (toggle, hour chips, live preview, send-now).
+**Follow-up needed:** Shared-API: new GET `/api/brief` + POST `/api/brief/{send,config}`. New env `FORGE_TZ_OFFSET` (default -4 EDT) governs the brief's send hour; set -5 for EST in winter.
