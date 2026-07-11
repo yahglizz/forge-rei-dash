@@ -120,5 +120,27 @@ $SSH "$TARGET" "
   echo '   OK: service active · /api/health + /api/system/health 200 · heartbeats.json 404 · ghl.env not served'
 "
 
+# ---------------------------------------------------------------------------
+# GitHub mirror — every successful deploy is committed + pushed to
+# github.com/yahglizz/forge-rei-dash so the repo always matches the live box.
+# Best-effort: a GitHub outage must never block or roll back a healthy deploy,
+# so failures warn loudly but do not exit non-zero. Secrets/state are excluded
+# by the repo-root .gitignore (validated: *.env, marcus_state/, vault stays out).
+# ---------------------------------------------------------------------------
+echo "==> mirror to GitHub (yahglizz/forge-rei-dash)"
+REPO_ROOT="$(dirname "$DASH")"
+if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if ! git -C "$REPO_ROOT" diff --quiet HEAD 2>/dev/null || [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
+    git -C "$REPO_ROOT" add -A
+    git -C "$REPO_ROOT" -c user.name="yahglizz" -c user.email="yahjair@atouchofblessing.com" \
+      commit -q -m "deploy: $(date '+%Y-%m-%d %H:%M') — synced to 24/7 box" || true
+  fi
+  git -C "$REPO_ROOT" push origin main \
+    && echo "   OK: GitHub mirror up to date" \
+    || echo "   !! GitHub push failed (deploy itself is fine — push manually: git -C \"$REPO_ROOT\" push origin main)"
+else
+  echo "   (repo root $REPO_ROOT is not a git repo — skipping mirror)"
+fi
+
 echo
 echo "Done pushing. Finish on the box:  $SSH $TARGET  then run:  tailscale up"
