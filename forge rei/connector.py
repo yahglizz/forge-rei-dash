@@ -1069,6 +1069,7 @@ import toolkit_pipeline  # noqa: E402  — Wholesaler Toolkit: local reminder ov
 import toolkit_contracts  # noqa: E402  — Wholesaler Toolkit: sandbox contract approvals
 import agents_history  # noqa: E402  — shared agent chat threads (dash + mobile + Telegram)
 import daily_brief  # noqa: E402  — daily ops brief pushed to Telegram (run-from-anywhere)
+import daily_recap  # noqa: E402  — evening end-of-day recap pushed to Telegram (close the loops)
 
 
 def _deal_prefill(contact_id):
@@ -1668,9 +1669,31 @@ def _maybe_daily_brief(force=False):
     return {"sent": sent, "text": text, "note": note, "stats": stats}
 
 
+def _maybe_daily_recap(force=False):
+    """Evening companion to _maybe_daily_brief — send the end-of-day recap if due (or
+    forced). Reuses the same brief stats (open loops + spend), same mark-sent discipline."""
+    if not force and not daily_recap.due():
+        return {"sent": False, "reason": "not due"}
+    stats = _gather_brief_stats()
+    text = daily_recap.build_text(stats)
+    sent, note = False, ""
+    try:
+        res = telegram_io.send(text, dedupe_key="daily_recap:" + daily_recap.today_key())
+        if isinstance(res, dict) and (res.get("ok") or res.get("skipped")):
+            sent = True
+        else:
+            note = (res or {}).get("error") if isinstance(res, dict) else "send failed"
+    except Exception as e:  # noqa: BLE001
+        note = str(e)
+    if sent or (note and "not configured" in note):
+        daily_recap.mark_sent()
+    return {"sent": sent, "text": text, "note": note, "stats": stats}
+
+
 def _brief_scheduler_forever():
-    """Box-only daily-brief clock. Checks every few minutes; the send is guarded by
-    daily_brief.due() (past the set hour, once per day). Quiet while clocked out."""
+    """Box-only daily clock for BOTH the morning brief and the evening recap. Checks every
+    few minutes; each send is guarded by its own due() (past the set hour, once per day).
+    Quiet while clocked out."""
     if not LOOPS_ENABLED:
         return
     time.sleep(90)
@@ -1679,6 +1702,7 @@ def _brief_scheduler_forever():
         try:
             if not forge_ops.paused():
                 _maybe_daily_brief()
+                _maybe_daily_recap()
         except Exception:
             pass
         try:
@@ -1966,6 +1990,13 @@ def api_brief(_q):
             "text": daily_brief.build_text(_gather_brief_stats())}
 
 
+def api_recap(_q):
+    """Pull tonight's end-of-day recap on demand: config + live preview of the exact
+    Telegram push. Reuses the brief stats (open loops + spend), evening framing."""
+    return {"ok": True, "config": daily_recap.config(),
+            "text": daily_recap.build_text(_gather_brief_stats())}
+
+
 # Daily grind auto-sync — count today's GHL activity (messages out, conversations,
 # calls) and let Scout auto-tag any offers made today. Memoized 60s (heavy scan).
 _ACT_FETCH_CAP = 80          # today-active threads we open for per-message detail
@@ -2247,6 +2278,7 @@ ROUTES = {
     "/api/toolkit/contracts/mytemplates": api_toolkit_contracts_mytemplates,
     "/api/agents/history": api_agents_history,
     "/api/brief": api_brief,
+    "/api/recap": api_recap,
     "/api/toolkit/calc/config": api_toolkit_calc_config,
     "/api/buyers/list": api_buyers_list,
     "/api/buyers/match": api_buyers_match,
@@ -2307,7 +2339,7 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", 
             "/api/toolkit/pipeline/days-in-stage",
             "/api/toolkit/contracts/list", "/api/toolkit/contracts/templates",
             "/api/toolkit/contracts/status", "/api/toolkit/contracts/mytemplates",
-            "/api/agents/history", "/api/brief",
+            "/api/agents/history", "/api/brief", "/api/recap",
             "/api/buyers/list", "/api/buyers/match", "/api/buyers/dispo",
             "/api/outbound/status", "/api/outbound/calls",
             "/api/brain/activity", "/api/style/latest", "/api/goals/today",
@@ -2656,6 +2688,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/ops/set",
                                    "/api/brief/send",
                                    "/api/brief/config",
+                                   "/api/recap/send",
+                                   "/api/recap/config",
                                    "/api/test-mode")):
             return self._send_json({"error": "unknown endpoint"}, 404)
         try:
@@ -2974,6 +3008,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = _maybe_daily_brief(force=True)
             elif parsed.path == "/api/brief/config":
                 result = daily_brief.set_config(enabled=body.get("enabled"),
+                                                hour=body.get("hour"))
+            elif parsed.path == "/api/recap/send":
+                result = _maybe_daily_recap(force=True)
+            elif parsed.path == "/api/recap/config":
+                result = daily_recap.set_config(enabled=body.get("enabled"),
                                                 hour=body.get("hour"))
             elif parsed.path == "/api/test-mode":
                 result = test_mode.update(body)

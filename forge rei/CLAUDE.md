@@ -78,6 +78,18 @@ Local UI-only run: `FORGE_MARCUS=0 FORGE_PORT=7799 python3 connector.py`
 - Marcus's drafter (`marcus_engine._ai_draft`) injects per-lead brain notes
   (`agent_context.brain_context`) — every draft path (taps, Speed-to-Lead,
   ACE) speaks with vault context + the voice scrub.
+- **Seller-reply doctrine (all draft paths):** `_ai_draft` loads the decision rubric
+  `Skills/seller-reply-playbook.md` in full (`_load_reply_rubric`, mtime-cached, injected
+  FIRST so it's never truncated) + the voice playbook, and the system prompt enforces:
+  adapt to the seller's actual message, drive to a quick call, **never a price/offer/number
+  by text**. Code backstop `_no_price_over_text` (`_PRICE_RE`) runs on every draft (Claude +
+  template) and swaps any leaked figure for `_PRICE_FALLBACK` (a call-pivot), logging a
+  `price_guard` event. Approval gate unchanged — drafts are still proposals.
+- **New-lead flag:** `_mark_seen`/`seen_contacts.jsonl` → first-ever proposal per contact
+  sets `newLead:true` + bus `new_lead:true`; the Telegram ping headline gets 🆕.
+- **Daily brief + recap:** `daily_brief.py` / `daily_recap.py` — box scheduler
+  `_brief_scheduler_forever` ticks both (`_maybe_daily_brief` + `_maybe_daily_recap`),
+  `/api/brief*` + `/api/recap*`, mobile More sheets.
 
 ## Hard rules (recap — full text in `../CLAUDE.md`)
 

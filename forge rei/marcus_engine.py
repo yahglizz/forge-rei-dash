@@ -30,6 +30,8 @@ STATE_DIR = HERE / "marcus_state"
 STATE_DIR.mkdir(exist_ok=True)
 PROPOSALS_LOG = STATE_DIR / "proposals.jsonl"
 HANDLED_LOG = STATE_DIR / "handled.jsonl"
+SEEN_CONTACTS_LOG = STATE_DIR / "seen_contacts.jsonl"  # contactIds we've ever proposed for
+                                                       # → first-contact = 🆕 new-lead speed ping
 CONFIG_FILE = STATE_DIR / "config.json"  # toggle state, survives restart
 
 # --- locate Marcus's wholesale toolkit so we reuse his real classifier --------
@@ -273,6 +275,7 @@ class MarcusEngine:
         self.proposals = {}          # id -> proposal (pending only)
         self.activity = []           # recent events (ring buffer)
         self.handled = set()         # conversation:lastMessageDate keys
+        self.seen_contacts = set()   # contactIds we've proposed for → first time = new lead
         self.counts = {"proposed": 0, "sent": 0, "suppressed": 0, "dismissed": 0}
         self.anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or self._key_from_env_file()
         self._load_config()  # restore enabled/auto_send toggles from last run
@@ -336,6 +339,10 @@ class MarcusEngine:
             for line in HANDLED_LOG.read_text().splitlines():
                 if line.strip():
                     self.handled.add(line.strip())
+        if SEEN_CONTACTS_LOG.exists():
+            for line in SEEN_CONTACTS_LOG.read_text().splitlines():
+                if line.strip():
+                    self.seen_contacts.add(line.strip())
         if PROPOSALS_LOG.exists():
             # Append-only log -> last write per id wins; keep only still-pending.
             latest = {}
@@ -358,6 +365,19 @@ class MarcusEngine:
     def _persist_handled(self, key):
         with open(HANDLED_LOG, "a") as f:
             f.write(key + "\n")
+
+    def _mark_seen(self, contact_id):
+        """Record a contactId as seen; return True the FIRST time (a brand-new lead)."""
+        cid = (contact_id or "").strip()
+        if not cid or cid in self.seen_contacts:
+            return False
+        self.seen_contacts.add(cid)
+        try:
+            with open(SEEN_CONTACTS_LOG, "a") as f:
+                f.write(cid + "\n")
+        except Exception:
+            pass
+        return True
 
     def _log(self, kind, text, extra=None):
         ev = {"ts": int(time.time() * 1000), "kind": kind, "text": text}
@@ -387,6 +407,30 @@ class MarcusEngine:
         except Exception:
             return ""
 
+    def _load_reply_rubric(self):
+        """The seller-reply DECISION rubric the drafter must read every time: adapt to the
+        seller, never a price/offer by text, always drive to a quick call, stand your ground.
+        Loaded in FULL (short + non-negotiable) and injected uncapped, separate from the
+        [:1500]-sliced voice playbook so the hard rule is never truncated away. mtime-cached."""
+        try:
+            import brain_io
+            p = brain_io.VAULT / "Skills" / "seller-reply-playbook.md"
+            if not p.is_file():
+                return ""
+            sig = p.stat().st_mtime
+            if getattr(self, "_rr_mtime", None) != sig:
+                txt = p.read_text(errors="ignore")
+                # strip the yaml frontmatter — the model wants the body, not metadata
+                if txt.startswith("---"):
+                    end = txt.find("\n---", 3)
+                    if end != -1:
+                        txt = txt[end + 4:]
+                self._rr_text = txt.strip()
+                self._rr_mtime = sig
+            return self._rr_text
+        except Exception:
+            return ""
+
     @staticmethod
     def _scrub_voice(text, seller_said=""):
         """Deterministic voice guard on every draft: Yahjair never uses em-dashes,
@@ -400,6 +444,41 @@ class MarcusEngine:
         out = out.replace(" ,", ",").replace(",.", ".").replace("..", ".")
         return " ".join(out.split())
 
+    # Detect a price/offer leaking into OUR outgoing draft. Only MONETARY shapes — kept tight
+    # so his real voice ("100%", "5 min", "0 fees", "3 bed 2 bath") never false-triggers:
+    #   $ figure ($40, $40k, $40,000) · comma-thousands (40,000) · Nk/N grand/N thousand ·
+    #   an offer verb immediately followed by a 2+ digit number (give you 40, offer 40k).
+    # Runs on OUR text only — the seller's own stated number is never scrubbed.
+    _PRICE_RE = re.compile(
+        r"\$\s*\d[\d,]*(\.\d+)?\s*(k|grand|thousand)?"
+        r"|\b\d{1,3}(,\d{3})+\b"
+        r"|\b\d{1,4}\s*(k\b|grand|thousand)"
+        r"|\b(offer|offering|give you|gave you|pay you|get you|can do|could do)\s+\$?\s*\d{2,}",
+        re.IGNORECASE,
+    )
+    # A safe, on-voice fallback that pivots any price talk back to the call — no number.
+    _PRICE_FALLBACK = (
+        "honestly i dont wanna throw out a random number and waste your time, "
+        "you deserve an accurate offer not a lowball, whats a good time for a quick call "
+        "today so i can get you a real one"
+    )
+
+    def _no_price_over_text(self, text, cls=None):
+        """Hard boundary enforced in CODE, not just the prompt: an agent NEVER sends a
+        price/offer/number by text (operator rule — the offer lives on the call). If a draft
+        leaks a figure, swap the whole reply for the call-pivot fallback and log it. Returns
+        (safe_text, leaked_bool)."""
+        if not text:
+            return text, False
+        if self._PRICE_RE.search(text):
+            try:
+                self._log("price_guard", f"Blocked a texted number in a {cls or '?'} draft "
+                          f"— swapped to call-pivot: \"{text[:80]}\"", {})
+            except Exception:
+                pass
+            return self._PRICE_FALLBACK, True
+        return text, False
+
     def _ai_draft(self, first, cls, body, history, hint=None):
         """Claude-written reply if a key is present; else Marcus's template.
 
@@ -408,7 +487,9 @@ class MarcusEngine:
         seller_said = body or ""
 
         def _template_reply():
-            return self._scrub_voice(draft_reply(first, cls), seller_said=seller_said)
+            t = self._scrub_voice(draft_reply(first, cls), seller_said=seller_said)
+            t, _ = self._no_price_over_text(t, cls)   # never a number by text — even in a template
+            return t
 
         if not self.anthropic_key:
             return _template_reply(), "template"
@@ -417,20 +498,36 @@ class MarcusEngine:
             "(the human is Yahjair). Write ONE short, warm, natural SMS reply to a "
             "property seller. 1-2 sentences, no greeting fluff, sound like a real "
             f"person texting. The seller's message classified as {cls}. "
-            "Goal: keep them engaged toward a phone call and a cash offer. "
-            "Do not invent specific prices or addresses. Output only the SMS text.\n\n"
+            "REPLY TO WHAT THE SELLER ACTUALLY SAID — mirror their message, answer their real "
+            "question or objection, don't send a canned line. Short, simple, straightforward, "
+            "powerful.\n"
+            "THE ONE JOB: drive to a quick phone call. The call is where the offer is given "
+            "(by a human, on the phone). Your text exists to get them on that call.\n"
+            "HARD RULE — NEVER a price/offer over text: do NOT state, negotiate, hint at, or "
+            "invent ANY dollar amount, range, or number as an offer (no '$40k', '40,000', "
+            "'around 40', 'i can give you...'). If the seller asks for a number, acknowledge "
+            "it honestly, say you want to give them a REAL accurate offer not a random guess, "
+            "and ask for a quick call. If they push again, stand your ground — deflect a "
+            "different natural way, still no number. Never invent addresses either. "
+            "Output only the SMS text.\n\n"
             "TEXT EXACTLY LIKE YAHJAIR — this matters:\n"
             "- all lowercase, casual, like thumb-typing fast\n"
             "- NO em-dashes (—), NO semicolons, NO exclamation marks, NO fancy punctuation\n"
             "- minimal commas; skip the comma if a text would still read fine\n"
             "- no corporate/AI tone, no 'I hope this finds you well', no buzzwords\n"
             "- short. one breath. a real person, not a script.\n"
-            "The WEEKLY PLAYBOOK below is how Yahjair actually texts — copy that voice."
+            "The PLAYBOOKS below are how Yahjair actually texts — copy that voice + follow the rules."
         )
+        # The seller-reply DECISION rubric (adapt + never price + push to call + stand ground).
+        # Injected in FULL and FIRST so the hard rule is never truncated — this governs WHAT to say.
+        rubric = self._load_reply_rubric()
+        if rubric:
+            sys_prompt += ("\n\n=== SELLER-REPLY PLAYBOOK (read before drafting — follow it) ===\n"
+                           + rubric)
         # Closed learning loop: fold in the weekly playbook the review agent maintains.
         playbook = self._load_playbook()
         if playbook:
-            sys_prompt += ("\n\nWEEKLY PLAYBOOK (learned from past messages — follow it):\n"
+            sys_prompt += ("\n\nWEEKLY VOICE PLAYBOOK (learned from past messages — copy the voice):\n"
                            + playbook[:1500])
         # Brain: pull relevant vault notes (voice, closing plays, seller psychology) for
         # THIS seller/thread — same per-lead injection Marcus-screening and Atlas already do.
@@ -477,7 +574,9 @@ class MarcusEngine:
                 pass
             text = "".join(b.get("text", "") for b in data.get("content", [])).strip()
             text = self._scrub_voice(text, seller_said=body or "")
-            return (text or _template_reply()), "claude"
+            # Hard boundary in code: if the model leaked a number, swap for the call-pivot.
+            text, leaked = self._no_price_over_text(text, cls)
+            return (text or _template_reply()), ("price_guard" if leaked else "claude")
         except urllib.error.HTTPError as e:
             # str(e) is just "HTTP Error 400: Bad Request" — read the body so
             # last_error shows the real Anthropic reason (e.g. low credit balance).
@@ -557,6 +656,10 @@ class MarcusEngine:
                 reply, source = CANNED_NRN_REPLY, "canned"
             else:
                 reply, source = self._ai_draft(first, cls, body, None, hint=hint)
+            # Speed-to-lead: first time we've EVER proposed for this contact = a brand-new
+            # lead entering the funnel. Flag it so the Telegram ping shouts 🆕 (reply fast).
+            # A re-engage (hint) is by definition an old lead, never "new".
+            is_new = (not hint) and self._mark_seen(c.get("contactId"))
             pid = f"p_{c.get('id')}_{c.get('lastMessageDate')}"
             proposal = {
                 "id": pid,
@@ -574,6 +677,7 @@ class MarcusEngine:
                 "draftSource": source,
                 "unread": c.get("unreadCount") or 0,
                 "reengage": bool(hint),
+                "newLead": bool(is_new),
             }
             self.proposals[pid] = proposal
             self._persist_proposal(proposal)
@@ -582,10 +686,11 @@ class MarcusEngine:
             if cls not in ("NRN", "DNC"):
                 try:
                     import agent_bus
+                    lead_tag = "🆕 NEW LEAD — reply fast. " if is_new else ""
                     agent_bus.send("marcus", "all", "alert",
-                        f"✅ Reply ready for {full or 'a seller'} ({cls}) — review to send.",
+                        f"{lead_tag}✅ Reply ready for {full or 'a seller'} ({cls}) — review to send.",
                         {"type": "proposal", "pid": pid, "convId": c.get("id"), "contactId": c.get("contactId"),
-                         "name": full or "(unknown)", "cls": cls,
+                         "name": full or "(unknown)", "cls": cls, "new_lead": bool(is_new),
                          "inbound": body, "reply": reply})
                 except Exception:
                     pass

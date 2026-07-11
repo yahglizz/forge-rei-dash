@@ -54,6 +54,7 @@ Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
 6. **Decide, don't quiz me.** On design forks, recommend + reason and proceed; don't hand me multiple-choice cards. Ask only when it's genuinely my call (branding, money, live-system policy).
 7. **Direct + specific.** Expert advice, real numbers, no fluff.
 8. **Keep proposing.** After finishing, propose the next high-leverage build.
+9. **Seller auto-replies: adapt, then push to the call — NEVER a price by text.** Before drafting ANY text-back to a seller, Marcus reads the brain skills — `Skills/seller-reply-playbook.md` (the decision rubric: adapt to exactly what the seller said, short/simple/straightforward/powerful, one job = get them on a quick call, stand your ground), `Skills/wholesale-seller-texter.md` (voice), and `Skills/closing-plays.md` — plus the per-lead brain notes. Every reply is tailored to the seller's actual message, not a canned line. **An agent NEVER states, negotiates, hints at, or invents a price/offer/number over text — ever.** The offer is given by a human, on a phone call; the text exists only to get them on that call. If a seller asks for a number, the agent acknowledges it and pivots to a quick call; if they push again, it holds the line a different way. This is enforced in the prompt AND in code (`marcus_engine._no_price_over_text` swaps any drafted figure for a call-pivot before it ever reaches you). **Approval gate stays ON** — every seller reply is still a proposal you approve; this rule governs draft QUALITY + the price boundary, not autonomy. Flip auto-send on only when you decide the drafts are ready.
 
 *(Add your own rules below this line — they carry the same weight.)*
 
@@ -111,7 +112,7 @@ This is a hard operating principle for Claude AND the agents:
 | Agent | Side | Job | Autonomy |
 |-------|------|-----|----------|
 | **Scout** (`scout_triage.py`) | REI | **FINDS + RANKS + ORGANIZES** every seller reply: scores motivation, buckets (asap/warm/nurture/dead), tags + pipeline, flags hot, weekly missed-leads audit. **Auto-hands call-worthy leads (asap/warm) to Marcus.** | Never texts. Tags/pipeline queued for approval. Self-improves. |
-| **Marcus** (`marcus_screening.py`) | REI | **SCREENS** each interested / "not ready" seller → call-ready report (score, missing-info, red flags, call-prep, path-to-contract) + for not-ready a comfort/check-back draft in your voice. **Auto-screens what Scout flags.** | Never closes/negotiates/quotes price. You call; you one-tap send the nurture check-back. Self-improves. Legacy SMS responder (`marcus_engine.py`) OFF by default — set `FORGE_MARCUS_SMS=1` to re-enable. |
+| **Marcus** (`marcus_screening.py`) | REI | **SCREENS** each interested / "not ready" seller → call-ready report (score, missing-info, red flags, call-prep, path-to-contract) + for not-ready a comfort/check-back draft in your voice. **Auto-screens what Scout flags.** Also the **seller text-back drafter** (`marcus_engine._ai_draft`): reads `Skills/seller-reply-playbook.md` + voice skills, tailors every reply to the seller's actual message, and **never puts a price/offer in a text — always pivots to a call** (code-enforced via `_no_price_over_text`). | Never closes/negotiates/quotes price by text. Every reply is a PROPOSAL you approve (gate stays on). You call; you one-tap send. Self-improves. Legacy SMS auto-responder OFF by default — `FORGE_MARCUS_SMS=1` to re-enable. |
 | **Atlas** (`deal_prep.py`) | REI | **UNDERWRITES** every screened-interested seller: extracts facts from the thread, derives offer anchors (open/target/walkaway) from the SELLER'S stated ask, spells out the MAO math + what comps to pull, writes the negotiation call card. Auto-preps every 15 min. | Never contacts anyone. Prep numbers are INTERNAL — never sent to a seller. Reports to Marcus. |
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
@@ -192,6 +193,14 @@ update that skill if you improved the pattern.
   (box-only, `FORGE_MARCUS` gate; no public port). Creds in git-ignored
   `forge-telegram/config/telegram.env`. API: `/api/notify/{settings,test}`. Bus tap =
   `agent_bus.register_notifier`. Settings card in the Command Center.
+- **New-lead speed ping:** the first time Marcus ever proposes for a contact (tracked in
+  `marcus_state/seen_contacts.jsonl`) the Telegram ping leads with **🆕 NEW LEAD — reply fast**
+  so a fresh seller entering the funnel stands out from an ongoing thread. Re-engages never flag.
+- **Daily brief + end-of-day recap** (run-from-anywhere Telegram pulses, box-scheduled):
+  `daily_brief.py` (morning, `/api/brief{,/send,/config}`) and `daily_recap.py` (evening
+  close-the-loops, `/api/recap{,/send,/config}`). Both gated by `forge_ops.paused()`, one send
+  per day past the set hour (`FORGE_TZ_OFFSET` zone), heartbeat-monitored under `daily_brief`.
+  Mobile control: More → Daily brief / End-of-day recap (toggle, hour, live preview, send-now).
 - Knobs: `FORGE_SCOUT_*` (scout.env), `AGENCY_LEARN_EVERY`, `FORGE_VAULT`, `FORGE_MARCUS`.
 - HOT-lead auto-pipeline: `FORGE_SCOUT_AUTOPIPE_HOT=1` (default on) — asap leads auto-land in the Wholesaling Pipeline Hot stage each poll (internal + reversible, same rationale as auto-tags).
 - HOT-lead auto-tag: `FORGE_SCOUT_AUTOTAG_HOT=1` (default on). Scout pushes `triage: asap`+`motivated: high` to GHL for every `asap` lead each poll (`_autotag_hot`, runs even with no new leads → backlog covered). Set `=0` to revert to approval-gated tagging.
