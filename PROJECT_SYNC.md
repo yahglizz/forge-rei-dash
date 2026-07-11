@@ -5,11 +5,11 @@
 > Append new entries under Log — never delete old ones.
 
 ## Current State
-- **Last updated:** 2026-07-11 17:05 EDT
+- **Last updated:** 2026-07-11 18:10 EDT
 - **Last updated by:** Claude
 - **Status:** Project is now a git repo mirrored to https://github.com/yahglizz/forge-rei-dash (public). `deploy/push.sh` auto-commits + pushes to GitHub after every healthy deploy, so the repo always matches the live box. Box deploy path remains rsync via push.sh; the old `yahglizz/os` box cron pull (`/opt/forge/git-sync.sh`, every 60s) is dormant legacy.
-- **Known issues:** `/tmp/valjsx.js` is absent; validation used the repository's `deploy/valjsx.js` helper used by deployment. Box git-sync cron still points at frozen `yahglizz/os` — harmless no-op but should be repointed or removed (audit item).
-- **Next up:** Adversarial end-to-end review (grill-me-codex) of the whole app + box wiring; findings ledger will assign each fix an owner (Claude vs Codex).
+- **Known issues:** `/tmp/valjsx.js` is absent; validation used the repository's `deploy/valjsx.js` helper used by deployment. (resolved 2026-07-11 18:00: box git-sync cron, script, and token-embedded `os` remote removed — F9.)
+- **Next up:** Audit CLOSED — 8/8 findings fixed, deployed, live-verified (see AUDIT-PLAN.md + PLAN-REVIEW-LOG.md). Remaining operator switches unchanged (FORGE_BLAST_LIVE, DocuSign prod/rotation).
 
 ## Log
 
@@ -55,3 +55,12 @@
 **Why:** Operator asked for the app to live on GitHub and stay always up to date with the deployed box.
 **Result:** Initial push + first auto-mirror both verified (`c5a82fd..5677c67`). Secret scan before push: only placeholder `.env.example` values are tracked; `*.env`, `marcus_state/`, vault, and 318MB sibling `marcus-wholesale-agent/` are git-ignored. Deploy health gate passed.
 **Follow-up needed:** Repo is PUBLIC — operator should confirm or flip to private. Box cron `/opt/forge/git-sync.sh` still pulls frozen `yahglizz/os` every 60s (dormant no-op) — repoint or remove during the audit.
+
+---
+
+### 2026-07-11 18:10 EDT — Claude + Codex — Fix all 8 audit findings, deploy, live-verify
+**Changed:** `forge rei/connector.py`, `forge rei/deploy/push.sh`, `forge rei/toolkit_contracts.py`, `forge rei/test_toolkit_contracts.py`, `forge rei/pages.jsx`, `forge rei/review_agent.py`, `forge rei/mobile/m_api.jsx`, `forge rei/mobile/m_agents.jsx`, box crontab/remote (F9), `AUDIT-PLAN.md`, `PLAN-REVIEW-LOG.md`
+**What:** Shipped the full audit ledger: shared agent thread now honored by desktop (history load) and Telegram (store-first); deploy gate validates mobile JSX; quick_send writes the ledger row before DocuSign; _claude handles pause_turn; useApiM stale-fetch guard; mobile roster merges dynamic agents; legacy box git-sync retired.
+**Why:** grill-me-codex audit converged (3 rounds, APPROVED); operator gave the one sign-off.
+**Result:** 68 py ast-clean, all JSX valjsx-clean, 13 suites green (contracts 20 tests). Health gate passed. Live-fire: Telegram ping ok, agent-chat history round-trip ok, sandbox envelope sent→voided through the new pending→sent path, live ARV ok, /api/agents/list serves 10 agents.
+**Follow-up needed:** None for the audit. Shared-API note: /api/agents/history is now consumed by desktop AND mobile; keep its shape stable.
