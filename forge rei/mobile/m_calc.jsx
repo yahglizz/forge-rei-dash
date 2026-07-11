@@ -11,7 +11,6 @@ const MK_PRESETS = [
   { label: "Full gut", amt: 90000, hint: "down to studs" },
 ];
 const MK_TIER_LABEL = { light: "Light", moderate: "Moderate", heavy: "Heavy", full_gut: "Full gut" };
-const MK_MODES = [["subto", "Sub-To"], ["sellerfi", "Seller finance"], ["novation", "Novation"]];
 
 function MKNum(v) { const x = parseFloat(v); return isNaN(x) ? 0 : x; }
 
@@ -51,10 +50,6 @@ function MCalcPage() {
   // ---- Toolkit state (same field names as toolkit_calc.jsx) ----
   const [sqft, setSqft] = useStateMK("");
   const [tier, setTier] = useStateMK("");
-  const [mode, setMode] = useStateMK("subto");
-  const [st, setSt] = useStateMK({ piti: "", rent: "", balance: "", entryFee: "", arrears: "", closingCosts: "" });
-  const [sf, setSf] = useStateMK({ price: "", down: "", ratePct: "6", termYears: "30", balloonYears: "" });
-  const [nv, setNv] = useStateMK({ sellerPrice: "", sellCostPct: "8" });
   const [view, setView] = useStateMK("internal");
   const [buyerPrice, setBuyerPrice] = useStateMK("");
   const [holding, setHolding] = useStateMK("");
@@ -99,31 +94,24 @@ function MCalcPage() {
     else verdict = { t: "PASS", c: "#EF4444", msg: `They're ${M(askN - mao)} over max. Don't chase it.` };
   }
 
-  // ---- ONE debounced eval covering repair / creative / views cards ----
+  // ---- ONE debounced eval covering repair + deal-views cards ----
   const evalBody = () => ({
     arv, repairs, fee, pct, asking, sqft, tier, buyerPrice, holding,
-    subto: st, sellerFinance: sf, novation: nv,
   });
   useEffectMK(() => {
     if (evalTimerMK.current) clearTimeout(evalTimerMK.current);
-    const hasAny = arvN > 0 || (MKNum(sqft) > 0 && tier) || MKNum(st.piti) > 0 ||
-      MKNum(sf.price) > 0 || MKNum(nv.sellerPrice) > 0;
+    const hasAny = arvN > 0 || (MKNum(sqft) > 0 && tier);
     if (!hasAny) { setRes({}); setEvalErr(null); return; }
     evalTimerMK.current = setTimeout(async () => {
       try { setRes(await window.apiPostM("/api/toolkit/calc/eval", evalBody())); setEvalErr(null); }
       catch (e) { setEvalErr(e.message || "calc server unreachable"); }
     }, 400);
     return () => clearTimeout(evalTimerMK.current);
-  }, [arv, repairs, fee, pct, asking, sqft, tier, buyerPrice, holding, st, sf, nv]);
+  }, [arv, repairs, fee, pct, asking, sqft, tier, buyerPrice, holding]);
 
   const rep = res.repair && !res.repair.error ? res.repair : null;
-  const sub = res.subto && !res.subto.error ? res.subto : null;
-  const fin = res.sellerFinance && !res.sellerFinance.error ? res.sellerFinance : null;
-  const nov = res.novation && !res.novation.error ? res.novation : null;
   const itn = res.internal || null;
   const byr = res.buyer && !res.buyer.error ? res.buyer : null;
-  const setK = (setter) => (k) => (v) => setter((p) => ({ ...p, [k]: v }));
-  const stK = setK(setSt), sfK = setK(setSf), nvK = setK(setNv);
 
   // ---- Contact search (debounced 350ms, phone-only results — desktop parity) ----
   useEffectMK(() => {
@@ -383,96 +371,7 @@ function MCalcPage() {
           </div>
         </window.MCard>
 
-        {/* ---- 3. Creative finance ---- */}
-        <window.MCard title="Creative finance">
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div className="m-seg">
-              {MK_MODES.map(([k, lbl]) => (
-                <window.MChip key={k} active={mode === k} onClick={() => setMode(k)}>{lbl}</window.MChip>
-              ))}
-            </div>
-            {mode === "subto" && (
-              <React.Fragment>
-                <div style={grid2}>
-                  {MKIn("Monthly PITI ($)", st.piti, stK("piti"))}
-                  {MKIn("Market rent ($)", st.rent, stK("rent"))}
-                </div>
-                <div style={grid2}>
-                  {MKIn("Loan balance ($)", st.balance, stK("balance"))}
-                  {MKIn("Cash to seller ($)", st.entryFee, stK("entryFee"))}
-                </div>
-                <div style={grid2}>
-                  {MKIn("Arrears ($)", st.arrears, stK("arrears"))}
-                  {MKIn("Closing costs ($)", st.closingCosts, stK("closingCosts"))}
-                </div>
-                {evalDown}
-                {!evalErr && sub && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8 }}>
-                    {MKRow("Entry cash", M(sub.entryCash))}
-                    {MKRow("Monthly cash flow", M(sub.monthlyFlow), { bold: true, color: sub.monthlyFlow >= 0 ? "var(--green, #22C55E)" : "var(--red, #EF4444)" })}
-                    {MKRow("Annual", M(sub.annualFlow))}
-                    {sub.cashOnCash != null && MKRow("Cash-on-cash", sub.cashOnCash + "%", { bold: true, color: "var(--green, #22C55E)" })}
-                  </div>
-                )}
-                {!evalErr && !sub && res.subto && res.subto.error && (
-                  <div style={{ fontSize: 12.5, color: "var(--red, #EF4444)" }}>{res.subto.error}</div>
-                )}
-                {!evalErr && !res.subto && <div className="m-fade">Enter the monthly PITI to run the sub-to numbers.</div>}
-              </React.Fragment>
-            )}
-            {mode === "sellerfi" && (
-              <React.Fragment>
-                <div style={grid2}>
-                  {MKIn("Price ($)", sf.price, sfK("price"))}
-                  {MKIn("Down ($)", sf.down, sfK("down"))}
-                </div>
-                <div style={grid2}>
-                  {MKIn("Rate (%)", sf.ratePct, sfK("ratePct"), { inputMode: "decimal" })}
-                  {MKIn("Term (years)", sf.termYears, sfK("termYears"))}
-                </div>
-                {MKIn("Balloon (years)", sf.balloonYears, sfK("balloonYears"), { placeholder: "none" })}
-                {evalDown}
-                {!evalErr && fin && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8 }}>
-                    {MKRow("Note amount", M(fin.loan))}
-                    {MKRow("Monthly payment", M(fin.monthly), { bold: true, color: "var(--blue, #4F7CFF)" })}
-                    {MKRow("Total interest", M(fin.totalInterest))}
-                    {fin.balloonBalance != null && MKRow(`Balloon @ ${Math.round(fin.balloonMonths / 12)}yr`, M(fin.balloonBalance), { bold: true, color: "var(--orange, #F59E0B)" })}
-                  </div>
-                )}
-                {!evalErr && !fin && res.sellerFinance && res.sellerFinance.error && (
-                  <div style={{ fontSize: 12.5, color: "var(--red, #EF4444)" }}>{res.sellerFinance.error}</div>
-                )}
-                {!evalErr && !res.sellerFinance && <div className="m-fade">Enter a price to amortize the seller-carry note.</div>}
-              </React.Fragment>
-            )}
-            {mode === "novation" && (
-              <React.Fragment>
-                <div style={grid2}>
-                  {MKIn("Seller nets ($)", nv.sellerPrice, nvK("sellerPrice"))}
-                  {MKIn("Selling costs (%)", nv.sellCostPct, nvK("sellCostPct"), { inputMode: "decimal" })}
-                </div>
-                <div className="m-fade">Uses ARV + repairs from the MAO card above.</div>
-                {evalDown}
-                {!evalErr && nov && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8 }}>
-                    {MKRow("ARV − repairs − costs", M(nov.arv - nov.repairs - nov.sellingCosts))}
-                    {MKRow("Seller nets", "−" + M(nov.sellerPrice), { color: "var(--red, #EF4444)" })}
-                    {MKRow("Novation profit", M(nov.profit), { bold: true, color: nov.profit >= 0 ? "var(--green, #22C55E)" : "var(--red, #EF4444)" })}
-                    {nov.vsWholesale != null && MKRow("vs wholesale fee", (nov.vsWholesale >= 0 ? "+" : "") + M(nov.vsWholesale),
-                      { color: nov.vsWholesale >= 0 ? "var(--green, #22C55E)" : "var(--red, #EF4444)" })}
-                  </div>
-                )}
-                {!evalErr && !nov && res.novation && res.novation.error && (
-                  <div style={{ fontSize: 12.5, color: "var(--red, #EF4444)" }}>{res.novation.error}</div>
-                )}
-                {!evalErr && !res.novation && <div className="m-fade">Enter what the seller nets to compare vs your wholesale fee.</div>}
-              </React.Fragment>
-            )}
-          </div>
-        </window.MCard>
-
-        {/* ---- 4. Deal views (internal vs buyer — fee never shown to buyer) ---- */}
+        {/* ---- 3. Deal views (internal vs buyer — fee never shown to buyer) ---- */}
         <window.MCard title="Deal views" right={
           <div style={{ display: "flex", gap: 6 }}>
             <window.MChip active={view === "internal"} onClick={() => setView("internal")}>Internal</window.MChip>

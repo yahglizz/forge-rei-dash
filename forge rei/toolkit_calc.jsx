@@ -41,11 +41,6 @@ function TkCalcPanels(props) {
   const [rates, setRates] = useStateTk(null);
   const [rateDraft, setRateDraft] = useStateTk({});
   const [showRates, setShowRates] = useStateTk(false);
-  // creative finance
-  const [mode, setMode] = useStateTk("subto");
-  const [st, setSt] = useStateTk({ piti: "", rent: "", balance: "", entryFee: "", arrears: "", closingCosts: "" });
-  const [sf, setSf] = useStateTk({ price: "", down: "", ratePct: "6", termYears: "30", balloonYears: "" });
-  const [nv, setNv] = useStateTk({ sellerPrice: "", sellCostPct: "8" });
   // dual view
   const [view, setView] = useStateTk("internal");
   const [buyerPrice, setBuyerPrice] = useStateTk("");
@@ -70,7 +65,6 @@ function TkCalcPanels(props) {
   const bodyTk = () => ({
     arv: props.arv, repairs: props.repairs, fee: props.fee, pct: props.pct,
     asking: props.asking, sqft, tier, buyerPrice, holding,
-    subto: st, sellerFinance: sf, novation: nv,
   });
 
   useEffectTk(() => {
@@ -81,7 +75,7 @@ function TkCalcPanels(props) {
     }, 400);
     return () => clearTimeout(timerTk.current);
   }, [props.arv, props.repairs, props.fee, props.pct, props.asking,
-      sqft, tier, buyerPrice, holding, st, sf, nv]);
+      sqft, tier, buyerPrice, holding]);
 
   async function saveRates() {
     try {
@@ -101,13 +95,8 @@ function TkCalcPanels(props) {
   }
 
   const rep = res.repair && !res.repair.error ? res.repair : null;
-  const sub = res.subto && !res.subto.error ? res.subto : null;
-  const fin = res.sellerFinance && !res.sellerFinance.error ? res.sellerFinance : null;
-  const nov = res.novation && !res.novation.error ? res.novation : null;
   const itn = res.internal || null;
   const byr = res.buyer && !res.buyer.error ? res.buyer : null;
-  const setK = (setter) => (k) => (v) => setter((p) => ({ ...p, [k]: v }));
-  const stK = setK(setSt), sfK = setK(setSf), nvK = setK(setNv);
 
   // AI ARV — Claude + web search comps for the address (~20-60s round trip).
   async function tkFindArv() {
@@ -211,78 +200,6 @@ function TkCalcPanels(props) {
           </div>
         ) : (
           <div className="faint" style={{ fontSize: 12 }}>Enter sqft + pick a condition tier.</div>
-        )}
-      </div>
-
-      {/* ---- Creative finance ---- */}
-      <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-          <Icons.Dollar size={15} /> Creative finance
-        </div>
-        <div style={{ display: "flex", gap: 7 }}>
-          {[["subto", "Sub-To"], ["sellerfi", "Seller finance"], ["novation", "Novation"]].map(([k, lbl]) => (
-            <button key={k} className={"tab" + (mode === k ? " active" : "")} onClick={() => setMode(k)} style={{ fontSize: 12 }}>{lbl}</button>
-          ))}
-        </div>
-        {mode === "subto" && (
-          <React.Fragment>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {TkIn("Monthly PITI", st.piti, stK("piti"), { prefix: "$" })}
-              {TkIn("Market rent", st.rent, stK("rent"), { prefix: "$" })}
-              {TkIn("Loan balance", st.balance, stK("balance"), { prefix: "$" })}
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {TkIn("Cash to seller", st.entryFee, stK("entryFee"), { prefix: "$" })}
-              {TkIn("Arrears", st.arrears, stK("arrears"), { prefix: "$" })}
-              {TkIn("Closing costs", st.closingCosts, stK("closingCosts"), { prefix: "$" })}
-            </div>
-            {sub && (
-              <div style={{ ...TK_BOX, display: "flex", flexDirection: "column", gap: 6 }}>
-                {TkRow("Entry cash", M(sub.entryCash))}
-                {TkRow("Monthly cash flow", M(sub.monthlyFlow), { bold: true, color: sub.monthlyFlow >= 0 ? "var(--green)" : "var(--red)" })}
-                {TkRow("Annual", M(sub.annualFlow))}
-                {sub.cashOnCash != null && TkRow("Cash-on-cash", sub.cashOnCash + "%", { bold: true, color: "var(--green)" })}
-              </div>
-            )}
-          </React.Fragment>
-        )}
-        {mode === "sellerfi" && (
-          <React.Fragment>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {TkIn("Price", sf.price, sfK("price"), { prefix: "$" })}
-              {TkIn("Down", sf.down, sfK("down"), { prefix: "$" })}
-            </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {TkIn("Rate", sf.ratePct, sfK("ratePct"), { suffix: "%" })}
-              {TkIn("Term (years)", sf.termYears, sfK("termYears"), { suffix: "yr" })}
-              {TkIn("Balloon (years)", sf.balloonYears, sfK("balloonYears"), { suffix: "yr", placeholder: "none" })}
-            </div>
-            {fin && (
-              <div style={{ ...TK_BOX, display: "flex", flexDirection: "column", gap: 6 }}>
-                {TkRow("Note amount", M(fin.loan))}
-                {TkRow("Monthly payment", M(fin.monthly), { bold: true, color: "var(--blue)" })}
-                {TkRow("Total interest", M(fin.totalInterest))}
-                {fin.balloonBalance != null && TkRow(`Balloon @ ${Math.round(fin.balloonMonths / 12)}yr`, M(fin.balloonBalance), { bold: true, color: "var(--orange)" })}
-              </div>
-            )}
-          </React.Fragment>
-        )}
-        {mode === "novation" && (
-          <React.Fragment>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {TkIn("Seller nets", nv.sellerPrice, nvK("sellerPrice"), { prefix: "$" })}
-              {TkIn("Selling costs", nv.sellCostPct, nvK("sellCostPct"), { suffix: "%" })}
-            </div>
-            <div className="faint" style={{ fontSize: 11.5 }}>Uses ARV + repairs from the calculator above.</div>
-            {nov && (
-              <div style={{ ...TK_BOX, display: "flex", flexDirection: "column", gap: 6 }}>
-                {TkRow("ARV − repairs − costs", M(nov.arv - nov.repairs - nov.sellingCosts))}
-                {TkRow("Seller nets", "−" + M(nov.sellerPrice), { color: "var(--red)" })}
-                {TkRow("Novation profit", M(nov.profit), { bold: true, color: nov.profit >= 0 ? "var(--green)" : "var(--red)" })}
-                {nov.vsWholesale != null && TkRow("vs wholesale fee", (nov.vsWholesale >= 0 ? "+" : "") + M(nov.vsWholesale), { color: nov.vsWholesale >= 0 ? "var(--green)" : "var(--red)" })}
-              </div>
-            )}
-          </React.Fragment>
         )}
       </div>
 
