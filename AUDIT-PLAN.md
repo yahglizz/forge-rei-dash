@@ -83,7 +83,7 @@ owner; fixes ship only after the operator's single sign-off.
   and runs marcus engine paths — in scope for wiring checks, low priority.
 - Mobile PWA served from box only via Tailscale; no public exposure expected anywhere.
 
-## Findings ledger (Round 1 — accepted items awaiting operator sign-off)
+## Findings ledger (ALL FIXED + deployed + live-verified 2026-07-11)
 | # | Sev | Where | Defect | Owner | Why owner |
 |---|-----|-------|--------|-------|-----------|
 | F2 | med | pages.jsx (REI agents chat) | Desktop never loads `/api/agents/history` — shared thread invisible on desktop | Codex | self-contained JSX fix, Claude reviews + deploys |

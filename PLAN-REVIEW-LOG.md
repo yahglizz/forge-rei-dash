@@ -133,3 +133,34 @@ VERDICT: APPROVED
 ### Resolution
 Converged in 3 rounds. Ledger: 8 accepted findings (Claude: F3,F6,F7,F9 · Codex: F2,F4,F5,F8),
 1 rejected (F1, documented operator policy). Awaiting operator one-sign-off to fix.
+
+## Act 3 — Fixes shipped (2026-07-11)
+Operator signed off ("fix it"). Both lanes executed in parallel (disjoint files):
+
+- **Claude lane:** F3 (connector.py — Telegram always reads shared agents_history,
+  session history only as empty-store fallback), F6 (push.sh validates mobile/*.jsx),
+  F7 (quick_send persists pending ledger row BEFORE the DocuSign call; failure keeps
+  pending+sendError; success updates to sent+envelopeId; new failure-path test),
+  F9 (box: git-sync cron removed, /opt/forge/git-sync.sh deleted, token-embedded
+  `os` remote removed).
+- **Codex lane (Claude-reviewed):** F2 (pages.jsx AgentThread loads
+  /api/agents/history on mount/agent-switch + refreshes after sends), F4
+  (review_agent._claude continues pause_turn turns, max 3, telemetry per round),
+  F5 (m_api.jsx seq-counter guard kills stale-fetch overwrites), F8 (m_agents.jsx
+  merges dynamic /api/agents/list agents after the fixed five).
+
+Validation: 68 .py ast-clean, all desktop+mobile JSX valjsx-clean, 13 test suites
+green (contracts now 20 tests incl. the F7 failure path). Deployed via push.sh —
+health gate passed; GitHub mirror in sync.
+
+Live-fire proof on the box:
+- Telegram test ping delivered (messageId 268).
+- Agent chat round-trip recorded in shared history (via: dash).
+- /api/agents/list serves 3 core + 7 Retell agents (mobile roster source).
+- Quick Send end to end: template upload → DocuSign sandbox envelope
+  0b2c2266… sent to the operator's email through the NEW pending→sent ledger
+  path → voided → test template deleted.
+- Live ARV lookup ok ($240k, 5 comps, low confidence) through the new
+  pause_turn-capable client.
+
+Ledger: 8/8 fixed. Audit closed.
