@@ -439,3 +439,12 @@ Endpoints `/api/brief` (GET preview+config), `/api/brief/send` (force),
 quiet while clocked out) + `daily_brief` heartbeat (watchdog-monitored). Mobile
 More → "Daily brief" sheet (toggle, hour chips, live preview, send-now). Deployed
 + box scheduler fired a real brief; GitHub-mirrored.
+
+### 2026-07-11 — Seller auto-reply engine + recap + new-lead ping
+Agents now auto-DRAFT seller replies adapted to each message via brain rubric
+`Skills/seller-reply-playbook.md` (loaded every draft by `_ai_draft`) — short,
+simple, powerful, one job = get on a call, NEVER a price/number by text (prompt +
+code guard `_no_price_over_text`). Approval gate stays ON. Added end-of-day recap
+(`daily_recap.py`, `/api/recap*`, evening Telegram, mobile sheet) + 🆕 new-lead
+speed ping (`seen_contacts.jsonl`). Deployed 5697351..eb5d2c4, box-verified,
+GitHub-mirrored.
