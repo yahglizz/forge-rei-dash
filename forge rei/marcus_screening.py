@@ -81,6 +81,20 @@ STAGES = ["New Lead", "Needs More Info", "Follow-Up",
 STAGE_ORDER = {"Hot Lead - Call Now": 0, "Qualified - Call": 1, "Needs More Info": 2,
                "Follow-Up": 3, "New Lead": 4, "Dead Lead": 5}
 _MOTIV = {"low": "low", "med": "medium", "medium": "medium", "high": "high"}
+SAFE_NURTURE_FALLBACK = (
+    "100% no worries at all, is it ok if i check back with you in a few months"
+)
+
+
+def _safe_nurture_draft(text, seller_context=""):
+    """Never put model failure/meta/persona/price-confirmation text in the UI."""
+    cleaned = marcus_engine.MarcusEngine._scrub_voice(text or "")
+    if not cleaned:
+        return None, None
+    reason = marcus_engine._draft_safety_reason(cleaned, seller_context)
+    if reason:
+        return SAFE_NURTURE_FALLBACK, reason
+    return cleaned, None
 
 
 def _parse_obj(text):
@@ -418,13 +432,10 @@ class Screener:
         except (ValueError, TypeError):
             cb = 90 if not_ready else None
         nurture = str(obj.get("nurtureDraft") or "").strip()[:600] or None
-        if nurture:
-            # Voice guard (same as marcus_engine drafts): no em-dashes, semicolons,
-            # or exclamation marks — Yahjair never types them. (marcus_engine is a
-            # top-level import — do NOT re-import here or it shadows the module name.)
-            nurture = marcus_engine.MarcusEngine._scrub_voice(nurture)
+        seller_context = "\n".join(inbound[-8:])
+        nurture, nurture_blocked = _safe_nurture_draft(nurture, seller_context)
         if not not_ready:
-            nurture, cb = None, None
+            nurture, cb, nurture_blocked = None, None, None
         report = {
             "score": score,
             "stage": stage,
@@ -434,6 +445,8 @@ class Screener:
             "sellerPsychology": str(obj.get("sellerPsychology") or "").strip()[:600],
             "checkBackDays": cb,
             "nurtureDraft": nurture,
+            "nurtureSafety": ({"replaced": True, "reason": nurture_blocked}
+                              if nurture_blocked else None),
             "propertyStatus": str(obj.get("propertyStatus") or "unknown").strip()[:60],
             "conditionNotes": str(obj.get("conditionNotes") or "not mentioned").strip()[:400],
             "timeline": str(obj.get("timeline") or "unknown").strip()[:200],

@@ -532,6 +532,32 @@ class MarcusEngine:
         except Exception:
             return ""
 
+    def _recent_thread(self, conv_id, fallback=""):
+        """Return (recent inbound context, role-labelled history) for grounded drafts.
+        Best-effort; the central send gate repeats the read and fails closed."""
+        if not conv_id:
+            return fallback or "", []
+        try:
+            data = self.ghl_get(f"/conversations/{conv_id}/messages", {"limit": 12})
+            raw = data.get("messages", data) if isinstance(data, dict) else data
+            if isinstance(raw, dict):
+                raw = raw.get("messages", [])
+            ordered = list(reversed(raw or []))  # GHL newest-first -> oldest-first
+            inbound = [(m.get("body") or "").strip() for m in ordered
+                       if m.get("direction") == "inbound" and (m.get("body") or "").strip()]
+            history = []
+            for m in ordered[-8:]:
+                body = (m.get("body") or "").strip()
+                if body:
+                    who = "Seller" if m.get("direction") == "inbound" else "You"
+                    history.append(f"{who}: {body[:500]}")
+            return "\n".join(inbound[-8:]) or (fallback or ""), history
+        except Exception:
+            return fallback or "", []
+
+    def _recent_seller_context(self, conv_id, fallback=""):
+        return self._recent_thread(conv_id, fallback)[0]
+
     @staticmethod
     def _scrub_voice(text, seller_said=""):
         """Deterministic voice guard on every draft: Yahjair never uses em-dashes,
@@ -582,16 +608,17 @@ class MarcusEngine:
             return self._PRICE_FALLBACK, True
         return text, False
 
-    def _ai_draft(self, first, cls, body, history, hint=None):
+    def _ai_draft(self, first, cls, body, history, hint=None, seller_context=None):
         """Claude-written reply if a key is present; else Marcus's template.
 
         `hint` (optional) is Scout's recommended re-engage angle for a missed/cold lead;
         when present Marcus reopens the thread on that angle instead of a generic reply."""
         seller_said = body or ""
+        safety_context = seller_context or seller_said
 
         def _template_reply():
             t = self._scrub_voice(draft_reply(first, cls), seller_said=seller_said)
-            t, _ = self._no_price_over_text(t, cls, seller_said)
+            t, _ = self._no_price_over_text(t, cls, safety_context)
             return t
 
         if not self.anthropic_key:
@@ -678,8 +705,8 @@ class MarcusEngine:
             text = "".join(b.get("text", "") for b in data.get("content", [])).strip()
             text = self._scrub_voice(text, seller_said=body or "")
             # Hard boundary in code: if the model leaked a number, swap for the call-pivot.
-            text, leaked = self._no_price_over_text(text, cls, seller_said)
-            unsafe = _draft_safety_reason(text, seller_said)
+            text, leaked = self._no_price_over_text(text, cls, safety_context)
+            unsafe = _draft_safety_reason(text, safety_context)
             if unsafe:
                 self.last_error = f"AI draft blocked: {unsafe}"
                 self._log("draft_guard", self.last_error, {"classification": cls})
@@ -769,13 +796,16 @@ class MarcusEngine:
 
             # A hinted handoff is an operator-chosen re-engage of a cold lead — always
             # draft a real reply on Scout's angle, even if the last text reads soft-no.
+            seller_context = body
             if cls == "WRONG_NUMBER":
                 reply, source = CANNED_WRONG_NUMBER_REPLY, "canned_wrong_number"
             elif cls == "NRN" and not hint:
                 reply, source = CANNED_NRN_REPLY, "canned"
             else:
-                reply, source = self._ai_draft(first, cls, body, None, hint=hint)
-            unsafe = _draft_safety_reason(reply, body)
+                seller_context, recent_history = self._recent_thread(c.get("id"), body)
+                reply, source = self._ai_draft(first, cls, body, recent_history, hint=hint,
+                                               seller_context=seller_context)
+            unsafe = _draft_safety_reason(reply, seller_context)
             if unsafe:
                 self.last_error = f"Draft blocked before queue: {unsafe}"
                 self._log("draft_guard", self.last_error,

@@ -778,8 +778,13 @@ def api_brain_status(_q):
     """Brain connection/sync health — surfaced across both workspaces."""
     t = brain_io.tree()
     notes = sum(f.get("count", 0) for f in t.get("folders", [])) if t.get("available") else 0
-    return {"available": t.get("available", False), "vault": t.get("vault"),
-            "notes": notes, "url": getattr(brain_io, "BRAIN_URL", None)}
+    skills = brain_io.skill_status()
+    return {"available": t.get("available", False), "live": skills.get("live", False),
+            "vault": t.get("vault"), "notes": notes,
+            "agentsReady": skills.get("ready", 0), "agentsTotal": skills.get("total", 0),
+            "newestSkillMtime": skills.get("newestSkillMtime"),
+            "consumers": skills.get("consumers", {}),
+            "url": getattr(brain_io, "BRAIN_URL", None)}
 
 
 # ---------------------------------------------------------------------------

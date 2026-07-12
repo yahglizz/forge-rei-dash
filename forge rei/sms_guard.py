@@ -176,11 +176,17 @@ def guard(contact_id, message, conv_id=None, name="", scout=None,
                     "gate": "send_ledger"}
 
     last_in = (last_seller_message or "").strip()
-    if not last_in and scout and conv_id:
+    protected_draft = autonomous or kind in ("screening_nurture", "marcus_nrn")
+    thread_msgs = []
+    # Agent-authored copy needs the recent seller context, not just the newest inbound.
+    # A price stated one message earlier still makes "in the ballpark" an offer leak.
+    if scout and conv_id and (not last_in or protected_draft):
         try:
-            last_in, _msgs = _last_inbound_from_thread(scout, conv_id)
+            thread_last, thread_msgs = _last_inbound_from_thread(scout, conv_id)
+            if thread_last:
+                last_in = thread_last
         except Exception as e:  # noqa: BLE001
-            if not operator:
+            if not operator or protected_draft:
                 return {"error": f"could not read thread before SMS: {e}",
                         "gate": "thread_read"}
             last_in = ""     # operator send never blocked by a thread-read hiccup
@@ -201,12 +207,17 @@ def guard(contact_id, message, conv_id=None, name="", scout=None,
     # Final content firewall. This duplicates Marcus's queue-admission check on purpose:
     # persisted legacy proposals, operator edits later marked autonomous, and future agent
     # paths must still fail closed at the last instant before the GHL POST.
-    if autonomous:
-        unsafe = marcus_engine._draft_safety_reason(message, last_in)
+    seller_context = last_in
+    if thread_msgs:
+        recent_inbound = [(m.get("body") or "").strip() for m in thread_msgs
+                          if m.get("direction") == "inbound" and (m.get("body") or "").strip()]
+        seller_context = "\n".join(recent_inbound[-8:]) or last_in
+    if protected_draft:
+        unsafe = marcus_engine._draft_safety_reason(message, seller_context)
         if unsafe:
             return {"error": f"unsafe AI draft: {unsafe}", "gate": "draft_safety"}
 
-    if (autonomous or kind in ("screening_nurture", "marcus_nrn")) and _quotes_price_or_offer(message):
+    if protected_draft and _quotes_price_or_offer(message):
         return {"error": "autonomous/nurture SMS cannot quote a price or offer",
                 "gate": "price_offer"}
 

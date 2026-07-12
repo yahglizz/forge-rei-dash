@@ -20,6 +20,13 @@ VAULT = Path(os.environ.get(
     "FORGE_VAULT", str(Path.home() / "Desktop" / "Agentic-OS" / "vault"))).resolve()
 BRAIN_URL = os.environ.get("BRAIN_URL", "http://localhost:7878")
 SKIP_DIRS = {".obsidian", ".git", ".trash"}
+AGENT_SKILLS = {
+    "marcus_sms": ("marcus-playbook.md", "yahjair-voice.md", "wholesale-seller-texter.md"),
+    "marcus_screening": ("marcus-screening-playbook.md", "marcus-lead-agent.md"),
+    "scout": ("scout-playbook.md",),
+    "dyson": ("dyson-playbook.md",),
+    "eco": ("eco-playbook.md",),
+}
 
 
 def _safe(rel):
@@ -36,6 +43,28 @@ def _safe(rel):
 
 def available():
     return VAULT.is_dir()
+
+
+def skill_status():
+    """Observable proof that each live agent has at least one brain playbook to load."""
+    consumers = {}
+    newest = 0
+    for agent, names in AGENT_SKILLS.items():
+        files = []
+        for name in names:
+            p = VAULT / "Skills" / name
+            if p.is_file():
+                try:
+                    mt = int(p.stat().st_mtime * 1000)
+                    newest = max(newest, mt)
+                    files.append({"path": f"Skills/{name}", "mtime": mt})
+                except Exception:
+                    files.append({"path": f"Skills/{name}", "mtime": None})
+        consumers[agent] = {"ready": bool(files), "files": files}
+    ready = sum(1 for c in consumers.values() if c["ready"])
+    return {"live": available() and ready == len(consumers), "ready": ready,
+            "total": len(consumers), "newestSkillMtime": newest,
+            "consumers": consumers}
 
 
 def tree():

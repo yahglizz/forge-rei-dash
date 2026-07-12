@@ -93,6 +93,32 @@ class SmsGuardTest(unittest.TestCase):
             self.assertGate("draft_safety", autonomous=True,
                             last="I want $85,000 for the property", message=draft)
 
+    def test_price_confirmation_reads_earlier_thread_context(self):
+        class Scout:
+            @staticmethod
+            def _thread_transcript(_conv_id):
+                return [
+                    {"direction": "inbound", "body": "I need $85,000"},
+                    {"direction": "outbound", "body": "when can we talk?"},
+                    {"direction": "inbound", "body": "tomorrow works"},
+                ]
+        res = sms_guard.guard(
+            "c1", "thats a solid starting point, ill call tomorrow",
+            conv_id="v1", scout=Scout(), last_seller_message="tomorrow works",
+            kind="reply", autonomous=True, check_legit=False, reserve=False)
+        self.assertEqual("draft_safety", res.get("gate"), res)
+
+    def test_operator_tapped_nurture_uses_full_content_firewall(self):
+        class Scout:
+            @staticmethod
+            def _thread_transcript(_conv_id):
+                return [{"direction": "inbound", "body": "not right now"}]
+        res = sms_guard.guard(
+            "c1", "I can't assist with drafting this response.",
+            conv_id="v1", scout=Scout(), kind="screening_nurture",
+            autonomous=False, reserve=False)
+        self.assertEqual("draft_safety", res.get("gate"), res)
+
     def test_autonomous_model_failure_and_placeholder_text_block(self):
         bad = (
             "I can’t assist with hateful or abusive content.",
@@ -293,6 +319,41 @@ class SmsGuardTest(unittest.TestCase):
         proposal = m.proposals[result["proposalId"]]
         self.assertEqual("WRONG_NUMBER", proposal["classification"])
         self.assertEqual(marcus_engine.CANNED_WRONG_NUMBER_REPLY, proposal["suggestedReply"])
+
+    def test_queue_admission_reads_price_from_earlier_inbound(self):
+        def ghl_get(path, params=None):
+            if path.endswith("/messages"):
+                return {"messages": {"messages": [
+                    {"direction": "inbound", "body": "tomorrow works"},
+                    {"direction": "inbound", "body": "I want $85,000"},
+                ]}}
+            return {}
+        m = marcus_engine.MarcusEngine(
+            ghl_get=ghl_get, ghl_post=lambda *a, **k: {}, location_id="loc")
+        m.proposals = {}
+        m._persist_handled = lambda key: None
+        m._persist_proposal = lambda proposal: None
+        m._mark_seen = lambda contact_id: False
+        seen = {}
+        def fake_draft(first, cls, body, history, hint=None, seller_context=None):
+            seen["history"] = history
+            seen["seller_context"] = seller_context
+            return "thats a solid starting point, lets talk", "claude"
+        m._ai_draft = fake_draft
+        result = m._make_proposal({
+            "id": "v-context", "contactId": "c-context", "lastMessageDate": 1,
+            "lastMessageBody": "tomorrow works", "fullName": "Lead", "unreadCount": 1,
+        }, "v-context:1")
+        self.assertEqual("draft_safety", result.get("gate"), result)
+        self.assertEqual({}, m.proposals)
+        self.assertIn("$85,000", seen["seller_context"])
+        self.assertTrue(any("Seller:" in line for line in seen["history"]))
+
+    def test_screening_replaces_unsafe_nurture_before_display(self):
+        text, reason = marcus_screening._safe_nurture_draft(
+            "I don't see the seller message, provide context.", "not right now")
+        self.assertEqual(marcus_screening.SAFE_NURTURE_FALLBACK, text)
+        self.assertIn("meta", reason)
 
 
 if __name__ == "__main__":

@@ -249,6 +249,7 @@ function MMBrainSheet(props) {
   const [note, setNote] = useStateMM(null);
   const [noteErr, setNoteErr] = useStateMM(null);
   const recent = window.useApiM("/api/brain/recent?n=20", { interval: 60000 });
+  const brainLive = window.useApiM("/api/brain/status", { interval: 30000 });
 
   const runSearch = async () => {
     const s = q.trim();
@@ -329,6 +330,12 @@ function MMBrainSheet(props) {
     <div className="m-sheet">
       <window.MHeader title="Brain" sub="Obsidian vault — search + read" onBack={props.onBack} />
       <div className="m-sheet-body">
+        {brainLive.data ? (
+          <div className="m-card" style={{ padding: 12, display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontWeight: 700 }}>{brainLive.data.live ? "Brain live" : "Brain needs attention"}</span>
+            <span className="m-fade">{(brainLive.data.agentsReady || 0) + "/" + (brainLive.data.agentsTotal || 0) + " agents fed"}</span>
+          </div>
+        ) : null}
         <div className="m-row">
           <input className="m-input" type="search" enterKeyHint="search"
             placeholder="Search the vault…" value={q} style={{ flex: 1 }}

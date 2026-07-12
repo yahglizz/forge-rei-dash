@@ -279,6 +279,7 @@ function BrainPage() {
   const [gfyResults, setGfyResults] = useStateB(null);
 
   const { data: tree, error } = window.useApi("/api/brain/tree", { interval: 0 });
+  const brainStatus = window.useApi("/api/brain/status", { interval: 30000 });
   const graph    = window.useApi("/api/brain/graph?limit=90",  { interval: 30000 });
   const gfyGraph = window.useApi("/api/graphify/graph",         { interval: 60000 });
   const gfyStats = window.useApi("/api/graphify/stats",         { interval: 60000 });
@@ -315,7 +316,10 @@ function BrainPage() {
       subtitle = `${gs.nodes} nodes · ${gs.links} links · ${gs.communities} communities — ${Object.entries(gs.byRepo || {}).map(([r,c]) => `${r}:${c}`).join(" · ")}`;
     }
   } else {
-    subtitle = (tree ? tree.vault : "Obsidian vault…") + (graph.data ? ` · ${graph.data.nodes.length} notes · ${graph.data.links.length} links` : "");
+    const bs = brainStatus.data;
+    subtitle = (tree ? tree.vault : "Obsidian vault…")
+      + (graph.data ? ` · ${graph.data.nodes.length} notes · ${graph.data.links.length} links` : "")
+      + (bs ? ` · ${bs.live ? "LIVE" : "CHECK"} · ${bs.agentsReady || 0}/${bs.agentsTotal || 0} agents fed` : "");
   }
 
   return (
