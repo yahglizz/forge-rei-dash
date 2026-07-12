@@ -40,11 +40,13 @@ ENV_PHONES = "FORGE_TEST_PHONES"
 
 
 def norm(phone):
-    """Return the last 10 digits of a phone (digits only). Handles None/garbage."""
+    """Return a valid US 10-digit phone. Reject incomplete numbers fail-closed."""
     if not phone:
         return ""
     digits = "".join(ch for ch in str(phone) if ch.isdigit())
-    return digits[-10:]
+    if len(digits) == 11 and digits.startswith("1"):
+        digits = digits[1:]
+    return digits if len(digits) == 10 else ""
 
 
 def _env_phones():

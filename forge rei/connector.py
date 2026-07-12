@@ -928,6 +928,7 @@ def _ace_update_from_screening(contact_id):
         if not conv_id:
             return
         crec = CONVO.update(conv_id, contact_id=contact_id, name=rec.get("name"),
+                            phone=rec.get("phone"),
                             report=rec.get("report"),
                             last_inbound_ms=rec.get("updatedAt"))
         m = ace.mode()

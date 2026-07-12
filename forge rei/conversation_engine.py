@@ -137,7 +137,7 @@ class ConversationEngine:
             return "ENGAGING"
         return prev_state or "ENGAGING"
 
-    def update(self, conv_id, contact_id=None, name=None, report=None,
+    def update(self, conv_id, contact_id=None, name=None, phone=None, report=None,
                classify_cls=None, legit=None, last_inbound_ms=None):
         """Recompute facts + advance state from the latest screening. Never raises."""
         if not conv_id:
@@ -156,6 +156,8 @@ class ConversationEngine:
                     rec["contactId"] = contact_id
                 if name:
                     rec["name"] = name
+                if phone:
+                    rec["phone"] = phone
                 if last_inbound_ms:
                     rec["lastInboundMs"] = last_inbound_ms
                 prev = rec.get("state") or "NEW"

@@ -21,6 +21,7 @@ from pathlib import Path
 
 import forge_atomic
 import forge_ops
+import test_mode
 
 STATE = Path(__file__).resolve().parent / "marcus_state" / "ace.json"
 _LOCK = threading.Lock()
@@ -164,12 +165,15 @@ def status():
     try:
         with _LOCK:
             d = _roll(_load())
+            test = test_mode.status()
             return {
                 "mode": d.get("mode", "off"),
                 "sentToday": int(d.get("sentToday") or 0),
                 "day": d.get("day"),
                 "maxReplies": MAX_REPLIES,
                 "log": (d.get("log") or [])[:20],
+                "testScoped": bool(test.get("enabled")),
+                "testPhoneCount": len(test.get("phones") or []),
             }
     except Exception as e:  # noqa: BLE001
         return {"mode": "off", "sentToday": 0, "error": str(e), "log": []}
@@ -188,6 +192,11 @@ def decide(rec, report, convo, last_seller_msg=None):
             return _stop("ace off")
         if forge_ops.paused():
             return _stop("clocked out")
+        # Test Mode is a hard ACE scope, not just a UI hint. This lets the operator
+        # run FULL automation on whitelisted phones while every real seller stops here.
+        test = test_mode.status()
+        if test.get("enabled") and not test_mode.is_test((rec or {}).get("phone")):
+            return _stop("test mode: contact is not whitelisted")
         state = (rec or {}).get("state")
         if state in ("HANDED_OFF", "DEAD"):
             return _stop(f"terminal:{state}")

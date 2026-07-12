@@ -96,6 +96,8 @@ function AcePanel() {
             🤖 ACE Autonomy
             <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 800, color: modeColor,
                            letterSpacing: 1 }}>{mode.toUpperCase()}</span>
+            {s.testScoped && <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 800,
+              color: "#60A5FA", letterSpacing: 0.8 }}>TEST-SCOPED · {s.testPhoneCount || 0} PHONE</span>}
           </div>
           <div className="faint" style={{ fontSize: 11.5 }}>
             {mode === "off" ? "asleep — every text is your tap" :
@@ -117,6 +119,7 @@ function AcePanel() {
       <div className="faint" style={{ fontSize: 10.5 }}>
         Every ACE text runs the FULL gate stack (legit thread check, 9–8 ET, DNC, price-scrub,
         dedupe, clock-out) — never quotes a price. Clock-out and Off both stop it instantly.
+        {s.testScoped ? " Test Mode is ON: non-whitelisted contacts are blocked server-side." : ""}
       </div>
 
       {rows.length > 0 && (

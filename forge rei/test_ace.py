@@ -48,9 +48,10 @@ class FakeSendingMarcus(FakeMarcus):
         return {"ok": True}
 
 
-def rec(state="QUALIFYING", facts=None, replies=0, held=False, name="Lead", contact="c1"):
+def rec(state="QUALIFYING", facts=None, replies=0, held=False, name="Lead", contact="c1",
+        phone="2675550100"):
     return {"convId": "v1", "contactId": contact, "name": name, "state": state,
-            "replies": replies, "held": held,
+            "phone": phone, "replies": replies, "held": held,
             "facts": facts if facts is not None else {
                 "condition": True, "timeline": False, "price": False,
                 "motivation": True, "occupancy": True}}
@@ -159,6 +160,43 @@ class AceDecideTest(unittest.TestCase):
         ace.set_mode("full")
         self.assertEqual("stop", ace.decide(rec(state="HANDED_OFF"), REPORT, self.ce)["action"])
         self.assertEqual("stop", ace.decide(rec(state="DEAD"), REPORT, self.ce)["action"])
+
+
+class AcePhoneScopedFullTest(unittest.TestCase):
+    def setUp(self):
+        self.orig_state = ace.STATE
+        self.orig_paused = ace.forge_ops.paused
+        self.orig_status = ace.test_mode.status
+        self.orig_is_test = ace.test_mode.is_test
+        self.tmp = tempfile.TemporaryDirectory()
+        ace.STATE = Path(self.tmp.name) / "ace.json"
+        ace.forge_ops.paused = lambda: False
+        ace.test_mode.status = lambda: {"enabled": True, "phones": ["2675550100"]}
+        ace.test_mode.is_test = lambda phone: phone == "2675550100"
+        self.ce = conversation_engine.ConversationEngine()
+        ace.set_mode("full")
+
+    def tearDown(self):
+        ace.STATE = self.orig_state
+        ace.forge_ops.paused = self.orig_paused
+        ace.test_mode.status = self.orig_status
+        ace.test_mode.is_test = self.orig_is_test
+        self.tmp.cleanup()
+
+    def test_full_allows_whitelisted_phone(self):
+        decision = ace.decide(rec(phone="2675550100"), REPORT, self.ce)
+        self.assertEqual("reply", decision["action"])
+
+    def test_full_blocks_every_non_whitelisted_contact(self):
+        for phone in ("2155550100", "", None):
+            decision = ace.decide(rec(phone=phone), REPORT, self.ce)
+            self.assertEqual("stop", decision["action"])
+            self.assertEqual("test mode: contact is not whitelisted", decision["reason"])
+
+    def test_status_exposes_hard_test_scope(self):
+        status = ace.status()
+        self.assertTrue(status["testScoped"])
+        self.assertEqual(1, status["testPhoneCount"])
 
 
 class AceConsiderShadowTest(unittest.TestCase):
