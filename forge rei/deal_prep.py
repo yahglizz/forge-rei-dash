@@ -335,14 +335,26 @@ class DealPrep:
                 "recompute):\n" + json.dumps(screening_input, indent=1)
                 + "\n\nSELLER TEXT THREAD (oldest first):\n" + transcript
                 + "\n\nReturn the deal-prep JSON now.")
-        try:
-            raw = review_agent._claude(key, system, user, max_tokens=900)
-        except Exception as e:  # noqa: BLE001
-            self.last_error = f"claude: {e}"
-            return {"error": f"claude: {e}"}
-        obj = _parse_obj(raw)
+        # The model intermittently wraps the object in prose/fences or truncates it, which
+        # _parse_obj can't salvage — that silently killed ~half of all preps. Retry once with
+        # a blunter instruction before giving up.
+        obj = None
+        for attempt in range(2):
+            u = user if attempt == 0 else (
+                user + "\n\nYour previous reply was not valid JSON. Return ONLY the raw JSON "
+                "object — no prose, no markdown, no code fences. Start with { and end with }.")
+            try:
+                raw = review_agent._claude(key, system, u, max_tokens=900)
+            except Exception as e:  # noqa: BLE001
+                self.last_error = f"claude: {e}"
+                return {"error": f"claude: {e}"}
+            obj = _parse_obj(raw)
+            if obj:
+                break
+            self._log("parse_retry", f"Prep JSON unparseable for {name} — retrying", contact_id)
         if not obj:
-            return {"error": "prep produced no usable JSON"}
+            self.last_error = "prep produced no usable JSON (after retry)"
+            return {"error": "prep produced no usable JSON (after retry)"}
 
         # Normalize defensively. The ask is ONLY seller-stated: model's extraction,
         # else the screening's (also seller-stated). No ask → anchors stay null no

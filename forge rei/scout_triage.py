@@ -731,6 +731,99 @@ class ScoutEngine:
             "scoreSource": r.get("scoreSource"),
         }
 
+    def backfill(self, screener, limit=80):
+        """Rebuild triage records for threads the normal sweep can no longer see.
+
+        poll_once only scores conversations where the SELLER spoke last. Once we reply, the
+        thread goes outbound-last and is skipped forever — so if the records store is ever
+        lost, those leads never come back on their own. This re-scores them off their LAST
+        INBOUND seller message (the same thing poll_once would have scored), seeded from
+        Marcus's screening store. Read-only on GHL; scores with the same rule+Claude path.
+        """
+        seeds = list((getattr(screener, "screenings", {}) or {}).values())
+        key = _scout_key()
+        staged, live_for_claude, skipped = [], [], 0
+        for s in seeds:
+            conv_id, contact_id = s.get("convId"), s.get("contactId")
+            if not conv_id or not contact_id or conv_id in self.records:
+                skipped += 1
+                continue
+            if self.dismissed.get(conv_id):
+                skipped += 1
+                continue
+            try:
+                msgs = self._thread_transcript(conv_id) or []
+            except Exception:  # noqa: BLE001
+                skipped += 1
+                continue
+            inbound = [m for m in msgs
+                       if m.get("direction") == "inbound" and (m.get("body") or "").strip()
+                       and marcus_engine._is_seller_message(m.get("body"))]
+            if not inbound:
+                skipped += 1
+                continue
+            last = inbound[-1]
+            body = (last.get("body") or "").strip()
+            c = {"id": conv_id, "contactId": contact_id,
+                 "fullName": s.get("name"), "phone": s.get("phone") or "",
+                 "lastMessageBody": body,
+                 "lastMessageDate": last.get("dateAdded") or s.get("updatedAt")
+                 or s.get("createdAt") or int(time.time() * 1000),
+                 "lastMessageDirection": "inbound"}
+            cls = marcus_engine.classify(body)
+            if cls != "DNC" and (cls == "NRN" or marcus_engine._is_soft_no(body)
+                                 or marcus_engine._is_hard_no(body)):
+                cls = "NRN"
+            base = self._rule_score(cls, body, True)
+            staged.append((c, body, base, _extract_price(body)))
+            if key and base["bucket"] not in ("dead", "nurture") and len(live_for_claude) < SCORE_BATCH:
+                live_for_claude.append((len(staged) - 1, body))
+            if len(staged) >= limit:
+                break
+
+        claude_out = self._claude_batch(key, live_for_claude) if live_for_claude else {}
+        restored = []
+        with self.lock:
+            for idx, (c, body, base, price) in enumerate(staged):
+                rec = {
+                    "convId": c["id"], "contactId": c["contactId"],
+                    "name": c.get("fullName") or "(unknown)", "phone": c.get("phone") or "",
+                    "lastMessage": body, "lastMessageDate": c.get("lastMessageDate"),
+                    "convKey": f"{c['id']}:{c.get('lastMessageDate')}",
+                    "needsReply": True,
+                    "intent": base["intent"], "motivation": base["motivation"],
+                    "askingPrice": price, "reason": base["reason"],
+                    "bucket": base["bucket"], "scoreSource": base["scoreSource"],
+                    "tagsAppliedAt": None, "scoredAt": int(time.time() * 1000),
+                }
+                ai = claude_out.get(idx)
+                if ai:
+                    rec["intent"] = ai.get("intent") or rec["intent"]
+                    try:
+                        rec["motivation"] = max(0, min(100, int(ai.get("motivation", rec["motivation"]))))
+                    except (ValueError, TypeError):
+                        pass
+                    if ai.get("askingPrice"):
+                        try:
+                            rec["askingPrice"] = int(ai["askingPrice"])
+                        except (ValueError, TypeError):
+                            pass
+                    if ai.get("reason"):
+                        rec["reason"] = str(ai["reason"])[:120]
+                    rec["bucket"] = self._bucket_from_intent(rec["intent"], rec["motivation"], True)
+                    rec["scoreSource"] = "claude"
+                rec["priceBand"] = _price_band(rec.get("askingPrice"))
+                rec["proposedTags"] = self._proposed_tags(rec)
+                self.records[rec["convId"]] = rec
+                restored.append(rec)
+            self._log("backfill", f"Rebuilt {len(restored)} triage records from screened threads")
+            self._save()
+        buckets = {}
+        for r in restored:
+            buckets[r["bucket"]] = buckets.get(r["bucket"], 0) + 1
+        return {"ok": True, "restored": len(restored), "skipped": skipped,
+                "buckets": buckets, "total": len(self.records)}
+
     def _active(self):
         # Snapshot under the (reentrant) lock so a concurrent poll-loop mutation can't
         # raise "dict changed size during iteration" on a dashboard refresh.

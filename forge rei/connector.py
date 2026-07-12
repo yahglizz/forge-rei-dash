@@ -2657,6 +2657,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/scout/remove",
                                    "/api/scout/pipeline",
                                    "/api/scout/learn",
+                                   "/api/scout/backfill",
                                    "/api/scout/handoff",
                                    "/api/scout/audit/run",
                                    "/api/screening/run",
@@ -2880,6 +2881,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = SCOUT.add_to_pipeline(body.get("id"), body.get("stage"))
             elif parsed.path == "/api/scout/learn":
                 result = SCOUT.learn()
+            elif parsed.path == "/api/scout/backfill":
+                # Recovery: rebuild triage records for screened threads the sweep can't see
+                # (we replied last → outbound-last → skipped forever). Read-only on GHL.
+                result = SCOUT.backfill(SCREENER, limit=int(body.get("limit") or 80))
             elif parsed.path == "/api/scout/handoff":
                 # Hand to Marcus = screen the lead (Marcus is the screening agent now).
                 _conv = body.get("id")
