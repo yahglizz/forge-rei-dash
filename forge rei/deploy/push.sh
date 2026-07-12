@@ -59,8 +59,11 @@ if [ -f "$AGENCY/config/agency.env" ]; then
 else
   echo "   (no $AGENCY/config/agency.env yet — skipping; agency GHL stays 'not connected')"
 fi
-if [ -d "$AGENCY/skills" ]; then
-  rsync -az -e "$SSH" "$AGENCY/skills/" "$TARGET:$REMOTE/forge-agency/skills/"
+if [ -d "$AGENCY" ]; then
+  # Ship the complete non-secret agency folder, including root operating docs. Config
+  # secrets are handled explicitly above and never mirrored by this rsync.
+  rsync -az --delete -e "$SSH" --exclude '__pycache__' --exclude 'config' --exclude '*.env' \
+    "$AGENCY/" "$TARGET:$REMOTE/forge-agency/"
 fi
 
 echo "==> push Scout folder (config knobs + seed skills; learned playbook lives in the vault)"

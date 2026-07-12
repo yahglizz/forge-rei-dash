@@ -198,6 +198,14 @@ def guard(contact_id, message, conv_id=None, name="", scout=None,
                 return {"error": "seller gave a soft no; only nurture/check-back is allowed",
                         "gate": "soft_no"}
 
+    # Final content firewall. This duplicates Marcus's queue-admission check on purpose:
+    # persisted legacy proposals, operator edits later marked autonomous, and future agent
+    # paths must still fail closed at the last instant before the GHL POST.
+    if autonomous:
+        unsafe = marcus_engine._draft_safety_reason(message, last_in)
+        if unsafe:
+            return {"error": f"unsafe AI draft: {unsafe}", "gate": "draft_safety"}
+
     if (autonomous or kind in ("screening_nurture", "marcus_nrn")) and _quotes_price_or_offer(message):
         return {"error": "autonomous/nurture SMS cannot quote a price or offer",
                 "gate": "price_offer"}

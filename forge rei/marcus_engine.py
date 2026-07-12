@@ -87,6 +87,7 @@ ACTION_BY_CLASS = {
     "PRICE": {"label": "Move toward offer", "kind": "reply", "tag": "PRICE"},
     "READY": {"label": "HOT — book the call", "kind": "reply", "tag": "HOT"},
     "CONTINUE": {"label": "Re-engage", "kind": "reply", "tag": "WARM"},
+    "WRONG_NUMBER": {"label": "Apologize + close", "kind": "reply", "tag": "Wrong Number"},
 }
 
 # Fixed reply Yahjair wants for every "not selling / not right now" seller:
@@ -94,6 +95,12 @@ ACTION_BY_CLASS = {
 CANNED_NRN_REPLY = (
     "100% if you ever change your mind, just save my contact and send me a text "
     "or a call we also do referrals so if anyone you know want to sell youll earn commission"
+)
+
+# Wrong-number handling is deterministic. Never let a model re-pitch someone who has
+# explicitly said they are not the seller/person we meant to reach.
+CANNED_WRONG_NUMBER_REPLY = (
+    "sorry about that i have the wrong number, ill remove it from my list"
 )
 
 # Phrases that mean "soft no / not selling now" -> force the canned referral reply.
@@ -197,6 +204,14 @@ _OUR_OUTREACH_PHRASES = [
     "calling about potentially selling", "potentially selling a home",
     "just following up", "just checking in", "circle back", "circling back",
     "reaching out about your", "saw your property", "saw your home",
+    "wanted to reach out", "wanted to see if", "wanted to ask if",
+    "trying to reach you", "tried calling you", "following up on my call",
+    "following up on my text", "following up about the property",
+    "would you consider selling", "have you considered selling",
+    "interested in selling your", "consider an offer on",
+    "cash for your property", "cash for your home",
+    "looking to purchase your", "interested in buying your", "buy your property",
+    "buy your house", "buy your home", "are you the owner of the property",
     "are you still looking to sell", "still looking to sell", "still interested in selling",
     "this is yahjair", "hey it's yahjair", "this is forge",
     # Our other businesses' automations that bleed into this number (GHL mis-flags as
@@ -205,11 +220,68 @@ _OUR_OUTREACH_PHRASES = [
     "how can we help you today",
 ]
 
+_OUR_OUTREACH_RE = re.compile(
+    r"(?i)^\s*(?:hey|hi|hello)?\s*[a-z'-]{0,30}[, ]*"
+    r"(?:this is yahjair|it'?s yahjair|i(?:'m| am) (?:reaching|following|calling|texting)|"
+    r"i (?:wanted|was trying|tried) to (?:reach|call|text|see|ask)|"
+    r"we(?:'re| are) (?:looking|interested|buying)|would you (?:consider|be open to) selling)\b"
+)
+
 
 def _is_our_message(body):
     """True if the text reads like OUR outreach (not a seller's reply)."""
     b = (body or "").lower()
-    return any(p in b for p in _OUR_OUTREACH_PHRASES)
+    return any(p in b for p in _OUR_OUTREACH_PHRASES) or bool(_OUR_OUTREACH_RE.search(body or ""))
+
+
+# Model-output admission checks. These are intentionally deterministic and are run once
+# before a proposal is persisted and again by sms_guard immediately before any agent send.
+_DRAFT_META_RE = re.compile(
+    r"(?i)\b(?:i (?:do not|don'?t|can'?t|cannot) (?:see|have|assist|help)|"
+    r"i(?:'m| am) (?:unable|sorry,? but i can'?t)|as an ai|language model|"
+    r"seller'?s message (?:is )?(?:missing|not provided|isn'?t provided)|"
+    r"provide (?:the )?(?:seller|message|context)|need (?:the )?(?:seller'?s )?(?:message|context)|"
+    r"insufficient context|no context|cannot generate|can'?t generate|unable to generate)\b"
+)
+_DRAFT_PLACEHOLDER_RE = re.compile(
+    r"(?i)(?:\[(?:company|business|your|seller|property|address|name)[^\]]*\]|"
+    r"\{\{?[^}\n]+\}?\}|<(?:company|business|name|address)[^>]*>)"
+)
+_DRAFT_PERSONA_RE = re.compile(r"(?i)\bmarcus\b")
+_SELLER_PRICE_RE = re.compile(
+    r"(?i)(?:\$\s*\d|\b\d{1,3}(?:,\d{3})+\b|\b\d{2,6}\s*(?:k|grand|thousand)\b|"
+    r"\b(?:price|asking|ask|take|want|need|worth|offer)\D{0,18}\d{2,})"
+)
+_PRICE_CONFIRM_RE = re.compile(
+    r"(?i)\b(?:in the ballpark|ballpark|solid starting point|good starting point|"
+    r"reasonable starting point|sounds reasonable|sounds fair|seems fair|that(?:'s| is) fair|"
+    r"that works|could work|can work with that|work with that|make that work|"
+    r"we(?:'re| are) close|not far off|around there|in range|within range|"
+    r"that number (?:works|is fair|is reasonable|sounds good)|"
+    r"your (?:number|price|ask|asking price) (?:works|is fair|is reasonable|sounds good))\b"
+)
+_AMBIGUOUS_NUMBER_RE = re.compile(r"^\s*\d{1,3}\s*[.!?]?\s*$")
+
+
+def _draft_safety_reason(text, seller_said=""):
+    """Return a stable reason when model output is not safe to queue/send."""
+    out = (text or "").strip().replace("’", "'").replace("‘", "'")
+    if not out:
+        return "empty draft"
+    if _DRAFT_META_RE.search(out):
+        return "model refusal or meta/confusion text"
+    if _DRAFT_PLACEHOLDER_RE.search(out):
+        return "unfilled placeholder"
+    if _DRAFT_PERSONA_RE.search(out):
+        return "Marcus persona/name leak"
+    if _SELLER_PRICE_RE.search(seller_said or "") and _PRICE_CONFIRM_RE.search(out):
+        return "verbally confirmed seller price"
+    return None
+
+
+def _is_ambiguous_numeric_message(body):
+    """A bare 1-3 digit inbound has no safe property/seller meaning by itself."""
+    return bool(_AMBIGUOUS_NUMBER_RE.fullmatch(body or ""))
 
 
 # An iMessage tapback / emoji REACTION to one of our texts arrives as an INBOUND message
@@ -354,9 +426,38 @@ class MarcusEngine:
                 except Exception:
                     continue
                 latest[p["id"]] = p
+            migrations = []
             for p in latest.values():
-                if p.get("status") == "pending":
+                if p.get("status") != "pending":
+                    continue
+                inbound = p.get("inbound") or ""
+                reply = p.get("suggestedReply") or ""
+                if _is_denial(inbound):
+                    # Upgrade old model-written wrong-number re-pitches in place before
+                    # evaluating their stale copy; the deterministic close replaces it.
+                    p["classification"] = "WRONG_NUMBER"
+                    p["action"] = ACTION_BY_CLASS["WRONG_NUMBER"]["label"]
+                    p["tag"] = ACTION_BY_CLASS["WRONG_NUMBER"]["tag"]
+                    p["suggestedReply"] = CANNED_WRONG_NUMBER_REPLY
+                    p["draftSource"] = "canned_wrong_number"
+                    migrations.append(p)
                     self.proposals[p["id"]] = p
+                    continue
+                reason = _draft_safety_reason(reply, inbound)
+                if _is_ambiguous_numeric_message(inbound):
+                    reason = "ambiguous numeric-only inbound"
+                elif not _is_seller_message(inbound) and not p.get("reengage"):
+                    reason = "inbound is our own outreach"
+                if reason:
+                    p["status"] = "quarantined"
+                    p["quarantineReason"] = reason
+                    migrations.append(p)
+                    self._log("draft_guard", f"Quarantined legacy proposal: {reason}",
+                              {"id": p.get("id"), "conversationId": p.get("conversationId")})
+                    continue
+                self.proposals[p["id"]] = p
+            for p in migrations:
+                self._persist_proposal(p)
 
     def _persist_proposal(self, p):
         with open(PROPOSALS_LOG, "a") as f:
@@ -463,14 +564,16 @@ class MarcusEngine:
         "today so i can get you a real one"
     )
 
-    def _no_price_over_text(self, text, cls=None):
+    def _no_price_over_text(self, text, cls=None, seller_said=""):
         """Hard boundary enforced in CODE, not just the prompt: an agent NEVER sends a
         price/offer/number by text (operator rule — the offer lives on the call). If a draft
         leaks a figure, swap the whole reply for the call-pivot fallback and log it. Returns
         (safe_text, leaked_bool)."""
         if not text:
             return text, False
-        if self._PRICE_RE.search(text):
+        if (self._PRICE_RE.search(text)
+                or (_SELLER_PRICE_RE.search(seller_said or "")
+                    and _PRICE_CONFIRM_RE.search(text))):
             try:
                 self._log("price_guard", f"Blocked a texted number in a {cls or '?'} draft "
                           f"— swapped to call-pivot: \"{text[:80]}\"", {})
@@ -488,7 +591,7 @@ class MarcusEngine:
 
         def _template_reply():
             t = self._scrub_voice(draft_reply(first, cls), seller_said=seller_said)
-            t, _ = self._no_price_over_text(t, cls)   # never a number by text — even in a template
+            t, _ = self._no_price_over_text(t, cls, seller_said)
             return t
 
         if not self.anthropic_key:
@@ -575,7 +678,12 @@ class MarcusEngine:
             text = "".join(b.get("text", "") for b in data.get("content", [])).strip()
             text = self._scrub_voice(text, seller_said=body or "")
             # Hard boundary in code: if the model leaked a number, swap for the call-pivot.
-            text, leaked = self._no_price_over_text(text, cls)
+            text, leaked = self._no_price_over_text(text, cls, seller_said)
+            unsafe = _draft_safety_reason(text, seller_said)
+            if unsafe:
+                self.last_error = f"AI draft blocked: {unsafe}"
+                self._log("draft_guard", self.last_error, {"classification": cls})
+                return None, "blocked"
             return (text or _template_reply()), ("price_guard" if leaked else "claude")
         except urllib.error.HTTPError as e:
             # str(e) is just "HTTP Error 400: Bad Request" — read the body so
@@ -626,11 +734,20 @@ class MarcusEngine:
         # body_override: for a re-engage handoff where OUR text is the last message, draft
         # off the seller's real earlier words (passed in) instead of our own outbound.
         body = (body_override if body_override else c.get("lastMessageBody")) or ""
+        if _is_ambiguous_numeric_message(body):
+            with self.lock:
+                self.handled.add(key)
+                self._persist_handled(key)
+                self._log("draft_guard", "Held ambiguous numeric-only inbound for human review",
+                          {"conversationId": c.get("id"), "inbound": body})
+            return {"error": "ambiguous numeric-only inbound", "gate": "draft_context"}
         cls = classify(body)
         # Any "not selling / not right now" seller (but NOT a DNC/STOP) gets
         # Yahjair's fixed referral message verbatim — overrides the AI draft.
         if cls != "DNC" and (cls == "NRN" or _is_soft_no(body)):
             cls = "NRN"
+        if _is_denial(body):
+            cls = "WRONG_NUMBER"
         full = c.get("fullName") or c.get("contactName") or ""
         first = (full.split() or ["there"])[0]
         action = ACTION_BY_CLASS.get(cls, ACTION_BY_CLASS["CONTINUE"])
@@ -652,10 +769,18 @@ class MarcusEngine:
 
             # A hinted handoff is an operator-chosen re-engage of a cold lead — always
             # draft a real reply on Scout's angle, even if the last text reads soft-no.
-            if cls == "NRN" and not hint:
+            if cls == "WRONG_NUMBER":
+                reply, source = CANNED_WRONG_NUMBER_REPLY, "canned_wrong_number"
+            elif cls == "NRN" and not hint:
                 reply, source = CANNED_NRN_REPLY, "canned"
             else:
                 reply, source = self._ai_draft(first, cls, body, None, hint=hint)
+            unsafe = _draft_safety_reason(reply, body)
+            if unsafe:
+                self.last_error = f"Draft blocked before queue: {unsafe}"
+                self._log("draft_guard", self.last_error,
+                          {"conversationId": c.get("id"), "classification": cls})
+                return {"error": self.last_error, "gate": "draft_safety"}
             # Speed-to-lead: first time we've EVER proposed for this contact = a brand-new
             # lead entering the funnel. Flag it so the Telegram ping shouts 🆕 (reply fast).
             # A re-engage (hint) is by definition an old lead, never "new".
@@ -712,6 +837,7 @@ class MarcusEngine:
                 elif wants_auto:
                     self._log("deferred", f"Quiet hours — held auto-reply to {full or 'contact'} "
                               f"for review", {"id": pid})
+            return {"ok": True, "proposalId": pid}
 
     def make_proposal_for(self, conversation_id, contact_id=None, hint=None, seller_said=None):
         """Force a reply proposal for one conversation — used by Scout's handoff so a
@@ -749,8 +875,11 @@ class MarcusEngine:
             with self.lock:
                 self.handled.discard(key)            # allow a fresh proposal
                 self.proposals.pop(f"p_{c.get('id')}_{c.get('lastMessageDate')}", None)
-            self._make_proposal(c, key, hint=hint, body_override=seller_said)
-            return {"ok": True, "conversationId": conversation_id, "reengage": bool(hint)}
+            made = self._make_proposal(c, key, hint=hint, body_override=seller_said)
+            if not (made or {}).get("ok"):
+                return made or {"error": "draft was not queued", "gate": "draft_safety"}
+            return {"ok": True, "conversationId": conversation_id,
+                    "proposalId": made.get("proposalId"), "reengage": bool(hint)}
         except Exception as e:  # noqa: BLE001
             return {"error": str(e)}
 
@@ -759,6 +888,11 @@ class MarcusEngine:
         p = self.proposals.get(pid)
         if not p:
             return {"error": "not found"}
+        unsafe = _draft_safety_reason(message, p.get("inbound") or "")
+        if unsafe:
+            self._log("draft_guard", f"Blocked proposal at send boundary: {unsafe}",
+                      {"id": pid, "conversationId": p.get("conversationId")})
+            return {"error": f"unsafe draft: {unsafe}", "gate": "draft_safety"}
         gate = {}
         safety_check = getattr(self, "safety_check", None)
         if not callable(safety_check):

@@ -86,6 +86,23 @@ class SmsGuardTest(unittest.TestCase):
             message="no worries, is it ok if i check back in a few months?",
         )
 
+    def test_autonomous_semantic_price_confirmation_block(self):
+        for draft in ("that is definitely in the ballpark, when can we talk?",
+                      "thats a solid starting point, lets hop on a call",
+                      "your asking price sounds fair, when are you free?"):
+            self.assertGate("draft_safety", autonomous=True,
+                            last="I want $85,000 for the property", message=draft)
+
+    def test_autonomous_model_failure_and_placeholder_text_block(self):
+        bad = (
+            "I can’t assist with hateful or abusive content.",
+            "I don't see the seller's message content. Please provide the context.",
+            "Hi, this is [company name]. Are you selling?",
+            "sounds good, this is Marcus, when can we talk?",
+        )
+        for draft in bad:
+            self.assertGate("draft_safety", autonomous=True, message=draft)
+
     # ---- gates that apply ONLY to autonomous (agent) sends ----
     def test_clock_out_blocks_autonomous_only(self):
         sms_guard.forge_ops.paused = lambda: True
@@ -148,6 +165,45 @@ class SmsGuardTest(unittest.TestCase):
         self.assertEqual("sms_guard_missing", res.get("gate"), res)
         self.assertEqual([], posts)
 
+    def test_legacy_bad_proposal_is_blocked_at_actual_send_boundary(self):
+        posts = []
+        m = marcus_engine.MarcusEngine(
+            ghl_get=lambda *a, **k: {},
+            ghl_post=lambda *a, **k: posts.append((a, k)) or {},
+            location_id="loc",
+        )
+        m.safety_check = sms_guard.guard
+        m.proposals = {
+            "p-bad": {
+                "id": "p-bad", "conversationId": "v-bad", "contactId": "c-bad",
+                "name": "Lead", "classification": "CONTINUE",
+                "inbound": "yes i am interested", "autonomous": True,
+                "suggestedReply": "I don't see the seller's message content, provide context.",
+            }
+        }
+        res = m.approve("p-bad")
+        self.assertEqual("draft_safety", res.get("gate"), res)
+        self.assertEqual([], posts, "unsafe legacy proposal reached the GHL SMS POST")
+
+    def test_manual_approval_cannot_bypass_draft_content_firewall(self):
+        posts = []
+        m = marcus_engine.MarcusEngine(
+            ghl_get=lambda *a, **k: {},
+            ghl_post=lambda *a, **k: posts.append((a, k)) or {},
+            location_id="loc",
+        )
+        m.safety_check = sms_guard.guard
+        m.proposals = {
+            "p-price": {
+                "id": "p-price", "conversationId": "v-price", "contactId": "c-price",
+                "name": "Lead", "classification": "PRICE", "inbound": "I need $90k",
+                "suggestedReply": "thats a solid starting point, when can we talk?",
+            }
+        }
+        res = m.approve("p-price")
+        self.assertEqual("draft_safety", res.get("gate"), res)
+        self.assertEqual([], posts)
+
     def test_screening_nurture_fails_closed_without_guard_hook(self):
         posts = []
         s = marcus_screening.Screener(
@@ -183,6 +239,60 @@ class SmsGuardTest(unittest.TestCase):
             self.assertNotIn("!", text)
         finally:
             marcus_engine.draft_reply = orig_draft
+
+    def test_price_guard_rewrites_semantic_confirmation(self):
+        m = marcus_engine.MarcusEngine(
+            ghl_get=lambda *a, **k: {}, ghl_post=lambda *a, **k: {}, location_id="loc")
+        text, leaked = m._no_price_over_text(
+            "yes thats in the ballpark, lets talk tomorrow", "PRICE",
+            seller_said="my asking price is $120k")
+        self.assertTrue(leaked)
+        self.assertEqual(m._PRICE_FALLBACK, text)
+
+    def test_queue_admission_rejects_model_refusal(self):
+        m = marcus_engine.MarcusEngine(
+            ghl_get=lambda *a, **k: {}, ghl_post=lambda *a, **k: {}, location_id="loc")
+        m.proposals = {}
+        m._persist_handled = lambda key: None
+        m._persist_proposal = lambda proposal: None
+        m._mark_seen = lambda contact_id: False
+        m._ai_draft = lambda *a, **k: (
+            "I can’t assist with generating a response to abusive content.", "claude")
+        result = m._make_proposal({
+            "id": "v-refusal", "contactId": "c-refusal", "lastMessageDate": 1,
+            "lastMessageBody": "abusive inbound", "fullName": "Lead", "unreadCount": 1,
+        }, "v-refusal:1")
+        self.assertEqual("draft_safety", result.get("gate"), result)
+        self.assertEqual({}, m.proposals)
+
+    def test_ambiguous_number_never_enters_queue(self):
+        m = marcus_engine.MarcusEngine(
+            ghl_get=lambda *a, **k: {}, ghl_post=lambda *a, **k: {}, location_id="loc")
+        m.proposals = {}
+        m._persist_handled = lambda key: None
+        result = m._make_proposal({
+            "id": "v-67", "contactId": "c-67", "lastMessageDate": 1,
+            "lastMessageBody": "67", "fullName": "Lead", "unreadCount": 1,
+        }, "v-67:1")
+        self.assertEqual("draft_context", result.get("gate"), result)
+        self.assertEqual({}, m.proposals)
+
+    def test_wrong_number_uses_apology_close_not_repitch(self):
+        m = marcus_engine.MarcusEngine(
+            ghl_get=lambda *a, **k: {}, ghl_post=lambda *a, **k: {}, location_id="loc")
+        m.proposals = {}
+        m._persist_handled = lambda key: None
+        m._persist_proposal = lambda proposal: None
+        m._mark_seen = lambda contact_id: False
+        result = m._make_proposal({
+            "id": "v-wrong", "contactId": "c-wrong", "lastMessageDate": 1,
+            "lastMessageBody": "you have the wrong number", "fullName": "Person",
+            "unreadCount": 1,
+        }, "v-wrong:1")
+        self.assertTrue(result.get("ok"), result)
+        proposal = m.proposals[result["proposalId"]]
+        self.assertEqual("WRONG_NUMBER", proposal["classification"])
+        self.assertEqual(marcus_engine.CANNED_WRONG_NUMBER_REPLY, proposal["suggestedReply"])
 
 
 if __name__ == "__main__":

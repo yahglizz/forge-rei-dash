@@ -24,4 +24,21 @@ assert me._is_our_message(
 assert not me._is_our_message("Sorry I missed your call, can you call me back"), \
     "FAIL: seller reply wrongly flagged as our message"
 
+OUTREACH = [
+    "Hi Darryl, I wanted to see if you would consider selling your house",
+    "Hey Darryl this is Yahjair, I tried calling you about the home",
+    "Would you be open to selling the property for cash?",
+    "We are looking to purchase your home",
+]
+for s in OUTREACH:
+    assert me._is_our_message(s), f"FAIL: missed our outreach: {s!r}"
+
+SELLER_REPLIES = [
+    "yes i am open to selling",
+    "i am interested in an offer if the price is right",
+    "the property at 123 main is mine",
+]
+for s in SELLER_REPLIES:
+    assert not me._is_our_message(s), f"FAIL: seller reply wrongly flagged: {s!r}"
+
 print("ALL PASS")
