@@ -249,8 +249,8 @@ _DRAFT_PLACEHOLDER_RE = re.compile(
 )
 _DRAFT_PERSONA_RE = re.compile(r"(?i)\bmarcus\b")
 _SELLER_PRICE_RE = re.compile(
-    r"(?i)(?:\$\s*\d|\b\d{1,3}(?:,\d{3})+\b|\b\d{2,6}\s*(?:k|grand|thousand)\b|"
-    r"\b(?:price|asking|ask|take|want|need|worth|offer)\D{0,18}\d{2,})"
+    r"(?i)(?:\$\s*\d|\b\d{1,3}(?:,\d{3})+\b|\b\d{1,6}(?:\.\d+)?\s*(?:k|grand|thousand)\b|"
+    r"\b(?:price|asking|ask|take|want|need|worth|offer|consider)\D{0,18}\d{2,})"
 )
 _PRICE_CONFIRM_RE = re.compile(
     r"(?i)\b(?:in the ballpark|ballpark|solid starting point|good starting point|"
@@ -757,7 +757,12 @@ class MarcusEngine:
         except Exception as e:  # noqa: BLE001
             self.last_error = str(e)
 
-    def _make_proposal(self, c, key, hint=None, body_override=None):
+    def _make_proposal(self, c, key, hint=None, body_override=None, allow_auto=True):
+        # allow_auto=False: the CALLER owns the send decision (Scout handoff wants a gated
+        # proposal; ACE approves it itself). Without this, TEST MODE's auto-send below fires
+        # inside the draft call, sends immediately and pops the proposal — so the caller's
+        # lookup finds nothing ("proposal not found after draft") and a handoff that is
+        # supposed to stay review-gated goes out on its own. Auto-send belongs to poll_once.
         # body_override: for a re-engage handoff where OUR text is the last message, draft
         # off the seller's real earlier words (passed in) instead of our own outbound.
         body = (body_override if body_override else c.get("lastMessageBody")) or ""
@@ -855,18 +860,21 @@ class MarcusEngine:
 
             # Auto-send if globally enabled, OR if this is the safe canned NRN reply.
             # Held back outside quiet hours -> stays a pending proposal for morning.
-            if test_mode.is_test(c.get("phone")):
-                proposal["autonomous"] = True
-                self._send(pid, reply)
-                self._log("autosend", f"TEST MODE — auto-replied to {full or 'contact'}", {"id": pid})
-            else:
-                wants_auto = self.auto_send or (cls == "NRN" and source == "canned" and self.auto_send_nrn)
-                if wants_auto and self._auto_send_allowed():
+            # Skipped entirely when the caller owns the send (allow_auto=False) — see the
+            # note on the signature: otherwise this steals the proposal out from under them.
+            if allow_auto:
+                if test_mode.is_test(c.get("phone")):
                     proposal["autonomous"] = True
                     self._send(pid, reply)
-                elif wants_auto:
-                    self._log("deferred", f"Quiet hours — held auto-reply to {full or 'contact'} "
-                              f"for review", {"id": pid})
+                    self._log("autosend", f"TEST MODE — auto-replied to {full or 'contact'}", {"id": pid})
+                else:
+                    wants_auto = self.auto_send or (cls == "NRN" and source == "canned" and self.auto_send_nrn)
+                    if wants_auto and self._auto_send_allowed():
+                        proposal["autonomous"] = True
+                        self._send(pid, reply)
+                    elif wants_auto:
+                        self._log("deferred", f"Quiet hours — held auto-reply to {full or 'contact'} "
+                                  f"for review", {"id": pid})
             return {"ok": True, "proposalId": pid}
 
     def make_proposal_for(self, conversation_id, contact_id=None, hint=None, seller_said=None):
@@ -905,7 +913,12 @@ class MarcusEngine:
             with self.lock:
                 self.handled.discard(key)            # allow a fresh proposal
                 self.proposals.pop(f"p_{c.get('id')}_{c.get('lastMessageDate')}", None)
-            made = self._make_proposal(c, key, hint=hint, body_override=seller_said)
+            # allow_auto=False — this proposal is REVIEW-GATED by contract. Scout's handoff
+            # wants it sitting in the approval inbox; ACE approves it itself (autonomous=True
+            # → full sms_guard stack). Letting _make_proposal auto-send here would both
+            # bypass the gate and pop the proposal before the caller can find it.
+            made = self._make_proposal(c, key, hint=hint, body_override=seller_said,
+                                       allow_auto=False)
             if not (made or {}).get("ok"):
                 return made or {"error": "draft was not queued", "gate": "draft_safety"}
             return {"ok": True, "conversationId": conversation_id,

@@ -95,15 +95,21 @@ def set_mode(m):
         d = _roll(_load())
         d["mode"] = m
         _save(d)
+    st = status()
     try:
         import agent_bus
         agent_bus.send("ace", "all", "status",
                        f"🤖 ACE mode → {m.upper()}"
                        + (" (drafts queue for approval, no auto-send)" if m == "shadow" else ""),
                        {"type": "ace_mode", "mode": m})
+        # Arming ACE while TEST MODE is on reaches nobody but the whitelist — alert, don't
+        # let the operator believe autonomy is live when it silently isn't.
+        if st.get("warning"):
+            agent_bus.send("ace", "all", "alert", f"⚠️ {st['warning']}",
+                           {"type": "ace_test_mode_warning", "mode": m})
     except Exception:
         pass
-    return status()
+    return st
 
 
 def log_event(kind, conv_id, detail, extra=None):
@@ -166,14 +172,24 @@ def status():
         with _LOCK:
             d = _roll(_load())
             test = test_mode.status()
+            mode_now = d.get("mode", "off")
+            # The silent-no-op trap: ACE armed while TEST MODE is on means every seller who
+            # isn't on the whitelist is skipped ("contact is not whitelisted") — the operator
+            # thinks autonomy is live when it is reaching nobody. Say so, loudly.
+            warning = None
+            if mode_now != "off" and test.get("enabled"):
+                warning = (f"TEST MODE is ON — ACE is armed ({mode_now}) but will only text the "
+                           f"{len(test.get('phones') or [])} whitelisted number(s). Real sellers "
+                           f"are being skipped. Turn TEST MODE off to go live.")
             return {
-                "mode": d.get("mode", "off"),
+                "mode": mode_now,
                 "sentToday": int(d.get("sentToday") or 0),
                 "day": d.get("day"),
                 "maxReplies": MAX_REPLIES,
                 "log": (d.get("log") or [])[:20],
                 "testScoped": bool(test.get("enabled")),
                 "testPhoneCount": len(test.get("phones") or []),
+                "warning": warning,
             }
     except Exception as e:  # noqa: BLE001
         return {"mode": "off", "sentToday": 0, "error": str(e), "log": []}
@@ -316,13 +332,19 @@ def apply(conv_id, rec, report, convo, marcus, last_seller_msg=None, deal_prep=N
             log_event("draft_fail", conv_id, d.get("question"), {"err": res.get("error")})
             d["error"] = res.get("error")
             return d
-        found = _find_pending_pid(marcus, conv_id)
-        if not found:
-            _release_send_slot()
-            reserved = False
-            log_event("draft_fail", conv_id, "proposal not found after draft")
-            return d
-        pid, p = found
+        # make_proposal_for RETURNS the proposalId — trust it, and only fall back to the
+        # conversation scan if it's missing. (The scan alone is fragile: anything that
+        # consumes the proposal between the draft and the lookup makes it vanish.)
+        pid = res.get("proposalId")
+        p = (getattr(marcus, "proposals", {}) or {}).get(pid) if pid else None
+        if p is None:
+            found = _find_pending_pid(marcus, conv_id)
+            if not found:
+                _release_send_slot()
+                reserved = False
+                log_event("draft_fail", conv_id, "proposal not found after draft")
+                return d
+            pid, p = found
         p["autonomous"] = True          # full gate stack in sms_guard — both modes (locked)
         p["ace"] = True
         sres = marcus.approve(pid)      # → _send → sms_guard.guard(autonomous=True)
