@@ -962,6 +962,9 @@ def _auto_screen(rec):
         SCREENER.auto_screen(contact_id=cid, conv_id=conv)
         _ace_update_from_screening(cid)   # ACE P1: refresh conversation state off the screening
     threading.Thread(target=_run, daemon=True).start()
+    agent_bus.send("scout", "marcus", "handoff",
+                   f"🤝 Handed {rec.get('name') or 'a lead'} to Marcus for screening.",
+                   {"contactId": rec.get("contactId"), "bucket": rec.get("bucket")})
 
 
 SCOUT.on_scored = _auto_screen
@@ -2617,6 +2620,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/audit/legit/run",
                                    "/api/marcus/directives/run",
                                    "/api/prep/run",
+                                   "/api/prep/learn",
                                    "/api/agency/client/save",
                                    "/api/agency/client/delete",
                                    "/api/agency/request/save",
@@ -2781,6 +2785,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = handle_marcus_directives_run(body)
             elif parsed.path == "/api/prep/run":
                 result = handle_prep_run(body)
+            elif parsed.path == "/api/prep/learn":
+                result = DEAL_PREP.learn()
             elif parsed.path == "/api/agency/client/save":
                 result = agency_io.save_client(body.get("client") or body)
             elif parsed.path == "/api/agency/client/delete":

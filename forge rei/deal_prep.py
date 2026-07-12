@@ -75,6 +75,11 @@ PREP_MSGS = int(os.environ.get("FORGE_PREP_MSGS", "40"))              # transcri
 SKILL_REL = "Skills/atlas-underwriter.md"                             # learned playbook in the brain
 MAX_RECORDS = 100
 
+# Self-improvement cadence — lower than Scout's 25: Atlas only fires on
+# screened-interested sellers (15-min sweep, cap 5 Claude calls/sweep).
+LEARN_EVERY = int(os.environ.get("FORGE_ATLAS_LEARN_EVERY", "12"))
+LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_ATLAS_LEARN_GAP_MIN", "45")) * 60 * 1000
+
 CONDITIONS = ("move-in", "light rehab", "heavy rehab", "unknown")
 OCCUPANCIES = ("owner", "tenant", "vacant", "unknown")
 
@@ -174,6 +179,7 @@ class DealPrep:
         self.last_error = None
         self._sk_text = ""
         self._sk_mtime = None
+        self.learn_state = {"lastLearnedAt": None, "learnCount": 0, "preppedSinceLearn": 0}
         self._load()
 
     # -- persistence ----------------------------------------------------------
@@ -184,6 +190,7 @@ class DealPrep:
                 if isinstance(d, dict):
                     self.preps = d.get("preps", {}) or {}
                     self.activity = d.get("activity", []) or []
+                    self.learn_state = d.get("learnState", self.learn_state) or self.learn_state
         except Exception:
             self.preps, self.activity = {}, []
 
@@ -198,7 +205,8 @@ class DealPrep:
                           key=lambda r: r.get("updatedAt") or 0, reverse=True)[:MAX_RECORDS]
             self.preps = {r["contactId"]: r for r in keep}
         forge_atomic.atomic_write_json(STATE, {"preps": self.preps,
-                                               "activity": self.activity})
+                                               "activity": self.activity,
+                                               "learnState": self.learn_state})
 
     # -- brain skills (mtime-cached seed + learned vault playbook) --------------
     def _load_skills(self):
@@ -390,6 +398,7 @@ class DealPrep:
                       f"{_fmt_money(anchors['opening'])}/{_fmt_money(anchors['target'])}/"
                       f"{_fmt_money(anchors['walkaway'])}", contact_id)
             self.last_error = None
+            self.learn_state["preppedSinceLearn"] = self.learn_state.get("preppedSinceLearn", 0) + 1
             self._save()
         return {"ok": True, "prep": self.preps[contact_id]}
 
@@ -433,14 +442,102 @@ class DealPrep:
             an = (rec.get("prep") or {}).get("anchors") or {}
             try:
                 import agent_bus
-                agent_bus.send("atlas", "marcus", "note",
+                agent_bus.send("atlas", "marcus", "handoff",
                                f"📐 Deal prep ready for {name} — anchors "
                                f"{_fmt_money(an.get('opening'))}/{_fmt_money(an.get('target'))}/"
                                f"{_fmt_money(an.get('walkaway'))}",
                                {"type": "deal_prep", "contactId": cid})
             except Exception:
                 pass
+        self._maybe_learn(_atlas_key())
         return {"prepped": prepped, "skipped": skipped}
+
+    # -- self-improvement (learn from real preps, rewrite own playbook) ------------
+    def _maybe_learn(self, key):
+        now = int(time.time() * 1000)
+        st = self.learn_state
+        last = st.get("lastLearnedAt") or 0
+        if (key and st.get("preppedSinceLearn", 0) >= LEARN_EVERY
+                and (now - last) >= LEARN_MIN_INTERVAL_MS):
+            try:
+                self.learn(auto=True)
+            except Exception as e:  # noqa: BLE001
+                self.last_error = f"learn: {e}"
+
+    def learn(self, auto=False):
+        """Claude reflects on Atlas's recent real deal preps + current playbook,
+        then rewrites Skills/atlas-underwriter.md into the Obsidian brain
+        (git-committed). Next prep reloads it — closed adaptive loop, mirrors
+        Scout's learn() (scout_triage.py)."""
+        key = _atlas_key()
+        if not key:
+            return {"error": "no anthropic key"}
+        rows = sorted(self.preps.values(), key=lambda r: -(r.get("updatedAt") or 0))[:10]
+        lines = []
+        for r in rows:
+            p = r.get("prep") or {}
+            an = p.get("anchors") or {}
+            lines.append(
+                f"[{p.get('condition')}] anchors={_fmt_money(an.get('opening'))}/"
+                f"{_fmt_money(an.get('target'))}/{_fmt_money(an.get('walkaway'))} :: "
+                f"logic={(p.get('anchorLogic') or '')[:160]} :: "
+                f"mao={(p.get('maoNote') or '')[:160]} :: "
+                f"redFlags={'; '.join(p.get('redFlags') or [])[:160]}")
+        if not lines:
+            return {"error": "no encounters to learn from yet"}
+        current = self._load_skills() or "(no playbook yet — create one)"
+        system = (
+            "You are Atlas, a SELF-IMPROVING deal-underwriting analyst for a real estate "
+            "WHOLESALING business. Below is your CURRENT playbook and a sample of real "
+            "deal preps you actually produced. Improve yourself: sharpen the anchor "
+            "derivation logic, the MAO math guidance, condition/repair-estimate reads, "
+            "red-flag patterns, and call-card structure based on what worked. Output the "
+            "FULL UPDATED playbook as clean markdown — a practical underwriting rubric. "
+            "HARD RULE, restate it verbatim and never soften it: anchors derive ONLY from "
+            "the SELLER'S OWN stated price (opening ~70-75% of ask, target ~80-85%, "
+            "walkaway = the ask) — never invent an ARV, comp value, or market price; no "
+            "seller-stated ask means anchors stay null and maoNote spells out exactly what "
+            "comp data the operator needs to pull. Atlas never contacts anyone and every "
+            "number is INTERNAL operator prep. Keep it tight and actionable. Output ONLY "
+            "the markdown."
+        )
+        user = ("CURRENT PLAYBOOK:\n" + current[:4000]
+                + "\n\nRECENT REAL DEAL PREPS (your own output — learn from these):\n"
+                + "\n".join(lines))
+        try:
+            new_md = review_agent._claude(key, system, user, max_tokens=2200)
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"claude: {e}"}
+        if not new_md or len(new_md) < 200:
+            return {"error": "learning produced nothing usable"}
+        stamp = time.strftime("%Y-%m-%d %H:%M")
+        header = (f"---\nagent: atlas\nupdated: {stamp}\n"
+                  f"source: self-improvement (learned from {len(lines)} recent preps)\n---\n\n")
+        try:
+            import brain_io
+            res = brain_io.write_note(SKILL_REL, header + new_md.strip(),
+                                      reason=f"atlas self-improve {stamp}")
+        except Exception as e:  # noqa: BLE001
+            return {"error": f"brain write failed: {e}"}
+        with self.lock:
+            self.learn_state["lastLearnedAt"] = int(time.time() * 1000)
+            self.learn_state["learnCount"] = self.learn_state.get("learnCount", 0) + 1
+            self.learn_state["preppedSinceLearn"] = 0
+            self._sk_mtime = None  # force reload of the freshly-written playbook
+            self._log("learn", f"Self-improved underwriting playbook from {len(lines)} "
+                      f"preps ({'auto' if auto else 'manual'})")
+            self._save()
+        try:
+            import agent_bus
+            agent_bus.send("atlas", "marcus", "status",
+                           f"Atlas updated its underwriting playbook (self-improvement "
+                           f"#{self.learn_state['learnCount']}, from {len(lines)} preps).",
+                           {"learnCount": self.learn_state["learnCount"]})
+        except Exception:
+            pass
+        return {"ok": True, "learnCount": self.learn_state["learnCount"],
+                "wrote": SKILL_REL, "fromEncounters": len(lines),
+                "committed": (res or {}).get("committed"), "auto": auto}
 
     # -- public reads ----------------------------------------------------------------
     def get(self, contact_id):
@@ -461,6 +558,7 @@ class DealPrep:
             "lastError": self.last_error,
             "activity": self.activity[:40],
             "skillsLoaded": bool(self._load_skills()),
+            "learn": self.learn_state,
         }
 
     # -- the loop ----------------------------------------------------------------------
