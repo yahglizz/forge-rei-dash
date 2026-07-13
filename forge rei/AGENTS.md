@@ -1,6 +1,6 @@
 # AGENTS.md — FORGE REI OS (read before editing)
 
-This is a live 24/7 real-estate-wholesaling + AI-agency dashboard. The code here runs on a
+This is a live 24/7 real-estate-wholesaling + AI-agency + daycare dashboard. The code here runs on a
 DigitalOcean box (`root@24.199.81.124`, service `forge-reios`, port 7799). **Editing files
 here changes NOTHING on the live box until you run the deploy script.** Full detail lives in
 `CLAUDE.md` (same folder) — this file is the short operating contract.

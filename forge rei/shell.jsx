@@ -18,22 +18,22 @@ function CountUp({ to, prefix = "", dur = 900 }) {
   return <span className="tabnum">{prefix}{n.toLocaleString()}</span>;
 }
 
-function Logo() {
+function Logo({ accent = "#4F7CFF" }) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2 3 7v10l9 5 9-5V7z" stroke="#6f93ff" strokeWidth="1.5" strokeLinejoin="round"/>
-      <path d="M12 7v10M8 9l8 6M16 9l-8 6" stroke="#4F7CFF" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M12 2 3 7v10l9 5 9-5V7z" stroke={accent} strokeOpacity=".72" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M12 7v10M8 9l8 6M16 9l-8 6" stroke={accent} strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   );
 }
 
-function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, showMarcus = true }) {
+function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, showMarcus = true, accent = "#4F7CFF" }) {
   const Icons = window.Icons;
   const items = nav || window.NAV;
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark"><Logo /></div>
+        <div className="brand-mark" style={{ boxShadow: "0 0 0 1px " + accent + "40, 0 12px 32px -14px " + accent }}><Logo accent={accent} /></div>
         <div>
           <div className="brand-name">{brand}</div>
           <div className="brand-sub">{sub}</div>
@@ -80,6 +80,28 @@ function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, sh
 function Header({ title, workspaces = [], current = {}, onSwitch = () => {} }) {
   const Icons = window.Icons;
   const [menu, setMenu] = useStateSh(false);
+  const daycare = current.id === "daycare";
+  const [daycareCount, setDaycareCount] = useStateSh(0);
+  useEffectSh(() => {
+    if (!daycare) return;
+    const syncDaycareCount = (event) => {
+      if (event && event.detail) {
+        setDaycareCount((event.detail.children || []).length);
+        return;
+      }
+      try {
+        const saved = JSON.parse(localStorage.getItem("forge_daycare_v1") || "{}");
+        setDaycareCount((saved.children || []).length);
+      } catch (_) { setDaycareCount(0); }
+    };
+    syncDaycareCount();
+    window.addEventListener("forge-daycare-update", syncDaycareCount);
+    window.addEventListener("storage", syncDaycareCount);
+    return () => {
+      window.removeEventListener("forge-daycare-update", syncDaycareCount);
+      window.removeEventListener("storage", syncDaycareCount);
+    };
+  }, [daycare]);
   return (
     <header className="header">
       <div className="search">
@@ -93,16 +115,16 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {} }) {
       <div className="card" style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 13px", borderRadius: 12, whiteSpace: "nowrap" }}>
         <span style={{ color: "var(--green)" }}><Icons.Activity size={17} /></span>
         <div style={{ lineHeight: 1.25 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 600 }}>AI Activity</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }}>{daycare ? "Center Status" : "AI Activity"}</div>
           <div style={{ fontSize: 11, color: "var(--green)", display: "flex", alignItems: "center", gap: 4 }}>
-            <span className="dot online pulse" /> Live
+            <span className="dot online pulse" /> {daycare ? "Workspace ready" : "Live"}
           </div>
         </div>
       </div>
 
       <div style={{ lineHeight: 1.25, padding: "0 6px", whiteSpace: "nowrap" }}>
-        <div style={{ fontSize: 11.5 }} className="faint">Revenue (This Month)</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--green)" }} className="tabnum">$0.00</div>
+        <div style={{ fontSize: 11.5 }} className="faint">{daycare ? "Children Enrolled" : "Revenue (This Month)"}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: daycare ? (current.accent || "var(--green)") : "var(--green)" }} className="tabnum">{daycare ? daycareCount : "$0.00"}</div>
       </div>
 
       <button className="card" style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 12, position: "relative" }}>
@@ -131,7 +153,7 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {} }) {
                 <button key={w.id} onClick={() => { onSwitch(w.id); setMenu(false); }}
                   style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "9px 8px", borderRadius: 10, background: w.id === current.id ? "var(--card-2)" : "transparent", textAlign: "left" }}>
                   <div style={{ width: 32, height: 32, borderRadius: 9, background: "radial-gradient(circle at 40% 35%, " + w.accent + ", #16224a)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                    <Logo />
+                    <Logo accent={w.accent} />
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{w.brand} {w.sub}</div>

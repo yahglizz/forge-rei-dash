@@ -44,7 +44,22 @@ const AGENCY_PAGES = {
   Settings:   () => <window.AgencySettings />,
 };
 
-const PAGE_MAPS = { rei: REI_PAGES, agency: AGENCY_PAGES };
+const DAYCARE_PAGES = {
+  Dashboard:  () => <window.DaycareDashboard />,
+  Children:   () => <window.DaycareChildren />,
+  Attendance: () => <window.DaycareAttendance />,
+  Classrooms: () => <window.DaycareClassrooms />,
+  Staff:      () => <window.DaycareStaff />,
+  Enrollment: () => <window.DaycareEnrollment />,
+  Billing:    () => <window.DaycareBilling />,
+  Meals:      () => <window.DaycareMeals />,
+  Calendar:   () => <window.DaycareCalendar />,
+  Reports:    () => <window.DaycareReports />,
+  Brain:      () => <window.BrainPage />,
+  Settings:   () => <window.DaycareSettings />,
+};
+
+const PAGE_MAPS = { rei: REI_PAGES, agency: AGENCY_PAGES, daycare: DAYCARE_PAGES };
 
 function App() {
   const wsList = window.WORKSPACES;
@@ -73,10 +88,10 @@ function App() {
   const renderPage = pageMap[active] || pageMap[ws.nav[0][0]];
 
   return (
-    <div className="app">
+    <div className={"app app-" + ws.id} style={{ "--workspace-accent": ws.accent }}>
       <window.Sidebar
         active={active} onNav={setActive} goal={0}
-        brand={ws.brand} sub={ws.sub} nav={ws.nav} showMarcus={ws.id === "rei"} />
+        brand={ws.brand} sub={ws.sub} nav={ws.nav} accent={ws.accent} showMarcus={ws.id === "rei"} />
       <div className="main">
         <window.Header title={titleMap[active]} workspaces={wsList} current={ws} onSwitch={switchWs} />
         <div className="content">

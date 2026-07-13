@@ -8,13 +8,14 @@ to edit — change them and everything downstream follows.
 
 ## 1. What this is
 
-A real-estate-wholesaling + AI-agency control center. Static React UI (React UMD +
+A real-estate-wholesaling + AI-agency + daycare control center. Static React UI (React UMD +
 in-browser Babel, **no build step**) served by a Python stdlib connector
 (`connector.py`, port 7799) that mirrors GoHighLevel and runs the AI agents. Lives 24/7
-on a DigitalOcean box. Two workspaces (profile switcher):
+on a DigitalOcean box. Three workspaces (profile switcher):
 
 - **REI (wholesale):** Dashboard, Leads, Conversations, Pipeline, Agents, Brain, etc.
 - **Agency (ClientForge):** Clients, Edit Requests, Agents, Ads, Social, Approvals, Brain.
+- **Daycare:** Children, Attendance, Classrooms, Staff, Enrollment, Billing, Meals, Calendar, Reports, Brain.
 
 Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
 - `forge rei/` — the app (this folder): all `.py` engines + `.jsx` UI + `deploy/`.
@@ -78,6 +79,7 @@ This is a hard operating principle for Codex AND the agents:
      Canonical example: **`forge-self-improving-agent`** — the recipe for giving any new
      agent its own folder, brain-loaded skills, a self-improvement loop, bus comms, and
      console/deploy wiring. Use it (and keep it current) whenever adding/upgrading an agent.
+     Use **`forge-dashboard-workspace`** when adding or upgrading a profile-switcher workspace.
   2. **Agent skills** (the brain playbooks in `vault/Skills/*.md`) — each agent's living
      rubric, rewritten by its `learn()` loop.
 - **Always use the newest version.** Agents mtime-reload their playbook every run, so they
@@ -165,5 +167,6 @@ update that skill if you improved the pattern.
   Scout's loop) → brain note `Reports/missed-leads-<date>.md` + agent-bus alert. Read-only on
   GHL. Knobs: `FORGE_SCOUT_AUDIT_CANDIDATES`, `FORGE_SCOUT_AUDIT_PAGES`, `FORGE_SCOUT_AUDIT_MSGS`.
 - Agency agents: `/api/agency/agents{,/history,/tasks,/chat,/task,/task/update,/learn}`
+- Daycare starter data: browser-local `forge_daycare_v1` until shared backend storage is connected.
 - Bus: `/api/bus` · Brain: `/api/brain/{tree,note,search,recent,graph,activity,status}`
 - Knobs: `FORGE_SCOUT_*` (scout.env), `AGENCY_LEARN_EVERY`, `FORGE_VAULT`, `FORGE_MARCUS`.

@@ -17,10 +17,19 @@ const AGENCY_NAV = [
   ["Brain", "Brain"], ["Settings", "Settings"],
 ];
 
+// Daycare workspace — center operations, families, staff, enrollment, and billing.
+const DAYCARE_NAV = [
+  ["Dashboard", "Dashboard"], ["Children", "Children"], ["Attendance", "Attendance"],
+  ["Classrooms", "Classrooms"], ["Staff", "Staff"], ["Enrollment", "Enrollment"],
+  ["Billing", "Billing"], ["Meals", "Meals & Menus"], ["Calendar", "Calendar"],
+  ["Reports", "Reports"], ["Brain", "Brain"], ["Settings", "Settings"],
+];
+
 // Workspaces the profile switcher offers. REI = the existing dash; Agency = new.
 const WORKSPACES = [
   { id: "rei",    brand: "FORGE", sub: "REI OS",    accent: "#4F7CFF", tag: "Real Estate", nav: NAV },
   { id: "agency", brand: "FORGE", sub: "AI Agency", accent: "#8B5CF6", tag: "ClientForge",  nav: AGENCY_NAV },
+  { id: "daycare", brand: "FORGE", sub: "DAYCARE",  accent: "#2DD4BF", tag: "Daycare Operations", nav: DAYCARE_NAV },
 ];
 
 const KPIS = [
@@ -68,4 +77,4 @@ const STAGE_COLOR = {
   "Qualified": "#22C55E", "Offer Sent": "#F59E0B", "Contract": "#EC4899", "Closed": "#64748B",
 };
 
-Object.assign(window, { NAV, AGENCY_NAV, WORKSPACES, KPIS, HOT_LEADS, TASKS_SEED, PIPELINE_COLS, WORKFORCE, ACTIVITY, LEADS_TABLE, STAGE_COLOR });
+Object.assign(window, { NAV, AGENCY_NAV, DAYCARE_NAV, WORKSPACES, KPIS, HOT_LEADS, TASKS_SEED, PIPELINE_COLS, WORKFORCE, ACTIVITY, LEADS_TABLE, STAGE_COLOR });
