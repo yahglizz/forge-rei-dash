@@ -28,7 +28,9 @@ import os
 import threading
 
 import agency_ads
+import agency_eco
 import agency_social
+import daycare_context
 import daycare_supabase
 
 _ENV_LOCK = threading.Lock()
@@ -93,3 +95,37 @@ def social_overview(network: str | None = None) -> dict:
             "analytics": agency_social.analytics(network),
             "posts": agency_social.list_posts(network),
         }
+
+
+def eco_overview(account: str | None = None) -> dict:
+    """Fast, read-only Eco strategy view for the daycare (no Claude, no persist).
+
+    Renders instantly on the Growth tab; the heavy Claude idea generation is the
+    explicit ``eco_ideas`` action behind a button. Always reports whether the
+    business context brief loaded so the UI can nudge the owner if it's missing.
+    """
+    with _ENV_LOCK, _scoped_env(_ADS_KEYS):
+        built = agency_eco.recommendations(account=account, client="daycare")
+    return {
+        **built,
+        "context": daycare_context.status(),
+    }
+
+
+def eco_ideas(account: str | None = None) -> dict:
+    """Explicit action — Claude generates enrollment ideas + competitor analysis,
+    grounded in the daycare context brief (read FIRST) and any live ad numbers.
+
+    Read-only: it produces proposals for the owner. Launching an ad stays a
+    separate approval-gated step (never autonomous).
+    """
+    ctx = daycare_context.context_block()
+    with _ENV_LOCK, _scoped_env(_ADS_KEYS):
+        built = agency_eco._build(
+            account=account, client="daycare", use_ai=True,
+            include_competitor_ai=True, extra_context=ctx)
+    return {
+        "ok": True,
+        **built,
+        "context": daycare_context.status(),
+    }

@@ -223,13 +223,25 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
   tailnet/public clients still require real HTTPS + Login-ID/PIN. See
   `daycare_supabase.request_is_secure` / `autoadmin_session` and
   `connector._daycare_resolve_session`.
-- **Ads + Social (Growth tab).** `daycare_growth.py` reuses the agency
+- **Ads + Social + Ideas (Growth tab).** `daycare_growth.py` reuses the agency
   `agency_ads`/`agency_social`/`agency_eco` engines with the daycare's OWN creds (locked
   env-swap; agency code untouched). Mock until `META_ACCESS_TOKEN` / `METRICOOL_USER_TOKEN`
-  are added to `daycare.env`. Routes `/api/daycare/{ads,social}`.
+  are added to `daycare.env`. Routes `/api/daycare/{ads,social,eco,eco/ideas}`.
+- **Daycare agent context brief — READ FIRST.** Every daycare AI task loads
+  `forge-daycare/skills/daycare-context.md` (business facts, mission = grow enrollment,
+  current status, brand voice, standing job) BEFORE reasoning, via `daycare_context.py`
+  (mtime hot-reload; `context_block()` injected into the Eco prompt ahead of the playbook).
+  The "Ideas" tab (`daycare_growth.eco_ideas` → `/api/daycare/eco/ideas`) is the daycare's
+  Eco agent: it reads the brief, drafts new enrollment angles + a competitor read, and
+  returns PROPOSALS (launching an ad stays approval-gated). Eco's `extra_context` param is
+  ""/no-op for the agency, so agency output is unchanged. Owner keeps the brief current by
+  editing that markdown — agents pick it up on the next run. When adding any new daycare AI
+  surface, inject `daycare_context.context_block()` FIRST.
 - **Stripe invoicing.** `stripe_io.py` (stdlib) sends hosted invoices + syncs payments back
-  via the `record_invoice_payment` RPC (`provider='stripe'`). Needs a **restricted**
-  `STRIPE_SECRET_KEY` in `daycare.env` (blank = "add key" hint, nothing charged). Routes
+  via the `record_invoice_payment` RPC (`provider='stripe'`). Needs a secret-class
+  `STRIPE_SECRET_KEY` in `daycare.env` — `sk_live_…`/`sk_test_…` (full) or `rk_live_…`
+  (restricted, needs Customers + Invoices write). A `pk_…` publishable key is rejected by
+  Stripe. Blank = "add key" hint, nothing charged. Routes
   `/api/daycare/stripe/{send-invoice,sync-payment,status}`. Billing UI: "Send via Stripe" /
   "Sync".
 - **GHL family messaging.** `DAYCARE_GHL` = own `GHLClient` from `daycare.env`

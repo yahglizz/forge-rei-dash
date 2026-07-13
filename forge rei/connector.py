@@ -3297,6 +3297,10 @@ class Handler(BaseHTTPRequestHandler):
                 q.get("account", [None])[0], q.get("days", ["7"])[0]),
             "/api/daycare/social": lambda session: daycare_growth.social_overview(
                 q.get("network", [None])[0]),
+            "/api/daycare/eco": lambda session: daycare_growth.eco_overview(
+                q.get("account", [None])[0]),
+            "/api/daycare/eco/ideas": lambda session: daycare_growth.eco_ideas(
+                q.get("account", [None])[0]),
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),

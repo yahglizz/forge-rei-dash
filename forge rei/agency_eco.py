@@ -187,11 +187,15 @@ def _format_analytics_block(a):
 
 
 # --- M1: real Claude recommendations -----------------------------------------
-def _claude_recommendations(a, key):
+def _claude_recommendations(a, key, extra_context=""):
     """Call Claude to generate best/weak analysis + 3 new concepts.
 
     Returns (best_list, weak_list, next_list) using the same keys as _build().
     Raises on failure so caller can fall back to template.
+
+    ``extra_context`` (optional) is injected verbatim ahead of the playbook — the
+    daycare passes its business brief (``daycare_context.context_block()``) here so
+    Eco reasons on-message. Empty for the agency, so behaviour is unchanged.
     """
     playbook = _load_eco_skills()
     playbook_block = (
@@ -212,6 +216,7 @@ def _claude_recommendations(a, key):
         "title format: 'Concept N: AngleName'. "
         "Ground every recommendation in the actual numbers. Be specific and numeric. "
         "Output ONLY valid JSON — no markdown, no commentary."
+        + (extra_context or "")
         + playbook_block
     )
 
@@ -224,7 +229,7 @@ def _claude_recommendations(a, key):
         "next (array of exactly 3 new ad concepts grounded in what is winning)."
     )
 
-    raw = review_agent._claude(key, system, user, max_tokens=1400)
+    raw = review_agent._claude(key, system, user, max_tokens=1600)
     # Strip possible markdown code fences
     raw = raw.strip()
     if raw.startswith("```"):
@@ -256,11 +261,11 @@ def _claude_recommendations(a, key):
 
 
 # --- M1: real Claude competitor research -------------------------------------
-def _claude_competitor_research(a, key):
+def _claude_competitor_research(a, key, extra_context=""):
     """Call Claude to generate competitor analysis for the account's niche.
 
     Returns a competitor dict replacing the old placeholder block.
-    Raises on failure.
+    Raises on failure. ``extra_context`` injects the daycare brief when set.
     """
     playbook = _load_eco_skills()
     playbook_block = (
@@ -282,6 +287,7 @@ def _claude_competitor_research(a, key):
         "summary (2-3 sentences). "
         "Base analysis on the niche + winning hooks provided. "
         "Output ONLY valid JSON."
+        + (extra_context or "")
         + playbook_block
     )
 
@@ -309,11 +315,15 @@ def _claude_competitor_research(a, key):
 
 
 # --- core build (real Claude + template fallback) ----------------------------
-def _build(account=None, client=None, use_ai=True, include_competitor_ai=False):
+def _build(account=None, client=None, use_ai=True, include_competitor_ai=False,
+           extra_context=""):
     """Strategy pass.
 
     Dashboard reads must stay fast: they can render the deterministic template
     view. Explicit user actions can opt into Claude-backed strategy generation.
+
+    ``extra_context`` flows into the Claude prompts (daycare business brief); the
+    agency passes "" so its output is byte-for-byte what it was before.
     """
     a = agency_ads.analytics(account=account, client=client)
     acct = a["account"]
@@ -330,7 +340,7 @@ def _build(account=None, client=None, use_ai=True, include_competitor_ai=False):
 
     if use_ai and key:
         try:
-            best_list, weak_list, next_list = _claude_recommendations(a, key)
+            best_list, weak_list, next_list = _claude_recommendations(a, key, extra_context)
             used_claude_recs = True
         except Exception:
             pass  # fall through to template
@@ -365,7 +375,7 @@ def _build(account=None, client=None, use_ai=True, include_competitor_ai=False):
 
     if include_competitor_ai and key:
         try:
-            competitor = _claude_competitor_research(a, key)
+            competitor = _claude_competitor_research(a, key, extra_context)
         except Exception:
             pass  # keep placeholder on failure
 
@@ -397,18 +407,21 @@ def _save(d):
 
 
 # --- public API (same shape as before) ----------------------------------------
-def recommendations(account=None, client=None):
+def recommendations(account=None, client=None, extra_context=""):
     """Read-only strategy view (no persistence, no approval push).
 
     Keep this endpoint bounded. The Eco tab calls it while rendering, so the
     heavy Claude path belongs behind the explicit generate/research buttons.
     """
-    return {"ok": True, **_build(account=account, client=client, use_ai=False)}
+    return {"ok": True, **_build(account=account, client=client, use_ai=False,
+                                 extra_context=extra_context)}
 
 
-def generate(account=None, client=None):
+def generate(account=None, client=None, extra_context="", include_competitor_ai=False):
     """Generate a rec set, persist it, and push it to the Approval Center."""
-    built = _build(account=account, client=client, use_ai=True)
+    built = _build(account=account, client=client, use_ai=True,
+                   include_competitor_ai=include_competitor_ai,
+                   extra_context=extra_context)
     with _LOCK:
         d = _load()
         now = int(time.time() * 1000)
@@ -546,7 +559,7 @@ def approve_ad(rec_id, concept_index=0):
     return out
 
 
-def competitor_research(client=None):
+def competitor_research(client=None, extra_context=""):
     """Public wrapper for competitor analysis — called by the /api/agency/eco/competitor route.
 
     Builds a minimal analytics context (using the mock/live analytics for the
@@ -564,7 +577,7 @@ def competitor_research(client=None):
         key, _src = _agency_key()
         if key:
             try:
-                result = _claude_competitor_research(a, key)
+                result = _claude_competitor_research(a, key, extra_context)
                 return result
             except Exception:
                 pass  # fall through to placeholder
