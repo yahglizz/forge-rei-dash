@@ -147,6 +147,42 @@ class DaycareSecurityTests(unittest.TestCase):
             bridge.login_test_profile("manager")
         self.assertEqual(missing.exception.status, 403)
 
+    def test_allow_http_is_loopback_only(self):
+        # Without allow_http, plain HTTP from loopback is NOT secure.
+        self.assertFalse(daycare.request_is_secure({}, "127.0.0.1"))
+        with mock.patch.object(daycare, "CONFIG", config(allow_http=True)):
+            # allow_http lets the loopback owner through over plain HTTP...
+            self.assertTrue(daycare.request_is_secure({}, "127.0.0.1"))
+            self.assertTrue(daycare.request_is_secure({}, "::1"))
+            # ...but never a tailnet/public client.
+            self.assertFalse(daycare.request_is_secure({}, "100.80.10.20"))
+
+    def test_autoadmin_only_when_enabled_loopback_and_admin_configured(self):
+        # Disabled by default → no auto session.
+        bridge = daycare.SupabaseBridge(config())
+        self.assertIsNone(bridge.autoadmin_session("127.0.0.1"))
+        # Enabled but non-loopback → refused.
+        enabled = config(
+            autoadmin=True,
+            test_profiles=(("admin", "BL-ADM-301", "123456"),),
+        )
+        bridge = daycare.SupabaseBridge(enabled)
+        self.assertIsNone(bridge.autoadmin_session("100.80.10.20"))
+        # Enabled + loopback + admin creds → mints once, then reuses the cached session.
+        minted = session()
+        with mock.patch.object(bridge, "login", return_value=(minted, {"role": "admin"})) as login:
+            daycare._SESSIONS[minted.sid] = minted
+            first = bridge.autoadmin_session("127.0.0.1")
+            second = bridge.autoadmin_session("::1")
+        self.assertIs(first, minted)
+        self.assertIs(second, minted)
+        login.assert_called_once_with("BL-ADM-301", "123456")
+
+    def test_autoadmin_returns_none_when_no_admin_profile(self):
+        enabled = config(autoadmin=True, test_profiles=(("manager", "BL-MGR-201", "123456"),))
+        bridge = daycare.SupabaseBridge(enabled)
+        self.assertIsNone(bridge.autoadmin_session("127.0.0.1"))
+
     def test_parent_and_wrong_location_cannot_login_to_forge(self):
         bridge = daycare.BRIDGE
         with self.assertRaises(daycare.DaycareError) as role_error:

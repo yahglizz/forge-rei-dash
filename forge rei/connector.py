@@ -3056,6 +3056,26 @@ class Handler(BaseHTTPRequestHandler):
     def _daycare_session_id(self):
         return daycare_supabase.session_id_from_cookie(self.headers.get("Cookie"))
 
+    def _daycare_client_ip(self):
+        return self.client_address[0] if self.client_address else None
+
+    def _daycare_resolve_session(self, sid):
+        """Return (session, set_cookie_or_None).
+
+        Prefers a valid cookie session. On any failure (no cookie / expired), falls
+        back to a loopback auto-admin session when enabled, emitting a Set-Cookie so
+        the browser reuses it. If auto-admin does not apply, the original error is
+        re-raised so non-loopback clients still get the normal 401 login flow.
+        """
+        try:
+            return daycare_supabase.BRIDGE.require_session(sid), None
+        except daycare_supabase.DaycareError as first_error:
+            auto = daycare_supabase.BRIDGE.autoadmin_session(self._daycare_client_ip())
+            if auto is None:
+                raise first_error
+            session = daycare_supabase.BRIDGE.require_session(auto.sid)
+            return session, daycare_supabase.session_cookie(session.sid)
+
     def _daycare_require_secure(self):
         client_ip = self.client_address[0] if self.client_address else None
         if not daycare_supabase.request_is_secure(self.headers, client_ip):
@@ -3142,13 +3162,16 @@ class Handler(BaseHTTPRequestHandler):
                     {"ok": True, "authenticated": False},
                     headers={"Set-Cookie": daycare_supabase.expired_session_cookie()},
                 )
-            session = daycare_supabase.BRIDGE.require_session(sid)
+            session, set_cookie = self._daycare_resolve_session(sid)
             if path == "/api/daycare/media/sign-upload":
                 result = daycare_supabase.sign_media(session, body, upload=True)
             else:
                 result = handlers[path](session, body)
             _touch_sync()
-            return self._send_json(result)
+            return self._send_json(
+                result,
+                headers=({"Set-Cookie": set_cookie} if set_cookie else None),
+            )
         except daycare_supabase.DaycareError as error:
             headers = None
             if error.status == 401:
@@ -3196,22 +3219,37 @@ class Handler(BaseHTTPRequestHandler):
                 # Always 200, including unconfigured, logged-out, and expired states.
                 secure = daycare_supabase.request_is_secure(
                     self.headers, self.client_address[0] if self.client_address else None)
-                result = daycare_supabase.BRIDGE.auth_status(sid if secure else None)
+                effective_sid = sid
+                set_cookie = None
+                if secure and not sid:
+                    # Loopback owner with no cookie → hand back an auto-admin session
+                    # so the console opens straight in (no login screen).
+                    auto = daycare_supabase.BRIDGE.autoadmin_session(self._daycare_client_ip())
+                    if auto is not None:
+                        effective_sid = auto.sid
+                        set_cookie = daycare_supabase.session_cookie(auto.sid)
+                result = daycare_supabase.BRIDGE.auth_status(effective_sid if secure else None)
                 if not secure:
                     result["secureRequired"] = True
-                return self._send_json(result)
+                return self._send_json(
+                    result,
+                    headers=({"Set-Cookie": set_cookie} if set_cookie else None),
+                )
             if path == "/api/daycare/status":
                 session = None
-                if sid and daycare_supabase.request_is_secure(
+                if daycare_supabase.request_is_secure(
                         self.headers, self.client_address[0] if self.client_address else None):
                     try:
-                        session = daycare_supabase.BRIDGE.require_session(sid)
+                        session, _sc = self._daycare_resolve_session(sid)
                     except daycare_supabase.DaycareError:
                         session = None
                 return self._send_json(daycare_supabase.get_status(session))
             self._daycare_require_secure()
-            session = daycare_supabase.BRIDGE.require_session(sid)
-            return self._send_json(handlers[path](session))
+            session, set_cookie = self._daycare_resolve_session(sid)
+            return self._send_json(
+                handlers[path](session),
+                headers=({"Set-Cookie": set_cookie} if set_cookie else None),
+            )
         except daycare_supabase.DaycareError as error:
             headers = None
             if error.status == 401:

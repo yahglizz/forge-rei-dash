@@ -96,6 +96,10 @@ class DaycareConfig:
     # Test access is explicit, private-config-only, and never exposes a PIN to the browser.
     test_mode: bool = False
     test_profiles: tuple[tuple[str, str, str], ...] = ()
+    # Auto-admin: on the box, a loopback (SSH-tunnel) request with no session is
+    # transparently given an admin session so the owner opens straight into the console.
+    # Loopback-only; tailnet/public clients are never auto-authenticated.
+    autoadmin: bool = False
 
     @property
     def configured(self) -> bool:
@@ -154,6 +158,7 @@ def load_config() -> DaycareConfig:
         allowed_origins=allowed,
         test_mode=test_mode and bool(test_profiles),
         test_profiles=tuple(test_profiles),
+        autoadmin=_truthy(pick("FORGE_DAYCARE_AUTOADMIN", default="0")),
     )
 
 
@@ -302,12 +307,16 @@ class Session:
 
 _SESSIONS: dict[str, Session] = {}
 _SESSION_LOCK = threading.RLock()
+_AUTOADMIN_LOCK = threading.Lock()
+_AUTOADMIN_SID: str | None = None
 
 
 def clear_sessions() -> None:
     """Process-local invalidation (also used by focused tests)."""
+    global _AUTOADMIN_SID
     with _SESSION_LOCK:
         _SESSIONS.clear()
+    _AUTOADMIN_SID = None
 
 
 def session_id_from_cookie(cookie_header: str | None) -> str | None:
@@ -337,15 +346,21 @@ def expired_session_cookie() -> str:
     )
 
 
+def is_loopback(client_ip: str | None) -> bool:
+    return client_ip in {"127.0.0.1", "::1"}
+
+
 def request_is_secure(headers: Any, client_ip: str | None = None, *, is_tls: bool = False) -> bool:
-    if CONFIG.allow_http:
+    # allow_http is honored ONLY for loopback (the SSH-tunnelled owner on the box).
+    # A tailnet/public client can never bypass HTTPS via this flag.
+    if CONFIG.allow_http and is_loopback(client_ip):
         return True
     if is_tls:
         return True
     forwarded = str(headers.get("X-Forwarded-Proto", "")).split(",", 1)[0].strip().lower()
     # X-Forwarded-Proto is trusted only from the local Tailscale Serve reverse
     # proxy.  A tailnet client hitting :7799 directly can forge this header.
-    return forwarded == "https" and client_ip in {"127.0.0.1", "::1"}
+    return forwarded == "https" and is_loopback(client_ip)
 
 
 def validate_write_request(headers: Any, client_ip: str | None = None, *, is_tls: bool = False) -> None:
@@ -653,6 +668,37 @@ class SupabaseBridge:
             if secrets.compare_digest(role, configured_role):
                 return self.login(login_id, pin)
         raise DaycareError(403, "That test profile is unavailable", "test_profile_unavailable")
+
+    def autoadmin_session(self, client_ip: str | None) -> Session | None:
+        """Transparently supply an admin session for a loopback request.
+
+        Enabled only when ``FORGE_DAYCARE_AUTOADMIN`` is set AND the caller is on
+        the loopback interface (the owner's SSH tunnel on the box). Reuses a single
+        cached admin session across requests; re-mints it if it has expired. Returns
+        ``None`` (never raises) when auto-admin does not apply or minting fails, so
+        callers fall back to the normal 401 login path.
+        """
+        global _AUTOADMIN_SID
+        if not self.config.autoadmin or not is_loopback(client_ip):
+            return None
+        creds = next(
+            ((login_id, pin) for role, login_id, pin in self.config.test_profiles
+             if role == "admin"),
+            None,
+        )
+        if creds is None:
+            return None
+        with _AUTOADMIN_LOCK:
+            with _SESSION_LOCK:
+                existing = _SESSIONS.get(_AUTOADMIN_SID or "")
+            if existing is not None:
+                return existing
+            try:
+                session, _profile = self.login(creds[0], creds[1])
+            except DaycareError:
+                return None
+            _AUTOADMIN_SID = session.sid
+            return session
 
     def _fetch_profile(self, session: Session, profile_id: str) -> dict[str, Any]:
         rows = self.rest(
