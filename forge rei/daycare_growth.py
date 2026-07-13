@@ -112,6 +112,20 @@ def eco_overview(account: str | None = None) -> dict:
     }
 
 
+# Explicit override so Eco never mistakes the placeholder ad account (mock demo
+# data until META_ACCESS_TOKEN is set) for the real client. The daycare brief wins.
+_DAYCARE_OVERRIDE = (
+    "\n\n=== WHO THE CLIENT IS (overrides everything below) ===\n"
+    "The advertiser NAME and NUMBERS in the analytics section are PLACEHOLDER MOCK "
+    "DATA — Meta Ads is not connected yet. IGNORE that business name and its industry "
+    "entirely. The REAL client is the daycare in DAYCARE CONTEXT above: "
+    "'A Touch of Blessings Learning Academy' (childcare, Philadelphia). EVERY concept, "
+    "hook, headline, primary text, CTA, and competitor angle MUST be for the DAYCARE and "
+    "aimed at the one goal: get another family to book a tour / enroll. Never reference "
+    "the mock business or treat its metrics as real."
+)
+
+
 def eco_ideas(account: str | None = None) -> dict:
     """Explicit action — Claude generates enrollment ideas + competitor analysis,
     grounded in the daycare context brief (read FIRST) and any live ad numbers.
@@ -119,7 +133,7 @@ def eco_ideas(account: str | None = None) -> dict:
     Read-only: it produces proposals for the owner. Launching an ad stays a
     separate approval-gated step (never autonomous).
     """
-    ctx = daycare_context.context_block()
+    ctx = daycare_context.context_block() + _DAYCARE_OVERRIDE
     with _ENV_LOCK, _scoped_env(_ADS_KEYS):
         built = agency_eco._build(
             account=account, client="daycare", use_ai=True,

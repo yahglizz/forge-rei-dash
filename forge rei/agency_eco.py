@@ -301,7 +301,7 @@ def _claude_competitor_research(a, key, extra_context=""):
         "and specific differentiators {client_name} should lean into."
     ).replace("{client_name}", client_name)
 
-    raw = review_agent._claude(key, system, user, max_tokens=1600)
+    raw = review_agent._claude(key, system, user, max_tokens=2200)
     raw = raw.strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
