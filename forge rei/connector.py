@@ -49,6 +49,13 @@ AGENCY_ENV_CANDIDATES = [
     HERE.parent / "forge-agency" / "config" / "agency.env",
     Path.home() / "Desktop" / "forge-agency" / "config" / "agency.env",
 ]
+# Daycare — its OWN GoHighLevel sub-account for family messaging, kept separate
+# from wholesale + agency (keys live in forge-daycare/config/daycare.env).
+DAYCARE_ENV_CANDIDATES = [
+    HERE.parent / "forge-daycare" / "config" / "daycare.env",
+    Path.home() / "Desktop" / "forge-daycare" / "config" / "daycare.env",
+    Path("/opt/forge/forge-daycare/config/daycare.env"),
+]
 
 
 def _load_env(paths):
@@ -170,6 +177,7 @@ class GHLClient:
 
 WHOLESALE = GHLClient(_load_env(ENV_CANDIDATES), "wholesale")
 AGENCY = GHLClient(_load_env(AGENCY_ENV_CANDIDATES), "agency")
+DAYCARE_GHL = GHLClient(_load_env(DAYCARE_ENV_CANDIDATES), "daycare")
 
 
 def _inject_env(paths):
@@ -863,6 +871,7 @@ import agency_deploy  # noqa: E402
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
+import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import scout_triage  # noqa: E402
 import marcus_screening  # noqa: E402
 import agent_bus  # noqa: E402
@@ -3136,6 +3145,42 @@ class Handler(BaseHTTPRequestHandler):
         return {"ok": True, "sent": True, "synced": True, "amountPaid": amount_paid,
                 "status": invoice.get("status")}
 
+    def _daycare_ghl_text_invoice(self, session, body):
+        """Text a family their invoice / payment link via the daycare GHL account.
+
+        Owner-initiated (the console button IS the approval gate). Sends the Stripe
+        hosted payment link when the invoice was sent through Stripe, otherwise a
+        plain balance reminder. Never autonomous.
+        """
+        ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
+        guardian = ctx.get("guardian") or {}
+        phone = guardian.get("phone")
+        if not phone:
+            return {"ok": False, "detail": "This family has no phone number on file."}
+        link = ""
+        try:
+            invoice = stripe_io.find_invoice(str(ctx["invoice_id"])) if stripe_io.configured() else None
+            if invoice:
+                link = invoice.get("hosted_invoice_url") or ""
+        except Exception:  # noqa: BLE001 — a missing link must not block the text
+            link = ""
+        custom = (body.get("message") or "").strip()
+        if custom:
+            message = custom + (("\n\nPay here: " + link) if link else "")
+        else:
+            amount = "$" + format(float(ctx.get("amount") or 0), ".2f")
+            number = ctx.get("invoice_number") or "your invoice"
+            message = (f"Hi {guardian.get('name','')}, this is A Touch of Blessings. "
+                       f"{number} for {amount} is ready.")
+            if link:
+                message += " Pay securely here: " + link
+        contact_id = daycare_ghl.ensure_contact(
+            DAYCARE_GHL, name=guardian.get("name") or "Family",
+            phone=phone, email=guardian.get("email"))
+        if not contact_id:
+            return {"ok": False, "detail": "Could not create a GHL contact for this family."}
+        return daycare_ghl.send_sms(DAYCARE_GHL, contact_id=contact_id, message=message)
+
     def _handle_daycare_post(self, path):
         """Explicit, domain-only Daycare write router (never a generic table proxy)."""
         handlers = {
@@ -3167,7 +3212,8 @@ class Handler(BaseHTTPRequestHandler):
         if path not in handlers and path not in {
                 "/api/daycare/auth/login", "/api/daycare/auth/test-login", "/api/daycare/auth/logout",
                 "/api/daycare/media/sign-upload",
-                "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment"}:
+                "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
+                "/api/daycare/ghl/text-invoice"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
         try:
@@ -3203,6 +3249,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = stripe_io.send_invoice(ctx)
             elif path == "/api/daycare/stripe/sync-payment":
                 result = self._daycare_stripe_sync_payment(session, body)
+            elif path == "/api/daycare/ghl/text-invoice":
+                result = self._daycare_ghl_text_invoice(session, body)
             else:
                 result = handlers[path](session, body)
             _touch_sync()
@@ -3251,6 +3299,7 @@ class Handler(BaseHTTPRequestHandler):
                 q.get("network", [None])[0]),
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
+            "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
                 session,
                 {"bucket": q.get("bucket", [None])[0], "path": q.get("path", [None])[0]},
