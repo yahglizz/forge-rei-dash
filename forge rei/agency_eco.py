@@ -314,6 +314,107 @@ def _claude_competitor_research(a, key, extra_context=""):
     return parsed
 
 
+# --- daycare enrollment ideas (brief-first, no cross-client mock) ------------
+def daycare_enrollment_ideas(context_block, key, analytics_block=""):
+    """Generate DAYCARE enrollment concepts + competitor read from the business brief.
+
+    Deliberately does NOT reuse the agency's demo ad account: until the daycare's
+    own Meta is connected there is no real ad data, and feeding an unrelated mock
+    account makes Claude drift off-industry. Pass a real ``analytics_block`` only
+    when the daycare's Meta is live; otherwise Claude reasons purely from the brief.
+
+    Returns the same shape the Eco UI reads: {best, weak, next, competitor, _source}.
+    Raises on Claude/JSON failure so the caller can fall back.
+    """
+    ctx = context_block or ""
+    analytics = ("\n\n=== LIVE DAYCARE AD DATA ===\n" + analytics_block
+                 if analytics_block else
+                 "\n\n(No connected ad account yet — reason from the brief; ground concepts "
+                 "in the business facts, offers, and brand voice, not invented metrics.)")
+
+    system = (
+        "You are Eco, the growth strategist for a childcare business. You are working "
+        "ONLY on the daycare described in the DAYCARE CONTEXT below — never any other "
+        "business or industry. Your single goal is to grow enrollment: every concept must "
+        "plausibly get another family to book a tour. Output a JSON object with exactly "
+        "three keys: 'best' (array — enrollment plays already working per the brief; may be "
+        "empty), 'weak' (array — may be empty), and 'next' (array of exactly 3 NEW concepts). "
+        "Each 'next' item: {title, angle, hook, headline, primaryText, cta, creativeDirection}. "
+        "title format: 'Concept N: AngleName'. Honor the brand voice (warm, trustworthy, "
+        "never corporate), respect the licensing/CCIS trust signal, and never promise "
+        "capacity or start dates the brief flags as constrained. Output ONLY valid JSON — "
+        "no markdown, no commentary."
+        + ctx
+    )
+    user = (
+        "Generate 3 fresh daycare enrollment concepts for A Touch of Blessings, each aimed "
+        "at booking a tour. Vary the angles (trust, offer, referral, local-community, "
+        "seasonal). Do not recycle the offers already listed in the brief verbatim — build "
+        "on them." + analytics
+    )
+    raw = review_agent._claude(key, system, user, max_tokens=3200).strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+    if raw.endswith("```"):
+        raw = raw.rsplit("```", 1)[0]
+    parsed = json.loads(raw.strip())
+
+    nxt = []
+    for i, c in enumerate((parsed.get("next") or [])[:3]):
+        nxt.append({
+            "title": c.get("title", f"Concept {i + 1}"),
+            "angle": c.get("angle", ""),
+            "hook": c.get("hook", ""),
+            "headline": c.get("headline", ""),
+            "primaryText": c.get("primaryText", ""),
+            "cta": c.get("cta", "Book a Tour"),
+            "creativeDirection": c.get("creativeDirection", ""),
+        })
+
+    competitor = {"status": "placeholder"}
+    try:
+        competitor = _daycare_competitor(ctx, key)
+    except Exception:
+        pass
+
+    return {
+        "account": {"clientName": "A Touch of Blessings Learning Academy"},
+        "best": parsed.get("best") or [],
+        "weak": parsed.get("weak") or [],
+        "next": nxt,
+        "competitor": competitor,
+        "_source": "claude",
+    }
+
+
+def _daycare_competitor(context_block, key):
+    """Competitor read scoped to local daycares (brief-driven)."""
+    system = (
+        "You are Eco, a childcare growth strategist. Produce a competitor analysis for LOCAL "
+        "DAYCARES / childcare centers (the client is the daycare in DAYCARE CONTEXT below — "
+        "never any other industry) in JSON with keys: status ('analyzed'), niche (string), "
+        "competitorAngles (array of {angle, description, threat}), positioningGaps (array of "
+        "strings — what nearby daycares aren't saying that this one could own), "
+        "recommendedDifferentiators (array of strings), summary (2-3 sentences). "
+        "Output ONLY valid JSON."
+        + (context_block or "")
+    )
+    user = (
+        "Analyze how competing daycares in Philadelphia (Brewerytown / Sharswood / North "
+        "Philadelphia) market themselves on Meta and social, and where A Touch of Blessings "
+        "can stand out to grow enrollment. Lean on its real trust signals (licensed, "
+        "DHS-compliant, accepts CCIS/Child Care Works subsidy, 6 weeks–12 years)."
+    )
+    raw = review_agent._claude(key, system, user, max_tokens=2200).strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+    if raw.endswith("```"):
+        raw = raw.rsplit("```", 1)[0]
+    parsed = json.loads(raw.strip())
+    parsed.setdefault("status", "analyzed")
+    return parsed
+
+
 # --- core build (real Claude + template fallback) ----------------------------
 def _build(account=None, client=None, use_ai=True, include_competitor_ai=False,
            extra_context=""):

@@ -112,32 +112,39 @@ def eco_overview(account: str | None = None) -> dict:
     }
 
 
-# Explicit override so Eco never mistakes the placeholder ad account (mock demo
-# data until META_ACCESS_TOKEN is set) for the real client. The daycare brief wins.
-_DAYCARE_OVERRIDE = (
-    "\n\n=== WHO THE CLIENT IS (overrides everything below) ===\n"
-    "The advertiser NAME and NUMBERS in the analytics section are PLACEHOLDER MOCK "
-    "DATA — Meta Ads is not connected yet. IGNORE that business name and its industry "
-    "entirely. The REAL client is the daycare in DAYCARE CONTEXT above: "
-    "'A Touch of Blessings Learning Academy' (childcare, Philadelphia). EVERY concept, "
-    "hook, headline, primary text, CTA, and competitor angle MUST be for the DAYCARE and "
-    "aimed at the one goal: get another family to book a tour / enroll. Never reference "
-    "the mock business or treat its metrics as real."
-)
-
-
 def eco_ideas(account: str | None = None) -> dict:
-    """Explicit action — Claude generates enrollment ideas + competitor analysis,
-    grounded in the daycare context brief (read FIRST) and any live ad numbers.
+    """Explicit action — Claude drafts DAYCARE enrollment concepts + a local-daycare
+    competitor read, grounded in the business brief (read FIRST).
 
-    Read-only: it produces proposals for the owner. Launching an ad stays a
-    separate approval-gated step (never autonomous).
+    Uses a daycare-scoped generator (``agency_eco.daycare_enrollment_ideas``) that
+    reasons purely from the brief until the daycare's OWN Meta account is connected —
+    it never borrows the agency's demo ad data, so ideas stay on-industry. When the
+    daycare's Meta is live, its real numbers are folded in.
+
+    Read-only: proposals for the owner. Launching an ad stays approval-gated.
     """
-    ctx = daycare_context.context_block() + _DAYCARE_OVERRIDE
+    ctx = daycare_context.context_block()
+    key, _src = agency_eco._agency_key()
+    if not key:
+        # No Claude key — return the fast template view so the tab still renders.
+        built = eco_overview(account)
+        built["ok"] = True
+        built["detail"] = "Add ANTHROPIC_API_KEY (agency.env) to generate live ideas."
+        return built
+
+    analytics_block = ""
     with _ENV_LOCK, _scoped_env(_ADS_KEYS):
-        built = agency_eco._build(
-            account=account, client="daycare", use_ai=True,
-            include_competitor_ai=True, extra_context=ctx)
+        conn = agency_ads.connection()
+        if conn.get("connected") or conn.get("source") == "live":
+            # Daycare's OWN Meta is live — fold in real numbers.
+            live = agency_ads.analytics(client="daycare")
+            analytics_block = agency_eco._format_analytics_block(live)
+
+    try:
+        built = agency_eco.daycare_enrollment_ideas(ctx, key, analytics_block)
+    except Exception as exc:  # noqa: BLE001 — fall back to template, never 500
+        built = eco_overview(account)
+        built["detail"] = f"Idea generation fell back to template ({exc})."
     return {
         "ok": True,
         **built,
