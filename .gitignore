@@ -1,12 +1,15 @@
 # ── Secrets — NEVER commit ──────────────────────────────────
 *.env
 *.env.backup
+*.env.rtf
 ghl.env*
 *.pem
 *.key
 id_rsa*
 forge_droplet*
 deploy/keys/
+keys for daycare/
+**/keys for *//
 
 # ── Runtime state / data (business data stays off GitHub) ───
 marcus_state/
