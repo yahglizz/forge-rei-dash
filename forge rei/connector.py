@@ -872,6 +872,8 @@ import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare managem
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
+import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
+SOLOMON = daycare_director.SolomonEngine()
 import scout_triage  # noqa: E402
 import marcus_screening  # noqa: E402
 import agent_bus  # noqa: E402
@@ -3213,7 +3215,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/auth/login", "/api/daycare/auth/test-login", "/api/daycare/auth/logout",
                 "/api/daycare/media/sign-upload",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
-                "/api/daycare/ghl/text-invoice"}:
+                "/api/daycare/ghl/text-invoice",
+                "/api/daycare/director/run", "/api/daycare/director/learn"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
         try:
@@ -3251,6 +3254,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = self._daycare_stripe_sync_payment(session, body)
             elif path == "/api/daycare/ghl/text-invoice":
                 result = self._daycare_ghl_text_invoice(session, body)
+            elif path == "/api/daycare/director/run":
+                result = SOLOMON.run_once(session)
+            elif path == "/api/daycare/director/learn":
+                result = SOLOMON.learn()
             else:
                 result = handlers[path](session, body)
             _touch_sync()
@@ -3301,6 +3308,10 @@ class Handler(BaseHTTPRequestHandler):
                 q.get("account", [None])[0]),
             "/api/daycare/eco/ideas": lambda session: daycare_growth.eco_ideas(
                 q.get("account", [None])[0]),
+            "/api/daycare/director/status": lambda session: SOLOMON.status(),
+            "/api/daycare/director/overview": lambda session: SOLOMON.overview(),
+            "/api/daycare/director/brief": lambda session: SOLOMON.brief(),
+            "/api/daycare/director/bus": lambda session: agent_bus.recent(30),
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
@@ -3465,6 +3476,10 @@ def main():
         print("   Atlas: deal underwriter · auto-preps interested sellers every 15 min")
         ta = threading.Thread(target=DEAL_PREP.run_forever, daemon=True)
         ta.start()
+        # Solomon — daycare head agent: periodic operating brief + self-improve (box only).
+        print(f"   Solomon: daycare director · operating brief every {daycare_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
+        tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True)
+        tsol.start()
         # Do Today — rebuild the morning battle plan + email the digest at 9 AM Eastern.
         print(f"   Do Today: morning battle plan · rebuilds + emails {do_today.RUN_HOUR}:00 {do_today.TZ_NAME}"
               f" → {DO_TODAY.operator_email or 'NO EMAIL (set GHL_USER_EMAIL)'}")

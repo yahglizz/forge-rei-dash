@@ -14,6 +14,7 @@ MARCUS="$HOME/Desktop/marcus-wholesale-agent"
 AGENCY="$(dirname "$DASH")/forge-agency"   # sibling of "forge rei/", in the main folder
 SCOUT="$(dirname "$DASH")/forge-scout"     # Scout agent: config knobs + seed skills
 DAYCARE="$(dirname "$DASH")/forge-daycare" # Supabase schema + private Daycare config
+SOLOMON="$(dirname "$DASH")/forge-solomon" # Solomon: daycare head-agent config + seed playbook
 SCREEN="$(dirname "$DASH")/forge-marcus"   # Marcus screening agent: config knobs + seed screening playbook
 TG="$(dirname "$DASH")/forge-telegram"     # Telegram alerts + tap-to-approve: config/telegram.env
 VAULT="$HOME/Desktop/Agentic-OS/vault"
@@ -42,7 +43,7 @@ else
 fi
 
 echo "==> make remote dirs"
-$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-daycare/config $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
+$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-daycare/config $REMOTE/forge-solomon/config $REMOTE/forge-solomon/skills $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
 
 echo "==> push dashboard (deploy/keys excluded — never ship SSH keys/secret backups to the box)"
 rsync -az --delete -e "$SSH" \
@@ -88,6 +89,13 @@ if [ -d "$SCOUT" ]; then
   rsync -az -e "$SSH" --exclude '__pycache__' "$SCOUT/" "$TARGET:$REMOTE/forge-scout/"
 else
   echo "   (no $SCOUT yet — skipping; Scout falls back to vault skills + wholesale key)"
+fi
+
+echo "==> push Solomon folder (daycare head-agent config + seed playbook; learned copy lives in the vault)"
+if [ -d "$SOLOMON" ]; then
+  rsync -az -e "$SSH" --exclude '__pycache__' "$SOLOMON/" "$TARGET:$REMOTE/forge-solomon/"
+else
+  echo "   (no $SOLOMON yet — skipping; Solomon falls back to vault skills + shared key)"
 fi
 
 echo "==> push Marcus screening folder (config knobs + seed screening playbook; learned copy lives in the vault)"

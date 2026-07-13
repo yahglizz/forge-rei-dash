@@ -251,5 +251,22 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
 - **Secrets + flags** all live in `forge-daycare/config/daycare.env` (git-ignored, 404 over
   HTTP, chmod 600, shipped by `push.sh`). Design spec:
   `docs/superpowers/specs/2026-07-13-daycare-os-design.md`.
+- **Solomon — the daycare HEAD agent (executive director).** `daycare_director.py`
+  (`SolomonEngine`) is the first daycare agent and the head of all daycare agents: a
+  30-year childcare director. He reads the whole center (Supabase ops metrics + alerts,
+  billing, staffing, connected-systems health, the `daycare-context.md` brief FIRST),
+  produces a ranked **operating brief** (Attention Now / Enrollment / Money / People /
+  Delegations), **owns enrollment**, and **delegates** to role sub-agents via `agent_bus`
+  (hand-off per role). Same self-improving-agent pattern as Scout: own env folder
+  `forge-solomon/` (config + seed `skills/solomon-playbook.md`), key fallback (own →
+  shared agency/wholesale), mtime-cached brain playbook, `learn()` self-improvement into
+  `<vault>/Skills/solomon-playbook.md`, background loop gated by `FORGE_MARCUS` (box only,
+  brief every `FORGE_SOLOMON_BRIEF_EVERY_H`h + auto self-improve). Read-only + propose/
+  delegate — he never texts, invoices, launches ads, or writes the DB; his only autonomous
+  writes are his playbook + bus notes. Console: the **Solomon · Director** tab (daycare
+  workspace). Routes `/api/daycare/director/{status,overview,brief,run,learn,bus}`. His
+  "access to the env files" = reading which systems are **wired** (presence only, never
+  the secret value) via `connected_systems()`. Add role agents under him with the same
+  `forge-self-improving-agent` recipe; they consume his bus delegations.
 - **Autonomy rule holds:** every outward daycare action (SMS, invoice send, ad launch,
   social post) stays approval-gated per rule 2. Auto-admin is loopback-only convenience.

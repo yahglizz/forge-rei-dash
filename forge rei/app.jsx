@@ -46,6 +46,7 @@ const AGENCY_PAGES = {
 
 const DAYCARE_PAGES = {
   Dashboard:  () => <window.DaycareDashboard />,
+  Director:   () => <window.DaycareDirector />,
   Children:   () => <window.DaycareChildren />,
   Attendance: () => <window.DaycareAttendance />,
   CareLogs:   () => <window.DaycareCareLogs />,
