@@ -172,3 +172,15 @@ create policy "members create notifications" on public.notifications for insert 
     or (public.my_role() in ('manager','admin') and exists (select 1 from public.profiles p where p.id = profile_id and p.location_id = public.my_location()))
     or (public.my_role() = 'parent' and exists (select 1 from public.profiles p where p.id = profile_id and p.role in ('manager','admin') and p.location_id = public.my_location()))
   ));
+
+-- === guard_thread_rename ===
+create or replace function public.guard_thread_update() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.location_id := old.location_id; new.kind := old.kind;
+  new.created_by := old.created_by; new.created_at := old.created_at;
+  return new;
+end $$;
+drop trigger if exists thread_update_guard on public.message_threads;
+create trigger thread_update_guard before update on public.message_threads for each row execute function public.guard_thread_update();
+revoke execute on function public.guard_thread_update() from anon, authenticated, public;

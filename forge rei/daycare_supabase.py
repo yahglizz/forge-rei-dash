@@ -100,6 +100,8 @@ class DaycareConfig:
     # transparently given an admin session so the owner opens straight into the console.
     # Loopback-only; tailnet/public clients are never auto-authenticated.
     autoadmin: bool = False
+    # Optional cross-link to the deployed parent/staff family app (blank = hidden).
+    family_app_url: str = ""
 
     @property
     def configured(self) -> bool:
@@ -159,6 +161,9 @@ def load_config() -> DaycareConfig:
         test_mode=test_mode and bool(test_profiles),
         test_profiles=tuple(test_profiles),
         autoadmin=_truthy(pick("FORGE_DAYCARE_AUTOADMIN", default="0")),
+        family_app_url=pick(
+            "FORGE_DAYCARE_FAMILY_APP_URL", "DAYCARE_FAMILY_APP_URL", "FAMILY_APP_URL",
+            default=""),
     )
 
 
@@ -774,6 +779,7 @@ class SupabaseBridge:
             "testMode": self.config.test_mode,
             "testProfiles": [role for role, _login_id, _pin in self.config.test_profiles]
                 if self.config.test_mode else [],
+            "familyAppUrl": self.config.family_app_url,
             "authenticated": False,
         }
         if not self.config.configured or not self.config.live or not sid:
@@ -869,6 +875,7 @@ def get_status(session: Session | None = None) -> dict[str, Any]:
         "healthy": False,
         "locationId": CONFIG.location_id if CONFIG.configured else None,
         "location_id": CONFIG.location_id if CONFIG.configured else None,
+        "familyAppUrl": CONFIG.family_app_url,
     }
     if not session:
         response["message"] = "Login required for live health verification"

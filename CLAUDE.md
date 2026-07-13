@@ -204,3 +204,40 @@ update that skill if you improved the pattern.
 - Knobs: `FORGE_SCOUT_*` (scout.env), `AGENCY_LEARN_EVERY`, `FORGE_VAULT`, `FORGE_MARCUS`.
 - HOT-lead auto-pipeline: `FORGE_SCOUT_AUTOPIPE_HOT=1` (default on) — asap leads auto-land in the Wholesaling Pipeline Hot stage each poll (internal + reversible, same rationale as auto-tags).
 - HOT-lead auto-tag: `FORGE_SCOUT_AUTOTAG_HOT=1` (default on). Scout pushes `triage: asap`+`motivated: high` to GHL for every `asap` lead each poll (`_autotag_hot`, runs even with no new leads → backlog covered). Set `=0` to revert to approval-gated tagging.
+
+---
+
+## 10. Daycare OS (the third workspace — full daycare operating system)
+
+The **Daycare** workspace is the owner's management OS for "A Touch of Blessings"
+(Supabase project `eqblpbeqothkpyqiafzs`). It is the **management lens**; the separate
+Next.js app at `~/Desktop/the main daycare app` is the parent/staff lens. **Both are two
+front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not the code
+(one compiles, one runs in-browser Babel). The Supabase migrations in
+`forge-daycare/supabase/migrations/` and the app's `supabase/migrations/` are kept
+**byte-identical = single source of truth** (verified against the live DB).
+
+- **Opens straight in (no login).** On the box, a loopback (SSH-tunnel) request auto-mints
+  an admin session so the console opens with no login screen. Gated by
+  `FORGE_DAYCARE_AUTOADMIN=1` + `FORGE_DAYCARE_ALLOW_HTTP=1`, both **loopback-only** —
+  tailnet/public clients still require real HTTPS + Login-ID/PIN. See
+  `daycare_supabase.request_is_secure` / `autoadmin_session` and
+  `connector._daycare_resolve_session`.
+- **Ads + Social (Growth tab).** `daycare_growth.py` reuses the agency
+  `agency_ads`/`agency_social`/`agency_eco` engines with the daycare's OWN creds (locked
+  env-swap; agency code untouched). Mock until `META_ACCESS_TOKEN` / `METRICOOL_USER_TOKEN`
+  are added to `daycare.env`. Routes `/api/daycare/{ads,social}`.
+- **Stripe invoicing.** `stripe_io.py` (stdlib) sends hosted invoices + syncs payments back
+  via the `record_invoice_payment` RPC (`provider='stripe'`). Needs a **restricted**
+  `STRIPE_SECRET_KEY` in `daycare.env` (blank = "add key" hint, nothing charged). Routes
+  `/api/daycare/stripe/{send-invoice,sync-payment,status}`. Billing UI: "Send via Stripe" /
+  "Sync".
+- **GHL family messaging.** `DAYCARE_GHL` = own `GHLClient` from `daycare.env`
+  (`GHL_API_KEY`/`GHL_LOCATION_ID`, separate from wholesale+agency). `daycare_ghl.py`
+  texts families their payment link. **Owner-initiated only** (the "Text" button IS the
+  approval gate — never autonomous). Routes `/api/daycare/ghl/{health,text-invoice}`.
+- **Secrets + flags** all live in `forge-daycare/config/daycare.env` (git-ignored, 404 over
+  HTTP, chmod 600, shipped by `push.sh`). Design spec:
+  `docs/superpowers/specs/2026-07-13-daycare-os-design.md`.
+- **Autonomy rule holds:** every outward daycare action (SMS, invoice send, ad launch,
+  social post) stays approval-gated per rule 2. Auto-admin is loopback-only convenience.
