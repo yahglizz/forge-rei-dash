@@ -129,10 +129,11 @@ function DcxField({ label, children, wide = false }) {
   return <label className={wide ? "dc-field-wide" : ""}><span>{label}</span>{children}</label>;
 }
 
-function DcxLogin({ reason, onAuthenticated }) {
+function DcxLogin({ reason, onAuthenticated, testMode = false, testProfiles = [] }) {
   const [loginId, setLoginId] = useStateDcx("");
   const [pin, setPin] = useStateDcx("");
   const [busy, setBusy] = useStateDcx(false);
+  const [busyProfile, setBusyProfile] = useStateDcx("");
   const [error, setError] = useStateDcx(null);
   const submit = async (event) => {
     event.preventDefault();
@@ -144,23 +145,30 @@ function DcxLogin({ reason, onAuthenticated }) {
     } catch (loginError) { setError(loginError.message); }
     finally { setBusy(false); }
   };
+  const enterTestProfile = async (profile) => {
+    setBusyProfile(profile); setError(null);
+    try { const payload = await DcxRequest("/auth/test-login", { body: { profile } }); onAuthenticated(payload); }
+    catch (loginError) { setError(loginError.message); }
+    finally { setBusyProfile(""); }
+  };
+  if (testMode && testProfiles.length) return <div className="dc-login-shell"><div className="dc-login-art"><div className="dc-login-orbit"><span>DC</span></div><div><div className="dc-eyebrow">TEST PHASE · PRIVATE ACCESS</div><h1>Choose your<br/>test profile.</h1><p>Real Supabase data stays connected while this private dashboard uses server-controlled one-click access. The Login ID and PIN screen remains available when test mode is turned off.</p></div></div><div className="card dc-login-card"><div className="dc-login-badge"><window.Icons.Shield size={18} /></div><h2>Open a test profile</h2><p>{reason || "No password is needed during the test phase."}</p>{error && <div className="dc-form-error">{error}</div>}<div className="dc-test-profiles">{testProfiles.map((profile)=>{const isAdmin=profile==="admin";const title=isAdmin?"Management / Admin":"Manager";const detail=isAdmin?"Full center operations, staff, billing, and settings":"Daily center operations and classroom oversight";const Icon=isAdmin?window.Icons.Shield:window.Icons.Classrooms;return <button key={profile} className="dc-test-profile" disabled={Boolean(busyProfile)} onClick={()=>enterTestProfile(profile)}><span><Icon size={18}/></span><div><b>{busyProfile===profile?"Opening…":title}</b><small>{detail}</small></div><window.Icons.ChevronR size={16}/></button>;})}</div><small><window.Icons.Lock size={13} /> Test access is HTTPS-only and controlled by a private server flag. No PIN is sent to this browser.</small></div></div>;
   return <div className="dc-login-shell"><div className="dc-login-art"><div className="dc-login-orbit"><span>DC</span></div><div><div className="dc-eyebrow">SECURE MANAGEMENT ACCESS</div><h1>Your center.<br/>One command view.</h1><p>Live attendance, family records, staff coverage, care reporting, communication, and finances—all backed by the same Supabase data used by your daycare app.</p></div></div><form className="card dc-login-card" onSubmit={submit}><div className="dc-login-badge"><window.Icons.Lock size={18} /></div><h2>Management sign in</h2><p>{reason || "Use the management Login ID and PIN assigned in your daycare app."}</p>{error && <div className="dc-form-error">{error}</div>}<DcxField label="Login ID"><input autoFocus autoComplete="username" value={loginId} onChange={(event) => setLoginId(event.target.value)} placeholder="Your Login ID" /></DcxField><DcxField label="PIN"><input type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} placeholder="••••" /></DcxField><button className="dc-primary dc-login-submit" disabled={busy}>{busy ? "Signing in…" : "Open management workspace"}</button><small><window.Icons.Shield size={13} /> Credentials and Supabase tokens are never stored in this browser.</small></form></div>;
 }
 
 function DaycareWorkspace({ children }) {
-  const [state, setState] = useStateDcx({ loading: true, authenticated: false, reason: "", profile: null });
+  const [state, setState] = useStateDcx({ loading: true, authenticated: false, reason: "", profile: null, testMode: false, testProfiles: [] });
   const check = useCallbackDcx(async () => {
     try {
       const payload = await DcxRequest("/auth/status");
       const auth = payload.authenticated !== undefined ? payload.authenticated : Boolean(payload.user || payload.profile);
-      setState({ loading: false, authenticated: auth, reason: "", profile: payload.profile || payload.user || (payload.data && payload.data.profile) || null });
+      const data=payload.data||{};setState({ loading: false, authenticated: auth, reason: "", profile: payload.profile || payload.user || data.profile || null, testMode: Boolean(payload.testMode||data.testMode), testProfiles: Array.isArray(payload.testProfiles)?payload.testProfiles:(Array.isArray(data.testProfiles)?data.testProfiles:[]) });
     } catch (error) {
-      setState({ loading: false, authenticated: false, reason: error.status === 502 ? "The Daycare integration is not configured yet." : error.message, profile: null });
+      setState({ loading: false, authenticated: false, reason: error.status === 502 ? "The Daycare integration is not configured yet." : error.message, profile: null, testMode: false, testProfiles: [] });
     }
   }, []);
   useEffectDcx(() => {
     check();
-    const expire = () => setState({ loading: false, authenticated: false, reason: "Your secure session expired. Sign in again to continue.", profile: null });
+    const expire = () => setState((current) => ({ ...current, loading: false, authenticated: false, reason: "Your secure session expired. Sign in again to continue.", profile: null }));
     window.addEventListener("forge-daycare-auth-expired", expire);
     return () => window.removeEventListener("forge-daycare-auth-expired", expire);
   }, [check]);
@@ -169,7 +177,7 @@ function DaycareWorkspace({ children }) {
     window.dispatchEvent(new CustomEvent("forge-daycare-session", { detail: state }));
   }, [state]);
   if (state.loading) return <div className="dc-auth-loading"><div className="dc-spinner" /><b>Securing Daycare workspace</b></div>;
-  if (!state.authenticated) return <DcxLogin reason={state.reason} onAuthenticated={check} />;
+  if (!state.authenticated) return <DcxLogin reason={state.reason} onAuthenticated={check} testMode={state.testMode} testProfiles={state.testProfiles} />;
   return <div className="dc-authenticated">{children}</div>;
 }
 

@@ -53,6 +53,7 @@ if [ ! -f "$DAYCARE_FLAGS" ]; then
   cat > "$DAYCARE_FLAGS" <<EOF
 FORGE_DAYCARE_LIVE=1
 FORGE_DAYCARE_WRITES=1
+FORGE_DAYCARE_TEST_MODE=1
 EOF
   chmod 600 "$DAYCARE_FLAGS"
 else
@@ -62,6 +63,9 @@ else
   grep -q '^FORGE_DAYCARE_WRITES=' "$DAYCARE_FLAGS" \
     && sed -i 's/^FORGE_DAYCARE_WRITES=.*/FORGE_DAYCARE_WRITES=1/' "$DAYCARE_FLAGS" \
     || echo 'FORGE_DAYCARE_WRITES=1' >> "$DAYCARE_FLAGS"
+  # Test mode is deliberately sticky: set this to 0 when re-enabling the PIN screen.
+  grep -q '^FORGE_DAYCARE_TEST_MODE=' "$DAYCARE_FLAGS" \
+    || echo 'FORGE_DAYCARE_TEST_MODE=1' >> "$DAYCARE_FLAGS"
 fi
 cat > /etc/systemd/system/forge-reios.service <<EOF
 [Unit]

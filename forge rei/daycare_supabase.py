@@ -93,6 +93,9 @@ class DaycareConfig:
     writes_enabled: bool
     allow_http: bool
     allowed_origins: tuple[str, ...]
+    # Test access is explicit, private-config-only, and never exposes a PIN to the browser.
+    test_mode: bool = False
+    test_profiles: tuple[tuple[str, str, str], ...] = ()
 
     @property
     def configured(self) -> bool:
@@ -122,6 +125,13 @@ def load_config() -> DaycareConfig:
         "http://localhost:7799",
         "http://127.0.0.1:7799",
     )
+    test_profiles: list[tuple[str, str, str]] = []
+    for role in ("admin", "manager"):
+        login_id = pick(f"DAYCARE_TEST_{role.upper()}_LOGIN_ID")
+        pin = pick(f"DAYCARE_TEST_{role.upper()}_PIN")
+        if LOGIN_ID_RE.fullmatch(login_id) and re.fullmatch(r"\d{6}", pin):
+            test_profiles.append((role, login_id, pin))
+    test_mode = _truthy(pick("FORGE_DAYCARE_TEST_MODE", "DAYCARE_TEST_MODE", default="0"))
     return DaycareConfig(
         url=pick(
             "DAYCARE_SUPABASE_URL", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"
@@ -142,6 +152,8 @@ def load_config() -> DaycareConfig:
         writes_enabled=_truthy(pick("FORGE_DAYCARE_WRITES", default="0")),
         allow_http=_truthy(pick("FORGE_DAYCARE_ALLOW_HTTP", default="0")),
         allowed_origins=allowed,
+        test_mode=test_mode and bool(test_profiles),
+        test_profiles=tuple(test_profiles),
     )
 
 
@@ -627,6 +639,21 @@ class SupabaseBridge:
             _SESSIONS[temporary.sid] = temporary
         return temporary, public_profile(profile)
 
+    def login_test_profile(self, profile_name: Any) -> tuple[Session, dict[str, Any]]:
+        """Create a real Supabase session for an explicitly configured test profile.
+
+        This is intentionally unavailable unless both the server test flag and the
+        matching private Login ID/PIN are configured. The browser submits only the
+        role name; credentials stay in the private config and are never returned.
+        """
+        if not self.config.test_mode:
+            raise DaycareError(403, "Daycare test access is disabled", "test_access_disabled")
+        role = str(profile_name or "").strip().lower()
+        for configured_role, login_id, pin in self.config.test_profiles:
+            if secrets.compare_digest(role, configured_role):
+                return self.login(login_id, pin)
+        raise DaycareError(403, "That test profile is unavailable", "test_profile_unavailable")
+
     def _fetch_profile(self, session: Session, profile_id: str) -> dict[str, Any]:
         rows = self.rest(
             session,
@@ -698,6 +725,9 @@ class SupabaseBridge:
             "configured": self.config.configured,
             "live": self.config.live,
             "writesEnabled": self.config.writes_enabled,
+            "testMode": self.config.test_mode,
+            "testProfiles": [role for role, _login_id, _pin in self.config.test_profiles]
+                if self.config.test_mode else [],
             "authenticated": False,
         }
         if not self.config.configured or not self.config.live or not sid:

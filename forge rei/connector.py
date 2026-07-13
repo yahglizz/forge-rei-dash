@@ -3113,7 +3113,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/settings/save": daycare_supabase.save_settings,
         }
         if path not in handlers and path not in {
-                "/api/daycare/auth/login", "/api/daycare/auth/logout",
+                "/api/daycare/auth/login", "/api/daycare/auth/test-login", "/api/daycare/auth/logout",
                 "/api/daycare/media/sign-upload"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
@@ -3127,6 +3127,13 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("loginId") or body.get("login_id"), body.get("pin"))
                 return self._send_json(
                     {"ok": True, "authenticated": True, "profile": profile},
+                    headers={"Set-Cookie": daycare_supabase.session_cookie(session.sid)},
+                )
+            if path == "/api/daycare/auth/test-login":
+                session, profile = daycare_supabase.BRIDGE.login_test_profile(
+                    body.get("profile"))
+                return self._send_json(
+                    {"ok": True, "authenticated": True, "profile": profile, "testMode": True},
                     headers={"Set-Cookie": daycare_supabase.session_cookie(session.sid)},
                 )
             if path == "/api/daycare/auth/logout":

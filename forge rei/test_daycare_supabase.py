@@ -129,6 +129,24 @@ class DaycareSecurityTests(unittest.TestCase):
         self.assertEqual(daycare._SESSIONS[created.sid].access_token, "access-secret")
         self.assertNotIn("access-secret", daycare.session_cookie(created.sid))
 
+    def test_test_profile_login_needs_private_flag_and_mapping(self):
+        bridge = daycare.SupabaseBridge(config())
+        with self.assertRaises(daycare.DaycareError) as disabled:
+            bridge.login_test_profile("admin")
+        self.assertEqual(disabled.exception.status, 403)
+        test_config = config(
+            test_mode=True,
+            test_profiles=(("admin", "BL-ADM-301", "123456"),),
+        )
+        bridge = daycare.SupabaseBridge(test_config)
+        expected = (session(), {"role": "admin"})
+        with mock.patch.object(bridge, "login", return_value=expected) as login:
+            self.assertEqual(bridge.login_test_profile("admin"), expected)
+        login.assert_called_once_with("BL-ADM-301", "123456")
+        with self.assertRaises(daycare.DaycareError) as missing:
+            bridge.login_test_profile("manager")
+        self.assertEqual(missing.exception.status, 403)
+
     def test_parent_and_wrong_location_cannot_login_to_forge(self):
         bridge = daycare.BRIDGE
         with self.assertRaises(daycare.DaycareError) as role_error:

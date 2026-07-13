@@ -29,6 +29,8 @@ PLANNED_POSTS = {
     "/api/daycare/payroll/record-paid", "/api/daycare/media/sign-upload",
 }
 
+TEST_ONLY_POSTS = {"/api/daycare/auth/test-login"}
+
 
 class DaycareConnectorContractTests(unittest.TestCase):
     def test_all_approved_routes_are_explicitly_registered(self):
@@ -36,6 +38,7 @@ class DaycareConnectorContractTests(unittest.TestCase):
         post_source = inspect.getsource(connector.Handler._handle_daycare_post)
         self.assertEqual(set(), {path for path in PLANNED_GETS if path not in get_source})
         self.assertEqual(set(), {path for path in PLANNED_POSTS if path not in post_source})
+        self.assertEqual(set(), {path for path in TEST_ONLY_POSTS if path not in post_source})
 
     def test_auth_status_is_handled_before_secure_session_requirement(self):
         source = inspect.getsource(connector.Handler._handle_daycare_get)
