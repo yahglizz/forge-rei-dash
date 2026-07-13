@@ -1184,6 +1184,46 @@ def get_billing(session: Session) -> dict[str, Any]:
     return {"ok": True, "invoices": invoices, "directory": _rows(guardians)}
 
 
+def stripe_invoice_context(session: Session, invoice_id: Any) -> dict[str, Any]:
+    """Authoritative, RLS-scoped context for sending one invoice through Stripe."""
+    inv_id = require_uuid(invoice_id, "invoice_id")
+    rows = _rows(BRIDGE.rest(
+        session,
+        "GET",
+        "invoices",
+        query={
+            "id": f"eq.{inv_id}",
+            "location_id": f"eq.{CONFIG.location_id}",
+            "select": (
+                "id,invoice_number,amount,description,due_on,status,guardian_id,"
+                "profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name,auth_email,phone)"
+            ),
+            "limit": "1",
+        },
+    ))
+    if not rows:
+        raise DaycareError(404, "Invoice not found", "not_found")
+    invoice = rows[0]
+    guardian = invoice.get("profiles") or {}
+    name = guardian.get("display_name") or " ".join(
+        value for value in (guardian.get("first_name"), guardian.get("last_name")) if value) or "Family"
+    return {
+        "invoice_id": invoice.get("id"),
+        "invoice_number": invoice.get("invoice_number"),
+        "amount": invoice.get("amount"),
+        "description": invoice.get("description"),
+        "due_on": invoice.get("due_on"),
+        "status": invoice.get("status"),
+        "location_id": CONFIG.location_id,
+        "guardian": {
+            "id": guardian.get("id") or invoice.get("guardian_id"),
+            "name": name,
+            "email": guardian.get("auth_email"),
+            "phone": guardian.get("phone"),
+        },
+    }
+
+
 def get_payroll(session: Session) -> dict[str, Any]:
     staff_ids = _staff_ids(session)
     if not staff_ids:

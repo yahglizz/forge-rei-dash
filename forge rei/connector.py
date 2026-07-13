@@ -862,6 +862,7 @@ import agency_social  # noqa: E402
 import agency_deploy  # noqa: E402
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
+import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import scout_triage  # noqa: E402
 import marcus_screening  # noqa: E402
 import agent_bus  # noqa: E402
@@ -3105,6 +3106,36 @@ class Handler(BaseHTTPRequestHandler):
                 400, "Request body must be a JSON object", "validation_error")
         return body
 
+    def _daycare_stripe_sync_payment(self, session, body):
+        """Pull a Stripe invoice's paid status into the Supabase ledger (manual sync).
+
+        Idempotent: the RPC keys on the Stripe invoice id, so repeated syncs of the
+        same paid invoice never double-record.
+        """
+        ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
+        invoice = stripe_io.find_invoice(str(ctx["invoice_id"]))
+        if not invoice:
+            return {"ok": True, "sent": False, "synced": False,
+                    "detail": "No Stripe invoice exists yet for this record."}
+        if not invoice.get("paid"):
+            return {"ok": True, "sent": True, "synced": False,
+                    "status": invoice.get("status"),
+                    "hostedInvoiceUrl": invoice.get("hosted_invoice_url")}
+        amount_paid = (invoice.get("amount_paid") or 0) / 100.0
+        stripe_id = invoice.get("id")
+        daycare_supabase.record_invoice_payment(session, {
+            "invoice_id": ctx["invoice_id"],
+            "payment": {
+                "amount": amount_paid,
+                "method_label": "Stripe",
+                "provider": "stripe",
+                "provider_reference": stripe_id,
+                "idempotency_key": f"stripe:{stripe_id}",
+            },
+        })
+        return {"ok": True, "sent": True, "synced": True, "amountPaid": amount_paid,
+                "status": invoice.get("status")}
+
     def _handle_daycare_post(self, path):
         """Explicit, domain-only Daycare write router (never a generic table proxy)."""
         handlers = {
@@ -3135,7 +3166,8 @@ class Handler(BaseHTTPRequestHandler):
         }
         if path not in handlers and path not in {
                 "/api/daycare/auth/login", "/api/daycare/auth/test-login", "/api/daycare/auth/logout",
-                "/api/daycare/media/sign-upload"}:
+                "/api/daycare/media/sign-upload",
+                "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
         try:
@@ -3166,6 +3198,11 @@ class Handler(BaseHTTPRequestHandler):
             session, set_cookie = self._daycare_resolve_session(sid)
             if path == "/api/daycare/media/sign-upload":
                 result = daycare_supabase.sign_media(session, body, upload=True)
+            elif path == "/api/daycare/stripe/send-invoice":
+                ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
+                result = stripe_io.send_invoice(ctx)
+            elif path == "/api/daycare/stripe/sync-payment":
+                result = self._daycare_stripe_sync_payment(session, body)
             else:
                 result = handlers[path](session, body)
             _touch_sync()
@@ -3178,6 +3215,9 @@ class Handler(BaseHTTPRequestHandler):
             if error.status == 401:
                 headers = {"Set-Cookie": daycare_supabase.expired_session_cookie()}
             return self._send_json(error.payload(), error.status, headers=headers)
+        except stripe_io.StripeError as error:
+            return self._send_json(
+                {"ok": False, "error": error.message, "code": error.code}, error.status)
         except Exception:  # never leak tokens, credentials, PII, or upstream bodies
             return self._send_json(
                 {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
@@ -3209,6 +3249,8 @@ class Handler(BaseHTTPRequestHandler):
                 q.get("account", [None])[0], q.get("days", ["7"])[0]),
             "/api/daycare/social": lambda session: daycare_growth.social_overview(
                 q.get("network", [None])[0]),
+            "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
+                (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
                 session,
                 {"bucket": q.get("bucket", [None])[0], "path": q.get("path", [None])[0]},
@@ -3260,6 +3302,9 @@ class Handler(BaseHTTPRequestHandler):
             if error.status == 401:
                 headers = {"Set-Cookie": daycare_supabase.expired_session_cookie()}
             return self._send_json(error.payload(), error.status, headers=headers)
+        except stripe_io.StripeError as error:
+            return self._send_json(
+                {"ok": False, "error": error.message, "code": error.code}, error.status)
         except Exception:  # never leak tokens, credentials, PII, or upstream bodies
             return self._send_json(
                 {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
