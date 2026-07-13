@@ -71,6 +71,15 @@ const Icons = {
   Billing: (p) => <I {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></I>,
   Meals: (p) => <I {...p}><path d="M7 3v7a3 3 0 0 0 3 3V3M7 7h3M8.5 13v8M16 3v18M16 3c3 2 4 5 4 8h-4"/></I>,
   Reports: (p) => <I {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></I>,
+  CareLogs: (p) => <I {...p}><path d="M4 3h16v18H4zM8 8h8M8 12h8M8 16h5"/><path d="M9 3V1M15 3V1"/></I>,
+  Incidents: (p) => <I {...p}><path d="M12 3 2 21h20z"/><path d="M12 9v5M12 18h.01"/></I>,
+  Payroll: (p) => <I {...p}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 14h4M16 13v4M14 15h4"/></I>,
+  Messages: (p) => <I {...p} d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>,
+  Announcements: (p) => <I {...p}><path d="M3 11v3a1 1 0 0 0 1 1h2.5L11 19V5L6.5 9H4a1 1 0 0 0-1 1z"/><path d="M16 8.5a4 4 0 0 1 0 7"/></I>,
+  AlertTriangle: (p) => <I {...p}><path d="M12 3 2 21h20z"/><path d="M12 9v5M12 18h.01"/></I>,
+  Lock: (p) => <I {...p}><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></I>,
+  Shield: (p) => <I {...p}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="m9 12 2 2 4-4"/></I>,
+  Logout: (p) => <I {...p}><path d="M10 17l5-5-5-5M15 12H3M21 3v18h-7"/></I>,
 };
 
 window.Icons = Icons;

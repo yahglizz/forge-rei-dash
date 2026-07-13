@@ -82,26 +82,30 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {} }) {
   const [menu, setMenu] = useStateSh(false);
   const daycare = current.id === "daycare";
   const [daycareCount, setDaycareCount] = useStateSh(0);
+  const [daycareSession, setDaycareSession] = useStateSh(null);
   useEffectSh(() => {
     if (!daycare) return;
-    const syncDaycareCount = (event) => {
-      if (event && event.detail) {
-        setDaycareCount((event.detail.children || []).length);
-        return;
-      }
+    const receive = (event) => setDaycareSession(event.detail || null);
+    window.addEventListener("forge-daycare-session", receive);
+    return () => window.removeEventListener("forge-daycare-session", receive);
+  }, [daycare]);
+  useEffectSh(() => {
+    if (!daycare || !daycareSession || !daycareSession.authenticated) return;
+    let active = true;
+    const syncDaycareCount = async () => {
       try {
-        const saved = JSON.parse(localStorage.getItem("forge_daycare_v1") || "{}");
-        setDaycareCount((saved.children || []).length);
-      } catch (_) { setDaycareCount(0); }
+        const response = await fetch("/api/daycare/overview", { credentials: "same-origin", cache: "no-store" });
+        const payload = await response.json();
+        if (active && response.ok) setDaycareCount(Number((payload.metrics || {}).childrenActive || 0));
+      } catch (_) { if (active) setDaycareCount(0); }
     };
     syncDaycareCount();
-    window.addEventListener("forge-daycare-update", syncDaycareCount);
-    window.addEventListener("storage", syncDaycareCount);
+    const timer = window.setInterval(syncDaycareCount, 30000);
     return () => {
-      window.removeEventListener("forge-daycare-update", syncDaycareCount);
-      window.removeEventListener("storage", syncDaycareCount);
+      active = false;
+      window.clearInterval(timer);
     };
-  }, [daycare]);
+  }, [daycare, daycareSession && daycareSession.authenticated]);
   return (
     <header className="header">
       <div className="search">
@@ -112,27 +116,27 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {} }) {
 
       <div style={{ flex: 1 }} />
 
-      <div className="card" style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 13px", borderRadius: 12, whiteSpace: "nowrap" }}>
-        <span style={{ color: "var(--green)" }}><Icons.Activity size={17} /></span>
+      <div className="card header-status" style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 13px", borderRadius: 12, whiteSpace: "nowrap" }}>
+        <span style={{ color: daycare && (!daycareSession || !daycareSession.authenticated) ? "var(--orange)" : "var(--green)" }}><Icons.Activity size={17} /></span>
         <div style={{ lineHeight: 1.25 }}>
           <div style={{ fontSize: 12.5, fontWeight: 600 }}>{daycare ? "Center Status" : "AI Activity"}</div>
           <div style={{ fontSize: 11, color: "var(--green)", display: "flex", alignItems: "center", gap: 4 }}>
-            <span className="dot online pulse" /> {daycare ? "Workspace ready" : "Live"}
+            <span className={"dot " + (daycare && (!daycareSession || !daycareSession.authenticated) ? "" : "online pulse")} /> {daycare ? (daycareSession && daycareSession.authenticated ? "Supabase live" : "Secure sign-in required") : "Live"}
           </div>
         </div>
       </div>
 
-      <div style={{ lineHeight: 1.25, padding: "0 6px", whiteSpace: "nowrap" }}>
+      <div className="header-metric" style={{ lineHeight: 1.25, padding: "0 6px", whiteSpace: "nowrap" }}>
         <div style={{ fontSize: 11.5 }} className="faint">{daycare ? "Children Enrolled" : "Revenue (This Month)"}</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: daycare ? (current.accent || "var(--green)") : "var(--green)" }} className="tabnum">{daycare ? daycareCount : "$0.00"}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: daycare ? (current.accent || "var(--green)") : "var(--green)" }} className="tabnum">{daycare ? (daycareSession && daycareSession.authenticated ? daycareCount : "—") : "$0.00"}</div>
       </div>
 
-      <button className="card" style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 12, position: "relative" }}>
+      <button className="card header-bell" onClick={() => daycare && window.GoTo && window.GoTo("Announcements")} style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 12, position: "relative" }}>
         <Icons.Bell size={18} />
-        <span style={{ position: "absolute", top: 7, right: 8, background: "var(--red)", color: "#fff", fontSize: 9.5, fontWeight: 700, borderRadius: 999, minWidth: 15, height: 15, display: "grid", placeItems: "center", padding: "0 3px" }}>3</span>
+        {!daycare && <span style={{ position: "absolute", top: 7, right: 8, background: "var(--red)", color: "#fff", fontSize: 9.5, fontWeight: 700, borderRadius: 999, minWidth: 15, height: 15, display: "grid", placeItems: "center", padding: "0 3px" }}>3</span>}
       </button>
 
-      <div style={{ position: "relative" }}>
+      <div className="header-profile" style={{ position: "relative" }}>
         <button onClick={() => setMenu((m) => !m)} style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: "radial-gradient(circle at 40% 35%, " + (current.accent || "#5b7bff") + ", #16224a)", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 14 }}>Y</div>
           <div style={{ lineHeight: 1.2, textAlign: "left" }}>

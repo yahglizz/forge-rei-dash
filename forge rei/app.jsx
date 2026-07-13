@@ -48,10 +48,15 @@ const DAYCARE_PAGES = {
   Dashboard:  () => <window.DaycareDashboard />,
   Children:   () => <window.DaycareChildren />,
   Attendance: () => <window.DaycareAttendance />,
+  CareLogs:   () => <window.DaycareCareLogs />,
+  Incidents:  () => <window.DaycareIncidents />,
   Classrooms: () => <window.DaycareClassrooms />,
   Staff:      () => <window.DaycareStaff />,
   Enrollment: () => <window.DaycareEnrollment />,
+  Messages:   () => <window.DaycareMessages />,
+  Announcements: () => <window.DaycareAnnouncements />,
   Billing:    () => <window.DaycareBilling />,
+  Payroll:    () => <window.DaycarePayroll />,
   Meals:      () => <window.DaycareMeals />,
   Calendar:   () => <window.DaycareCalendar />,
   Reports:    () => <window.DaycareReports />,
@@ -95,7 +100,9 @@ function App() {
       <div className="main">
         <window.Header title={titleMap[active]} workspaces={wsList} current={ws} onSwitch={switchWs} />
         <div className="content">
-          <div key={ws.id + ":" + active} className="page-wrap">{renderPage()}</div>
+          <div key={ws.id + ":" + active} className="page-wrap">
+            {ws.id === "daycare" ? <window.DaycareWorkspace>{renderPage()}</window.DaycareWorkspace> : renderPage()}
+          </div>
         </div>
       </div>
     </div>

@@ -13,6 +13,7 @@ DASH="/Users/yg4st/forge rei dash/forge rei"
 MARCUS="$HOME/Desktop/marcus-wholesale-agent"
 AGENCY="$(dirname "$DASH")/forge-agency"   # sibling of "forge rei/", in the main folder
 SCOUT="$(dirname "$DASH")/forge-scout"     # Scout agent: config knobs + seed skills
+DAYCARE="$(dirname "$DASH")/forge-daycare" # Supabase schema + private Daycare config
 SCREEN="$(dirname "$DASH")/forge-marcus"   # Marcus screening agent: config knobs + seed screening playbook
 TG="$(dirname "$DASH")/forge-telegram"     # Telegram alerts + tap-to-approve: config/telegram.env
 VAULT="$HOME/Desktop/Agentic-OS/vault"
@@ -41,7 +42,7 @@ else
 fi
 
 echo "==> make remote dirs"
-$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
+$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-daycare/config $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
 
 echo "==> push dashboard (deploy/keys excluded — never ship SSH keys/secret backups to the box)"
 rsync -az --delete -e "$SSH" \
@@ -64,6 +65,22 @@ if [ -d "$AGENCY" ]; then
   # secrets are handled explicitly above and never mirrored by this rsync.
   rsync -az --delete -e "$SSH" --exclude '__pycache__' --exclude 'config' --exclude '*.env' \
     "$AGENCY/" "$TARGET:$REMOTE/forge-agency/"
+fi
+
+echo "==> push Daycare integration (tracked schema + private publishable config)"
+if [ -d "$DAYCARE" ]; then
+  # Schema/function files are change-control artifacts only. setup_droplet never
+  # applies them to Supabase; production migrations remain separately reviewed.
+  rsync -az --delete -e "$SSH" --exclude '__pycache__' --exclude 'config' --exclude '*.env' \
+    "$DAYCARE/" "$TARGET:$REMOTE/forge-daycare/"
+  if [ -f "$DAYCARE/config/daycare.env" ]; then
+    rsync -az -e "$SSH" "$DAYCARE/config/daycare.env" "$TARGET:$REMOTE/forge-daycare/config/daycare.env"
+    $SSH "$TARGET" "chmod 600 $REMOTE/forge-daycare/config/daycare.env"
+  else
+    echo "   (no $DAYCARE/config/daycare.env — Daycare API stays safely unconfigured)"
+  fi
+else
+  echo "   (no $DAYCARE folder — Daycare API stays safely unconfigured)"
 fi
 
 echo "==> push Scout folder (config knobs + seed skills; learned playbook lives in the vault)"
@@ -120,9 +137,22 @@ $SSH "$TARGET" "
   sleep 3
   curl -fsS http://127.0.0.1:$PORT/api/health >/dev/null || { echo '   !! /api/health not 200'; exit 1; }
   curl -fsS http://127.0.0.1:$PORT/api/system/health | grep -q '\"ok\"' || { echo '   !! /api/system/health missing ok'; exit 1; }
+  curl -fsS http://127.0.0.1:$PORT/api/daycare/auth/status | grep -q '\"authenticated\"' || { echo '   !! /api/daycare/auth/status not healthy'; exit 1; }
+  if curl --max-time 10 -fsS https://forge-reios.tail0a2dda.ts.net/api/daycare/auth/status | grep -q '\"authenticated\"'; then
+    https_ok=1
+  else
+    https_ok=0
+    echo '   !! Tailscale HTTPS is pending the one-time tailnet Serve approval; Daycare writes fail closed meanwhile.'
+  fi
   hc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/marcus_state/heartbeats.json); [ \"\$hc\" = 404 ] || { echo \"   !! heartbeats.json served (\$hc) — must 404\"; exit 1; }
   sc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/../marcus-wholesale-agent/config/ghl.env); [ \"\$sc\" != 200 ] || { echo '   !! ghl.env is being served — secret leak'; exit 1; }
-  echo '   OK: service active · /api/health + /api/system/health 200 · heartbeats.json 404 · ghl.env not served'
+  dc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/../forge-daycare/config/daycare.env); [ "\$dc" != 200 ] || { echo '   !! daycare.env is being served — secret leak'; exit 1; }
+  if [ "\$https_ok" = 1 ]; then
+    dch=\$(curl --max-time 10 -s -o /dev/null -w '%{http_code}' https://forge-reios.tail0a2dda.ts.net/forge-daycare/config/daycare.env); [ "\$dch" = 404 ] || { echo "   !! HTTPS daycare.env path returned \$dch — must 404"; exit 1; }
+    echo '   OK: service active · local + Tailscale HTTPS Daycare auth status 200 · state/secrets not served'
+  else
+    echo '   OK: service active · local Daycare auth status 200 · state/secrets not served · HTTPS approval pending'
+  fi
 "
 
 # ---------------------------------------------------------------------------
@@ -148,4 +178,4 @@ else
 fi
 
 echo
-echo "Done pushing. Finish on the box:  $SSH $TARGET  then run:  tailscale up"
+echo "Done pushing. Private URL: https://forge-reios.tail0a2dda.ts.net"

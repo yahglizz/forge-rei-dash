@@ -860,6 +860,7 @@ import agency_approvals_io  # noqa: E402
 import agency_agents  # noqa: E402
 import agency_social  # noqa: E402
 import agency_deploy  # noqa: E402
+import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import scout_triage  # noqa: E402
 import marcus_screening  # noqa: E402
 import agent_bus  # noqa: E402
@@ -2591,13 +2592,15 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raise
 
-    def _send_json(self, obj, code=200):
+    def _send_json(self, obj, code=200, headers=None):
         payload = json.dumps(obj).encode("utf-8")
         try:
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("Cache-Control", "no-store")
+            for key, value in (headers or {}).items():
+                self.send_header(key, value)
             self.end_headers()
             self.wfile.write(payload)
         except Exception as exc:  # noqa: BLE001
@@ -2607,6 +2610,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path.startswith("/api/daycare/"):
+            return self._handle_daycare_post(parsed.path)
         if not (parsed.path.startswith("/api/marcus/")
                 or parsed.path in ("/api/send", "/api/review/run",
                                    "/api/reply/draft", "/api/reply/send",
@@ -3048,9 +3053,173 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:  # noqa: BLE001
             return self._send_json({"error": str(e)}, 500)
 
+    def _daycare_session_id(self):
+        return daycare_supabase.session_id_from_cookie(self.headers.get("Cookie"))
+
+    def _daycare_require_secure(self):
+        client_ip = self.client_address[0] if self.client_address else None
+        if not daycare_supabase.request_is_secure(self.headers, client_ip):
+            raise daycare_supabase.DaycareError(
+                403, "Daycare access requires HTTPS", "https_required")
+
+    def _read_daycare_json(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            raise daycare_supabase.DaycareError(
+                400, "Invalid request body", "validation_error") from None
+        if length < 0 or length > daycare_supabase.MAX_BODY_BYTES:
+            raise daycare_supabase.DaycareError(
+                400, "Request body is too large", "validation_error")
+        raw = self.rfile.read(length) if length else b""
+        if not raw.strip():
+            return {}
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise daycare_supabase.DaycareError(
+                400, "Request body must be valid JSON", "validation_error") from None
+        if not isinstance(body, dict):
+            raise daycare_supabase.DaycareError(
+                400, "Request body must be a JSON object", "validation_error")
+        return body
+
+    def _handle_daycare_post(self, path):
+        """Explicit, domain-only Daycare write router (never a generic table proxy)."""
+        handlers = {
+            "/api/daycare/child/save": daycare_supabase.save_child,
+            "/api/daycare/child/deactivate": daycare_supabase.deactivate_child,
+            "/api/daycare/classroom/save": daycare_supabase.save_classroom,
+            "/api/daycare/classroom/archive": daycare_supabase.archive_classroom,
+            "/api/daycare/staff/save": daycare_supabase.save_staff,
+            "/api/daycare/staff/deactivate": daycare_supabase.deactivate_staff,
+            "/api/daycare/schedule/save": daycare_supabase.save_schedule,
+            "/api/daycare/attendance/set": daycare_supabase.set_attendance,
+            "/api/daycare/attendance/sign-out-all": daycare_supabase.sign_out_all,
+            "/api/daycare/log/save": daycare_supabase.save_log,
+            "/api/daycare/incident/save": daycare_supabase.save_incident,
+            "/api/daycare/announcement/save": daycare_supabase.save_announcement,
+            "/api/daycare/announcement/delete": daycare_supabase.delete_announcement,
+            "/api/daycare/thread/save": daycare_supabase.save_thread,
+            "/api/daycare/thread/rename": daycare_supabase.rename_thread,
+            "/api/daycare/thread/leave": daycare_supabase.leave_thread,
+            "/api/daycare/message/send": daycare_supabase.send_message,
+            "/api/daycare/message/react": daycare_supabase.react_message,
+            "/api/daycare/notifications/read": daycare_supabase.mark_notifications_read,
+            "/api/daycare/invoice/save": daycare_supabase.save_invoice,
+            "/api/daycare/invoice/record-payment": daycare_supabase.record_invoice_payment,
+            "/api/daycare/payroll/save": daycare_supabase.save_payroll,
+            "/api/daycare/payroll/record-paid": daycare_supabase.mark_payroll_paid,
+            "/api/daycare/settings/save": daycare_supabase.save_settings,
+        }
+        if path not in handlers and path not in {
+                "/api/daycare/auth/login", "/api/daycare/auth/logout",
+                "/api/daycare/media/sign-upload"}:
+            return self._send_json(
+                {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
+        try:
+            client_ip = self.client_address[0] if self.client_address else None
+            daycare_supabase.validate_write_request(self.headers, client_ip)
+            body = self._read_daycare_json()
+            sid = self._daycare_session_id()
+            if path == "/api/daycare/auth/login":
+                session, profile = daycare_supabase.BRIDGE.login(
+                    body.get("loginId") or body.get("login_id"), body.get("pin"))
+                return self._send_json(
+                    {"ok": True, "authenticated": True, "profile": profile},
+                    headers={"Set-Cookie": daycare_supabase.session_cookie(session.sid)},
+                )
+            if path == "/api/daycare/auth/logout":
+                daycare_supabase.BRIDGE.logout(sid)
+                return self._send_json(
+                    {"ok": True, "authenticated": False},
+                    headers={"Set-Cookie": daycare_supabase.expired_session_cookie()},
+                )
+            session = daycare_supabase.BRIDGE.require_session(sid)
+            if path == "/api/daycare/media/sign-upload":
+                result = daycare_supabase.sign_media(session, body, upload=True)
+            else:
+                result = handlers[path](session, body)
+            _touch_sync()
+            return self._send_json(result)
+        except daycare_supabase.DaycareError as error:
+            headers = None
+            if error.status == 401:
+                headers = {"Set-Cookie": daycare_supabase.expired_session_cookie()}
+            return self._send_json(error.payload(), error.status, headers=headers)
+        except Exception:  # never leak tokens, credentials, PII, or upstream bodies
+            return self._send_json(
+                {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
+
+    def _handle_daycare_get(self, path, q):
+        """Explicit Daycare read router; all domain data requires a secure session."""
+        handlers = {
+            "/api/daycare/overview": lambda session: daycare_supabase.get_overview(session),
+            "/api/daycare/children": lambda session: daycare_supabase.get_children(session),
+            "/api/daycare/attendance": lambda session: daycare_supabase.get_attendance(
+                session, q.get("date", [None])[0]),
+            "/api/daycare/classrooms": lambda session: daycare_supabase.get_classrooms(session),
+            "/api/daycare/staff": lambda session: daycare_supabase.get_staff(session),
+            "/api/daycare/logs": lambda session: daycare_supabase.get_logs(
+                session, q.get("from", [None])[0], q.get("to", [None])[0]),
+            "/api/daycare/incidents": lambda session: daycare_supabase.get_incidents(
+                session, q.get("from", [None])[0], q.get("to", [None])[0]),
+            "/api/daycare/announcements": lambda session: daycare_supabase.get_announcements(session),
+            "/api/daycare/threads": lambda session: daycare_supabase.get_threads(session),
+            "/api/daycare/thread": lambda session: daycare_supabase.get_thread(
+                session, q.get("id", [None])[0]),
+            "/api/daycare/notifications": lambda session: daycare_supabase.get_notifications(session),
+            "/api/daycare/billing": lambda session: daycare_supabase.get_billing(session),
+            "/api/daycare/payroll": lambda session: daycare_supabase.get_payroll(session),
+            "/api/daycare/reports": lambda session: daycare_supabase.get_reports(
+                session, q.get("from", [None])[0], q.get("to", [None])[0]),
+            "/api/daycare/settings": lambda session: daycare_supabase.get_settings(session),
+            "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
+                session,
+                {"bucket": q.get("bucket", [None])[0], "path": q.get("path", [None])[0]},
+                upload=False),
+        }
+        if path not in handlers and path not in {
+                "/api/daycare/auth/status", "/api/daycare/status"}:
+            return self._send_json(
+                {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
+        sid = self._daycare_session_id()
+        try:
+            if path == "/api/daycare/auth/status":
+                # Always 200, including unconfigured, logged-out, and expired states.
+                secure = daycare_supabase.request_is_secure(
+                    self.headers, self.client_address[0] if self.client_address else None)
+                result = daycare_supabase.BRIDGE.auth_status(sid if secure else None)
+                if not secure:
+                    result["secureRequired"] = True
+                return self._send_json(result)
+            if path == "/api/daycare/status":
+                session = None
+                if sid and daycare_supabase.request_is_secure(
+                        self.headers, self.client_address[0] if self.client_address else None):
+                    try:
+                        session = daycare_supabase.BRIDGE.require_session(sid)
+                    except daycare_supabase.DaycareError:
+                        session = None
+                return self._send_json(daycare_supabase.get_status(session))
+            self._daycare_require_secure()
+            session = daycare_supabase.BRIDGE.require_session(sid)
+            return self._send_json(handlers[path](session))
+        except daycare_supabase.DaycareError as error:
+            headers = None
+            if error.status == 401:
+                headers = {"Set-Cookie": daycare_supabase.expired_session_cookie()}
+            return self._send_json(error.payload(), error.status, headers=headers)
+        except Exception:  # never leak tokens, credentials, PII, or upstream bodies
+            return self._send_json(
+                {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        if path.startswith("/api/daycare/"):
+            return self._handle_daycare_get(path, urllib.parse.parse_qs(parsed.query))
 
         if path.startswith("/api/"):
             handler = ROUTES.get(path)

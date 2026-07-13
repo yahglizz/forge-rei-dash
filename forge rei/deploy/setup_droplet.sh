@@ -14,6 +14,7 @@ APP="$ROOT/forge-rei"
 VAULT="$ROOT/vault"
 PORT="${FORGE_PORT:-7799}"
 BUSINESS_TZ="${FORGE_TZ:-America/New_York}"
+DAYCARE_FLAGS="/etc/default/forge-reios"
 
 echo "==> swap (1G — the 1GB-RAM droplet has no buffer for the OOM killer)"
 if [ ! -f /swapfile ]; then
@@ -45,6 +46,23 @@ if [ ! -d "$VAULT/.git" ]; then
 fi
 
 echo "==> systemd service (24/7, auto-restart, starts on boot)"
+# Cutover switches live outside the app and survive redeploys. The live Supabase
+# hardening migrations, two-location role matrix, self-escalation guard, and
+# cross-location participant checks passed before this write gate was enabled.
+if [ ! -f "$DAYCARE_FLAGS" ]; then
+  cat > "$DAYCARE_FLAGS" <<EOF
+FORGE_DAYCARE_LIVE=1
+FORGE_DAYCARE_WRITES=1
+EOF
+  chmod 600 "$DAYCARE_FLAGS"
+else
+  grep -q '^FORGE_DAYCARE_LIVE=' "$DAYCARE_FLAGS" \
+    && sed -i 's/^FORGE_DAYCARE_LIVE=.*/FORGE_DAYCARE_LIVE=1/' "$DAYCARE_FLAGS" \
+    || echo 'FORGE_DAYCARE_LIVE=1' >> "$DAYCARE_FLAGS"
+  grep -q '^FORGE_DAYCARE_WRITES=' "$DAYCARE_FLAGS" \
+    && sed -i 's/^FORGE_DAYCARE_WRITES=.*/FORGE_DAYCARE_WRITES=1/' "$DAYCARE_FLAGS" \
+    || echo 'FORGE_DAYCARE_WRITES=1' >> "$DAYCARE_FLAGS"
+fi
 cat > /etc/systemd/system/forge-reios.service <<EOF
 [Unit]
 Description=FORGE REI OS connector (dashboard + Marcus 24/7)
@@ -54,6 +72,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=$APP
+EnvironmentFile=-$DAYCARE_FLAGS
 Environment=FORGE_PORT=$PORT
 Environment=FORGE_HOST=0.0.0.0
 Environment=FORGE_VAULT=$VAULT
@@ -134,13 +153,27 @@ if ! command -v tailscale >/dev/null 2>&1; then
   curl -fsSL https://tailscale.com/install.sh | sh
 fi
 
+echo "==> Tailscale Serve HTTPS (private tailnet reverse proxy)"
+# --bg persists across reboots. connector.py trusts forwarded HTTPS only from
+# this loopback proxy, never from a direct tailnet request to :$PORT.
+if tailscale status >/dev/null 2>&1; then
+  if timeout 20s tailscale serve --yes --bg --https=443 "http://127.0.0.1:$PORT"; then
+    tailscale serve status || true
+  else
+    echo "   !! Tailscale Serve still needs the one-time tailnet approval shown above."
+    echo "   !! Daycare authentication and writes remain HTTPS-only and fail closed until approved."
+  fi
+else
+  echo "   (Tailscale is not authenticated yet — run 'tailscale up', then rerun setup)"
+fi
+
 echo
 echo "============================================================"
 echo " Service:  systemctl status forge-reios"
 echo " Logs:     tail -f $ROOT/connector.err.log"
 echo
-echo " LAST STEP (interactive — run it yourself once):"
+echo " LAST STEP (interactive — run it yourself once if not connected):"
 echo "   tailscale up"
-echo " Click the URL it prints, log in. Then from your Mac/phone"
-echo " (both on Tailscale) open:  http://<this-box-tailscale-ip>:$PORT"
+echo " Then rerun setup and open: https://forge-reios.tail0a2dda.ts.net"
+echo " Daycare reads + writes: enabled (Supabase security matrix passed)."
 echo "============================================================"

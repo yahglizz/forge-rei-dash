@@ -20,8 +20,10 @@ const AGENCY_NAV = [
 // Daycare workspace — center operations, families, staff, enrollment, and billing.
 const DAYCARE_NAV = [
   ["Dashboard", "Dashboard"], ["Children", "Children"], ["Attendance", "Attendance"],
-  ["Classrooms", "Classrooms"], ["Staff", "Staff"], ["Enrollment", "Enrollment"],
-  ["Billing", "Billing"], ["Meals", "Meals & Menus"], ["Calendar", "Calendar"],
+  ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Classrooms", "Classrooms"],
+  ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["Messages", "Messages"],
+  ["Announcements", "Announcements"], ["Billing", "Billing"], ["Payroll", "Payroll"],
+  ["Meals", "Meals & Menus"], ["Calendar", "Calendar"],
   ["Reports", "Reports"], ["Brain", "Brain"], ["Settings", "Settings"],
 ];
 
