@@ -57,6 +57,7 @@ const Icons = {
   Dyson: (p) => <I {...p}><path d="M14.7 6.3a4 4 0 0 0-5.4 5.3L3 18l3 3 6.4-6.3a4 4 0 0 0 5.3-5.4l-2.8 2.8-2.1-.7-.7-2.1z"/></I>,
   Workflows: (p) => <I {...p}><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="15" width="6" height="6" rx="1.5"/><path d="M9 6h4a2 2 0 0 1 2 2v7"/></I>,
   Ads: (p) => <I {...p}><path d="M3 11v3a1 1 0 0 0 1 1h2.5L11 19V5L6.5 9H4a1 1 0 0 0-1 1z"/><path d="M16 8.5a4 4 0 0 1 0 7M19 6a8 8 0 0 1 0 12"/></I>,
+  Growth: (p) => <I {...p}><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/><path d="M17 8h3v3"/></I>,
   Eco: (p) => <I {...p}><path d="M11 20A7 7 0 0 1 4 13C4 7 12 4 20 3c-1 8-4 16-9 17z"/><path d="M4 21c1.5-3.5 4.5-6 8-7.5"/></I>,
   Approvals: (p) => <I {...p}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="m9 12 2 2 4-4"/></I>,
   ClientView: (p) => <I {...p}><rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M3 9h18M8 21h8M12 17v4"/></I>,

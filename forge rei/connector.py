@@ -861,6 +861,7 @@ import agency_agents  # noqa: E402
 import agency_social  # noqa: E402
 import agency_deploy  # noqa: E402
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
+import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import scout_triage  # noqa: E402
 import marcus_screening  # noqa: E402
 import agent_bus  # noqa: E402
@@ -3204,6 +3205,10 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/reports": lambda session: daycare_supabase.get_reports(
                 session, q.get("from", [None])[0], q.get("to", [None])[0]),
             "/api/daycare/settings": lambda session: daycare_supabase.get_settings(session),
+            "/api/daycare/ads": lambda session: daycare_growth.ads_overview(
+                q.get("account", [None])[0], q.get("days", ["7"])[0]),
+            "/api/daycare/social": lambda session: daycare_growth.social_overview(
+                q.get("network", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
                 session,
                 {"bucket": q.get("bucket", [None])[0], "path": q.get("path", [None])[0]},

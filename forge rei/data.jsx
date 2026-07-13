@@ -23,6 +23,7 @@ const DAYCARE_NAV = [
   ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Classrooms", "Classrooms"],
   ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["Messages", "Messages"],
   ["Announcements", "Announcements"], ["Billing", "Billing"], ["Payroll", "Payroll"],
+  ["Growth", "Ads & Social"],
   ["Meals", "Meals & Menus"], ["Calendar", "Calendar"],
   ["Reports", "Reports"], ["Brain", "Brain"], ["Settings", "Settings"],
 ];

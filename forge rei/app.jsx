@@ -57,6 +57,7 @@ const DAYCARE_PAGES = {
   Announcements: () => <window.DaycareAnnouncements />,
   Billing:    () => <window.DaycareBilling />,
   Payroll:    () => <window.DaycarePayroll />,
+  Growth:     () => <window.DaycareGrowth />,
   Meals:      () => <window.DaycareMeals />,
   Calendar:   () => <window.DaycareCalendar />,
   Reports:    () => <window.DaycareReports />,
