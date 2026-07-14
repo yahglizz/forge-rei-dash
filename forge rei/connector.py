@@ -3308,7 +3308,7 @@ class Handler(BaseHTTPRequestHandler):
         }
         if path not in handlers and path not in {
                 "/api/daycare/auth/login", "/api/daycare/auth/test-login", "/api/daycare/auth/logout",
-                "/api/daycare/media/sign-upload",
+                "/api/daycare/media/sign-upload", "/api/daycare/location/switch",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice",
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
@@ -3444,6 +3444,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/adops/bus": lambda session: agent_bus.recent(30),
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
+            "/api/daycare/locations": lambda session: daycare_supabase.list_locations(session),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),

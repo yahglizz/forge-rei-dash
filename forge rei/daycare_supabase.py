@@ -713,8 +713,8 @@ class SupabaseBridge:
             query={
                 "id": f"eq.{profile_id}",
                 "select": (
-                    "id,location_id,role,first_name,last_name,display_name,avatar_path,"
-                    "login_id,auth_email,phone,active,permissions"
+                    "id,location_id,active_location_id,role,first_name,last_name,"
+                    "display_name,avatar_path,login_id,auth_email,phone,active,permissions"
                 ),
                 "limit": "1",
             },
@@ -795,10 +795,60 @@ class SupabaseBridge:
 def public_profile(profile: dict[str, Any]) -> dict[str, Any]:
     """Never copy auth/token fields into browser responses."""
     allowed = {
-        "id", "location_id", "role", "first_name", "last_name", "display_name",
-        "avatar_path", "login_id", "auth_email", "phone", "active", "permissions",
+        "id", "location_id", "active_location_id", "role", "first_name", "last_name",
+        "display_name", "avatar_path", "login_id", "auth_email", "phone", "active",
+        "permissions",
     }
     return {key: value for key, value in profile.items() if key in allowed}
+
+
+def active_location(session: Session | None = None) -> str:
+    """Which center the caller is currently standing in.
+
+    Mirrors the database's ``my_location()`` exactly: the session's active location when
+    one is set, otherwise the profile's home location, otherwise the configured default.
+
+    RLS remains the enforcement — this is NOT a security boundary. Its only job is to keep
+    our PostgREST ``location_id=eq.…`` filters aligned with whatever ``my_location()`` will
+    allow, so we never filter to a center Postgres would refuse (which would silently
+    return zero rows) or leave a filter pointing at the old center after a switch.
+    """
+    if session is not None:
+        profile = session.profile or {}
+        return (profile.get("active_location_id")
+                or profile.get("location_id")
+                or CONFIG.location_id)
+    return CONFIG.location_id
+
+
+def list_locations(session: Session) -> dict[str, Any]:
+    """The centers this profile may stand in. RLS returns only their memberships."""
+    rows = _rows(BRIDGE.rest(
+        session, "GET", "locations",
+        query={"select": "id,name,timezone", "order": "created_at.asc"},
+    ))
+    current = active_location(session)
+    for row in rows:
+        row["current"] = str(row.get("id")) == str(current)
+    return {"ok": True, "locations": rows, "activeLocationId": current}
+
+
+def switch_location(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    """Move the caller into another center.
+
+    Delegates the decision to the DB's ``set_active_location`` RPC, which refuses any
+    location the caller has no membership row for. We never trust the browser's id.
+    """
+    target = _body_value(body, "location_id", "locationId")
+    target = require_uuid(target, "location_id", optional=True)
+    result = BRIDGE.rest(session, "POST", "rpc/set_active_location",
+                         body={"target": target})
+    resolved = result if isinstance(result, str) else (
+        result[0] if isinstance(result, list) and result else target)
+    # Keep the cached session profile in step with the DB, so the very next request
+    # filters against the new center rather than the stale one.
+    session.profile["active_location_id"] = resolved
+    return {"ok": True, "activeLocationId": resolved}
 
 
 def validate_storage_path(path: Any) -> str:
@@ -841,7 +891,7 @@ def _ensure_location_record(session: Session, table: str, record_id: Any) -> dic
         session,
         "GET",
         table,
-        query={"id": f"eq.{rid}", "location_id": f"eq.{CONFIG.location_id}", "select": "*", "limit": "1"},
+        query={"id": f"eq.{rid}", "location_id": f"eq.{active_location(session)}", "select": "*", "limit": "1"},
     )
     return _single(rows, table.replace("_", " ").rstrip("s").title())
 
@@ -851,7 +901,7 @@ def _child_ids(session: Session) -> list[str]:
         session,
         "GET",
         "children",
-        query={"location_id": f"eq.{CONFIG.location_id}", "select": "id"},
+        query={"location_id": f"eq.{active_location(session)}", "select": "id"},
     )
     return [str(row.get("id")) for row in _rows(rows) if is_uuid(row.get("id"))]
 
@@ -861,7 +911,7 @@ def _staff_ids(session: Session) -> list[str]:
         session,
         "GET",
         "staff_members",
-        query={"location_id": f"eq.{CONFIG.location_id}", "select": "id"},
+        query={"location_id": f"eq.{active_location(session)}", "select": "id"},
     )
     return [str(row.get("id")) for row in _rows(rows) if is_uuid(row.get("id"))]
 
@@ -873,8 +923,8 @@ def get_status(session: Session | None = None) -> dict[str, Any]:
         "live": CONFIG.live,
         "writesEnabled": CONFIG.writes_enabled,
         "healthy": False,
-        "locationId": CONFIG.location_id if CONFIG.configured else None,
-        "location_id": CONFIG.location_id if CONFIG.configured else None,
+        "locationId": active_location(session) if CONFIG.configured else None,
+        "location_id": active_location(session) if CONFIG.configured else None,
         "familyAppUrl": CONFIG.family_app_url,
     }
     if not session:
@@ -887,7 +937,7 @@ def get_status(session: Session | None = None) -> dict[str, Any]:
                 "GET",
                 "locations",
                 query={
-                    "id": f"eq.{CONFIG.location_id}",
+                    "id": f"eq.{active_location(session)}",
                     "select": "id,name,address,timezone,phone,opens_at,closes_at",
                     "limit": "1",
                 },
@@ -916,7 +966,7 @@ def get_settings(session: Session) -> dict[str, Any]:
             "GET",
             "locations",
             query={
-                "id": f"eq.{CONFIG.location_id}",
+                "id": f"eq.{active_location(session)}",
                 "select": "id,name,address,timezone,phone,opens_at,closes_at",
                 "limit": "1",
             },
@@ -932,7 +982,7 @@ def get_children(session: Session) -> dict[str, Any]:
         "GET",
         "children",
         query={
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "select": "*,classrooms(id,name,age_group,color),profiles!children_guardian_profile_id_fkey(id,display_name,first_name,last_name,phone,auth_email,login_id)",
             "order": "active.desc,first_name.asc,last_name.asc",
         },
@@ -953,13 +1003,13 @@ def get_classrooms(session: Session) -> dict[str, Any]:
         session,
         "GET",
         "classrooms",
-        query={"location_id": f"eq.{CONFIG.location_id}", "select": "*", "order": "active.desc,name.asc"},
+        query={"location_id": f"eq.{active_location(session)}", "select": "*", "order": "active.desc,name.asc"},
     ))
     children = _rows(BRIDGE.rest(
         session,
         "GET",
         "children",
-        query={"location_id": f"eq.{CONFIG.location_id}", "active": "eq.true", "select": "id,classroom_id"},
+        query={"location_id": f"eq.{active_location(session)}", "active": "eq.true", "select": "id,classroom_id"},
     ))
     counts: dict[str, int] = {}
     for child in children:
@@ -978,7 +1028,7 @@ def get_staff(session: Session) -> dict[str, Any]:
         "GET",
         "staff_members",
         query={
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "select": "*,profiles(id,first_name,last_name,display_name,role,phone,login_id,active,permissions),staff_classrooms(classroom_id),staff_schedules(id,weekday,start_time,end_time)",
             "order": "hire_date.asc",
         },
@@ -995,7 +1045,7 @@ def get_staff(session: Session) -> dict[str, Any]:
         "GET",
         "profiles",
         query={
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "active": "eq.true",
             "select": "id,first_name,last_name,display_name,role,phone,login_id,active",
             "order": "first_name.asc,last_name.asc",
@@ -1059,7 +1109,7 @@ def get_announcements(session: Session) -> dict[str, Any]:
         "GET",
         "announcements",
         query={
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "select": "*",
             "order": "pinned.desc,published_at.desc",
             "limit": "300",
@@ -1074,7 +1124,7 @@ def get_threads(session: Session) -> dict[str, Any]:
         "GET",
         "message_threads",
         query={
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "select": "*,thread_participants(profile_id,last_read_at,profiles(id,display_name,first_name,last_name,role,active)),messages(id,sender_id,body,attachment_path,reactions,created_at)",
             "order": "created_at.desc",
             "limit": "200",
@@ -1163,7 +1213,7 @@ def get_billing(session: Session) -> dict[str, Any]:
         "GET",
         "invoices",
         query={
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "select": "*,children(id,first_name,last_name),profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name,login_id,auth_email),payments(*)",
             "order": "issued_on.desc",
             "limit": "500",
@@ -1181,7 +1231,7 @@ def get_billing(session: Session) -> dict[str, Any]:
         "GET",
         "profiles",
         query={
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "role": "eq.parent",
             "active": "eq.true",
             "select": "id,first_name,last_name,display_name,login_id,auth_email,phone,active",
@@ -1200,7 +1250,7 @@ def stripe_invoice_context(session: Session, invoice_id: Any) -> dict[str, Any]:
         "invoices",
         query={
             "id": f"eq.{inv_id}",
-            "location_id": f"eq.{CONFIG.location_id}",
+            "location_id": f"eq.{active_location(session)}",
             "select": (
                 "id,invoice_number,amount,description,due_on,status,guardian_id,"
                 "profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name,auth_email,phone)"
@@ -1221,7 +1271,7 @@ def stripe_invoice_context(session: Session, invoice_id: Any) -> dict[str, Any]:
         "description": invoice.get("description"),
         "due_on": invoice.get("due_on"),
         "status": invoice.get("status"),
-        "location_id": CONFIG.location_id,
+        "location_id": active_location(session),
         "guardian": {
             "id": guardian.get("id") or invoice.get("guardian_id"),
             "name": name,
@@ -1419,7 +1469,7 @@ def save_settings(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         session,
         "PATCH",
         "locations",
-        query={"id": f"eq.{CONFIG.location_id}"},
+        query={"id": f"eq.{active_location(session)}"},
         body=update,
         prefer="return=representation",
     )
@@ -1479,7 +1529,7 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
                 session,
                 "PATCH",
                 "profiles",
-                query={"id": f"eq.{guardian_id}", "location_id": f"eq.{CONFIG.location_id}"},
+                query={"id": f"eq.{guardian_id}", "location_id": f"eq.{active_location(session)}"},
                 body={"phone": guardian_phone},
                 prefer="return=minimal",
             )
@@ -1489,7 +1539,7 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         existing = _ensure_location_record(session, "children", child_id)
         rows = BRIDGE.rest(session, "PATCH", "children", query={"id": f"eq.{existing['id']}"}, body=record, prefer="return=representation")
     else:
-        record["location_id"] = CONFIG.location_id
+        record["location_id"] = active_location(session)
         rows = BRIDGE.rest(session, "POST", "children", body=record, prefer="return=representation")
     response = {"ok": True, "child": _single(rows, "Child")}
     if provision:
@@ -1517,7 +1567,7 @@ def save_classroom(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         room = _ensure_location_record(session, "classrooms", source.get("id"))
         rows = BRIDGE.rest(session, "PATCH", "classrooms", query={"id": f"eq.{room['id']}"}, body=record, prefer="return=representation")
     else:
-        record["location_id"] = CONFIG.location_id
+        record["location_id"] = active_location(session)
         rows = BRIDGE.rest(session, "POST", "classrooms", body=record, prefer="return=representation")
     return {"ok": True, "classroom": _single(rows, "Classroom")}
 
@@ -1568,7 +1618,7 @@ def save_staff(session: Session, body: dict[str, Any]) -> dict[str, Any]:
             "profiles",
             query={
                 "id": f"eq.{profile_id}",
-                "location_id": f"eq.{CONFIG.location_id}",
+                "location_id": f"eq.{active_location(session)}",
                 "select": "id,role,active",
                 "limit": "1",
             },
@@ -1592,7 +1642,7 @@ def save_staff(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "hourly_rate": require_number(_body_value(source, "hourly_rate", "hourlyRate"), "hourly_rate", maximum=Decimal("10000"), optional=True),
         "hire_date": require_date(_body_value(source, "hire_date", "hireDate"), "hire_date", optional=True),
     }
-    BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{CONFIG.location_id}"}, body=profile_update, prefer="return=representation")
+    BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{active_location(session)}"}, body=profile_update, prefer="return=representation")
     rows = BRIDGE.rest(session, "PATCH", "staff_members", query={"id": f"eq.{staff['id']}"}, body=member_update, prefer="return=representation")
     if "classroom_ids" in source or "classroomIds" in source:
         BRIDGE.rest(session, "DELETE", "staff_classrooms", query={"staff_id": f"eq.{staff['id']}"}, prefer="return=minimal")
@@ -1606,7 +1656,7 @@ def deactivate_staff(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     profile_id = require_uuid(staff.get("profile_id"), "profile_id")
     if profile_id == session.profile.get("id"):
         raise DaycareError(409, "You cannot deactivate your own active session", "self_deactivation")
-    rows = BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{CONFIG.location_id}"}, body={"active": False}, prefer="return=representation")
+    rows = BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{active_location(session)}"}, body={"active": False}, prefer="return=representation")
     return {"ok": True, "profile": _single(rows, "Staff profile")}
 
 
@@ -1726,7 +1776,7 @@ def save_announcement(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         item = _ensure_location_record(session, "announcements", source.get("id"))
         rows = BRIDGE.rest(session, "PATCH", "announcements", query={"id": f"eq.{item['id']}"}, body=record, prefer="return=representation")
     else:
-        record.update({"location_id": CONFIG.location_id, "author_id": session.profile["id"]})
+        record.update({"location_id": active_location(session), "author_id": session.profile["id"]})
         rows = BRIDGE.rest(session, "POST", "announcements", body=record, prefer="return=representation")
     return {"ok": True, "announcement": _single(rows, "Announcement")}
 
@@ -1744,7 +1794,7 @@ def _validate_participants(session: Session, participant_ids: Any) -> list[str]:
     ids = [str(require_uuid(value, "participant_id")) for value in participant_ids]
     ids.append(str(session.profile["id"]))
     ids = list(dict.fromkeys(ids))
-    rows = BRIDGE.rest(session, "GET", "profiles", query={"id": f"in.({','.join(ids)})", "location_id": f"eq.{CONFIG.location_id}", "active": "eq.true", "select": "id"})
+    rows = BRIDGE.rest(session, "GET", "profiles", query={"id": f"in.({','.join(ids)})", "location_id": f"eq.{active_location(session)}", "active": "eq.true", "select": "id"})
     found = {str(row.get("id")) for row in _rows(rows)}
     if found != set(ids):
         raise DaycareError(403, "Every participant must be active at this daycare location", "participant_location_mismatch")
@@ -1761,7 +1811,7 @@ def save_thread(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     if kind == "direct" and len(participants) != 2:
         raise DaycareError(400, "Direct threads require exactly two participants", "validation_error")
     title = require_text(source.get("title"), "title", maximum=200, optional=kind == "direct")
-    created = BRIDGE.rest(session, "POST", "message_threads", body={"location_id": CONFIG.location_id, "created_by": session.profile["id"], "title": title, "kind": kind}, prefer="return=representation")
+    created = BRIDGE.rest(session, "POST", "message_threads", body={"location_id": active_location(session), "created_by": session.profile["id"], "title": title, "kind": kind}, prefer="return=representation")
     thread = _single(created, "Message thread")
     try:
         BRIDGE.rest(session, "POST", "thread_participants", body=[{"thread_id": thread["id"], "profile_id": profile_id} for profile_id in participants], prefer="return=minimal")
@@ -1838,7 +1888,7 @@ def mark_notifications_read(session: Session, body: dict[str, Any]) -> dict[str,
 def save_invoice(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     source = body.get("invoice") if isinstance(body.get("invoice"), dict) else body
     guardian_id = require_uuid(_body_value(source, "guardian_id", "guardianId"), "guardian_id")
-    guardian = _single(BRIDGE.rest(session, "GET", "profiles", query={"id": f"eq.{guardian_id}", "location_id": f"eq.{CONFIG.location_id}", "role": "eq.parent", "select": "id", "limit": "1"}), "Guardian")
+    guardian = _single(BRIDGE.rest(session, "GET", "profiles", query={"id": f"eq.{guardian_id}", "location_id": f"eq.{active_location(session)}", "role": "eq.parent", "select": "id", "limit": "1"}), "Guardian")
     child_id = require_uuid(_body_value(source, "child_id", "childId"), "child_id", optional=True)
     if child_id:
         child = _ensure_location_record(session, "children", child_id)
@@ -1868,7 +1918,7 @@ def save_invoice(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         invoice = _ensure_location_record(session, "invoices", source.get("id"))
         rows = BRIDGE.rest(session, "PATCH", "invoices", query={"id": f"eq.{invoice['id']}"}, body=record, prefer="return=representation")
     else:
-        record["location_id"] = CONFIG.location_id
+        record["location_id"] = active_location(session)
         rows = BRIDGE.rest(session, "POST", "invoices", body=record, prefer="return=representation")
     return {"ok": True, "invoice": _single(rows, "Invoice")}
 
@@ -1955,7 +2005,7 @@ def sign_media(session: Session, body: dict[str, Any], *, upload: bool) -> dict[
             raise DaycareError(400, "Message media paths must use chat/thread-id/file", "validation_error")
         _ensure_location_record(session, "message_threads", parts[1])
     elif bucket == "avatars" and first != session.profile.get("id"):
-        target = _single(BRIDGE.rest(session, "GET", "profiles", query={"id": f"eq.{first}", "location_id": f"eq.{CONFIG.location_id}", "select": "id", "limit": "1"}), "Profile")
+        target = _single(BRIDGE.rest(session, "GET", "profiles", query={"id": f"eq.{first}", "location_id": f"eq.{active_location(session)}", "select": "id", "limit": "1"}), "Profile")
         if not target:
             raise DaycareError(403, "Avatar path is outside this location", "forbidden")
     signed = BRIDGE.storage_sign(session, str(bucket), path, upload=upload)
