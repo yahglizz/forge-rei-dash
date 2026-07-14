@@ -419,8 +419,14 @@ class ScoutEngine:
             "early, nurture=maybe later, dead=not selling/stop. motivation: 0 (cold) to 100 "
             "(hot). askingPrice: only if they state a number, else null. Be terse."
         )
-        # The CREED first (wholesale evidence discipline) — never truncated, outranks the
-        # playbook. Injected here, not via _load_skills(), so learn() can never rewrite it.
+        # NORTH STAR first (the cross-business constitution), then the CREED
+        # (wholesale evidence discipline) — neither truncated, neither reachable
+        # by learn(), so self-improvement can never rewrite either.
+        try:
+            import north_star
+            system += north_star.context_block()
+        except Exception:
+            pass
         try:
             import agent_creed
             system += agent_creed.block("wholesale")

@@ -376,8 +376,14 @@ class Screener:
             "comfort + a check-back only, never a price/offer; always include 'don't lead with price / don't make "
             "an offer yet' in callPrep.avoid; do NOT recompute Scout's triage — use it as input. Output ONLY the JSON object."
         )
-        # The CREED first (wholesale evidence discipline) — never truncated, outranks the
-        # playbook. Injected here, not via _load_skills(), so learn() can never rewrite it.
+        # NORTH STAR first (the cross-business constitution), then the CREED
+        # (wholesale evidence discipline) — neither truncated, neither reachable
+        # by learn(), so self-improvement can never rewrite either.
+        try:
+            import north_star
+            system += north_star.context_block()
+        except Exception:
+            pass
         try:
             import agent_creed
             system += agent_creed.block("wholesale")

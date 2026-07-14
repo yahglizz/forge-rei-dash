@@ -19,6 +19,7 @@ NORA="$(dirname "$DASH")/forge-nora"       # Nora: daycare roster & family follo
 NOVA="$(dirname "$DASH")/forge-nova"       # Nova: daycare ad ops config + seed playbook
 SCREEN="$(dirname "$DASH")/forge-marcus"   # Marcus screening agent: config knobs + seed screening playbook
 TG="$(dirname "$DASH")/forge-telegram"     # Telegram alerts + tap-to-approve: config/telegram.env
+NORTHSTAR="$(dirname "$DASH")/NORTH_STAR.md" # the cross-business constitution (repo root)
 VAULT="$HOME/Desktop/Agentic-OS/vault"
 REMOTE="/opt/forge"
 PORT="${FORGE_PORT:-7799}"
@@ -126,6 +127,13 @@ if [ -d "$TG" ]; then
   rsync -az -e "$SSH" --exclude '__pycache__' "$TG/" "$TARGET:$REMOTE/forge-telegram/"
 else
   echo "   (no $TG yet — skipping; Telegram alerts stay 'not configured')"
+fi
+
+echo "==> push constitution (NORTH_STAR.md, repo root)"
+if [ -f "$NORTHSTAR" ]; then
+  rsync -az -e "$SSH" "$NORTHSTAR" "$TARGET:$REMOTE/NORTH_STAR.md"
+else
+  echo "   (no $NORTHSTAR yet — skipping)"
 fi
 
 echo "==> push graphify knowledge graph"

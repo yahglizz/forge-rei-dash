@@ -68,6 +68,14 @@ for d in forge-agency forge-scout forge-marcus forge-solomon forge-nora forge-no
   fi
 done
 
+echo "==> sync repo-root constitution -> $LIVE/NORTH_STAR.md"
+if [ -f "$REPO/NORTH_STAR.md" ]; then
+  cp "$REPO/NORTH_STAR.md" "$LIVE/NORTH_STAR.md"
+  echo "   synced NORTH_STAR.md"
+else
+  echo "   (NORTH_STAR.md not found in repo — skipping)"
+fi
+
 echo "==> restart forge-reios"
 systemctl restart forge-reios
 
