@@ -871,6 +871,7 @@ import agency_social  # noqa: E402
 import agency_deploy  # noqa: E402
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
+import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
@@ -3437,6 +3438,17 @@ class Handler(BaseHTTPRequestHandler):
                 # The DB's set_active_location RPC is the gate — it refuses any center
                 # this profile has no membership row for. We never trust the browser's id.
                 result = daycare_supabase.switch_location(session, body)
+            elif path == "/api/daycare/nova/generate":
+                result = daycare_ads_studio.ideas(body.get("account"))
+            elif path == "/api/daycare/nova/image":
+                result = daycare_ads_studio.attach_image(body.get("id"),
+                                                         body.get("imageUrl", ""))
+            elif path == "/api/daycare/nova/create-ad":
+                # Builds the campaign PAUSED. Nothing serves, nothing spends — going
+                # ACTIVE / changing budget stays the owner's call (CLAUDE.md rule 2).
+                result = daycare_ads_studio.create_ad(body.get("id"))
+            elif path == "/api/daycare/nova/discard":
+                result = daycare_ads_studio.discard(body.get("id"))
             elif path == "/api/daycare/stripe/send-invoice":
                 ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
                 result = stripe_io.send_invoice(ctx)
