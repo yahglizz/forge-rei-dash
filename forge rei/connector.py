@@ -936,8 +936,11 @@ def api_hub_bus(q):
 
 
 def api_hub_history(q):
+    # agents_history.history() returns {"agentId", "history": [...], "count"} — the turns
+    # live under "history", NOT the dict itself. Unwrap it: the hub's chat maps over this
+    # list, and handing it an object is a render crash, not a graceful empty state.
     agent = (q.get("agent", ["marcus"]) or ["marcus"])[0]
-    return {"messages": agents_history.history(agent)}
+    return {"messages": agents_history.history(agent).get("history") or []}
 
 
 # Scout — wholesale lead-triage agent (ranks who to text back ASAP; read-only loop).

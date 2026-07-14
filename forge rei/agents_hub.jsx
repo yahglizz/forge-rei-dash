@@ -86,11 +86,17 @@ function HubChat({ agent }) {
   const [err, setErr] = useStateHub(null);
   const endRef = useRefHub(null);
 
+  // Always coerce to an array. There is no error boundary in this app (in-browser Babel),
+  // so a payload shaped differently than expected doesn't degrade — it blanks the tab.
   useEffectHub(() => {
     let dead = false;
     setMsgs([]); setErr(null);
     window.apiGet("/api/hub/history?agent=" + encodeURIComponent(agent.id))
-      .then((d) => { if (!dead) setMsgs(d.messages || []); })
+      .then((d) => {
+        if (dead) return;
+        const rows = d && d.messages;
+        setMsgs(Array.isArray(rows) ? rows : []);
+      })
       .catch(() => { if (!dead) setMsgs([]); });
     return () => { dead = true; };
   }, [agent.id]);
@@ -162,7 +168,7 @@ function HubTasks({ agent }) {
 
   function load() {
     window.apiGet("/api/hub/tasks?agent=" + encodeURIComponent(agent.id))
-      .then((d) => setRows(d.tasks || []))
+      .then((d) => setRows(Array.isArray(d && d.tasks) ? d.tasks : []))
       .catch(() => setRows([]));
   }
   useEffectHub(() => { load(); }, [agent.id]);
@@ -239,8 +245,8 @@ function HubAgentsPage({ ws }) {
   const roster = window.useApi("/api/hub/roster", { interval: 30000 });
 
   const data = roster.data || {};
-  const agents = data.agents || [];
-  const businesses = data.businesses || [];
+  const agents = Array.isArray(data.agents) ? data.agents : [];
+  const businesses = Array.isArray(data.businesses) ? data.businesses : [];
 
   // Default to THIS workspace's first agent, so the tab opens where you already are.
   // The workspace id is passed by the page map; localStorage is the same value app.jsx
