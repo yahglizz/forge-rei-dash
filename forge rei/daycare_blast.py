@@ -131,25 +131,36 @@ def _optouts(data) -> dict:
     return data.setdefault("_optouts", {})
 
 
-def list_optouts() -> list[dict]:
+def _optout_key(location_id, phone) -> str:
+    """Opt-outs are PER CENTER. A family telling A Touch of Blessings to stop texting
+    must not silently mute A Mother's Touch — they can be different businesses, and one
+    center's consent is not another's. Scoping the key keeps the wall up here too."""
+    return "%s|%s" % (str(location_id or ""), _digits(phone))
+
+
+def list_optouts(location_id=None) -> list[dict]:
     with _LOCK:
-        return sorted(_optouts(_load()).values(), key=lambda r: r.get("at") or 0, reverse=True)
+        rows = [r for r in _optouts(_load()).values()
+                if location_id is None or r.get("locationId") == location_id]
+        return sorted(rows, key=lambda r: r.get("at") or 0, reverse=True)
 
 
-def set_optout(phone, *, opted_out=True, name="") -> dict:
-    """Owner marks a family as do-not-text. Skipped by every future blast."""
-    key = _digits(phone)
-    if not key:
+def set_optout(phone, *, location_id=None, opted_out=True, name="") -> dict:
+    """Owner marks a family as do-not-text AT THIS CENTER. Skipped by future blasts there."""
+    digits = _digits(phone)
+    if not digits:
         return {"ok": False, "detail": "A phone number is required."}
+    key = _optout_key(location_id, phone)
     with _LOCK:
         data = _load()
         outs = _optouts(data)
         if opted_out:
-            outs[key] = {"key": key, "phone": phone, "name": name, "at": _now()}
+            outs[key] = {"key": digits, "phone": phone, "name": name,
+                         "locationId": location_id, "at": _now()}
         else:
             outs.pop(key, None)
         _save(data)
-        return {"ok": True, "optedOut": bool(opted_out), "count": len(outs)}
+        return {"ok": True, "optedOut": bool(opted_out)}
 
 
 # ---------------------------------------------------------------- rendering
@@ -189,8 +200,8 @@ def preview(template, recipients, center_name="A Touch of Blessings") -> list[di
 
 
 def create_blast(*, title, template, recipients, audience_label="",
-                 center_name="A Touch of Blessings") -> dict:
-    """QUEUE a blast. Renders every family's final text; sends nothing."""
+                 center_name="A Touch of Blessings", location_id=None) -> dict:
+    """QUEUE a blast for ONE center. Renders every family's final text; sends nothing."""
     body = (template or "").strip()
     if not body:
         return {"error": "Write the message first."}
@@ -207,7 +218,7 @@ def create_blast(*, title, template, recipients, audience_label="",
         rows, skipped_optout = [], 0
         for person in people:
             key = _digits(person.get("phone"))
-            if key in outs:
+            if _optout_key(location_id, person.get("phone")) in outs:
                 skipped_optout += 1
                 continue
             rows.append({
@@ -235,6 +246,8 @@ def create_blast(*, title, template, recipients, audience_label="",
                    if isinstance(r, dict) and r.get("seq")] or [0]) + 1
         record = {
             "id": bid, "seq": seq,
+            "locationId": location_id,          # which center this blast belongs to
+            "centerName": center_name,
             "title": (title or "Family blast").strip(),
             "audience": audience_label or "All families",
             "template": body,
