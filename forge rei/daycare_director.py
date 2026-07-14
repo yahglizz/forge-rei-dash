@@ -564,6 +564,7 @@ class SolomonEngine:
             "aiReady": bool(key),
             "skillsLoaded": bool(self._load_skills()),
             "topSkills": self.loaded_skill_names(),
+            "northStarLoaded": bool(_north_star_block()),
             "creedLoaded": bool(_creed_block()),
             "playbookLoaded": bool(self._playbook_only()),
             "systems": connected_systems(),

@@ -82,6 +82,17 @@ def _nova_key():
     return review_agent._api_key()
 
 
+def _north_star_block():
+    """The cross-business constitution — never truncated, frames everything below
+    it. Sourced from north_star, which learn() cannot see, so self-improvement can
+    never rewrite it."""
+    try:
+        import north_star
+        return north_star.context_block()
+    except Exception:
+        return ""
+
+
 def _creed_block():
     """The daycare creed (evidence discipline) — never truncated, outranks the playbook.
     Sourced from agent_creed, which learn() cannot see, so self-improvement can never
@@ -286,6 +297,7 @@ class NovaEngine:
             "creativeRecommendations (array of {angle, why, action}), "
             "delegationsSeen (array of strings, empty if none). All new "
             "campaigns you ever reference start PAUSED."
+            + _north_star_block()
             + (ctx or "")
             + _creed_block()
             + ("\n\n=== YOUR TOP SKILLS (the constitution) ===\n" + skills if skills else "")
@@ -490,6 +502,7 @@ class NovaEngine:
             "aiReady": bool(key),
             "skillsLoaded": bool(self._load_skills()),
             "topSkills": self.loaded_skill_names(),
+            "northStarLoaded": bool(_north_star_block()),
             "creedLoaded": bool(_creed_block()),
             "playbookLoaded": bool(self._playbook_only()),
             "briefCount": self.brief_count,

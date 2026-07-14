@@ -863,6 +863,7 @@ class ScoutEngine:
             "labels": BUCKET_LABEL,
             "learn": self.learn_state,
             "skillsLoaded": bool(self._load_skills()),
+            "northStarLoaded": bool(_north_star_loaded()),
         }
 
     def leads(self, bucket=None):
@@ -907,6 +908,7 @@ class ScoutEngine:
             "activity": self.activity[:40],
             "learn": self.learn_state,
             "skillsLoaded": bool(self._load_skills()),
+            "northStarLoaded": bool(_north_star_loaded()),
         }
 
     # -- self-improvement (learn from every encounter, rewrite own playbook) --
