@@ -78,6 +78,55 @@ def context_block(limit: int = 3500) -> str:
     )
 
 
+def _skills_dir() -> Path | None:
+    """The forge-daycare/skills dir that holds daycare-context.md (and siblings)."""
+    p = context_path()
+    return p.parent if p is not None else None
+
+
+def load_skill(filename: str) -> str:
+    """Read any daycare skill markdown from the skills dir (mtime-cached). "" if absent.
+
+    Lets other daycare skills (e.g. enrollment-ad-agent.md) load the same way the
+    business brief does — edit the file, agents hot-reload on the next run.
+    """
+    d = _skills_dir()
+    if d is None:
+        return ""
+    path = d / filename
+    try:
+        if not path.exists():
+            return ""
+        mtime = path.stat().st_mtime
+    except OSError:
+        return ""
+    with _LOCK:
+        cached = _CACHE.get(str(path))
+        if cached and cached[0] == mtime:
+            return cached[1]
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    with _LOCK:
+        _CACHE[str(path)] = (mtime, text)
+    return text
+
+
+def ad_agent_block(limit: int = 4000) -> str:
+    """Prompt-ready block for the Enrollment Ad Agent spec (real Meta account, angles,
+    copy, image prompts, workflow). "" when the skill is absent."""
+    text = load_skill("enrollment-ad-agent.md").strip()
+    if not text:
+        return ""
+    return (
+        "\n\n=== ENROLLMENT AD AGENT SPEC (the daycare's real Meta account, live "
+        "angles, ad copy, image prompts, targeting, and the Higgsfield→Pipeboard "
+        "workflow — use these exact assets; activating/spending stays owner-approved) ===\n"
+        + text[:limit]
+    )
+
+
 def status() -> dict:
     """Lightweight introspection for /api/daycare/eco and health checks."""
     path = context_path()
@@ -86,4 +135,5 @@ def status() -> dict:
         "loaded": bool(text),
         "path": str(path) if path else None,
         "chars": len(text),
+        "adAgentLoaded": bool(load_skill("enrollment-ad-agent.md")),
     }

@@ -124,6 +124,10 @@ def eco_ideas(account: str | None = None) -> dict:
     Read-only: proposals for the owner. Launching an ad stays approval-gated.
     """
     ctx = daycare_context.context_block()
+    # Fold in the Enrollment Ad Agent spec: the real Meta account, live angles, ad
+    # copy, image prompts, and the Higgsfield→Pipeboard workflow — so new ideas build
+    # on the actual running assets, not generic ones.
+    ctx += daycare_context.ad_agent_block()
     # Utilize the brain: fold Solomon's learned operating playbook (which owns
     # enrollment) into the enrollment engine so the brain's strategy shapes ideas.
     try:

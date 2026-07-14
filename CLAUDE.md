@@ -231,6 +231,15 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
   `forge-daycare/skills/daycare-context.md` (business facts, mission = grow enrollment,
   current status, brand voice, standing job) BEFORE reasoning, via `daycare_context.py`
   (mtime hot-reload; `context_block()` injected into the Eco prompt ahead of the playbook).
+- **Enrollment Ad Agent spec.** `forge-daycare/skills/enrollment-ad-agent.md` is the ad-ops
+  runbook — the daycare's REAL Meta account (`act_1175564690150627`, page/lead-form IDs),
+  the 3 live PAUSED angles (Urgency/Trust/Offer) with campaign+creative+image IDs, ad copy,
+  Higgsfield image prompts + model table, targeting, and the Higgsfield→Pipeboard workflow.
+  Loaded via `daycare_context.load_skill()` / `ad_agent_block()` and injected into the
+  enrollment engine (`eco_ideas`) so ideas build on the actual running assets. **FORGE gate
+  overrides its "execute immediately" line:** image/creative/paused-campaign builds run;
+  activating campaigns, budget changes, and `scale winner` are one-tap owner approvals
+  (spend). IDs there are business identifiers, not secrets — tokens stay in `daycare.env`.
   The "Ideas" tab (`daycare_growth.eco_ideas` → `/api/daycare/eco/ideas`) is the daycare's
   Eco agent: it reads the brief, drafts new enrollment angles + a competitor read, and
   returns PROPOSALS (launching an ad stays approval-gated). Eco's `extra_context` param is
