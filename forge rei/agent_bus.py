@@ -25,7 +25,7 @@ HERE = Path(__file__).resolve().parent
 STATE = HERE / "marcus_state" / "agent_bus.json"
 _LOCK = threading.Lock()
 
-KINDS = ["handoff", "note", "alert", "status", "task"]
+KINDS = ["handoff", "note", "alert", "status", "task", "coach"]
 # "task" = the operator assigning work to an agent from the Agents hub (agents_hub.py).
 # Kept distinct from "handoff" (agent→agent) so it reads honestly on the bus AND so the
 # Telegram notifier — which pings only on "handoff" — doesn't fire on every assignment.
