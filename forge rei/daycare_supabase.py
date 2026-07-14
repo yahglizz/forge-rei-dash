@@ -841,8 +841,7 @@ def switch_location(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     """
     target = _body_value(body, "location_id", "locationId")
     target = require_uuid(target, "location_id", optional=True)
-    result = BRIDGE.rest(session, "POST", "rpc/set_active_location",
-                         body={"target": target})
+    result = BRIDGE.rpc(session, "set_active_location", {"target": target})
     resolved = result if isinstance(result, str) else (
         result[0] if isinstance(result, list) and result else target)
     # Keep the cached session profile in step with the DB, so the very next request
