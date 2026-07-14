@@ -105,6 +105,28 @@ This is a hard operating principle for Claude AND the agents:
 - **Improve in place.** Prefer upgrading an existing skill over creating a near-duplicate.
   When a skill is upgraded, the upgrade is the new default immediately.
 
+### 4a. TOP SKILLS — the constitution (outranks every playbook)
+
+Some skills are **constitutional**: human-owned, stable, and ranked ABOVE the learned
+playbooks. When a top skill and a playbook disagree, **the top skill wins**. They are
+loaded FIRST and are never truncated; the `learn()` self-improvement loop can neither see
+nor rewrite them (that isolation is the point — a self-rewriting constitution is no
+constitution).
+
+| Top skill | Applies to | What it enforces |
+|-----------|-----------|------------------|
+| **`agent-evidence-discipline`** | **ALL agents** (Solomon, Scout, Marcus, Atlas, Dyson, Eco) | **Ground it, infer it, or name it Unknown** — every number/status carries its source or is written Unknown; never invent what a human said, owes, or promised; 3–5 ranked falsifiable hypotheses (never anchor on the first story); **close the loop** (if the next lookup wouldn't change the recommendation, decide); two passes max; propose, never act outward. |
+| **`solomon-decision-loop`** | Solomon | How he reasons: Frame → Ground → Hypothesize → Decide → **Close**. The exit condition that kills analysis paralysis; unknowns never block the brief. |
+| **`solomon-director-craft`** | Solomon | 50 years of operating judgment: triage order (safety/ratio → compliance → cash → enrollment), funnel-leak vs. lead-volume, speed-to-lead, vacancy as a spoiled good, retention math, seasonality, discounting last. |
+
+Live in `forge-solomon/skills/` (seed) + `vault/Skills/` (brain). Loaded by
+`daycare_director.SolomonEngine._load_skills` (constitution, whole) vs. `_playbook_only`
+(learned rubric, own budget). Constitution ≈5.1k tokens/brief — that cost is deliberate.
+**Adding a top skill for another agent:** drop the `.md` in the agent's `forge-*/skills/`
++ vault, load it ahead of the playbook, and keep `learn()` pointed at the playbook alone.
+Pattern credit: [mattpocock/skills](https://github.com/mattpocock/skills) — evidence
+before hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
+
 ---
 
 ## 5. The agents
@@ -284,13 +306,13 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
   `docs/superpowers/specs/2026-07-13-daycare-os-design.md`.
 - **Solomon — the daycare HEAD agent (executive director).** `daycare_director.py`
   (`SolomonEngine`) is the first daycare agent and the head of all daycare agents: a
-  30-year childcare director. He reads the whole center (Supabase ops metrics + alerts,
+  **50-year** childcare director. He reads the whole center (Supabase ops metrics + alerts,
   billing, staffing, connected-systems health, the `daycare-context.md` brief FIRST),
   produces a ranked **operating brief** (Attention Now / Enrollment / Money / People /
   Delegations), **owns enrollment**, and **delegates** to role sub-agents via `agent_bus`
   (hand-off per role). Same self-improving-agent pattern as Scout: own env folder
-  `forge-solomon/` (config + seed `skills/solomon-playbook.md`), key fallback (own →
-  shared agency/wholesale), mtime-cached brain playbook, `learn()` self-improvement into
+  `forge-solomon/` (config + seed `skills/`), key fallback (own →
+  shared agency/wholesale), mtime-cached brain skills, `learn()` self-improvement into
   `<vault>/Skills/solomon-playbook.md`, background loop gated by `FORGE_MARCUS` (box only,
   brief every `FORGE_SOLOMON_BRIEF_EVERY_H`h + auto self-improve). Read-only + propose/
   delegate — he never texts, invoices, launches ads, or writes the DB; his only autonomous
@@ -299,5 +321,14 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
   "access to the env files" = reading which systems are **wired** (presence only, never
   the secret value) via `connected_systems()`. Add role agents under him with the same
   `forge-self-improving-agent` recipe; they consume his bus delegations.
+  - **His skills (see §4a — top skills outrank the playbook).** Constitution:
+    `agent-evidence-discipline` (house rule, all agents) → `solomon-decision-loop` (never
+    guess; ground/infer/**Unknown**; ranked falsifiable hypotheses; **close the loop** and
+    decide — unknowns never block the brief) → `solomon-director-craft` (the 50 years:
+    triage order, funnel-leak vs. lead-volume, speed-to-lead, retention math, discount
+    last). Then the learned `solomon-playbook`. `_load_skills()` loads the constitution
+    whole and FIRST; `_playbook_only()` feeds `learn()` so self-improvement can never
+    rewrite the constitution. The brief prompt carries the same evidence rule inline as a
+    backstop, so it holds even if the skill files fail to load.
 - **Autonomy rule holds:** every outward daycare action (SMS, invoice send, ad launch,
   social post) stays approval-gated per rule 2. Auto-admin is loopback-only convenience.

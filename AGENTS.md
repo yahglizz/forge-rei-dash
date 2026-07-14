@@ -89,6 +89,27 @@ This is a hard operating principle for Codex AND the agents:
 - **Improve in place.** Prefer upgrading an existing skill over creating a near-duplicate.
   When a skill is upgraded, the upgrade is the new default immediately.
 
+### 4a. TOP SKILLS — the constitution (outranks every playbook)
+
+Some skills are **constitutional**: human-owned, stable, ranked ABOVE the learned
+playbooks. When a top skill and a playbook disagree, **the top skill wins**. They load
+FIRST and are never truncated; the `learn()` loop can neither see nor rewrite them — a
+self-rewriting constitution is no constitution, so that isolation is load-bearing.
+
+| Top skill | Applies to | What it enforces |
+|-----------|-----------|------------------|
+| **`agent-evidence-discipline`** | **ALL agents** (Solomon, Scout, Marcus, Atlas, Dyson, Eco) | **Ground it, infer it, or name it Unknown** — every number/status carries its source or is written Unknown; never invent what a human said, owes, or promised; 3–5 ranked falsifiable hypotheses (never anchor on the first story); **close the loop** (if the next lookup wouldn't change the recommendation, decide); two passes max; propose, never act outward. |
+| **`solomon-decision-loop`** | Solomon | Frame → Ground → Hypothesize → Decide → **Close**. The exit condition that kills analysis paralysis; unknowns never block the brief. |
+| **`solomon-director-craft`** | Solomon | 50 years of operating judgment: triage order (safety/ratio → compliance → cash → enrollment), funnel-leak vs. lead-volume, speed-to-lead, vacancy as a spoiled good, retention math, seasonality, discounting last. |
+
+Live in `forge-solomon/skills/` (seed) + `vault/Skills/` (brain). Loaded by
+`daycare_director.SolomonEngine._load_skills` (constitution, whole) vs. `_playbook_only`
+(learned rubric, own budget). Constitution ≈5.1k tokens/brief — deliberate.
+**Adding a top skill for another agent:** drop the `.md` in that agent's `forge-*/skills/`
++ vault, load it ahead of the playbook, and keep `learn()` pointed at the playbook alone.
+Pattern credit: [mattpocock/skills](https://github.com/mattpocock/skills) — evidence
+before hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
+
 ---
 
 ## 5. The agents
