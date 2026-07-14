@@ -26,6 +26,9 @@ AGENT_SKILLS = {
     "scout": ("scout-playbook.md",),
     "dyson": ("dyson-playbook.md",),
     "eco": ("eco-playbook.md",),
+    # Daycare — Solomon (head agent) reads/writes his operating playbook; the daycare
+    # enrollment engine reads the same learned strategy the brain holds.
+    "solomon": ("solomon-playbook.md",),
 }
 
 

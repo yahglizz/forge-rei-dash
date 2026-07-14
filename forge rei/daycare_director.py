@@ -35,6 +35,7 @@ SOLOMON_DIR = HERE.parent / "forge-solomon"        # config + seed skills (outsi
 _LOCK = threading.Lock()
 
 PLAYBOOK_REL = "Skills/solomon-playbook.md"
+BRIEF_DIR_REL = "Reports/daycare"          # living operating record written every brief
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
 LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_SOLOMON_LEARN_GAP_MIN", "45")) * 60 * 1000
 BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_SOLOMON_BRIEF_EVERY_H", "6")) * 3600 * 1000)
@@ -191,6 +192,66 @@ class SolomonEngine:
         except Exception:
             return self._sk_text
 
+    # --- brain: read continuity + write the living operating record ----------
+    def _recent_brain_context(self):
+        """Pull the last operating brief + recent daycare notes from the vault so
+        Solomon has continuity — utilizing the brain on READ, not just writing it."""
+        try:
+            import brain_io
+            d = brain_io.VAULT / BRIEF_DIR_REL
+            if not d.is_dir():
+                return ""
+            files = sorted([p for p in d.glob("*.md")],
+                           key=lambda p: p.stat().st_mtime, reverse=True)[:2]
+            if not files:
+                return ""
+            blocks = []
+            for p in files:
+                blocks.append(f"### {p.stem}\n" + p.read_text(errors="ignore")[:1200])
+            return ("\n\n=== YOUR RECENT OPERATING RECORD (from the brain — build on "
+                    "it, note what changed) ===\n" + "\n\n".join(blocks))
+        except Exception:
+            return ""
+
+    def _write_brief_note(self, brief):
+        """Write each operating brief into the vault (git-committed) so the daycare
+        brain updates LIVE on every run and shows in the Brain tab."""
+        try:
+            import brain_io
+            stamp = time.strftime("%Y-%m-%d %H%M")
+            day = time.strftime("%Y-%m-%d")
+            lines = [f"---", f"agent: solomon", f"kind: operating-brief", f"generated: {stamp}",
+                     f"---", "", f"# Operating Brief — {day}", "",
+                     f"**{brief.get('headline','')}**", ""]
+            m = brief.get("metrics") or {}
+            if m:
+                lines.append("## Center snapshot")
+                lines.append(f"- Enrolled {m.get('childrenActive','?')} · present {m.get('presentToday','?')} "
+                             f"· staff {m.get('staffActive','?')} · capacity {m.get('capacityTotal','?')}")
+                lines.append(f"- Invoices due {m.get('invoicesDue','?')} (${m.get('amountDue','?')}) "
+                             f"· open incidents {m.get('openIncidents','?')} · unread {m.get('unreadNotifications','?')}")
+                lines.append("")
+            def _sec(title, items, fmt):
+                if not items:
+                    return
+                lines.append(f"## {title}")
+                for it in items:
+                    lines.append("- " + fmt(it))
+                lines.append("")
+            _sec("Attention now", brief.get("priorities"),
+                 lambda p: f"[{p.get('urgency','?')}/{p.get('area','?')}] {p.get('title','')} — {p.get('why','')}")
+            _sec("Enrollment (Solomon owns)", brief.get("enrollment"), lambda s: str(s))
+            _sec("Money", brief.get("money"), lambda s: str(s))
+            _sec("People", brief.get("people"), lambda s: str(s))
+            _sec("Delegations", brief.get("delegations"),
+                 lambda d: f"**{d.get('role','team')}** → {d.get('task','')}  [[solomon-playbook]]")
+            content = "\n".join(lines)
+            res = brain_io.write_note(f"{BRIEF_DIR_REL}/brief-{day}.md", content,
+                                      reason=f"solomon operating brief {stamp}")
+            return bool(res.get("committed"))
+        except Exception:
+            return False
+
     # --- the operating brief -------------------------------------------------
     def _gather(self, session):
         """Pull the live center picture. Returns (metrics, alerts, err)."""
@@ -239,6 +300,7 @@ class SolomonEngine:
             + (ctx or "")
             + ("\n\n=== YOUR PLAYBOOK (learned rubric — apply it) ===\n" + skills[:3000]
                if skills else "")
+            + self._recent_brain_context()
         )
         live = {
             "metrics": metrics,
@@ -281,8 +343,10 @@ class SolomonEngine:
             self._log("brief", f"Built operating brief — {len(brief['priorities'])} priorities, "
                                f"{len(brief['delegations'])} delegations")
             self._save()
+        committed = self._write_brief_note(brief)   # live vault update every brief
+        brief["brainCommitted"] = committed
         self._broadcast_brief(brief)
-        return {"ok": True, "brief": brief, "gatherError": gather_err}
+        return {"ok": True, "brief": brief, "gatherError": gather_err, "brainCommitted": committed}
 
     def _broadcast_brief(self, brief):
         """Post a status note + a delegation hand-off per role onto the shared bus."""

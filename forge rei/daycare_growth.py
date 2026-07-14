@@ -124,6 +124,16 @@ def eco_ideas(account: str | None = None) -> dict:
     Read-only: proposals for the owner. Launching an ad stays approval-gated.
     """
     ctx = daycare_context.context_block()
+    # Utilize the brain: fold Solomon's learned operating playbook (which owns
+    # enrollment) into the enrollment engine so the brain's strategy shapes ideas.
+    try:
+        import daycare_director
+        pb = daycare_director.playbook_text(2000)
+        if pb:
+            ctx += ("\n\n=== SOLOMON'S ENROLLMENT PLAYBOOK (learned from the brain — "
+                    "apply his strategy) ===\n" + pb)
+    except Exception:
+        pass
     key, _src = agency_eco._agency_key()
     if not key:
         # No Claude key — return the fast template view so the tab still renders.
