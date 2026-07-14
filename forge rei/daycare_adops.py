@@ -82,6 +82,17 @@ def _nova_key():
     return review_agent._api_key()
 
 
+def _creed_block():
+    """The daycare creed (evidence discipline) — never truncated, outranks the playbook.
+    Sourced from agent_creed, which learn() cannot see, so self-improvement can never
+    rewrite it. Same creed Solomon and every daycare role agent run on."""
+    try:
+        import agent_creed
+        return agent_creed.block("daycare")
+    except Exception:
+        return ""
+
+
 def _strip_fences(raw):
     raw = (raw or "").strip()
     if raw.startswith("```"):
@@ -137,7 +148,9 @@ class NovaEngine:
         self.activity = self.activity[-120:]
 
     # --- brain skills (mtime-cached seed + vault) ----------------------------
-    TOP_SKILLS = ("agent-evidence-discipline.md", "nova-decision-loop.md")
+    # Prompt order: CREED (daycare-evidence-discipline, via agent_creed — never
+    # reachable from learn()) → TOP SKILLS below → the learned playbook last.
+    TOP_SKILLS = ("nova-decision-loop.md",)
     PLAYBOOK_MD = "nova-playbook.md"
 
     def _load_skills(self):
@@ -274,6 +287,7 @@ class NovaEngine:
             "delegationsSeen (array of strings, empty if none). All new "
             "campaigns you ever reference start PAUSED."
             + (ctx or "")
+            + _creed_block()
             + ("\n\n=== YOUR TOP SKILLS (the constitution) ===\n" + skills if skills else "")
             + ("\n\n=== YOUR PLAYBOOK (learned rubric) ===\n" + playbook[:4000] if playbook else "")
         )
@@ -403,8 +417,11 @@ class NovaEngine:
             "surfacing, and cut guidance that didn't help. Keep the hard rules "
             "(read the business brief + ad agent spec first; never launch/spend/ "
             "generate creative yourself; ground everything in real data; the JSON "
-            "output contract; all new campaigns start PAUSED). Output the FULL "
-            "UPDATED playbook as clean markdown — ONLY the markdown."
+            "output contract; all new campaigns start PAUSED). You ALSO carry a "
+            "separate, permanent creed (evidence discipline) and a decision-loop "
+            "skill — those are NOT yours to rewrite and are not shown here; assume "
+            "they always apply. Output the FULL UPDATED playbook as clean markdown "
+            "— ONLY the markdown."
         )
         user = ("CURRENT PLAYBOOK:\n" + current[:4000]
                 + "\n\nRECENT BRIEFS YOU PRODUCED (learn from these):\n" + "\n".join(sample))
@@ -473,6 +490,7 @@ class NovaEngine:
             "aiReady": bool(key),
             "skillsLoaded": bool(self._load_skills()),
             "topSkills": self.loaded_skill_names(),
+            "creedLoaded": bool(_creed_block()),
             "playbookLoaded": bool(self._playbook_only()),
             "briefCount": self.brief_count,
             "lastBriefAt": self.last_brief_at,

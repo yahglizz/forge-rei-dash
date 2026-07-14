@@ -89,26 +89,41 @@ This is a hard operating principle for Codex AND the agents:
 - **Improve in place.** Prefer upgrading an existing skill over creating a near-duplicate.
   When a skill is upgraded, the upgrade is the new default immediately.
 
-### 4a. TOP SKILLS — the constitution (outranks every playbook)
+### 4a. THE CREED — evidence discipline, one per business (outranks every playbook)
 
-Some skills are **constitutional**: human-owned, stable, ranked ABOVE the learned
-playbooks. When a top skill and a playbook disagree, **the top skill wins**. They load
-FIRST and are never truncated; the `learn()` loop can neither see nor rewrite them — a
-self-rewriting constitution is no constitution, so that isolation is load-bearing.
+Every agent runs on a **creed**: the evidence discipline for the business it works in,
+written in that business's own language. **Human-owned, stable, ranked ABOVE the learned
+playbook** — when they disagree, **the creed wins**.
 
-| Top skill | Applies to | What it enforces |
-|-----------|-----------|------------------|
-| **`agent-evidence-discipline`** | **ALL agents** (Solomon, Scout, Marcus, Atlas, Dyson, Eco) | **Ground it, infer it, or name it Unknown** — every number/status carries its source or is written Unknown; never invent what a human said, owes, or promised; 3–5 ranked falsifiable hypotheses (never anchor on the first story); **close the loop** (if the next lookup wouldn't change the recommendation, decide); two passes max; propose, never act outward. |
-| **`solomon-decision-loop`** | Solomon | Frame → Ground → Hypothesize → Decide → **Close**. The exit condition that kills analysis paralysis; unknowns never block the brief. |
-| **`solomon-director-craft`** | Solomon | 50 years of operating judgment: triage order (safety/ratio → compliance → cash → enrollment), funnel-leak vs. lead-volume, speed-to-lead, vacancy as a spoiled good, retention math, seasonality, discounting last. |
+**One creed per business** (`agent_creed.py`, `CREED_FILE`):
 
-Live in `forge-solomon/skills/` (seed) + `vault/Skills/` (brain). Loaded by
-`daycare_director.SolomonEngine._load_skills` (constitution, whole) vs. `_playbook_only`
-(learned rubric, own budget). Constitution ≈5.1k tokens/brief — deliberate.
-**Adding a top skill for another agent:** drop the `.md` in that agent's `forge-*/skills/`
-+ vault, load it ahead of the playbook, and keep `learn()` pointed at the playbook alone.
-Pattern credit: [mattpocock/skills](https://github.com/mattpocock/skills) — evidence
-before hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
+| Creed | Agents | Home | What it enforces |
+|-------|--------|------|------------------|
+| **`wholesale-evidence-discipline`** | **Scout, Marcus, Atlas** | `forge-scout/skills/` + `forge-marcus/skills/` | The thread is the only truth — never invent what a seller said, asked, or agreed to; **no agent ever invents a number**, and no price/offer ever goes out by text (Atlas's anchors are internal); Unknowns become the call's missing-info list; reply to sellers only, never to our own outreach. |
+| **`agency-evidence-discipline`** | **Dyson, Eco** | `forge-agency/skills/` | Never invent a client's metric — every CPL/ROAS/spend figure carries its source **and date range**, or is Unknown; mock/unconnected channels labeled as such in the output; never invent or stretch a client request, timeline, or promised result; diagnose with ranked alternatives, not "it's the creative." |
+| **`daycare-evidence-discipline`** | **Solomon** + role agents | `forge-solomon/skills/` | Never invent capacity, a start date, a rate, a balance, or a ratio; read the brief FIRST; safety/compliance outranks the analysis; look it up, escalate only the decisions. |
+
+**All three share the spine:** *ground it, infer it, or name it **Unknown*** · 3–5 **ranked
+falsifiable** hypotheses · **close the loop** — if the next lookup wouldn't change the
+recommendation, decide · **two passes max**, Unknowns never block the output · weight care
+by cost of being wrong · **propose, never act outward.**
+
+**Why `agent_creed.py` is a module, not another entry in `_load_skills()` — load-bearing.**
+Every `learn()` does `current = self._load_skills()` → *"output the FULL UPDATED playbook"*
+→ overwrite. **Anything reachable through `_load_skills` is something self-improvement
+eventually swallows and rewrites.** The creed is injected straight into each system prompt
+(`agent_creed.block(business)`), never through `_load_skills` — `learn()` cannot see it, so
+it can never rewrite it. Vault copy wins over seed. ~1.5–1.8k tokens/call, never truncated.
+
+Solomon additionally carries two **top skills** above his playbook (via `_load_skills`,
+isolated from `learn()` by `_playbook_only`): **`solomon-decision-loop`** (Frame → Ground →
+Hypothesize → Decide → **Close** — the exit condition that kills analysis paralysis) and
+**`solomon-director-craft`** (the 50 years: triage order, funnel-leak vs. lead-volume,
+speed-to-lead, retention math, discount last).
+
+**Adding an agent:** give it its business's creed — `agent_creed.block("<business>")` into
+the system prompt ahead of the playbook — and keep `learn()` on the playbook alone.
+Pattern credit: [mattpocock/skills](https://github.com/mattpocock/skills).
 
 ---
 

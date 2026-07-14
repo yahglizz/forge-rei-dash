@@ -341,14 +341,16 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
   "access to the env files" = reading which systems are **wired** (presence only, never
   the secret value) via `connected_systems()`. Add role agents under him with the same
   `forge-self-improving-agent` recipe; they consume his bus delegations.
-  - **His skills (see §4a — top skills outrank the playbook).** Constitution:
-    `agent-evidence-discipline` (house rule, all agents) → `solomon-decision-loop` (never
-    guess; ground/infer/**Unknown**; ranked falsifiable hypotheses; **close the loop** and
-    decide — unknowns never block the brief) → `solomon-director-craft` (the 50 years:
-    triage order, funnel-leak vs. lead-volume, speed-to-lead, retention math, discount
-    last). Then the learned `solomon-playbook`. `_load_skills()` loads the constitution
-    whole and FIRST; `_playbook_only()` feeds `learn()` so self-improvement can never
-    rewrite the constitution. The brief prompt carries the same evidence rule inline as a
-    backstop, so it holds even if the skill files fail to load.
+  - **His skills (see §4a — creed + top skills outrank the playbook).** Prompt order:
+    `daycare-evidence-discipline` (the **creed**, via `agent_creed.block("daycare")` —
+    never guess capacity/start date/rate/ratio; ground/infer/**Unknown**) →
+    `solomon-decision-loop` (ranked falsifiable hypotheses; **close the loop** and decide —
+    unknowns never block the brief) → `solomon-director-craft` (the 50 years: triage order,
+    funnel-leak vs. lead-volume, speed-to-lead, retention math, discount last) → the
+    learned `solomon-playbook` last. The creed comes from `agent_creed` (invisible to
+    `learn()`); the top skills come from `_load_skills()` while `_playbook_only()` feeds
+    `learn()` — so self-improvement can rewrite the playbook and nothing above it. The
+    brief prompt also carries the evidence rule inline as a backstop, so it holds even if
+    every skill file fails to load.
 - **Autonomy rule holds:** every outward daycare action (SMS, invoice send, ad launch,
   social post) stays approval-gated per rule 2. Auto-admin is loopback-only convenience.

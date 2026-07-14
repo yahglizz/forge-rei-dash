@@ -84,6 +84,17 @@ def _nora_key():
     return review_agent._api_key()
 
 
+def _creed_block():
+    """The daycare creed (evidence discipline) — never truncated, outranks the playbook.
+    Sourced from agent_creed, which learn() cannot see, so self-improvement can never
+    rewrite it. Same creed Solomon and every daycare role agent run on."""
+    try:
+        import agent_creed
+        return agent_creed.block("daycare")
+    except Exception:
+        return ""
+
+
 def _strip_fences(raw):
     raw = (raw or "").strip()
     if raw.startswith("```"):
@@ -139,9 +150,9 @@ class NoraEngine:
         self.activity = self.activity[-120:]
 
     # --- brain skills (mtime-cached seed + vault) ----------------------------
-    # Evidence discipline (house rule, shared) → decision loop (how Nora
-    # triages roster vs. follow-ups) → the learned playbook last.
-    TOP_SKILLS = ("agent-evidence-discipline.md", "nora-decision-loop.md")
+    # Prompt order: CREED (daycare-evidence-discipline, via agent_creed — never
+    # reachable from learn()) → TOP SKILLS below → the learned playbook last.
+    TOP_SKILLS = ("nora-decision-loop.md",)
     PLAYBOOK_MD = "nora-playbook.md"
 
     def _load_skills(self):
@@ -310,6 +321,7 @@ class NoraEngine:
             "ranked; lead with any classroom over ratio/capacity or missing "
             "guardian contact, then follow-ups."
             + (ctx or "")
+            + _creed_block()
             + ("\n\n=== YOUR TOP SKILLS (the constitution) ===\n" + skills if skills else "")
             + ("\n\n=== YOUR PLAYBOOK (learned rubric) ===\n" + playbook[:4000] if playbook else "")
         )
@@ -437,8 +449,11 @@ class NoraEngine:
             "roster gaps vs. follow-ups, tighten which follow-up reasons are worth "
             "surfacing, and cut guidance that didn't help. Keep the hard rules "
             "(read the business brief first; never act outward; ground everything "
-            "in real data; the JSON output contract). Output the FULL UPDATED "
-            "playbook as clean markdown — ONLY the markdown."
+            "in real data; the JSON output contract). You ALSO carry a separate, "
+            "permanent creed (evidence discipline) and a decision-loop skill — "
+            "those are NOT yours to rewrite and are not shown here; assume they "
+            "always apply. Output the FULL UPDATED playbook as clean markdown — "
+            "ONLY the markdown."
         )
         user = ("CURRENT PLAYBOOK:\n" + current[:4000]
                 + "\n\nRECENT BRIEFS YOU PRODUCED (learn from these):\n" + "\n".join(sample))
@@ -507,6 +522,7 @@ class NoraEngine:
             "aiReady": bool(key),
             "skillsLoaded": bool(self._load_skills()),
             "topSkills": self.loaded_skill_names(),
+            "creedLoaded": bool(_creed_block()),
             "playbookLoaded": bool(self._playbook_only()),
             "briefCount": self.brief_count,
             "lastBriefAt": self.last_brief_at,
