@@ -2,7 +2,7 @@
 // Reuses the Agency Meta/Metricool engines with the daycare's own credentials.
 // Renders cleanly in "mock" mode until META_ACCESS_TOKEN / METRICOOL_USER_TOKEN
 // are added to daycare.env, then lights up live — no rebuild.
-const { useState: useStateDca } = React;
+const { useState: useStateDca, useEffect: useEffectDca } = React;
 
 function DcaConnBadge({ conn }) {
   const live = conn && (conn.connected || conn.source === "live");
@@ -134,12 +134,174 @@ function DaycareEco() {
   </div>;
 }
 
-function DaycareGrowth() {
-  const [tab, setTab] = useStateDca("ideas");
-  return <div className="dc-page">
-    <div className="dc-hero" style={{ marginBottom: 14 }}><div><div className="dc-eyebrow">GROWTH ENGINE</div><h1>Grow enrollment. Run the ads. Watch the socials.</h1><p>The daycare's marketing command center — Eco drafts enrollment ideas from your business brief, plus Meta ads and social insights. Outward actions (launching ads, publishing posts) stay behind your one-tap approval.</p><div className="dc-hero-actions"><button className={tab === "ideas" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ideas")}><window.Icons.Bot size={15} /> Ideas</button><button className={tab === "ads" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ads")}><window.Icons.Dollar size={15} /> Ads</button><button className={tab === "social" ? "dc-primary" : "dc-outline"} onClick={() => setTab("social")}><window.Icons.Bell size={15} /> Social</button></div></div></div>
-    {tab === "ideas" ? <DaycareEco /> : tab === "ads" ? <DaycareAds /> : <DaycareSocial />}
+// ── Nova's ad studio — idea → image → PAUSED live ad ─────────────────────────
+// This is the DAYCARE's ad agent. It used to be branded "Eco" (the AGENCY's ads
+// strategist), which was simply the wrong agent on the wrong business. Nova owns
+// enrollment ads; the label now matches reality.
+function DcaNovaCard({ idea, onImage, onBuild, onDiscard, imageReady, metaReady }) {
+  const [url, setUrl] = useStateDca("");
+  const [busy, setBusy] = useStateDca("");
+  const [err, setErr] = useStateDca(null);
+  const built = idea.status === "built";
+  const meta = idea.meta || {};
+
+  const doImage = async (pasted) => {
+    setBusy("image"); setErr(null);
+    try { await onImage(idea.id, pasted || ""); }
+    catch (e) { setErr((e && e.message) || "Image step failed."); }
+    finally { setBusy(""); }
+  };
+  const doBuild = async () => {
+    setBusy("build"); setErr(null);
+    try { await onBuild(idea.id); }
+    catch (e) { setErr((e && e.message) || "Ad build failed."); }
+    finally { setBusy(""); }
+  };
+
+  const tgt = idea.targeting || {};
+  return <div className="card card-pad dc-panel" style={{ marginBottom: 12 }}>
+    <div className="dc-panel-head">
+      <div>
+        <div className="card-title">{idea.title || "Concept"}</div>
+        <div className="faint">{idea.angle || ""}</div>
+      </div>
+      <span className={"dc-live " + (built ? "" : "dc-mock")}
+        style={built ? null : { color: "#F4B860", borderColor: "rgba(244,184,96,.4)" }}>
+        <i style={built ? null : { background: "#F4B860" }} />
+        {built ? "Built · PAUSED" : idea.imageUrl ? "Image ready" : "Draft"}
+      </span>
+    </div>
+
+    {idea.imageUrl && <img src={idea.imageUrl} alt="" style={{
+      width: "100%", maxHeight: 260, objectFit: "cover", borderRadius: 10, margin: "8px 0",
+    }} />}
+
+    <div style={{ display: "grid", gap: 6, marginTop: 6, fontSize: 13 }}>
+      {idea.hook && <div><b>Hook</b> · {idea.hook}</div>}
+      {idea.headline && <div><b>Headline</b> · {idea.headline}</div>}
+      {idea.primaryText && <div style={{ opacity: .9 }}>{idea.primaryText}</div>}
+      <div className="faint" style={{ fontSize: 12 }}>
+        CTA {idea.cta || "LEARN_MORE"}
+        {idea.dailyBudget ? " · $" + idea.dailyBudget + "/day suggested" : ""}
+        {tgt.age_min ? " · ages " + tgt.age_min + "-" + tgt.age_max : ""}
+        {tgt.radius_miles ? " · " + tgt.radius_miles + "mi radius" : ""}
+      </div>
+    </div>
+
+    {idea.imagePrompt && !idea.imageUrl && <details style={{ marginTop: 10 }}>
+      <summary style={{ cursor: "pointer", fontSize: 12, opacity: .75 }}>
+        Image prompt (ready to generate)
+      </summary>
+      <div className="faint" style={{
+        fontSize: 12, marginTop: 6, whiteSpace: "pre-wrap",
+        background: "rgba(255,255,255,.04)", padding: 10, borderRadius: 8,
+      }}>{idea.imagePrompt}</div>
+      <button className="dc-outline" style={{ marginTop: 6 }}
+        onClick={() => navigator.clipboard && navigator.clipboard.writeText(idea.imagePrompt)}>
+        Copy prompt
+      </button>
+    </details>}
+
+    {err && <div style={{ color: "#EF4444", fontSize: 12, marginTop: 8 }}>{err}</div>}
+
+    {!built && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+      {!idea.imageUrl && imageReady && <button className="dc-outline" disabled={!!busy}
+        onClick={() => doImage("")}>
+        <window.Icons.Bot size={14} /> {busy === "image" ? "Generating…" : "Generate image"}
+      </button>}
+      {!idea.imageUrl && !imageReady && <React.Fragment>
+        <input className="input" placeholder="Paste image URL from Higgsfield…"
+          value={url} onChange={(e) => setUrl(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
+        <button className="dc-outline" disabled={!url.trim() || !!busy}
+          onClick={() => doImage(url.trim())}>Attach</button>
+      </React.Fragment>}
+      <button className="dc-primary" onClick={doBuild} disabled={!!busy || !metaReady}
+        title={metaReady ? "Creates the real Meta campaign, PAUSED" : "Needs META_ACCESS_TOKEN"}>
+        <window.Icons.Dollar size={14} /> {busy === "build" ? "Building…" : "Create ad (paused)"}
+      </button>
+      <button className="dc-outline" onClick={() => onDiscard(idea.id)} disabled={!!busy}>Discard</button>
+    </div>}
+
+    {built && <div className="dc-form-hint" style={{ marginTop: 10 }}>
+      <window.Icons.Shield size={14} />
+      Campaign built and <b>PAUSED</b> on Meta — nothing is serving and nothing is spending.
+      Review it, then flip it live in Meta when you're ready.
+      {meta.url && <React.Fragment> · <a href={meta.url} target="_blank" rel="noreferrer">Open in Meta</a></React.Fragment>}
+    </div>}
   </div>;
 }
 
-Object.assign(window, { DaycareGrowth, DaycareAds, DaycareSocial, DaycareEco });
+function DaycareNova() {
+  const [busy, setBusy] = useStateDca(false);
+  const [err, setErr] = useStateDca(null);
+  const [ideas, setIdeas] = useStateDca([]);
+  const [st, setSt] = useStateDca({});
+  const probe = window.DcxUseResource("/eco", "dc-eco", 0);
+  const ctx = (probe.data && probe.data.context) || {};
+
+  const refresh = async () => {
+    try {
+      const out = await window.DcxRequest("/nova/ideas");   // no body → GET
+      setIdeas(Array.isArray(out && out.ideas) ? out.ideas : []);
+      setSt((out && out.status) || {});
+    } catch (e) { /* empty state is fine */ }
+  };
+  useEffectDca(() => { refresh(); }, []);
+
+  // DcxRequest sends GET unless a body is present — these routes are POST-only, so each
+  // one must carry a body (even an empty object) or it 404s as a GET.
+  const generate = async () => {
+    setBusy(true); setErr(null);
+    try { await window.DcxRequest("/nova/generate", { body: {} }); await refresh(); }
+    catch (e) { setErr((e && e.message) || "Nova couldn't draft ideas."); }
+    finally { setBusy(false); }
+  };
+  const onImage = async (id, imageUrl) => {
+    const out = await window.DcxRequest("/nova/image", { body: { id, imageUrl } });
+    if (out && out.needsKey) throw new Error(out.error);
+    await refresh();
+  };
+  const onBuild = async (id) => {
+    const out = await window.DcxRequest("/nova/create-ad", { body: { id } });
+    if (out && out.ok === false) throw new Error(out.detail || out.error || "Build failed.");
+    await refresh();
+  };
+  const onDiscard = async (id) => {
+    await window.DcxRequest("/nova/discard", { body: { id } });
+    await refresh();
+  };
+
+  return <div className="dc-page">
+    <window.DcxPageHead title="Enrollment Ad Studio" eyebrow="GROWTH · NOVA"
+      copy="Nova reads the business brief and the live ad spec, then drafts complete enrollment ads — hook, headline, copy, targeting, budget, and the image prompt. One tap builds the real campaign, PAUSED."
+      actions={<DcaCtxBadge ctx={ctx} />} />
+
+    {!ctx.loaded && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Business brief not found. Add <code>forge-daycare/skills/daycare-context.md</code> so Nova stays on-message.</div>}
+    {!st.metaReady && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Meta isn't connected — add <code>META_ACCESS_TOKEN</code> to <code>daycare.env</code> to build campaigns.</div>}
+    {!st.imageReady && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Nova can't generate images herself yet — no <code>HIGGSFIELD_API_KEY</code> in <code>daycare.env</code>. She writes the prompt; generate it in Higgsfield and paste the URL back, or add the key and it becomes one tap.</div>}
+
+    <div className="dc-hero-actions" style={{ margin: "4px 0 14px" }}>
+      <button className="dc-primary" onClick={generate} disabled={busy}>
+        <window.Icons.Bot size={15} /> {busy ? "Nova is drafting…" : "Generate enrollment ads"}
+      </button>
+    </div>
+
+    {err && <window.DcxState error={err} onRetry={generate} />}
+    {!ideas.length && !busy && <div className="dc-all-clear"><window.Icons.Bot size={22} /><div><b>No ad concepts yet</b><span>Tap “Generate enrollment ads” — Nova drafts complete, buildable ads from your brief. They stay here until you build or discard them.</span></div></div>}
+
+    {ideas.map((idea) => <DcaNovaCard key={idea.id} idea={idea}
+      onImage={onImage} onBuild={onBuild} onDiscard={onDiscard}
+      imageReady={!!st.imageReady} metaReady={!!st.metaReady} />)}
+  </div>;
+}
+
+function DaycareGrowth() {
+  const [tab, setTab] = useStateDca("ideas");
+  return <div className="dc-page">
+    <div className="dc-hero" style={{ marginBottom: 14 }}><div><div className="dc-eyebrow">GROWTH ENGINE</div><h1>Grow enrollment. Run the ads. Watch the socials.</h1><p>The daycare's marketing command center — <b>Nova</b> drafts complete enrollment ads from your business brief and builds them on Meta, PAUSED. Going live, changing budget, and publishing posts stay behind your one-tap approval.</p><div className="dc-hero-actions"><button className={tab === "ideas" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ideas")}><window.Icons.Bot size={15} /> Ad Studio</button><button className={tab === "ads" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ads")}><window.Icons.Dollar size={15} /> Ads</button><button className={tab === "social" ? "dc-primary" : "dc-outline"} onClick={() => setTab("social")}><window.Icons.Bell size={15} /> Social</button></div></div></div>
+    {tab === "ideas" ? <DaycareNova /> : tab === "ads" ? <DaycareAds /> : <DaycareSocial />}
+  </div>;
+}
+
+Object.assign(window, { DaycareGrowth, DaycareAds, DaycareSocial, DaycareEco,
+  DaycareNova, DcaNovaCard });
