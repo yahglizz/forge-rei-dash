@@ -140,36 +140,35 @@ def roster():
 
     # Live Retell voice agents (personas you can test in text before they dial).
     #
-    # Retell returns one row PER PUBLISHED VERSION, so the same receptionist can come back
-    # four times under the same name. Listing all of them would rebuild the exact clutter
-    # this hub exists to kill — so collapse by NAME and keep only the newest version of
-    # each. (Dedupe on name, not id: the ids differ per version, which is why the raw list
-    # looks like distinct agents when it isn't.)
+    # Retell returns one row per published VERSION of an agent, so the same receptionist
+    # comes back several times under one name (its ids differ, which is why the raw list
+    # looks like distinct agents when it isn't). Listing them all would rebuild the exact
+    # clutter this hub exists to kill — so collapse by NAME, keeping the first occurrence.
+    #
+    # Retell's payload here carries no version field (retell_io.status() → id/name/voice/
+    # language only), so "which version is newest" is genuinely not knowable from this
+    # response. First-seen is the honest choice: it's stable, and chatting an agent only
+    # loads its persona to test tone — it never dials.
     try:
         import retell_io
         if retell_io.has_key():
-            best = {}
+            seen_names = set()
             for v in (retell_io.status().get("agents") or []):
                 vid = v.get("id")
                 if not vid or vid in _BY_ID:
                     continue
                 name = (v.get("name") or "Voice Agent").strip()
-                prev = best.get(name)
-                # Prefer the highest version; fall back to last-seen when unversioned.
-                ver = v.get("version")
-                ver = ver if isinstance(ver, int) else -1
-                if prev is None or ver >= prev["_ver"]:
-                    best[name] = {
-                        "id": vid, "name": name,
-                        "business": "voice", "businessLabel": BUSINESS["voice"]["label"],
-                        "emoji": "📞", "role": "Outbound voice agent — Retell",
-                        "blurb": "Chat runs this agent's real persona so you can test it "
-                                 "in text before it ever dials.",
-                        "status": {}, "voice": v.get("voice") or "", "_ver": ver,
-                    }
-            for row in best.values():
-                row.pop("_ver", None)
-                out.append(row)
+                if name in seen_names:
+                    continue
+                seen_names.add(name)
+                out.append({
+                    "id": vid, "name": name,
+                    "business": "voice", "businessLabel": BUSINESS["voice"]["label"],
+                    "emoji": "📞", "role": "Outbound voice agent — Retell",
+                    "blurb": "Chat runs this agent's real persona so you can test it in "
+                             "text before it ever dials.",
+                    "status": {}, "voice": v.get("voice") or "",
+                })
     except Exception:
         pass
 
