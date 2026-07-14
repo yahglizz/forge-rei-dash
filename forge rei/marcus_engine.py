@@ -648,9 +648,15 @@ class MarcusEngine:
             "- short. one breath. a real person, not a script.\n"
             "The PLAYBOOKS below are how Yahjair actually texts — copy that voice + follow the rules."
         )
-        # The CREED (wholesale evidence discipline) — FIRST and never truncated. This is the
-        # draft path that reaches a real seller, so "never invent what they said, never put a
+        # NORTH STAR (the cross-business constitution), then the CREED (wholesale
+        # evidence discipline) — FIRST and never truncated. This is the draft path
+        # that reaches a real seller, so "never invent what they said, never put a
         # number in a text" has to be in the prompt before anything else competes with it.
+        try:
+            import north_star
+            sys_prompt += north_star.context_block()
+        except Exception:
+            pass
         try:
             import agent_creed
             sys_prompt += agent_creed.block("wholesale")

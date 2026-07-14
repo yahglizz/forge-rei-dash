@@ -198,13 +198,20 @@ def _load_skills(agent_id):
 
 
 def _skills_block(agent_id):
-    """The CREED (agency evidence discipline) + the learned playbook, in that order.
+    """NORTH STAR (the cross-business constitution) + the CREED (agency evidence
+    discipline) + the learned playbook, in that order.
 
-    The creed comes from agent_creed, NOT from _load_skills — every learn() does
+    Neither north_star nor the creed comes from _load_skills — every learn() does
     ``current = _load_skills(agent_id)`` → "output the FULL UPDATED playbook" → overwrite,
     so anything reachable through _load_skills is something self-improvement eventually
-    rewrites. The creed must not drift, so it is never visible to learn().
+    rewrites. Neither must drift, so neither is ever visible to learn().
     """
+    ns = ""
+    try:
+        import north_star
+        ns = north_star.context_block()   # never truncated — frames everything below
+    except Exception:
+        ns = ""
     creed = ""
     try:
         import agent_creed
@@ -213,9 +220,9 @@ def _skills_block(agent_id):
         creed = ""
     skills = _load_skills(agent_id)
     if skills:
-        return creed + ("\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n"
-                        + skills[:3000])
-    return creed
+        return ns + creed + ("\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n"
+                             + skills[:3000])
+    return ns + creed
 
 
 def _history_block(history, limit=10):

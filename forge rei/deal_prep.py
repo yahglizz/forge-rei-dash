@@ -306,8 +306,14 @@ class DealPrep:
             "a price; anchors only come out mid-negotiation when the seller talks numbers. "
             "Output ONLY the JSON object."
         )
-        # The CREED first (wholesale evidence discipline) — never truncated, outranks the
+        # NORTH STAR first (the cross-business constitution), then the CREED
+        # (wholesale evidence discipline) — never truncated, outranks the
         # playbook. Matters most for Atlas: his anchors are INTERNAL and never invented.
+        try:
+            import north_star
+            system += north_star.context_block()
+        except Exception:
+            pass
         try:
             import agent_creed
             system += agent_creed.block("wholesale")

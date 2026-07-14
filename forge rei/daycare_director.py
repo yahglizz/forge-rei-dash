@@ -120,6 +120,17 @@ def playbook_text(limit=2000):
     return ("\n\n".join(parts))[:limit]
 
 
+def _north_star_block():
+    """The cross-business constitution — never truncated, frames everything below
+    it (creed, top skills, playbook). Sourced from north_star, which learn()
+    cannot see, so self-improvement can never rewrite it."""
+    try:
+        import north_star
+        return north_star.context_block()
+    except Exception:
+        return ""
+
+
 def _creed_block():
     """The daycare creed (evidence discipline) — never truncated, outranks the playbook.
     Sourced from agent_creed, which learn() cannot see, so self-improvement can never
@@ -362,6 +373,7 @@ class SolomonEngine:
             "(array of strings), delegations (array of {role, task}). 3–5 priorities, "
             "ranked; lead with anything unsafe / under-ratio / money-at-risk, then "
             "enrollment."
+            + _north_star_block()
             + (ctx or "")
             + _creed_block()
             + ("\n\n=== YOUR TOP SKILLS (these OUTRANK the learned playbook below; "
