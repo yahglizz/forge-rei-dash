@@ -648,6 +648,14 @@ class MarcusEngine:
             "- short. one breath. a real person, not a script.\n"
             "The PLAYBOOKS below are how Yahjair actually texts — copy that voice + follow the rules."
         )
+        # The CREED (wholesale evidence discipline) — FIRST and never truncated. This is the
+        # draft path that reaches a real seller, so "never invent what they said, never put a
+        # number in a text" has to be in the prompt before anything else competes with it.
+        try:
+            import agent_creed
+            sys_prompt += agent_creed.block("wholesale")
+        except Exception:
+            pass
         # The seller-reply DECISION rubric (adapt + never price + push to call + stand ground).
         # Injected in FULL and FIRST so the hard rule is never truncated — this governs WHAT to say.
         rubric = self._load_reply_rubric()

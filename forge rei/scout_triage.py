@@ -419,6 +419,13 @@ class ScoutEngine:
             "early, nurture=maybe later, dead=not selling/stop. motivation: 0 (cold) to 100 "
             "(hot). askingPrice: only if they state a number, else null. Be terse."
         )
+        # The CREED first (wholesale evidence discipline) — never truncated, outranks the
+        # playbook. Injected here, not via _load_skills(), so learn() can never rewrite it.
+        try:
+            import agent_creed
+            system += agent_creed.block("wholesale")
+        except Exception:
+            pass
         skills = self._load_skills()
         if skills:
             system += ("\n\n=== YOUR PLAYBOOK (learned rubric from the brain — apply it) ===\n"

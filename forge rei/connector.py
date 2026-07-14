@@ -3314,7 +3314,9 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
                 "/api/daycare/blast/send", "/api/daycare/blast/cancel",
                 "/api/daycare/blast/optout",
-                "/api/daycare/director/run", "/api/daycare/director/learn"}:
+                "/api/daycare/director/run", "/api/daycare/director/learn",
+                "/api/daycare/family/run", "/api/daycare/family/learn",
+                "/api/daycare/adops/run", "/api/daycare/adops/learn"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
         try:
@@ -3370,6 +3372,14 @@ class Handler(BaseHTTPRequestHandler):
                 result = SOLOMON.run_once(session)
             elif path == "/api/daycare/director/learn":
                 result = SOLOMON.learn()
+            elif path == "/api/daycare/family/run":
+                result = NORA.run_once(session)
+            elif path == "/api/daycare/family/learn":
+                result = NORA.learn()
+            elif path == "/api/daycare/adops/run":
+                result = NOVA.run_once(session)
+            elif path == "/api/daycare/adops/learn":
+                result = NOVA.learn()
             else:
                 result = handlers[path](session, body)
             _touch_sync()
@@ -3424,6 +3434,14 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/director/overview": lambda session: SOLOMON.overview(),
             "/api/daycare/director/brief": lambda session: SOLOMON.brief(),
             "/api/daycare/director/bus": lambda session: agent_bus.recent(30),
+            "/api/daycare/family/status": lambda session: NORA.status(),
+            "/api/daycare/family/overview": lambda session: NORA.overview(),
+            "/api/daycare/family/brief": lambda session: NORA.brief(),
+            "/api/daycare/family/bus": lambda session: agent_bus.recent(30),
+            "/api/daycare/adops/status": lambda session: NOVA.status(),
+            "/api/daycare/adops/overview": lambda session: NOVA.overview(),
+            "/api/daycare/adops/brief": lambda session: NOVA.brief(),
+            "/api/daycare/adops/bus": lambda session: agent_bus.recent(30),
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
@@ -3594,6 +3612,14 @@ def main():
         print(f"   Solomon: daycare director · operating brief every {daycare_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
         tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True)
         tsol.start()
+        # Nora — roster organizer & family follow-up (reports to Solomon).
+        print(f"   Nora: roster & family follow-up · brief every {daycare_family.BRIEF_EVERY_MS // 3600000}h + self-improves")
+        tnora = threading.Thread(target=NORA.run_forever, daemon=True)
+        tnora.start()
+        # Nova — ad ops: campaign health, competitor intel, creative direction (reports to Solomon).
+        print(f"   Nova: ad ops · brief every {daycare_adops.BRIEF_EVERY_MS // 3600000}h + self-improves")
+        tnova = threading.Thread(target=NOVA.run_forever, daemon=True)
+        tnova.start()
         # Do Today — rebuild the morning battle plan + email the digest at 9 AM Eastern.
         print(f"   Do Today: morning battle plan · rebuilds + emails {do_today.RUN_HOUR}:00 {do_today.TZ_NAME}"
               f" → {DO_TODAY.operator_email or 'NO EMAIL (set GHL_USER_EMAIL)'}")

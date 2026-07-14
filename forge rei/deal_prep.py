@@ -306,6 +306,13 @@ class DealPrep:
             "a price; anchors only come out mid-negotiation when the seller talks numbers. "
             "Output ONLY the JSON object."
         )
+        # The CREED first (wholesale evidence discipline) — never truncated, outranks the
+        # playbook. Matters most for Atlas: his anchors are INTERNAL and never invented.
+        try:
+            import agent_creed
+            system += agent_creed.block("wholesale")
+        except Exception:
+            pass
         skills = self._load_skills()
         if skills:
             system += ("\n\n=== YOUR SKILLS (underwriting rubric — apply it) ===\n"
