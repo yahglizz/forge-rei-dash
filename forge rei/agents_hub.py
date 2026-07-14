@@ -368,7 +368,11 @@ def tasks(agent_id=None):
 
 
 def bus(agent_id=None, limit=40):
-    """Recent agent-bus traffic — the hub's 'everything is connected' view."""
+    """Recent agent-bus traffic — the hub's 'everything is connected' view.
+
+    agent_bus.recent() returns NEWEST FIRST and the sender field is "from" (not "frm"),
+    so slice from the head, not the tail.
+    """
     try:
         import agent_bus
         msgs = agent_bus.recent(limit=200) or []
@@ -376,5 +380,5 @@ def bus(agent_id=None, limit=40):
         return {"messages": []}
     if agent_id:
         msgs = [m for m in msgs
-                if m.get("frm") == agent_id or m.get("to") in (agent_id, "all")]
-    return {"messages": msgs[-limit:]}
+                if m.get("from") == agent_id or m.get("to") in (agent_id, "all")]
+    return {"messages": msgs[:limit]}
