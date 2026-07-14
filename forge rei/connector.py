@@ -1156,6 +1156,7 @@ import toolkit_contracts  # noqa: E402  — Wholesaler Toolkit: sandbox contract
 import agents_history  # noqa: E402  — shared agent chat threads (dash + mobile + Telegram)
 import daily_brief  # noqa: E402  — daily ops brief pushed to Telegram (run-from-anywhere)
 import daily_recap  # noqa: E402  — evening end-of-day recap pushed to Telegram (close the loops)
+import sync_monitor  # noqa: E402  — alert when a workstation falls behind on git auto-sync
 
 
 def _deal_prefill(contact_id):
@@ -1789,6 +1790,9 @@ def _brief_scheduler_forever():
             if not forge_ops.paused():
                 _maybe_daily_brief()
                 _maybe_daily_recap()
+                # Watch for a workstation whose git auto-sync stalled (self-rate-limited
+                # to FORGE_SYNC_CHECK_MIN; pings Telegram once per fresh<->stale flip).
+                sync_monitor.check_and_alert()
         except Exception:
             pass
         try:
@@ -2083,6 +2087,18 @@ def api_recap(_q):
             "text": daily_recap.build_text(_gather_brief_stats())}
 
 
+def api_sync_status(_q):
+    """Read-only sync health: every workstation, how long since it last auto-synced,
+    and whether it's stale. Powers a dashboard chip + confirms the box/PC are current."""
+    return sync_monitor.status()
+
+
+def api_sync_check(_q):
+    """Force a sync check now (bypasses the rate-limit) and fire any pending Telegram
+    stale/recovery alerts. Manual 'check now' from the dashboard."""
+    return sync_monitor.check_and_alert(force=True)
+
+
 # Daily grind auto-sync — count today's GHL activity (messages out, conversations,
 # calls) and let Scout auto-tag any offers made today. Memoized 60s (heavy scan).
 _ACT_FETCH_CAP = 80          # today-active threads we open for per-message detail
@@ -2370,6 +2386,8 @@ ROUTES = {
     "/api/agents/history": api_agents_history,
     "/api/brief": api_brief,
     "/api/recap": api_recap,
+    "/api/sync/status": api_sync_status,
+    "/api/sync/check": api_sync_check,
     "/api/toolkit/calc/config": api_toolkit_calc_config,
     "/api/buyers/list": api_buyers_list,
     "/api/buyers/match": api_buyers_match,
