@@ -138,6 +138,11 @@ def _synthesize(key, metrics, analysts):
     user = ("WEEK METRICS:\n" + json.dumps(metrics, indent=2)
             + "\n\nANALYST REPORTS:\n" + json.dumps(analysts, indent=2)
             + "\n\nWrite the markdown review now.")
+    try:
+        import agent_coach
+        user += agent_coach.insights_block("marcus", "wholesale")
+    except Exception:
+        pass
     return _claude(key, system, user, max_tokens=2000)
 
 

@@ -530,6 +530,11 @@ class DealPrep:
                 + "\n\nRECENT REAL DEAL PREPS (your own output — learn from these):\n"
                 + "\n".join(lines))
         try:
+            import agent_coach
+            user += agent_coach.insights_block("atlas", "wholesale")
+        except Exception:
+            pass
+        try:
             new_md = review_agent._claude(key, system, user, max_tokens=2200)
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}

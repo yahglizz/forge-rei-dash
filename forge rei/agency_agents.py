@@ -461,6 +461,11 @@ def learn(agent_id, auto=False):
             + "\n\nRECENT REAL WORK (your own — learn from these):\n"
             + "\n".join(lines))
     try:
+        import agent_coach
+        user += agent_coach.insights_block(agent_id, "agency")
+    except Exception:
+        pass
+    try:
         new_md = review_agent._claude(key, system, user, max_tokens=2000)
     except Exception as e:  # noqa: BLE001
         return {"error": f"claude: {e}"}
