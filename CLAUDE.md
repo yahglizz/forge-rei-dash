@@ -27,18 +27,22 @@ re-run; if already up it just opens the browser. No other action needed.
 
 ## 1. What this is
 
-A real-estate-wholesaling + AI-agency control center. Static React UI (React UMD +
-in-browser Babel, **no build step**) served by a Python stdlib connector
+A real-estate-wholesaling + AI-agency + daycare control center. Static React UI (React
+UMD + in-browser Babel, **no build step**) served by a Python stdlib connector
 (`connector.py`, port 7799) that mirrors GoHighLevel and runs the AI agents. Lives 24/7
-on a DigitalOcean box. Two workspaces (profile switcher):
+on a DigitalOcean box. Three workspaces (profile switcher):
 
 - **REI (wholesale):** Dashboard, Leads, Conversations, Pipeline, Agents, Brain, etc.
 - **Agency (ClientForge):** Clients, Edit Requests, Agents, Ads, Social, Approvals, Brain.
+- **Daycare:** Dashboard, Solomon/Nora/Nova, Children, Billing, Growth, Brain, etc. (§10)
 
 Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
 - `forge rei/` — the app (this folder): all `.py` engines + `.jsx` UI + `deploy/`.
-- `forge-agency/` — agency config (`config/agency.env`) + agent skills (`skills/`).
-- `forge-scout/` — Scout config (`config/scout.env`) + seed skills (`skills/`).
+- `forge-agency/`, `forge-scout/`, `forge-marcus/`, `forge-solomon/`, `forge-nora/`,
+  `forge-nova/`, `forge-daycare/`, `forge-telegram/` — each business/agent's own config
+  + seed skills, outside the web root. **Full map (every folder, every agent, every env
+  var) → `NORTH_STAR.md` §6-7 — that table is the authoritative one now; this list is
+  just the orientation.**
 - `~/Desktop/Agentic-OS/vault/` — the Obsidian **brain** (FORGE_VAULT; `/opt/forge/vault` on the box).
 
 ---
@@ -162,6 +166,9 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 | **Atlas** (`deal_prep.py`) | REI | **UNDERWRITES** every screened-interested seller: extracts facts from the thread, derives offer anchors (open/target/walkaway) from the SELLER'S stated ask, spells out the MAO math + what comps to pull, writes the negotiation call card. Auto-preps every 15 min. | Never contacts anyone. Prep numbers are INTERNAL — never sent to a seller. Reports to Marcus. |
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
+| **Solomon** (`daycare_director.py`) | Daycare | Head of all daycare agents — reads the whole center, produces the ranked operating brief, owns enrollment, delegates the rest via the bus. See §10. | Never texts/invoices/launches ads/writes the DB. Proposes + delegates. Self-improves. |
+| **Nora** (`daycare_family.py`) | Daycare | Keeps the roster organized (new enrollments, data gaps, capacity/ratio) + follows up on family comms after a Text Blast. Reports to Solomon. | Never texts/writes records. Proposes only. Self-improves. |
+| **Nova** (`daycare_adops.py`) | Daycare | Campaign health, competitor intel, creative direction for the daycare's Meta ads. Reports to Solomon. | Never launches/spends/generates creative herself. Recommends only. Self-improves. |
 
 Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls), `brain_io`
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back
