@@ -156,6 +156,36 @@ out2 = blast.send_blast(rec["id"], throttle=0)
 check("retry only picks up the failed one", len(retries) == 1 and out2["summary"]["sent"] == 1)
 
 
+print("\nlocation isolation (the JSON store has no RLS — the filter IS the wall)")
+fresh_store()
+LOC1, LOC2 = "loc-blessings-1", "loc-mothers-touch"
+b1 = blast.create_blast(title="Snow", template="hi", recipients=people, location_id=LOC1)
+b2 = blast.create_blast(title="Party", template="hi", recipients=people, location_id=LOC2)
+check("center 1 sees only its own blast",
+      [b["id"] for b in blast.list_blasts(LOC1)] == [b1["id"]])
+check("center 2 sees only its own blast",
+      [b["id"] for b in blast.list_blasts(LOC2)] == [b2["id"]])
+check("a blast carries its location", b1["locationId"] == LOC1)
+
+blast.register_transport(lambda r, t: {"ok": True})
+check("cannot SEND another center's blast even with its id",
+      "error" in blast.send_blast(b2["id"], location_id=LOC1, throttle=0))
+check("cannot CANCEL another center's blast",
+      "error" in blast.cancel_blast(b2["id"], location_id=LOC1))
+check("can send your own center's blast",
+      blast.send_blast(b1["id"], location_id=LOC1, throttle=0)["summary"]["sent"] == 2)
+
+blast.set_optout("555-201-3344", location_id=LOC1, name="Maria")
+o1 = blast.create_blast(title="A", template="hi", recipients=people, location_id=LOC1)
+o2 = blast.create_blast(title="B", template="hi", recipients=people, location_id=LOC2)
+check("opt-out applies at the center it was set",
+      all(r["guardianId"] != "g1" for r in o1["recipients"]))
+check("opt-out does NOT mute a different center (may be a different business)",
+      any(r["guardianId"] == "g1" for r in o2["recipients"]))
+check("opt-out list is per center",
+      len(blast.list_optouts(LOC1)) == 1 and len(blast.list_optouts(LOC2)) == 0)
+
+
 print("\ncancel")
 fresh_store()
 blast.register_transport(None)
