@@ -434,4 +434,4 @@ function HubAgentsPage({ ws }) {
   </div>;
 }
 
-Object.assign(window, { HubAgentsPage, HubRail, HubChat, HubTasks, HubConsole });
+Object.assign(window, { HubAgentsPage, HubRail, HubChat, HubTasks, HubConsole, HubCoachFeed, HubAskPeer });
