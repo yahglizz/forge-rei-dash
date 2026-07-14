@@ -212,6 +212,24 @@ class SolomonEngine:
         except Exception:
             return self._sk_text
 
+    def _playbook_only(self):
+        """ONLY the learned rubric (Skills/solomon-playbook.md) — never the top skills.
+
+        learn() rewrites whatever it is given, so it must only ever see the playbook.
+        The top skills (evidence discipline / decision loop / director craft) are the
+        constitution: human-owned, stable, and NOT rewritten by self-improvement.
+        """
+        try:
+            import brain_io
+            parts = []
+            for p in (SOLOMON_DIR / "skills" / "solomon-playbook.md",
+                      brain_io.VAULT / "Skills" / "solomon-playbook.md"):
+                if p.is_file():
+                    parts.append(p.read_text(errors="ignore"))
+            return "\n\n".join(parts)
+        except Exception:
+            return ""
+
     # --- brain: read continuity + write the living operating record ----------
     def _recent_brain_context(self):
         """Pull the last operating brief + recent daycare notes from the vault so
@@ -303,7 +321,7 @@ class SolomonEngine:
         skills = self._load_skills()
         system = (
             "You are Solomon, the executive director of A Touch of Blessings Learning "
-            "Academy with 30 years running childcare centers — the HEAD of the daycare's "
+            "Academy with 50 years running childcare centers — the HEAD of the daycare's "
             "agents. Read the DAYCARE CONTEXT brief FIRST and never contradict its "
             "licensing, CCIS, pricing, or capacity facts. Build today's OPERATING BRIEF "
             "for the owner: rank ruthlessly, ground every point in the real data below, "
@@ -311,6 +329,12 @@ class SolomonEngine:
             "staffed, and paid. You OWN enrollment. You DELEGATE other work to role "
             "agents (Enrollment, Billing, Family-Comms, Staffing, Compliance). You NEVER "
             "take an outward action — you surface and delegate; the human approves. "
+            "EVIDENCE DISCIPLINE (outranks everything else): every number or status you "
+            "state must come from the real data below or the brief — never from what "
+            "sounds plausible. If you cannot reach a fact, say it is unknown and make "
+            "finding it out a priority; an honest unknown beats a confident guess. Then "
+            "CLOSE THE LOOP: once more looking would not change your recommendation, "
+            "decide. Ship the brief with what you have and name the residual risk. "
             "Output ONLY valid JSON with keys: headline (string), priorities (array of "
             "{title, why, area, urgency}), enrollment (array of strings — concrete moves "
             "to book tours, grounded in the brief), money (array of strings), people "
@@ -318,7 +342,8 @@ class SolomonEngine:
             "ranked; lead with anything unsafe / under-ratio / money-at-risk, then "
             "enrollment."
             + (ctx or "")
-            + ("\n\n=== YOUR PLAYBOOK (learned rubric — apply it) ===\n" + skills[:3000]
+            + ("\n\n=== YOUR SKILLS (top skills first — evidence discipline and the "
+               "decision loop outrank the learned playbook) ===\n" + skills[:16000]
                if skills else "")
             + self._recent_brain_context()
         )
@@ -417,7 +442,7 @@ class SolomonEngine:
                 sample.append(f"delegated → {d.get('role','?')}: {d.get('task','')}")
         if not sample:
             return {"error": "no briefs to learn from yet"}
-        current = self._load_skills() or "(no playbook yet — create one)"
+        current = self._playbook_only() or "(no playbook yet — create one)"
         system = (
             "You are Solomon, a SELF-IMPROVING daycare executive director. Below is your "
             "CURRENT operating playbook and a sample of the briefs you actually produced. "
@@ -426,7 +451,12 @@ class SolomonEngine:
             "role agent, and cut guidance that didn't help. Keep the hard rules (read the "
             "business brief first; never act outward; never quote a price or promise a "
             "start date the brief doesn't support; ground everything in real data; the "
-            "JSON output contract). Output the FULL UPDATED playbook as clean markdown — "
+            "JSON output contract). "
+            "You ALSO carry separate, permanent top skills — evidence discipline, the "
+            "decision loop, and director craft. Those are NOT yours to rewrite and are not "
+            "shown here. Do not restate or summarize them in the playbook; assume they "
+            "always apply and keep the playbook to what you have actually learned from "
+            "running THIS center. Output the FULL UPDATED playbook as clean markdown — "
             "ONLY the markdown."
         )
         user = ("CURRENT PLAYBOOK:\n" + current[:4000]
