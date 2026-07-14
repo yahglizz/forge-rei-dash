@@ -1,5 +1,9 @@
 # FORGE REI OS — Operating Manual (CLAUDE.md)
 
+**Read `NORTH_STAR.md` first** — the cross-business constitution (mission, identity,
+tone per business, and the authoritative brains/skills/env map). This file is the
+day-to-day operating manual underneath it: HOW to build, not WHY or WHAT tone to use.
+
 This file governs how Claude (and the in-app AI agents) work on FORGE REI OS. Read it
 before making changes. The **RULES** and **DAILY SELF-IMPROVEMENT** sections are yours
 to edit — change them and everything downstream follows.
