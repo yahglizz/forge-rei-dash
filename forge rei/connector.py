@@ -945,6 +945,16 @@ def api_hub_history(q):
     return {"messages": agents_history.history(agent).get("history") or []}
 
 
+# Cross-agent coaching — the live feed powering the Agent Network's Coaching panel.
+# INSIGHTS ONLY (text): broadcasts/asks/answers, never a credential or outward action.
+def api_coach_feed(q):
+    try:
+        limit = int((q.get("limit", ["40"]) or ["40"])[0])
+    except Exception:
+        limit = 40
+    return agents_hub.coach_feed(limit)
+
+
 # Scout — wholesale lead-triage agent (ranks who to text back ASAP; read-only loop).
 SCOUT = scout_triage.ScoutEngine(ghl_get, ghl_post, LOCATION_ID, ghl_put=ghl_put, ghl_delete=ghl_delete)
 
@@ -2329,6 +2339,7 @@ ROUTES = {
     "/api/hub/tasks": api_hub_tasks,
     "/api/hub/bus": api_hub_bus,
     "/api/hub/history": api_hub_history,
+    "/api/coach/feed": api_coach_feed,
     "/api/scout/summary": api_scout_summary,
     "/api/scout/leads": api_scout_leads,
     "/api/scout/pipeline": api_scout_pipeline,
@@ -2402,6 +2413,7 @@ ROUTES = {
 NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", "/api/ace/status",
             "/api/cost/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
+            "/api/coach/feed",
             "/api/ace/callready", "/api/ace/digest",
             "/api/contacts", "/api/conversations", "/api/messages",
             "/api/pipeline", "/api/tasks", "/api/dashboard", "/api/analytics",
@@ -2698,6 +2710,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/chat",
                                    "/api/hub/task",
                                    "/api/hub/task/update",
+                                   "/api/coach/broadcast",
+                                   "/api/coach/ask",
                                    "/api/goals/update",
                                    "/api/goals/monthly/update",
                                    "/api/today/check",
@@ -2871,6 +2885,15 @@ class Handler(BaseHTTPRequestHandler):
                                               body.get("note", ""))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
+            elif parsed.path == "/api/coach/broadcast":
+                # An agent shares a transferable INSIGHT (text) with a peer/business/all.
+                result = agents_hub.coach_broadcast(body.get("from"), body.get("insight"),
+                                                    body.get("to", "all"))
+            elif parsed.path == "/api/coach/ask":
+                # Agent-to-agent Q&A — routed through the hub chat bound to this GHL sub-
+                # account (ghl_get + LOCATION_ID), exactly like /api/hub/chat.
+                result = agents_hub.coach_ask(ghl_get, LOCATION_ID, body.get("from"),
+                                              body.get("to"), body.get("question"))
             elif parsed.path == "/api/goals/update":
                 result = daily_goals.update(
                     metric=body.get("metric"), delta=body.get("delta"),

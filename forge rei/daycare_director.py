@@ -498,6 +498,11 @@ class SolomonEngine:
         user = ("CURRENT PLAYBOOK:\n" + current[:4000]
                 + "\n\nRECENT BRIEFS YOU PRODUCED (learn from these):\n" + "\n".join(sample))
         try:
+            import agent_coach
+            user += agent_coach.insights_block("solomon", "daycare")
+        except Exception:
+            pass
+        try:
             new_md = review_agent._claude(key, system, user, max_tokens=2400)
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}

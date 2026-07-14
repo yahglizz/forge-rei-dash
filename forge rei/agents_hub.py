@@ -35,6 +35,7 @@ import time
 from pathlib import Path
 
 import review_agent
+import agent_coach
 
 HERE = Path(__file__).resolve().parent
 TASKS = HERE / "marcus_state" / "hub_tasks.json"
@@ -377,3 +378,29 @@ def bus(agent_id=None, limit=40):
         msgs = [m for m in msgs
                 if m.get("from") == agent_id or m.get("to") in (agent_id, "all")]
     return {"messages": msgs[:limit]}
+
+
+# ── cross-agent coaching (agent_coach) ─────────────────────────────────────────
+# Thin wrappers so the connector calls the hub, not agent_coach directly. Coaching
+# moves INSIGHTS — plain text lessons, questions, answers — never a credential, GHL
+# client, token, or location id, and never an outward action (CLAUDE.md rule 2; see
+# docs/superpowers/specs/2026-07-14-cross-agent-coaching-network.md).
+def coach_feed(limit=40):
+    """The whole coaching feed, newest first — powers the Live Coaching Feed panel."""
+    return {"feed": agent_coach.feed(limit)}
+
+
+def coach_broadcast(frm, insight, to="all"):
+    """An agent shares a transferable lesson with a peer / business / everyone."""
+    return agent_coach.broadcast(frm, insight, to)
+
+
+def coach_ask(ghl_get, location_id, frm, to, question):
+    """Agent-to-agent Q&A. Route `question` to the target agent through the EXISTING
+    hub chat (bound to ghl_get + location_id) so agent_coach stays connector-free."""
+    def _chat_fn(agent_id, message):
+        out = chat(ghl_get, location_id, agent_id, message)
+        if isinstance(out, dict):
+            return out.get("reply") or out.get("answer") or ""
+        return str(out or "")
+    return agent_coach.ask(frm, to, question, chat_fn=_chat_fn)

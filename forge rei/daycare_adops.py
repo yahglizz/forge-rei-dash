@@ -438,6 +438,11 @@ class NovaEngine:
         user = ("CURRENT PLAYBOOK:\n" + current[:4000]
                 + "\n\nRECENT BRIEFS YOU PRODUCED (learn from these):\n" + "\n".join(sample))
         try:
+            import agent_coach
+            user += agent_coach.insights_block("nova", "daycare")
+        except Exception:
+            pass
+        try:
             new_md = review_agent._claude(key, system, user, max_tokens=2000)
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}

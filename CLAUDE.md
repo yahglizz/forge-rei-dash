@@ -365,3 +365,35 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
     every skill file fails to load.
 - **Autonomy rule holds:** every outward daycare action (SMS, invoice send, ad launch,
   social post) stays approval-gated per rule 2. Auto-admin is loopback-only convenience.
+
+---
+
+## 11. Cross-Agent Coaching Network (all 8 agents coach each other, across all three businesses)
+
+Every agent is a node in a **coaching network**: they can **ASK peers questions**,
+**LEARN from answers**, and **BROADCAST a transferable insight** (a creative angle that's
+converting, a screening tactic, a pricing-conversation move) to a peer, a business, or
+`"all"`. Peer insights addressed to an agent are **automatically folded into its next
+`learn()` self-improvement cycle** — so a lesson discovered in one business becomes a
+default in another. Coaching flows both ways and across all three businesses.
+
+*Example:* Eco (agency ads) sees a carousel angle beating single-image for a client and
+coaches Nova (daycare ads); Nova adapts it to enrollment ads. Scout's screening tell can
+sharpen Marcus; Solomon's retention math can inform how Nova frames an offer.
+
+- **Module:** `forge rei/agent_coach.py` — stdlib, connector-free. `broadcast()`,
+  `insights_for()`, `insights_block()`, `ask()`, `feed()`.
+- **Wired into every agent's `learn()`:** each reflection prompt appends
+  `agent_coach.insights_block("<agent>", "<business>")` (guarded by try/except, returns
+  `""` when nothing is addressed → zero behavior change when the feed is empty).
+- **Source of truth:** vault `Coaching/feed.md` (human-readable, git-committed via
+  `brain_io`), mirrored on the agent bus (`kind=="coach"`). Surface + manual coaching:
+  the **Agent Network** tab; routes `/api/coach/{feed,ask,broadcast}`.
+- **The one invariant:** coaching moves **INSIGHTS ONLY** — plain text. It **never** moves
+  a credential, token, GHL client object, or location id (the 3 GHL sub-accounts stay
+  byte-for-byte isolated), and it **never** carries an instruction to take an outward
+  action. A secret-guard in `broadcast()` drops anything that looks like a live key.
+- **Autonomy:** insight-sharing + absorption is **autonomous, internal, reversible, and
+  git-committed** — the same class as the existing `learn()` self-improve loop, so it's
+  **rule-2 compliant**. Every outward action (texts, ad launches, invoices, spend, posts)
+  stays tap-gated exactly as before.
