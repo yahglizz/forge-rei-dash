@@ -198,12 +198,24 @@ def _load_skills(agent_id):
 
 
 def _skills_block(agent_id):
-    """The system-prompt fragment that injects the learned playbook (or "")."""
+    """The CREED (agency evidence discipline) + the learned playbook, in that order.
+
+    The creed comes from agent_creed, NOT from _load_skills — every learn() does
+    ``current = _load_skills(agent_id)`` → "output the FULL UPDATED playbook" → overwrite,
+    so anything reachable through _load_skills is something self-improvement eventually
+    rewrites. The creed must not drift, so it is never visible to learn().
+    """
+    creed = ""
+    try:
+        import agent_creed
+        creed = agent_creed.block("agency")   # never truncated — it outranks the playbook
+    except Exception:
+        creed = ""
     skills = _load_skills(agent_id)
     if skills:
-        return ("\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n"
-                + skills[:3000])
-    return ""
+        return creed + ("\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n"
+                        + skills[:3000])
+    return creed
 
 
 def _history_block(history, limit=10):

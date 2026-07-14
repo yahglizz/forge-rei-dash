@@ -120,6 +120,17 @@ def playbook_text(limit=2000):
     return ("\n\n".join(parts))[:limit]
 
 
+def _creed_block():
+    """The daycare creed (evidence discipline) — never truncated, outranks the playbook.
+    Sourced from agent_creed, which learn() cannot see, so self-improvement can never
+    rewrite it."""
+    try:
+        import agent_creed
+        return agent_creed.block("daycare")
+    except Exception:
+        return ""
+
+
 def _strip_fences(raw):
     raw = (raw or "").strip()
     if raw.startswith("```"):
@@ -175,11 +186,10 @@ class SolomonEngine:
         self.activity = self.activity[-120:]
 
     # --- brain skills (mtime-cached seed + vault) ----------------------------
-    # TOP skills load FIRST and are never truncated away: evidence discipline
-    # (house rule for every agent) → decision loop (how Solomon reasons) →
-    # director craft (what 50 years knows) → the learned playbook last.
-    TOP_SKILLS = ("agent-evidence-discipline.md", "solomon-decision-loop.md",
-                  "solomon-director-craft.md")
+    # Prompt order: CREED (daycare-evidence-discipline, via agent_creed — never
+    # reachable from learn()) → TOP SKILLS below → the learned playbook last.
+    # decision loop (how Solomon reasons) → director craft (what 50 years knows).
+    TOP_SKILLS = ("solomon-decision-loop.md", "solomon-director-craft.md")
     PLAYBOOK_MD = "solomon-playbook.md"
 
     def _load_skills(self):
@@ -353,8 +363,9 @@ class SolomonEngine:
             "ranked; lead with anything unsafe / under-ratio / money-at-risk, then "
             "enrollment."
             + (ctx or "")
-            + ("\n\n=== YOUR TOP SKILLS (the constitution — these OUTRANK the learned "
-               "playbook below; when they conflict, these win) ===\n" + skills
+            + _creed_block()
+            + ("\n\n=== YOUR TOP SKILLS (these OUTRANK the learned playbook below; "
+               "when they conflict, these win) ===\n" + skills
                if skills else "")
             + ("\n\n=== YOUR PLAYBOOK (learned rubric — apply it within the skills "
                "above) ===\n" + playbook[:4000] if playbook else "")
@@ -541,6 +552,7 @@ class SolomonEngine:
             "aiReady": bool(key),
             "skillsLoaded": bool(self._load_skills()),
             "topSkills": self.loaded_skill_names(),
+            "creedLoaded": bool(_creed_block()),
             "playbookLoaded": bool(self._playbook_only()),
             "systems": connected_systems(),
             "briefCount": self.brief_count,
