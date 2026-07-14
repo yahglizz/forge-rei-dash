@@ -139,20 +139,37 @@ def roster():
         out.append(row)
 
     # Live Retell voice agents (personas you can test in text before they dial).
+    #
+    # Retell returns one row PER PUBLISHED VERSION, so the same receptionist can come back
+    # four times under the same name. Listing all of them would rebuild the exact clutter
+    # this hub exists to kill — so collapse by NAME and keep only the newest version of
+    # each. (Dedupe on name, not id: the ids differ per version, which is why the raw list
+    # looks like distinct agents when it isn't.)
     try:
         import retell_io
         if retell_io.has_key():
+            best = {}
             for v in (retell_io.status().get("agents") or []):
                 vid = v.get("id")
                 if not vid or vid in _BY_ID:
                     continue
-                out.append({
-                    "id": vid, "name": v.get("name") or "Voice Agent",
-                    "business": "voice", "businessLabel": BUSINESS["voice"]["label"],
-                    "emoji": "📞", "role": "Outbound voice agent — Retell",
-                    "blurb": "Chat runs this agent's real persona so you can test it in text.",
-                    "status": {}, "voice": v.get("voice") or "",
-                })
+                name = (v.get("name") or "Voice Agent").strip()
+                prev = best.get(name)
+                # Prefer the highest version; fall back to last-seen when unversioned.
+                ver = v.get("version")
+                ver = ver if isinstance(ver, int) else -1
+                if prev is None or ver >= prev["_ver"]:
+                    best[name] = {
+                        "id": vid, "name": name,
+                        "business": "voice", "businessLabel": BUSINESS["voice"]["label"],
+                        "emoji": "📞", "role": "Outbound voice agent — Retell",
+                        "blurb": "Chat runs this agent's real persona so you can test it "
+                                 "in text before it ever dials.",
+                        "status": {}, "voice": v.get("voice") or "", "_ver": ver,
+                    }
+            for row in best.values():
+                row.pop("_ver", None)
+                out.append(row)
     except Exception:
         pass
 
@@ -370,12 +387,13 @@ def tasks(agent_id=None):
 def bus(agent_id=None, limit=40):
     """Recent agent-bus traffic — the hub's 'everything is connected' view.
 
-    agent_bus.recent() returns NEWEST FIRST and the sender field is "from" (not "frm"),
-    so slice from the head, not the tail.
+    agent_bus.recent() returns a DICT — {"messages": [...], "count": n} — newest first,
+    and the sender field is "from" (not "frm"). Unwrap it, filter on both directions
+    (what the agent sent AND what was sent to it), and slice from the head.
     """
     try:
         import agent_bus
-        msgs = agent_bus.recent(limit=200) or []
+        msgs = (agent_bus.recent(limit=200) or {}).get("messages", []) or []
     except Exception:
         return {"messages": []}
     if agent_id:
