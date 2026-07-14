@@ -325,7 +325,8 @@ class SolomonEngine:
         systems = connected_systems()
         offline = [s["name"] for s in systems if not s["connected"]]
 
-        skills = self._load_skills()
+        skills = self._load_skills()      # constitution — never truncated
+        playbook = self._playbook_only()  # learned rubric — own budget
         system = (
             "You are Solomon, the executive director of A Touch of Blessings Learning "
             "Academy with 50 years running childcare centers — the HEAD of the daycare's "
@@ -349,9 +350,11 @@ class SolomonEngine:
             "ranked; lead with anything unsafe / under-ratio / money-at-risk, then "
             "enrollment."
             + (ctx or "")
-            + ("\n\n=== YOUR SKILLS (top skills first — evidence discipline and the "
-               "decision loop outrank the learned playbook) ===\n" + skills[:16000]
+            + ("\n\n=== YOUR TOP SKILLS (the constitution — these OUTRANK the learned "
+               "playbook below; when they conflict, these win) ===\n" + skills
                if skills else "")
+            + ("\n\n=== YOUR PLAYBOOK (learned rubric — apply it within the skills "
+               "above) ===\n" + playbook[:4000] if playbook else "")
             + self._recent_brain_context()
         )
         live = {
@@ -502,6 +505,28 @@ class SolomonEngine:
         return {"ok": True, "learnCount": self.learn_state["learnCount"],
                 "wrote": PLAYBOOK_REL, "committed": res.get("committed"), "auto": auto}
 
+    def loaded_skill_names(self):
+        """Which constitution skills are actually live (seed or vault) — so the console
+        shows what Solomon is really running on rather than assuming."""
+        try:
+            import brain_io
+            seed = SOLOMON_DIR / "skills"
+            vault = brain_io.VAULT / "Skills"
+            names = []
+            for name in self.TOP_SKILLS:
+                if (seed / name).is_file() or (vault / name).is_file():
+                    names.append(name[:-3])
+            for d in (seed, vault):
+                if d.is_dir():
+                    for p in sorted(d.glob("solomon-*.md")):
+                        if p.name in set(self.TOP_SKILLS) | {self.PLAYBOOK_MD}:
+                            continue
+                        if p.stem not in names:
+                            names.append(p.stem)
+            return names
+        except Exception:
+            return []
+
     # --- console reads -------------------------------------------------------
     def status(self):
         key = _solomon_key()
@@ -512,6 +537,8 @@ class SolomonEngine:
             "title": "Executive Director",
             "aiReady": bool(key),
             "skillsLoaded": bool(self._load_skills()),
+            "topSkills": self.loaded_skill_names(),
+            "playbookLoaded": bool(self._playbook_only()),
             "systems": connected_systems(),
             "briefCount": self.brief_count,
             "lastBriefAt": self.last_brief_at,
