@@ -3397,7 +3397,9 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/blast/optout",
                 "/api/daycare/director/run", "/api/daycare/director/learn",
                 "/api/daycare/family/run", "/api/daycare/family/learn",
-                "/api/daycare/adops/run", "/api/daycare/adops/learn"}:
+                "/api/daycare/adops/run", "/api/daycare/adops/learn",
+                "/api/daycare/nova/generate", "/api/daycare/nova/image",
+                "/api/daycare/nova/create-ad", "/api/daycare/nova/discard"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
         try:
@@ -3525,6 +3527,9 @@ class Handler(BaseHTTPRequestHandler):
                 q.get("account", [None])[0]),
             "/api/daycare/eco/ideas": lambda session: daycare_growth.eco_ideas(
                 q.get("account", [None])[0]),
+            # Nova's ad studio — saved ad packages + what's actually wired.
+            "/api/daycare/nova/ideas": lambda session: daycare_ads_studio.saved(),
+            "/api/daycare/nova/status": lambda session: daycare_ads_studio.status(),
             "/api/daycare/director/status": lambda session: SOLOMON.status(),
             "/api/daycare/director/overview": lambda session: SOLOMON.overview(),
             "/api/daycare/director/brief": lambda session: SOLOMON.brief(),
