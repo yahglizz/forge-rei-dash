@@ -3208,6 +3208,72 @@ class Handler(BaseHTTPRequestHandler):
             return {"ok": False, "detail": "Could not create a GHL contact for this family."}
         return daycare_ghl.send_sms(DAYCARE_GHL, contact_id=contact_id, message=message)
 
+    # ---- Family blast (SMS to parents' phones, outside the app) --------------
+    # The connector owns the Supabase session, so it assembles the audience and
+    # hands plain dicts to daycare_blast (which stays decoupled). Every send is
+    # operator-gated — nothing here runs on a loop.
+
+    def _daycare_center_name(self, session):
+        try:
+            settings = (daycare_supabase.get_settings(session) or {}).get("settings") or {}
+            return settings.get("name") or "A Touch of Blessings"
+        except Exception:  # noqa: BLE001 — a naming lookup must never block a blast
+            return "A Touch of Blessings"
+
+    def _daycare_blast_audience(self, session, classroom_id=None):
+        children = (daycare_supabase.get_children(session) or {}).get("children") or []
+        return daycare_blast.build_audience(children, classroom_id=classroom_id)
+
+    def _daycare_blast_overview(self, session, classroom_id=None):
+        """Everything the Blast tab needs: audience, per-room counts, history, opt-outs."""
+        children = (daycare_supabase.get_children(session) or {}).get("children") or []
+        classrooms = (daycare_supabase.get_classrooms(session) or {}).get("classrooms") or []
+        audience = daycare_blast.build_audience(children, classroom_id=classroom_id)
+        rooms = []
+        for room in classrooms:
+            reach = daycare_blast.build_audience(children, classroom_id=room.get("id"))
+            rooms.append({"id": room.get("id"), "name": room.get("name"),
+                          "color": room.get("color"),
+                          "families": len(reach["recipients"])})
+        everyone = daycare_blast.build_audience(children)
+        return {
+            "ok": True,
+            "centerName": self._daycare_center_name(session),
+            "audience": audience["recipients"],
+            "missingPhone": audience["missingPhone"],
+            "totalFamilies": len(everyone["recipients"]),
+            "classrooms": rooms,
+            "blasts": daycare_blast.list_blasts(),
+            "optOuts": daycare_blast.list_optouts(),
+            "cap": daycare_blast.cap(),
+            "maxChars": daycare_blast.MAX_SMS_CHARS,
+            "ghl": daycare_ghl.health(DAYCARE_GHL),
+        }
+
+    def _daycare_blast_preview(self, session, body):
+        audience = self._daycare_blast_audience(session, body.get("classroom_id"))
+        people = audience["recipients"]
+        keep = body.get("guardian_ids")
+        if keep:
+            wanted = set(keep)
+            people = [p for p in people if p.get("guardianId") in wanted]
+        return {"ok": True,
+                "preview": daycare_blast.preview(body.get("template"), people,
+                                                 self._daycare_center_name(session)),
+                "count": len(people)}
+
+    def _daycare_blast_create(self, session, body):
+        audience = self._daycare_blast_audience(session, body.get("classroom_id"))
+        people = audience["recipients"]
+        keep = body.get("guardian_ids")
+        if keep:
+            wanted = set(keep)
+            people = [p for p in people if p.get("guardianId") in wanted]
+        return daycare_blast.create_blast(
+            title=body.get("title"), template=body.get("template"),
+            recipients=people, audience_label=body.get("audience_label") or "",
+            center_name=self._daycare_center_name(session))
+
     def _handle_daycare_post(self, path):
         """Explicit, domain-only Daycare write router (never a generic table proxy)."""
         handlers = {
@@ -3241,6 +3307,9 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/media/sign-upload",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice",
+                "/api/daycare/blast/preview", "/api/daycare/blast/create",
+                "/api/daycare/blast/send", "/api/daycare/blast/cancel",
+                "/api/daycare/blast/optout",
                 "/api/daycare/director/run", "/api/daycare/director/learn"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
@@ -3279,6 +3348,20 @@ class Handler(BaseHTTPRequestHandler):
                 result = self._daycare_stripe_sync_payment(session, body)
             elif path == "/api/daycare/ghl/text-invoice":
                 result = self._daycare_ghl_text_invoice(session, body)
+            elif path == "/api/daycare/blast/preview":
+                result = self._daycare_blast_preview(session, body)
+            elif path == "/api/daycare/blast/create":
+                result = self._daycare_blast_create(session, body)
+            elif path == "/api/daycare/blast/send":
+                # Operator-gated: the console's confirm button IS the approval gate.
+                result = daycare_blast.send_blast(body.get("blast_id"))
+            elif path == "/api/daycare/blast/cancel":
+                result = daycare_blast.cancel_blast(body.get("blast_id"))
+            elif path == "/api/daycare/blast/optout":
+                result = daycare_blast.set_optout(
+                    body.get("phone"),
+                    opted_out=body.get("opted_out", True),
+                    name=body.get("name") or "")
             elif path == "/api/daycare/director/run":
                 result = SOLOMON.run_once(session)
             elif path == "/api/daycare/director/learn":
@@ -3340,6 +3423,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
+            "/api/daycare/blast": lambda session: self._daycare_blast_overview(
+                session, q.get("classroom", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
                 session,
                 {"bucket": q.get("bucket", [None])[0], "path": q.get("path", [None])[0]},
