@@ -157,7 +157,25 @@ state in `marcus_state/`).
 **Validate before every deploy:**
 - Python: `python3 -c "import ast; ast.parse(open('FILE').read())"`
 - JSX: `node /tmp/valjsx.js FILE` (Babel transform + computed-tag scan)
-- Then `./deploy/push.sh root@24.199.81.124` and SSH-verify.
+- Then deploy (two paths, both validate + SSH-verify):
+
+**Two deploy paths — same box, pick by what changed:**
+1. **`./deploy/quick-deploy.sh` (everyday, works from Mac OR the gaming PC).** Commits →
+   `git push origin main` → SSHes the box to run `deploy-pull.sh`, which `git reset --hard
+   origin/main`, validates (py ast + jsx), rsyncs CODE into the live tree, restarts, health-
+   checks. **No secrets/rsync on the client** — box already holds them. This is the
+   machine-agnostic path that makes Mac + PC co-equal workspaces (both just need git + the
+   `~/.ssh/forge_droplet` key; repo is public `yahglizz/forge-rei-dash`). Box clone lives at
+   `/opt/forge/repo`; it does NOT touch secrets (`config/*.env`), the vault, `marcus_state`,
+   or `uploads`.
+2. **`./deploy/push.sh root@24.199.81.124` (Mac-only, full).** Use when a SECRET (`*.env`) or
+   the brain VAULT changed — it rsyncs those Mac→box (they're gitignored, never in GitHub).
+   Also mirrors code to GitHub. The original full-fat deploy.
+
+Shared workspace discipline: edits sync via GIT, not magic. Edit on one machine →
+quick-deploy (or `git push`); on the other machine `git pull` before you start. View live on
+either at `https://forge-reios.tail0a2dda.ts.net` (Tailscale — no tunnel, bypasses DO
+firewall).
 
 **Box:** systemd `forge-reios`, `FORGE_MARCUS=1` (only the box runs the poll/triage loops —
 the Mac runs `FORGE_MARCUS=0`, UI-only, so sellers aren't double-contacted).
