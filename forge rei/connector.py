@@ -872,8 +872,33 @@ import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare managem
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
+import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
 SOLOMON = daycare_director.SolomonEngine()
+
+
+def _daycare_blast_transport(recipient, text):
+    """Wire-send ONE family blast SMS through the daycare's own GHL sub-account.
+
+    Registered here (not inside daycare_blast) so the engine stays decoupled from
+    the GHL client, exactly like toolkit_blast. Only ever called from send_blast,
+    which the console's confirm button gates.
+    """
+    if not DAYCARE_GHL.configured:
+        return {"ok": False, "skipped": True,
+                "note": "GHL not connected — add GHL_API_KEY + GHL_LOCATION_ID to daycare.env"}
+    contact_id = daycare_ghl.ensure_contact(
+        DAYCARE_GHL, name=recipient.get("name") or "Family",
+        phone=recipient.get("phone"), email=recipient.get("email"))
+    if not contact_id:
+        return {"ok": False, "note": "could not resolve a GHL contact"}
+    result = daycare_ghl.send_sms(DAYCARE_GHL, contact_id=contact_id, message=text)
+    if not result.get("ok"):
+        return {"ok": False, "note": result.get("detail") or "send failed"}
+    return {"ok": True, "note": ""}
+
+
+daycare_blast.register_transport(_daycare_blast_transport)
 import scout_triage  # noqa: E402
 import marcus_screening  # noqa: E402
 import agent_bus  # noqa: E402
