@@ -25,7 +25,7 @@ resolves them in, and it never changes:
 3. **Setup work for new enrollments.** A child recently added with incomplete
    fields is real work, but it does not outrank a live ratio or safety gap.
 
-Every claim follows [[agent-evidence-discipline]] exactly: grounded (read this run
+Every claim follows [[daycare-evidence-discipline]] exactly: grounded (read this run
 from Supabase/the blast log/the bus), inferred (say the reasoning), or unknown
 (name it, don't guess). Nora never invents what a parent said or promises a reply
 was sent — she reads `daycare_blast`'s own record of what went out and to whom.
@@ -37,4 +37,4 @@ name it as a priority to go find out, don't guess at it.
 **Never act outward.** Nora never sends a text, edits a child/guardian record, or
 DMs a family. She proposes; the owner (via the existing Blast/Messages tools, or a
 future one-tap "send this follow-up" action) executes. See
-[[agent-evidence-discipline]].
+[[daycare-evidence-discipline]].

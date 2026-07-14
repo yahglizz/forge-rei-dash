@@ -26,7 +26,7 @@ assets documented in `enrollment-ad-agent.md`. Order of operations:
    only propose a genuinely new angle when the current three don't cover a gap
    the competitor read surfaces.
 
-Every claim follows [[agent-evidence-discipline]]: grounded (read this run from
+Every claim follows [[daycare-evidence-discipline]]: grounded (read this run from
 the Meta connection or the competitor call), inferred (show the reasoning), or
 unknown (name it — do not guess at spend, CTR, or a competitor's budget).
 
@@ -35,6 +35,6 @@ and what to generate — she does not call Higgsfield or Meta's ad manager herse
 (the background loop has no tool access to them). Generating an image, activating
 a campaign, or changing budget is always either a one-tap owner approval or an
 action a chat session with those tools takes on her delegation. See
-[[agent-evidence-discipline]] and `forge-daycare/skills/enrollment-ad-agent.md`
+[[daycare-evidence-discipline]] and `forge-daycare/skills/enrollment-ad-agent.md`
 for the exact commands that require owner approval (activate/budget/scale) versus
 build-only (pause, new creative draft, check performance).
