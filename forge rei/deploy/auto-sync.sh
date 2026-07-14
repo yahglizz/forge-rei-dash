@@ -34,7 +34,14 @@ sync_once() {
 
 INTERVAL="${1:-}"
 if [ -n "$INTERVAL" ]; then
-  echo "auto-sync running every ${INTERVAL}s in $ROOT — leave this window open. Ctrl-C to stop."
+  # Single-instance lock so multiple logons/launches don't stack loops.
+  LOCK="$ROOT/.git/.autosync.lock"
+  if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
+    echo "auto-sync already running (pid $(cat "$LOCK")) — exiting."; exit 0
+  fi
+  echo $$ > "$LOCK"
+  trap 'rm -f "$LOCK"' EXIT
+  echo "auto-sync running every ${INTERVAL}s in $ROOT. Ctrl-C to stop."
   while true; do sync_once || true; sleep "$INTERVAL"; done
 else
   sync_once
