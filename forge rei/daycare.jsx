@@ -178,7 +178,49 @@ function DaycareWorkspace({ children }) {
   }, [state]);
   if (state.loading) return <div className="dc-auth-loading"><div className="dc-spinner" /><b>Securing Daycare workspace</b></div>;
   if (!state.authenticated) return <DcxLogin reason={state.reason} onAuthenticated={check} testMode={state.testMode} testProfiles={state.testProfiles} />;
-  return <div className="dc-authenticated">{children}</div>;
+  return <DcxLocationScope>{children}</DcxLocationScope>;
+}
+
+// Every daycare page is scoped to ONE center at a time. Switching re-keys the subtree so
+// each page's DcxUseResource refetches against the new center — no stale rows survive the
+// switch. The bar hides itself entirely when the profile belongs to a single center, so
+// parents, staff, and single-center managers see exactly what they saw before.
+function DcxLocationScope({ children }) {
+  const locations = DcxUseResource("/locations", "locations", 60000);
+  const rows = Array.isArray(locations.data) ? locations.data : [];
+  const [version, setVersion] = useStateDcx(0);
+  const [busy, setBusy] = useStateDcx("");
+
+  const pick = async (id) => {
+    if (!id || busy) return;
+    setBusy(id);
+    try {
+      await DcxRequest("/location/switch", { body: { location_id: id } });
+      locations.refresh();
+      setVersion((current) => current + 1);  // remount → every page refetches
+    } catch (error) {
+      window.alert(error.message || "Could not switch location.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  return <div className="dc-authenticated">
+    {rows.length > 1 && <div className="dc-locbar">
+      <span className="dc-locbar-label"><window.Icons.Properties size={13}/> Location</span>
+      <div className="dc-locbar-tabs">
+        {rows.map((row) => <button
+          key={row.id}
+          className={row.current ? "active" : ""}
+          disabled={Boolean(busy)}
+          onClick={() => pick(row.id)}>
+          {busy === row.id ? "Switching…" : row.name}
+        </button>)}
+      </div>
+      <small className="faint">Each center keeps its own children, staff, and billing.</small>
+    </div>}
+    <div key={version}>{children}</div>
+  </div>;
 }
 
 function DaycareDashboard() {

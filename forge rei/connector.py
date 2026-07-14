@@ -3347,6 +3347,10 @@ class Handler(BaseHTTPRequestHandler):
             session, set_cookie = self._daycare_resolve_session(sid)
             if path == "/api/daycare/media/sign-upload":
                 result = daycare_supabase.sign_media(session, body, upload=True)
+            elif path == "/api/daycare/location/switch":
+                # The DB's set_active_location RPC is the gate — it refuses any center
+                # this profile has no membership row for. We never trust the browser's id.
+                result = daycare_supabase.switch_location(session, body)
             elif path == "/api/daycare/stripe/send-invoice":
                 ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
                 result = stripe_io.send_invoice(ctx)

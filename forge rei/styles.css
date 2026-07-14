@@ -594,6 +594,16 @@ input, textarea { font-family: inherit; }
 .dc-announcement-list article { display: flex; flex-direction: column; gap: 10px; }
 .dc-announcement-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }.dc-announcement-head h3 { font-size: 13px; }.dc-announcement-head small { color: var(--text-3); font-size: 9.5px; display: block; margin-top: 3px; text-transform: capitalize; }
 .dc-announcement-list p { color: var(--text-2); font-size: 11.5px; line-height: 1.55; white-space: pre-wrap; }
+/* Location switcher (daycare) — which center every page below is scoped to. */
+.dc-locbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 12px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 10px; background: rgba(45,212,191,.03); }
+.dc-locbar-label { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-3); }
+.dc-locbar-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+.dc-locbar-tabs button { font-size: 11px; padding: 6px 11px; border-radius: 7px; border: 1px solid var(--border); color: var(--text-2); background: transparent; }
+.dc-locbar-tabs button:hover:not(:disabled) { border-color: rgba(45,212,191,.3); color: #2dd4bf; }
+.dc-locbar-tabs button.active { border-color: rgba(45,212,191,.45); background: rgba(45,212,191,.1); color: #2dd4bf; font-weight: 600; }
+.dc-locbar-tabs button:disabled { opacity: .55; }
+.dc-locbar > small { margin-left: auto; font-size: 9.5px; }
+
 /* Family text blast (daycare) — composer, token chips, and the send-preview bubbles. */
 .dc-blast-tokens { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 8px 0 4px; }
 .dc-blast-tokens button { font-family: var(--mono, monospace); font-size: 9.5px; padding: 4px 7px; border-radius: 6px; border: 1px solid var(--border); color: #2dd4bf; background: rgba(45,212,191,.05); }

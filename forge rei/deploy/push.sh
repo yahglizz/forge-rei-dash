@@ -15,6 +15,8 @@ AGENCY="$(dirname "$DASH")/forge-agency"   # sibling of "forge rei/", in the mai
 SCOUT="$(dirname "$DASH")/forge-scout"     # Scout agent: config knobs + seed skills
 DAYCARE="$(dirname "$DASH")/forge-daycare" # Supabase schema + private Daycare config
 SOLOMON="$(dirname "$DASH")/forge-solomon" # Solomon: daycare head-agent config + seed playbook
+NORA="$(dirname "$DASH")/forge-nora"       # Nora: daycare roster & family follow-up config + seed playbook
+NOVA="$(dirname "$DASH")/forge-nova"       # Nova: daycare ad ops config + seed playbook
 SCREEN="$(dirname "$DASH")/forge-marcus"   # Marcus screening agent: config knobs + seed screening playbook
 TG="$(dirname "$DASH")/forge-telegram"     # Telegram alerts + tap-to-approve: config/telegram.env
 VAULT="$HOME/Desktop/Agentic-OS/vault"
@@ -43,7 +45,7 @@ else
 fi
 
 echo "==> make remote dirs"
-$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-daycare/config $REMOTE/forge-solomon/config $REMOTE/forge-solomon/skills $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
+$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-daycare/config $REMOTE/forge-solomon/config $REMOTE/forge-solomon/skills $REMOTE/forge-nora/config $REMOTE/forge-nora/skills $REMOTE/forge-nova/config $REMOTE/forge-nova/skills $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
 
 echo "==> push dashboard (deploy/keys excluded — never ship SSH keys/secret backups to the box)"
 rsync -az --delete -e "$SSH" \
@@ -96,6 +98,20 @@ if [ -d "$SOLOMON" ]; then
   rsync -az -e "$SSH" --exclude '__pycache__' "$SOLOMON/" "$TARGET:$REMOTE/forge-solomon/"
 else
   echo "   (no $SOLOMON yet — skipping; Solomon falls back to vault skills + shared key)"
+fi
+
+echo "==> push Nora folder (daycare roster & family follow-up config + seed playbook)"
+if [ -d "$NORA" ]; then
+  rsync -az -e "$SSH" --exclude '__pycache__' "$NORA/" "$TARGET:$REMOTE/forge-nora/"
+else
+  echo "   (no $NORA yet — skipping; Nora falls back to vault skills + shared key)"
+fi
+
+echo "==> push Nova folder (daycare ad ops config + seed playbook)"
+if [ -d "$NOVA" ]; then
+  rsync -az -e "$SSH" --exclude '__pycache__' "$NOVA/" "$TARGET:$REMOTE/forge-nova/"
+else
+  echo "   (no $NOVA yet — skipping; Nova falls back to vault skills + shared key)"
 fi
 
 echo "==> push Marcus screening folder (config knobs + seed screening playbook; learned copy lives in the vault)"
