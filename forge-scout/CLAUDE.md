@@ -33,3 +33,11 @@ folder's seed.
 2. `README.md` in this folder for the file map + what each file does.
 3. `~/.claude/skills/forge-self-improving-agent/SKILL.md` — canonical recipe,
    Scout is the reference implementation it was extracted from.
+
+## Cross-Agent Coaching Network
+
+Scout is a node in the FORGE coaching network (`forge rei/agent_coach.py`). It can **ask
+peers** questions and **broadcast a transferable insight** (e.g. a motivation-signal tell)
+via `agent_coach.broadcast`; peer insights addressed to Scout fold into its next `learn()`
+automatically. **Knowledge only** — never creds, client data, or an outward instruction;
+tagging/pipeline/handoff autonomy is unchanged. Details: root `CLAUDE.md` §11.

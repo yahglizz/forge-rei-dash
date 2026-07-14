@@ -38,3 +38,12 @@ folder is what those agents *read from*, not where they *live*.
 2. `../CLAUDE.md` §10 (Daycare OS — the full technical section: Supabase
    project, autoadmin, Stripe, GHL, Solomon).
 3. `README.md` in this folder for the file map + secrets policy.
+
+## Cross-Agent Coaching Network
+
+Solomon, Nora, and Nova are nodes in the FORGE coaching network
+(`forge rei/agent_coach.py`): they can **ask peers** questions and **broadcast a
+transferable insight** — and absorb insights coached over from the agency/REI agents (e.g.
+an ad angle from Eco) — folded into each agent's next `learn()` automatically. **Knowledge
+only** — never creds, family data, tokens, or an outward instruction; SMS / invoice / ad
+launch stay approval-gated per `../CLAUDE.md` rule 2. Details: root `CLAUDE.md` §11.

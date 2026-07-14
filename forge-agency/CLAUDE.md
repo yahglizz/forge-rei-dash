@@ -32,3 +32,13 @@ from the vault on every run. If you're trying to see what an agent currently
 
 Agency and wholesale never share a key file. Wholesale keys belong in
 `../marcus-wholesale-agent/` only — don't cross-wire them here.
+
+## Cross-Agent Coaching Network
+
+Dyson and Eco are nodes in the FORGE coaching network (`forge rei/agent_coach.py`). They can
+**ask peers** questions and **broadcast a transferable insight** — e.g. Eco sees a carousel
+angle beating single-image and coaches the daycare ad agent (Nova) — via
+`agent_coach.broadcast`; peer insights addressed to them fold into the next `learn()`
+automatically. **Knowledge only** — never creds, client data, tokens, or an outward
+instruction (the isolation in this folder's hard rule holds); ad launches stay
+approval-gated. Details: root `CLAUDE.md` §11.

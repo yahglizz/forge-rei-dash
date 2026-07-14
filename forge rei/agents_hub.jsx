@@ -31,6 +31,14 @@ const HUB_BIZ_COLOR = {
   voice: "#F4B860",
 };
 
+// agent id -> business, so the coaching feed can color an entry by who sent it even
+// when that agent isn't in the current workspace's roster (cross-business view).
+const HUB_BUSINESS_OF = {
+  scout: "wholesale", marcus: "wholesale", atlas: "wholesale",
+  dyson: "agency", eco: "agency",
+  solomon: "daycare", nora: "daycare", nova: "daycare",
+};
+
 function HubDot({ ok, title }) {
   return <span title={title || (ok ? "ready" : "not ready")} style={{
     display: "inline-block", width: 7, height: 7, borderRadius: 9,
@@ -79,7 +87,7 @@ function HubRail({ agents, businesses, sel, onSel }) {
 }
 
 // ── chat ──────────────────────────────────────────────────────────────────────
-function HubChat({ agent }) {
+function HubChat({ agent, agents }) {
   const [msgs, setMsgs] = useStateHub([]);
   const [text, setText] = useStateHub("");
   const [busy, setBusy] = useStateHub(false);
@@ -156,6 +164,7 @@ function HubChat({ agent }) {
       />
       <button className="btn btn-primary" onClick={send} disabled={busy || !text.trim()}>Send</button>
     </div>
+    <HubAskPeer agent={agent} agents={agents} />
   </div>;
 }
 
@@ -225,6 +234,114 @@ function HubTasks({ agent }) {
   </div>;
 }
 
+// ── ask a peer (cross-agent coaching, in the compose area) ────────────────────
+// One agent asks another a direct question. The answer is logged to the shared
+// coaching feed (INSIGHTS ONLY — text, never a credential or an outward action).
+function HubAskPeer({ agent, agents }) {
+  const [openAsk, setOpenAsk] = useStateHub(false);
+  const [peer, setPeer] = useStateHub("");
+  const [q, setQ] = useStateHub("");
+  const [busy, setBusy] = useStateHub(false);
+  const [note, setNote] = useStateHub(null);
+
+  const peers = (agents || []).filter((a) => a.id !== agent.id);
+  useEffectHub(() => {
+    setPeer(peers.length ? peers[0].id : "");
+    setNote(null); setQ("");
+  }, [agent.id, agents.length]);
+
+  function askPeer() {
+    const question = q.trim();
+    if (!question || !peer || busy) return;
+    setBusy(true); setNote(null);
+    window.apiPost("/api/coach/ask", { from: agent.id, to: peer, question })
+      .then((d) => {
+        if (d && d.error) { setNote("⚠ " + d.error); return; }
+        setNote("✓ " + agent.name + " asked " + peer + " — answer added to the Coach feed.");
+        setQ("");
+        window.dispatchEvent(new Event("hubCoachRefresh"));  // nudge the feed to reload
+      })
+      .catch((e) => setNote("⚠ " + String(e.message || e)))
+      .then(() => setBusy(false));
+  }
+
+  if (!peers.length) return null;
+  return <div style={{ marginTop: 8 }}>
+    <button onClick={() => setOpenAsk((v) => !v)} style={{
+      fontSize: 11, opacity: .7, cursor: "pointer", background: "transparent",
+      border: "none", color: "inherit", padding: "2px 0",
+    }}>{openAsk ? "▾" : "▸"} 🤝 ask a peer</button>
+    {openAsk && <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+      <select className="input" value={peer} onChange={(e) => setPeer(e.target.value)}
+        style={{ flex: "0 0 130px" }}>
+        {peers.map((p) => <option key={p.id} value={p.id}>{p.emoji + " " + p.name}</option>)}
+      </select>
+      <input className="input" value={q} placeholder={"Ask " + (peer || "a peer") + "…"}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") askPeer(); }}
+        style={{ flex: 1 }} />
+      <button className="btn" onClick={askPeer} disabled={busy || !q.trim() || !peer}>Ask</button>
+    </div>}
+    {note && <div style={{ fontSize: 11, opacity: .75, marginTop: 5 }}>{note}</div>}
+  </div>;
+}
+
+// ── coaching feed (the live cross-agent network view) ─────────────────────────
+// Polls /api/coach/feed every ~10s and shows what the agents are teaching each other,
+// newest first. 💡 = a broadcast insight, ❓ = a peer Q&A exchange.
+function HubCoachFeed({ agent, agents }) {
+  const [rows, setRows] = useStateHub([]);
+  const [err, setErr] = useStateHub(null);
+
+  function loadCoach() {
+    window.apiGet("/api/coach/feed?limit=40")
+      .then((d) => setRows(Array.isArray(d && d.feed) ? d.feed : []))
+      .catch((e) => setErr(String(e.message || e)));
+  }
+  useEffectHub(() => {
+    loadCoach();
+    const iv = setInterval(loadCoach, 10000);
+    const onBump = () => loadCoach();
+    window.addEventListener("hubCoachRefresh", onBump);
+    return () => { clearInterval(iv); window.removeEventListener("hubCoachRefresh", onBump); };
+  }, []);
+
+  return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    <div style={{ fontSize: 11, opacity: .55, marginBottom: 8 }}>
+      Live cross-agent coaching — insights + Q&A the agents share across all three
+      businesses. Knowledge only; every outward action still needs your approval.
+    </div>
+    <div style={{ marginBottom: 10 }}>
+      <HubAskPeer agent={agent} agents={agents} />
+    </div>
+    {err && <div style={{ color: "#EF4444", fontSize: 12, marginBottom: 8 }}>{err}</div>}
+    <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+      {!rows.length && <div style={{ opacity: .5, fontSize: 13, padding: 12 }}>
+        No coaching yet. When an agent learns something transferable it shows up here.
+      </div>}
+      {rows.map((c, i) => {
+        const isQa = c.kindTag === "qa";
+        const color = HUB_BIZ_COLOR[HUB_BUSINESS_OF[c.from] || ""] || "#4F7CFF";
+        return <div key={c.id || i} className="card" style={{
+          padding: "9px 11px", marginBottom: 6,
+          borderLeft: "3px solid " + color,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 13 }}>{isQa ? "❓" : "💡"}</span>
+            <b style={{ fontSize: 12 }}>{c.from} → {c.to}</b>
+            <span style={{ marginLeft: "auto", fontSize: 10, opacity: .45 }}>
+              {window.timeAgo ? window.timeAgo(c.ts) : ""}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, opacity: .85, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+            {c.insight}
+          </div>
+        </div>;
+      })}
+    </div>
+  </div>;
+}
+
 // ── console (the agent's full page, relocated from the sidebar) ───────────────
 function HubConsole({ agent }) {
   const name = HUB_CONSOLE[agent.id];
@@ -276,10 +393,11 @@ function HubAgentsPage({ ws }) {
   if (!agent) return <div className="card card-pad">No agents wired yet.</div>;
 
   const color = HUB_BIZ_COLOR[agent.business] || "#4F7CFF";
-  const TABS = [["chat", "Chat"], ["tasks", "Tasks"], ["console", "Console"]];
-  const panel = tab === "chat" ? <HubChat agent={agent} />
+  const TABS = [["chat", "Chat"], ["tasks", "Tasks"], ["coach", "Coach"], ["console", "Console"]];
+  const panel = tab === "chat" ? <HubChat agent={agent} agents={agents} />
     : tab === "tasks" ? <HubTasks agent={agent} />
-      : <HubConsole agent={agent} />;
+      : tab === "coach" ? <HubCoachFeed agent={agent} agents={agents} />
+        : <HubConsole agent={agent} />;
 
   return <div style={{
     display: "grid", gridTemplateColumns: "260px 1fr", gap: 14,

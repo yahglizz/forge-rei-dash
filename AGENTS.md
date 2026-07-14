@@ -211,4 +211,32 @@ update that skill if you improved the pattern.
 - Agency agents: `/api/agency/agents{,/history,/tasks,/chat,/task,/task/update,/learn}`
 - Daycare starter data: browser-local `forge_daycare_v1` until shared backend storage is connected.
 - Bus: `/api/bus` · Brain: `/api/brain/{tree,note,search,recent,graph,activity,status}`
+- Coach: `/api/coach/{feed,ask,broadcast}` (see §10).
 - Knobs: `FORGE_SCOUT_*` (scout.env), `AGENCY_LEARN_EVERY`, `FORGE_VAULT`, `FORGE_MARCUS`.
+
+---
+
+## 10. Cross-Agent Coaching Network (agents coach each other, across all three businesses)
+
+Every FORGE agent is a node in a **coaching network**: it can **ASK peers questions**,
+**LEARN from their answers**, and **BROADCAST a transferable insight** (a converting
+creative angle, a screening tactic, a pricing-conversation move) to a peer, a business, or
+`"all"`. Peer insights addressed to an agent are **automatically folded into its next
+`learn()` cycle** — a lesson found in one business becomes a default in another. Coaching
+flows both ways across REI, Agency, and Daycare. Example: Eco sees a carousel angle beating
+single-image for a client and coaches Nova, who adapts it to enrollment ads.
+
+- **Module** `forge rei/agent_coach.py` (stdlib, connector-free): `broadcast()`,
+  `insights_for()`, `insights_block()`, `ask()`, `feed()`.
+- **Wired into every `learn()`:** the reflection prompt appends
+  `agent_coach.insights_block("<agent>", "<business>")` (try/except-guarded; returns `""`
+  when nothing is addressed → no behavior change on an empty feed).
+- **Source of truth:** vault `Coaching/feed.md` (git-committed via `brain_io`), mirrored on
+  the agent bus (`kind=="coach"`). Surface: the **Agent Network** tab; routes
+  `/api/coach/{feed,ask,broadcast}`.
+- **The invariant:** coaching moves **INSIGHTS ONLY** (plain text) — never a credential,
+  token, GHL client object, or location id, and never an instruction to act outward. A
+  secret-guard in `broadcast()` drops anything resembling a live key.
+- **Autonomy:** sharing + absorbing insights is autonomous, internal, reversible, and
+  git-committed — the same class as `learn()`, so it's rule-2 compliant. Outward actions
+  (texts, ad launches, invoices, spend, posts) stay tap-gated exactly as before.
