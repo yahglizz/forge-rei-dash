@@ -1,0 +1,308 @@
+// agents_hub.jsx — THE Agents tab. One place to operate every agent in the business.
+//
+// Left rail: all 8 agents grouped by business (Wholesale / Agency / Daycare) + any live
+// Retell voice agents. Right: the selected agent — Chat (talk + assign), Tasks (what
+// you've given them), Console (their full deep page, relocated here from the sidebar).
+//
+// Nothing was deleted to build this: the old per-agent pages (Dyson, Eco, Solomon, Nora,
+// Nova, Command Center) are the SAME components, now rendered inside the Console tab.
+//
+// Collision rules (CLAUDE.md §7): unique hook aliases, Hub-prefixed globals, and no
+// computed JSX tags — every dynamic component is resolved to a capitalized const first.
+const { useState: useStateHub, useEffect: useEffectHub, useRef: useRefHub } = React;
+
+// Each agent's deep page, relocated from the sidebar into the Console tab. Resolved to a
+// const before render (a computed tag like <Map[x] /> white-screens the app).
+const HUB_CONSOLE = {
+  marcus: "MarcusCommand",
+  scout: "ScreeningPage",
+  dyson: "AgencyDyson",
+  eco: "AgencyEco",
+  solomon: "DaycareDirector",
+  nora: "DaycareFamilyAgent",
+  nova: "DaycareAdOpsAgent",
+};
+
+const HUB_BIZ_COLOR = {
+  wholesale: "#4F7CFF",
+  agency: "#8B5CF6",
+  daycare: "#2DD4BF",
+  voice: "#F4B860",
+};
+
+function HubDot({ ok, title }) {
+  return <span title={title || (ok ? "ready" : "not ready")} style={{
+    display: "inline-block", width: 7, height: 7, borderRadius: 9,
+    background: ok ? "#22C55E" : "#6B7280", flex: "0 0 auto",
+  }} />;
+}
+
+// ── left rail ─────────────────────────────────────────────────────────────────
+function HubRail({ agents, businesses, sel, onSel }) {
+  const groups = businesses
+    .map((b) => ({ ...b, rows: agents.filter((a) => a.business === b.id) }))
+    .filter((g) => g.rows.length);
+
+  return <div className="card" style={{ padding: 10, overflowY: "auto", minHeight: 0 }}>
+    {groups.map((g) => <div key={g.id} style={{ marginBottom: 14 }}>
+      <div style={{
+        fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em",
+        opacity: .55, padding: "4px 8px", fontWeight: 600,
+      }}>{g.label}</div>
+      {g.rows.map((a) => {
+        const on = a.id === sel;
+        const color = HUB_BIZ_COLOR[a.business] || "#4F7CFF";
+        const ready = a.status && a.status.aiReady !== undefined
+          ? !!a.status.aiReady : true;
+        return <button key={a.id} onClick={() => onSel(a.id)} style={{
+          display: "flex", gap: 10, alignItems: "center", width: "100%",
+          padding: "9px 8px", marginBottom: 2, borderRadius: 9, cursor: "pointer",
+          textAlign: "left", border: "1px solid " + (on ? color : "transparent"),
+          background: on ? color + "1A" : "transparent", color: "inherit",
+        }}>
+          <span style={{ fontSize: 18, lineHeight: 1 }}>{a.emoji}</span>
+          <span style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <b style={{ fontSize: 13 }}>{a.name}</b>
+              <HubDot ok={ready} title={ready ? "brain ready" : "no API key"} />
+            </span>
+            <span style={{
+              display: "block", fontSize: 11, opacity: .6, whiteSpace: "nowrap",
+              overflow: "hidden", textOverflow: "ellipsis",
+            }}>{a.role}</span>
+          </span>
+        </button>;
+      })}
+    </div>)}
+  </div>;
+}
+
+// ── chat ──────────────────────────────────────────────────────────────────────
+function HubChat({ agent }) {
+  const [msgs, setMsgs] = useStateHub([]);
+  const [text, setText] = useStateHub("");
+  const [busy, setBusy] = useStateHub(false);
+  const [err, setErr] = useStateHub(null);
+  const endRef = useRefHub(null);
+
+  useEffectHub(() => {
+    let dead = false;
+    setMsgs([]); setErr(null);
+    window.apiGet("/api/hub/history?agent=" + encodeURIComponent(agent.id))
+      .then((d) => { if (!dead) setMsgs(d.messages || []); })
+      .catch(() => { if (!dead) setMsgs([]); });
+    return () => { dead = true; };
+  }, [agent.id]);
+
+  useEffectHub(() => {
+    if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [msgs, busy]);
+
+  function send() {
+    const t = text.trim();
+    if (!t || busy) return;
+    setText(""); setErr(null); setBusy(true);
+    setMsgs((m) => m.concat([{ role: "user", text: t }]));
+    window.apiPost("/api/hub/chat", { agentId: agent.id, message: t })
+      .then((d) => {
+        if (d.needsKey) setErr("No Anthropic key wired for this agent yet.");
+        setMsgs((m) => m.concat([{ role: "agent", text: d.reply || "…" }]));
+      })
+      .catch((e) => setErr(String(e.message || e)))
+      .then(() => setBusy(false));
+  }
+
+  const color = HUB_BIZ_COLOR[agent.business] || "#4F7CFF";
+  return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", minHeight: 0 }}>
+      {!msgs.length && !busy && <div style={{ opacity: .55, fontSize: 13, padding: 18, textAlign: "center" }}>
+        Talk to {agent.name} — ask what they're seeing, or give them work.
+        <div style={{ fontSize: 12, opacity: .8, marginTop: 6 }}>{agent.blurb}</div>
+      </div>}
+      {msgs.map((m, i) => {
+        const mine = m.role === "user";
+        return <div key={i} style={{
+          display: "flex", justifyContent: mine ? "flex-end" : "flex-start", marginBottom: 8,
+        }}>
+          <div style={{
+            maxWidth: "78%", padding: "9px 12px", borderRadius: 12, fontSize: 13,
+            lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word",
+            background: mine ? color : "rgba(255,255,255,.06)",
+            color: mine ? "#fff" : "inherit",
+          }}>{m.text}</div>
+        </div>;
+      })}
+      {busy && <div style={{ opacity: .6, fontSize: 12, padding: "4px 6px" }}>
+        {agent.name} is thinking…
+      </div>}
+      <div ref={endRef} />
+    </div>
+    {err && <div style={{ color: "#EF4444", fontSize: 12, padding: "4px 6px" }}>{err}</div>}
+    <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+      <input
+        className="input"
+        value={text}
+        placeholder={"Message " + agent.name + "… (or assign work: \"pull the 5 hottest leads\")"}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+        style={{ flex: 1 }}
+      />
+      <button className="btn btn-primary" onClick={send} disabled={busy || !text.trim()}>Send</button>
+    </div>
+  </div>;
+}
+
+// ── tasks ─────────────────────────────────────────────────────────────────────
+function HubTasks({ agent }) {
+  const [rows, setRows] = useStateHub([]);
+  const [title, setTitle] = useStateHub("");
+  const [busy, setBusy] = useStateHub(false);
+  const [err, setErr] = useStateHub(null);
+
+  function load() {
+    window.apiGet("/api/hub/tasks?agent=" + encodeURIComponent(agent.id))
+      .then((d) => setRows(d.tasks || []))
+      .catch(() => setRows([]));
+  }
+  useEffectHub(() => { load(); }, [agent.id]);
+
+  function add() {
+    const t = title.trim();
+    if (!t || busy) return;
+    setBusy(true); setErr(null);
+    window.apiPost("/api/hub/task", { agentId: agent.id, title: t })
+      .then(() => { setTitle(""); load(); })
+      .catch((e) => setErr(String(e.message || e)))
+      .then(() => setBusy(false));
+  }
+  function mark(id, status) {
+    window.apiPost("/api/hub/task/update", { id, status }).then(load).catch(() => {});
+  }
+
+  const open = rows.filter((r) => r.status === "open");
+  const closed = rows.filter((r) => r.status !== "open");
+  return <div style={{ overflowY: "auto", height: "100%", minHeight: 0 }}>
+    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <input className="input" value={title} placeholder={"Assign " + agent.name + " a task…"}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+        style={{ flex: 1 }} />
+      <button className="btn btn-primary" onClick={add} disabled={busy || !title.trim()}>Assign</button>
+    </div>
+    {err && <div style={{ color: "#EF4444", fontSize: 12, marginBottom: 8 }}>{err}</div>}
+    <div style={{ fontSize: 11, opacity: .55, marginBottom: 8 }}>
+      Assigning is not acting — {agent.name} picks this up and comes back with a
+      recommendation. Outward actions still need your approval.
+    </div>
+
+    {!open.length && <div style={{ opacity: .5, fontSize: 13, padding: 10 }}>No open tasks.</div>}
+    {open.map((t) => <div key={t.id} className="card card-pad" style={{
+      display: "flex", alignItems: "center", gap: 10, marginBottom: 6, padding: "10px 12px",
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <b style={{ fontSize: 13, fontWeight: 500 }}>{t.title}</b>
+        <div style={{ fontSize: 11, opacity: .5 }}>{window.timeAgo ? window.timeAgo(t.createdAt) : ""}</div>
+      </div>
+      <button className="btn" onClick={() => mark(t.id, "done")}>Done</button>
+      <button className="btn" onClick={() => mark(t.id, "dismissed")}>✕</button>
+    </div>)}
+
+    {closed.length > 0 && <div style={{ marginTop: 16 }}>
+      <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", opacity: .45, marginBottom: 6 }}>
+        Closed
+      </div>
+      {closed.slice(0, 12).map((t) => <div key={t.id} style={{
+        fontSize: 12, opacity: .5, padding: "5px 2px", textDecoration: "line-through",
+      }}>{t.title}</div>)}
+    </div>}
+  </div>;
+}
+
+// ── console (the agent's full page, relocated from the sidebar) ───────────────
+function HubConsole({ agent }) {
+  const name = HUB_CONSOLE[agent.id];
+  const Cmp = name && window[name] ? window[name] : null;   // resolve BEFORE render
+  if (!Cmp) {
+    return <div style={{ opacity: .55, fontSize: 13, padding: 20 }}>
+      {agent.name} has no separate console — everything they do runs through Chat and
+      Tasks, plus the background loops on the box.
+    </div>;
+  }
+  return <div style={{ overflowY: "auto", height: "100%", minHeight: 0 }}><Cmp /></div>;
+}
+
+// ── the page ──────────────────────────────────────────────────────────────────
+function HubAgentsPage({ ws }) {
+  const [sel, setSel] = useStateHub(null);
+  const [tab, setTab] = useStateHub("chat");
+  const roster = window.useApi("/api/hub/roster", { interval: 30000 });
+
+  const data = roster.data || {};
+  const agents = data.agents || [];
+  const businesses = data.businesses || [];
+
+  // Default to THIS workspace's first agent, so the tab opens where you already are.
+  // The workspace id is passed by the page map; localStorage is the same value app.jsx
+  // persists on switch, and is the fallback if the tab is rendered without a prop.
+  useEffectHub(() => {
+    if (sel || !agents.length) return;
+    const wsId = ws || localStorage.getItem("forge_ws") || "rei";
+    const biz = wsId === "agency" ? "agency" : wsId === "daycare" ? "daycare" : "wholesale";
+    const first = agents.find((a) => a.business === biz) || agents[0];
+    setSel(first.id);
+  }, [agents.length, ws]);
+
+  if (roster.loading && !agents.length) {
+    return <div className="card card-pad" style={{ opacity: .6 }}>Loading agents…</div>;
+  }
+  if (roster.error) {
+    return <div className="card card-pad" style={{ color: "#EF4444" }}>
+      Couldn't load the agents: {String(roster.error.message || roster.error)}
+    </div>;
+  }
+
+  const agent = agents.find((a) => a.id === sel) || agents[0];
+  if (!agent) return <div className="card card-pad">No agents wired yet.</div>;
+
+  const color = HUB_BIZ_COLOR[agent.business] || "#4F7CFF";
+  const TABS = [["chat", "Chat"], ["tasks", "Tasks"], ["console", "Console"]];
+  const panel = tab === "chat" ? <HubChat agent={agent} />
+    : tab === "tasks" ? <HubTasks agent={agent} />
+      : <HubConsole agent={agent} />;
+
+  return <div style={{
+    display: "grid", gridTemplateColumns: "260px 1fr", gap: 14,
+    height: "calc(100vh - 150px)", minHeight: 480,
+  }}>
+    <HubRail agents={agents} businesses={businesses} sel={agent.id} onSel={(id) => { setSel(id); setTab("chat"); }} />
+
+    <div className="card" style={{ display: "flex", flexDirection: "column", padding: 14, minHeight: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 10 }}>
+        <span style={{ fontSize: 26 }}>{agent.emoji}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <b style={{ fontSize: 16 }}>{agent.name}</b>
+            <span style={{
+              fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 600,
+              background: color + "26", color: color,
+            }}>{agent.businessLabel}</span>
+          </div>
+          <div style={{ fontSize: 12, opacity: .6 }}>{agent.role}</div>
+        </div>
+        <div style={{ display: "flex", gap: 5 }}>
+          {TABS.map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{
+            padding: "6px 13px", borderRadius: 8, fontSize: 12, cursor: "pointer",
+            fontWeight: tab === id ? 600 : 400,
+            border: "1px solid " + (tab === id ? color : "rgba(255,255,255,.12)"),
+            background: tab === id ? color + "1A" : "transparent", color: "inherit",
+          }}>{label}</button>)}
+        </div>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 12 }}>
+        {panel}
+      </div>
+    </div>
+  </div>;
+}
+
+Object.assign(window, { HubAgentsPage, HubRail, HubChat, HubTasks, HubConsole });

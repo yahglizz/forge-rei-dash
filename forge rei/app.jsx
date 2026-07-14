@@ -10,9 +10,12 @@ const REI_PAGES = {
   Conversations: () => <window.ConversationsPage />,
   Tasks:         () => <window.TasksPage />,
   Properties:    () => <window.Placeholder title="Properties" icon="Properties" />,
+  // Agents = the unified hub. Command/Screening keys stay mapped (nothing removed) —
+  // they're reachable as each agent's Console inside the hub.
+  Agents:        () => <window.HubAgentsPage ws="rei" />,
   Command:       () => <window.MarcusCommand />,
   Screening:     () => <window.ScreeningPage />,
-  Agents:        () => <window.AgentsPage />,
+  AgentsLegacy:  () => <window.AgentsPage />,
   DealCalc:      () => <window.DealCalcPage />,
   Buyers:        () => <window.BuyersPage />,
   Blast:         () => <window.BlastPage />,

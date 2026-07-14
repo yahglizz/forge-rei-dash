@@ -1,17 +1,21 @@
 // data.jsx — seed data (empty-state dashboard; Leads/Pipeline pages seeded so they're explorable)
 
+// One "Agents" tab per workspace — the unified hub (agents_hub.jsx). Every agent across
+// all three businesses lives inside it (Chat / Tasks / Console), so the sidebar isn't a
+// pile of per-agent tabs. The old per-agent PAGES are untouched — they're now rendered as
+// each agent's "Console" inside the hub (HUB_CONSOLE), just no longer their own nav item.
 const NAV = [
-  ["Dashboard", "Dashboard"], ["Leads", "Leads"], ["Conversations", "Conversations"],
-  ["Pipeline", "Deal Pipeline"], ["Contracts", "Contracts"], ["DealCalc", "Deal Calc"], ["Buyers", "Buyers"], ["Blast", "Buyer Blast"], ["Properties", "Properties"], ["Command", "Agent Command Center"],
-  ["Screening", "Lead Screening"], ["Agents", "AI Agents"], ["Outbound", "Outbound"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Leads", "Leads"], ["Conversations", "Conversations"],
+  ["Pipeline", "Deal Pipeline"], ["Contracts", "Contracts"], ["DealCalc", "Deal Calc"], ["Buyers", "Buyers"], ["Blast", "Buyer Blast"], ["Properties", "Properties"],
+  ["Outbound", "Outbound"],
   ["Marketing", "Marketing"], ["Tasks", "Tasks"], ["Analytics", "Analytics"],
   ["Brain", "Brain"], ["SystemHealth", "System Health"], ["Costs", "Costs"], ["Settings", "Settings"],
 ];
 
 // Forge AI Agency workspace — ClientForge ops + control center
 const AGENCY_NAV = [
-  ["Dashboard", "Dashboard"], ["Clients", "Clients"], ["ClientView", "Client View"],
-  ["Requests", "Edit Requests"], ["Agents", "Agents"], ["Dyson", "Dyson"], ["Eco", "Eco"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Clients", "Clients"], ["ClientView", "Client View"],
+  ["Requests", "Edit Requests"],
   ["Workflows", "Workflows"], ["Ads", "Meta Ads"], ["Social", "Social"], ["Approvals", "Approvals"],
   ["Pipeline", "Pipeline"], ["Projects", "Projects"], ["Revenue", "Revenue"],
   ["Brain", "Brain"], ["Settings", "Settings"],
@@ -19,8 +23,7 @@ const AGENCY_NAV = [
 
 // Daycare workspace — center operations, families, staff, enrollment, and billing.
 const DAYCARE_NAV = [
-  ["Dashboard", "Dashboard"], ["Director", "Solomon · Director"],
-  ["Family", "Nora · Family"], ["AdOps", "Nova · Ad Ops"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"],
   ["Children", "Children"], ["Attendance", "Attendance"],
   ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Classrooms", "Classrooms"],
   ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["Messages", "Messages"],
