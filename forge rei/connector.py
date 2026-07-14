@@ -854,6 +854,7 @@ def api_outbound_voices(_q):
 import style_agent  # noqa: E402
 import marcus_chat  # noqa: E402
 import agents_chat  # noqa: E402
+import agents_hub  # noqa: E402
 import daily_goals  # noqa: E402
 import deal_stats  # noqa: E402
 import monthly_goals  # noqa: E402
@@ -919,6 +920,24 @@ def api_style_latest(_q):
 
 def api_agents_list(_q):
     return agents_chat.roster()
+
+
+# ── Agents HUB — one tab to operate every agent across all three businesses ────
+def api_hub_roster(_q):
+    return agents_hub.roster()
+
+
+def api_hub_tasks(q):
+    return agents_hub.tasks((q.get("agent", [None]) or [None])[0])
+
+
+def api_hub_bus(q):
+    return agents_hub.bus((q.get("agent", [None]) or [None])[0])
+
+
+def api_hub_history(q):
+    agent = (q.get("agent", ["marcus"]) or ["marcus"])[0]
+    return {"messages": agents_history.history(agent)}
 
 
 # Scout — wholesale lead-triage agent (ranks who to text back ASAP; read-only loop).
@@ -2301,6 +2320,10 @@ ROUTES = {
     "/api/outbound/agent": api_outbound_agent,
     "/api/outbound/voices": api_outbound_voices,
     "/api/agents/list": api_agents_list,
+    "/api/hub/roster": api_hub_roster,
+    "/api/hub/tasks": api_hub_tasks,
+    "/api/hub/bus": api_hub_bus,
+    "/api/hub/history": api_hub_history,
     "/api/scout/summary": api_scout_summary,
     "/api/scout/leads": api_scout_leads,
     "/api/scout/pipeline": api_scout_pipeline,
@@ -2373,6 +2396,7 @@ ROUTES = {
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
 NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", "/api/ace/status",
             "/api/cost/status", "/api/skillforge/pending",
+            "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/ace/callready", "/api/ace/digest",
             "/api/contacts", "/api/conversations", "/api/messages",
             "/api/pipeline", "/api/tasks", "/api/dashboard", "/api/analytics",
@@ -2666,6 +2690,9 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/pipeline/move",
                                    "/api/marcus/chat",
                                    "/api/agents/chat",
+                                   "/api/hub/chat",
+                                   "/api/hub/task",
+                                   "/api/hub/task/update",
                                    "/api/goals/update",
                                    "/api/goals/monthly/update",
                                    "/api/today/check",
@@ -2822,6 +2849,23 @@ class Handler(BaseHTTPRequestHandler):
                     agents_history.record(body.get("agentId", "marcus"),
                                           body.get("message", ""),
                                           result.get("reply"), via="dash")
+            elif parsed.path == "/api/hub/chat":
+                # The Agents hub — same shared thread Telegram reads/writes, so a
+                # conversation continues across the dashboard and your phone.
+                _aid = body.get("agentId", "marcus")
+                result = agents_hub.chat(ghl_get, LOCATION_ID, _aid,
+                                         body.get("message", ""),
+                                         history=(body.get("history")
+                                                  or agents_history.recent_for_context(_aid)),
+                                         scout=SCOUT)
+                if isinstance(result, dict) and result.get("reply") and not result.get("needsKey"):
+                    agents_history.record(_aid, body.get("message", ""),
+                                          result.get("reply"), via="dash")
+            elif parsed.path == "/api/hub/task":
+                result = agents_hub.send_task(body.get("agentId"), body.get("title"),
+                                              body.get("note", ""))
+            elif parsed.path == "/api/hub/task/update":
+                result = agents_hub.update_task(body.get("id"), body.get("status"))
             elif parsed.path == "/api/goals/update":
                 result = daily_goals.update(
                     metric=body.get("metric"), delta=body.get("delta"),
