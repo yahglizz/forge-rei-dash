@@ -178,23 +178,30 @@ class SolomonEngine:
     # TOP skills load FIRST and are never truncated away: evidence discipline
     # (house rule for every agent) → decision loop (how Solomon reasons) →
     # director craft (what 50 years knows) → the learned playbook last.
+    TOP_SKILLS = ("agent-evidence-discipline.md", "solomon-decision-loop.md",
+                  "solomon-director-craft.md")
+    PLAYBOOK_MD = "solomon-playbook.md"
+
     def _load_skills(self):
+        """The CONSTITUTION: top skills + any other solomon-* skill, in priority order.
+
+        Excludes the learned playbook (see _playbook_only) so the two get separate
+        context budgets — the constitution is never truncated away by a long playbook,
+        and self-improvement can never rewrite the constitution.
+        """
         try:
             import brain_io
             seed = SOLOMON_DIR / "skills"
             vault = brain_io.VAULT / "Skills"
-            top = ("agent-evidence-discipline.md", "solomon-decision-loop.md",
-                   "solomon-director-craft.md")
+            skip = set(self.TOP_SKILLS) | {self.PLAYBOOK_MD}
 
             paths = []
-            for name in top:                       # top skills, seed then vault
+            for name in self.TOP_SKILLS:           # top skills first, seed then vault
                 paths += [seed / name, vault / name]
-            for d in (seed, vault):                # any other solomon-* skill
+            for d in (seed, vault):                # then any other solomon-* skill
                 if d.is_dir():
                     paths += sorted(p for p in d.glob("solomon-*.md")
-                                    if p.name not in top)
-            paths += [seed / "solomon-playbook.md",
-                      vault / "solomon-playbook.md"]   # learned rubric last
+                                    if p.name not in skip)
 
             parts, sig, seen = [], [], set()
             for p in paths:
@@ -222,8 +229,8 @@ class SolomonEngine:
         try:
             import brain_io
             parts = []
-            for p in (SOLOMON_DIR / "skills" / "solomon-playbook.md",
-                      brain_io.VAULT / "Skills" / "solomon-playbook.md"):
+            for p in (SOLOMON_DIR / "skills" / self.PLAYBOOK_MD,
+                      brain_io.VAULT / "Skills" / self.PLAYBOOK_MD):
                 if p.is_file():
                     parts.append(p.read_text(errors="ignore"))
             return "\n\n".join(parts)
