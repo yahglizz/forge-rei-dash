@@ -874,7 +874,11 @@ import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoici
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
+import daycare_family  # noqa: E402 — Nora, roster organizer & family follow-up (reports to Solomon)
+import daycare_adops  # noqa: E402 — Nova, ad ops: campaign health, competitor intel, creative direction
 SOLOMON = daycare_director.SolomonEngine()
+NORA = daycare_family.NoraEngine()
+NOVA = daycare_adops.NovaEngine()
 
 
 def _daycare_blast_transport(recipient, text):
