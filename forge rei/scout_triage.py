@@ -61,6 +61,16 @@ def _scout_key():
     return review_agent._api_key()
 
 
+def _north_star_loaded():
+    """True when the cross-business constitution is actually on disk — console
+    introspection only, mirrors _creed_block()-style helpers elsewhere."""
+    try:
+        import north_star
+        return bool(north_star.context_block())
+    except Exception:
+        return False
+
+
 POLL_INTERVAL = int(os.environ.get("FORGE_SCOUT_INTERVAL", "180"))   # seconds between sweeps
 SCORE_BATCH = int(os.environ.get("FORGE_SCOUT_BATCH", "15"))          # max Claude-scored convos / pass
 SCAN_PAGES = int(os.environ.get("FORGE_SCOUT_PAGES", "4"))            # conversation pages to sweep (~100 each)

@@ -196,8 +196,15 @@ def _draft_md(topic, row, stats):
         return fallback
 
 
-def _propose(candidate):
-    """Write the vault proposal + broadcast for a tap. Runs on a side thread."""
+def _propose(candidate, target=None):
+    """Write the vault proposal + broadcast for a tap. Runs on a side thread.
+
+    ``target`` (e.g. "NORTH_STAR.md") tags a proposal as a constitution update
+    rather than a normal skill — see ``propose_north_star_update()``. It never
+    changes WHERE this writes (still only the vault proposal queue); it only
+    changes what ``approve()`` is allowed to do with it (never auto-write the
+    repo file — see the guard there).
+    """
     try:
         topic, row = candidate["topic"], candidate["row"]
         with _LOCK:
@@ -213,32 +220,64 @@ def _propose(candidate):
         prop = {"id": pid, "status": "pending", "topic": topic, "path": rel,
                 "title": topic, "body": body[:4000], "ts": _now_ms(),
                 "agents": sorted((row.get("agents") or {}).keys()),
-                "count": int(row.get("count") or 0)}
+                "count": int(row.get("count") or 0),
+                "target": target}   # e.g. "NORTH_STAR.md"; None = normal skill proposal
         with _LOCK:
             d = _load()
             d.setdefault("proposals", {})[pid] = prop
             _save(d)
         try:
             import agent_bus
-            agent_bus.send("skill_forge", "all", "alert",
-                           f"✨ New skill proposal: \"{topic}\" (seen from "
-                           f"{', '.join(prop['agents'])}). Tap to adopt or dismiss.",
-                           {"type": "skill_proposal", "pid": pid, "name": topic})
+            label = (f"proposes an update to the CONSTITUTION ({target}) — "
+                     f"review and merge manually" if target
+                     else f"New skill proposal: \"{topic}\"")
+            agent_bus.send("skill_forge", "all", "alert", f"✨ {label}",
+                           {"type": "skill_proposal", "pid": pid, "name": topic,
+                            "target": target})
         except Exception:
             pass
     except Exception:
         pass
 
 
+def propose_north_star_update(observation, reason="agent-noticed"):
+    """Any agent can call this explicitly to flag something worth adding to the
+    constitution (NORTH_STAR.md) — a new business fact, a tone shift, a new
+    agent. NEVER auto-wired to the passive bus listener; proposing a
+    constitution change is a deliberate act, not a pattern-match. Drafts a
+    normal vault proposal (reviewable in the Command Center / Telegram) tagged
+    ``target="NORTH_STAR.md"``. Adopting it never writes the repo file — see
+    ``approve()``."""
+    topic = f"north-star: {observation[:60]}"
+    row = {"agents": {"solomon": 1}, "count": 1,
+           "samples": [f"{observation[:200]} ({reason})"]}
+    return _propose({"topic": topic, "row": row}, target="NORTH_STAR.md")
+
+
 # ── 4. GATE — approve / dismiss (the only paths that apply anything) ──────────────────
 
 def approve(pid):
-    """Operator tap: adopt the proposal → vault Skills/<slug>.md (git-committed)."""
+    """Operator tap: adopt the proposal → vault Skills/<slug>.md (git-committed).
+
+    Constitution proposals (``target`` set, e.g. "NORTH_STAR.md") are the one
+    exception: this function has no write path into the repo (brain_io.write_note
+    is jailed inside the vault), so a target'd proposal is NEVER auto-applied —
+    it's just marked handled and hands back the drafted text for the operator
+    to paste into the real file and `git commit` themselves.
+    """
     with _LOCK:
         d = _load()
         p = (d.get("proposals") or {}).get(pid)
         if not p or p.get("status") != "pending":
             return {"error": "proposal not found or already handled"}
+        if p.get("target"):
+            p["status"] = "approved-manual-merge-required"
+            p["decidedAt"] = _now_ms()
+            _save(d)
+            return {"ok": True, "requiresManualMerge": True, "target": p["target"],
+                     "message": f"Copy this into {p['target']} yourself and git "
+                     "commit — constitution updates are never auto-written.",
+                     "body": p.get("body")}
         rel = f"Skills/{_slug(p.get('topic'))}.md"
         try:
             import brain_io
