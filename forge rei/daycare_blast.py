@@ -272,18 +272,24 @@ def get_blast(blast_id):
     return record if isinstance(record, dict) and record.get("id") else None
 
 
-def list_blasts() -> list[dict]:
+def list_blasts(location_id=None) -> list[dict]:
+    """History for ONE center. A blast sent from Blessings 1 must never surface in
+    A Mother's Touch's tab — the JSON store has no RLS, so the filter is the wall."""
     rows = [r for r in _load().values() if isinstance(r, dict) and r.get("id")]
+    if location_id is not None:
+        rows = [r for r in rows if r.get("locationId") == location_id]
     rows.sort(key=lambda r: (-(r.get("createdAt") or 0), -(r.get("seq") or 0)))
     return rows
 
 
-def cancel_blast(blast_id) -> dict:
+def cancel_blast(blast_id, *, location_id=None) -> dict:
     with _LOCK:
         data = _load()
         record = data.get(blast_id)
         if not isinstance(record, dict) or not record.get("id"):
             return {"error": "blast not found"}
+        if location_id is not None and record.get("locationId") != location_id:
+            return {"error": "That blast belongs to a different location."}
         if record.get("status") in ("sent", "partial"):
             return {"error": "This blast already went out — it can't be cancelled."}
         record["status"] = "cancelled"
@@ -304,7 +310,7 @@ def _send_one(recipient) -> dict:
     return result if isinstance(result, dict) else {"ok": False, "note": "bad transport result"}
 
 
-def send_blast(blast_id, *, throttle=0.25) -> dict:
+def send_blast(blast_id, *, location_id=None, throttle=0.25) -> dict:
     """OPERATOR-GATED. The console's confirm button is the approval gate (rule 2).
 
     Walks recipients one at a time (throttled so GHL doesn't rate-limit), and is
@@ -318,13 +324,16 @@ def send_blast(blast_id, *, throttle=0.25) -> dict:
             return {"error": "blast not found"}
         if record.get("status") == "cancelled":
             return {"error": "This blast was cancelled."}
+        # Never send a blast belonging to another center, even if its id is guessed.
+        if location_id is not None and record.get("locationId") != location_id:
+            return {"error": "That blast belongs to a different location."}
 
         outs = _optouts(data)
         sent = skipped = failed = 0
         for recipient in record.get("recipients", []):
             if recipient.get("status") in ("sent", "stub-sent"):
                 continue
-            if recipient.get("key") in outs:
+            if _optout_key(record.get("locationId"), recipient.get("phone")) in outs:
                 recipient["status"] = "skipped"
                 recipient["note"] = "opted out"
                 skipped += 1
