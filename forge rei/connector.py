@@ -923,8 +923,9 @@ def api_agents_list(_q):
 
 
 # ── Agents HUB — one tab to operate every agent across all three businesses ────
-def api_hub_roster(_q):
-    return agents_hub.roster()
+def api_hub_roster(q):
+    # ?business=daycare|wholesale|agency — the hub is scoped to the workspace you're in.
+    return agents_hub.roster((q.get("business", [None]) or [None])[0])
 
 
 def api_hub_tasks(q):

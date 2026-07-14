@@ -242,22 +242,26 @@ function HubConsole({ agent }) {
 function HubAgentsPage({ ws }) {
   const [sel, setSel] = useStateHub(null);
   const [tab, setTab] = useStateHub("chat");
-  const roster = window.useApi("/api/hub/roster", { interval: 30000 });
+
+  // The hub is SCOPED to the workspace you're in: the Daycare tab shows Solomon, Nora and
+  // Nova — not the wholesale team, and not the Retell voice agents (those live in the REI
+  // Outbound tab, where they're actually configured).
+  const wsId = ws || localStorage.getItem("forge_ws") || "rei";
+  const biz = wsId === "agency" ? "agency" : wsId === "daycare" ? "daycare" : "wholesale";
+  const roster = window.useApi("/api/hub/roster?business=" + biz, { interval: 30000 });
 
   const data = roster.data || {};
   const agents = Array.isArray(data.agents) ? data.agents : [];
   const businesses = Array.isArray(data.businesses) ? data.businesses : [];
 
-  // Default to THIS workspace's first agent, so the tab opens where you already are.
-  // The workspace id is passed by the page map; localStorage is the same value app.jsx
-  // persists on switch, and is the fallback if the tab is rendered without a prop.
+  // Land on the first agent of this business.
   useEffectHub(() => {
     if (sel || !agents.length) return;
-    const wsId = ws || localStorage.getItem("forge_ws") || "rei";
-    const biz = wsId === "agency" ? "agency" : wsId === "daycare" ? "daycare" : "wholesale";
-    const first = agents.find((a) => a.business === biz) || agents[0];
-    setSel(first.id);
-  }, [agents.length, ws]);
+    setSel(agents[0].id);
+  }, [agents.length, biz]);
+
+  // Switching workspace swaps the roster — drop a stale selection from the old business.
+  useEffectHub(() => { setSel(null); setTab("chat"); }, [biz]);
 
   if (roster.loading && !agents.length) {
     return <div className="card card-pad" style={{ opacity: .6 }}>Loading agents…</div>;

@@ -129,48 +129,24 @@ def _live_status(agent_id):
         return {}
 
 
-def roster():
-    """Every agent, grouped by business, with live status. Powers the hub's left rail."""
+def roster(business=None):
+    """The agents for ONE business, with live status. Powers the hub's left rail.
+
+    Scoped by workspace on purpose: in the Daycare workspace you want Solomon, Nora and
+    Nova — not the wholesale team. Passing business=None returns everyone (the bus /
+    cross-business view still uses that).
+
+    Retell voice agents are deliberately NOT here. They're outbound-call personas, not
+    operating agents, and they belong to the REI **Outbound** tab where they're actually
+    configured — listing a dozen of them rebuilt the clutter this hub exists to remove.
+    """
+    rows = [a for a in AGENTS if not business or a["business"] == business]
     out = []
-    for a in AGENTS:
+    for a in rows:
         row = dict(a)
         row["status"] = _live_status(a["id"])
         row["businessLabel"] = BUSINESS[a["business"]]["label"]
         out.append(row)
-
-    # Live Retell voice agents (personas you can test in text before they dial).
-    #
-    # Retell returns one row per published VERSION of an agent, so the same receptionist
-    # comes back several times under one name (its ids differ, which is why the raw list
-    # looks like distinct agents when it isn't). Listing them all would rebuild the exact
-    # clutter this hub exists to kill — so collapse by NAME, keeping the first occurrence.
-    #
-    # Retell's payload here carries no version field (retell_io.status() → id/name/voice/
-    # language only), so "which version is newest" is genuinely not knowable from this
-    # response. First-seen is the honest choice: it's stable, and chatting an agent only
-    # loads its persona to test tone — it never dials.
-    try:
-        import retell_io
-        if retell_io.has_key():
-            seen_names = set()
-            for v in (retell_io.status().get("agents") or []):
-                vid = v.get("id")
-                if not vid or vid in _BY_ID:
-                    continue
-                name = (v.get("name") or "Voice Agent").strip()
-                if name in seen_names:
-                    continue
-                seen_names.add(name)
-                out.append({
-                    "id": vid, "name": name,
-                    "business": "voice", "businessLabel": BUSINESS["voice"]["label"],
-                    "emoji": "📞", "role": "Outbound voice agent — Retell",
-                    "blurb": "Chat runs this agent's real persona so you can test it in "
-                             "text before it ever dials.",
-                    "status": {}, "voice": v.get("voice") or "",
-                })
-    except Exception:
-        pass
 
     creeds = {}
     try:
@@ -179,8 +155,10 @@ def roster():
     except Exception:
         pass
 
+    shown = [b for b in BUSINESS if not business or b == business]
     return {"agents": out,
-            "businesses": [{"id": b, "label": v["label"]} for b, v in BUSINESS.items()],
+            "business": business,
+            "businesses": [{"id": b, "label": BUSINESS[b]["label"]} for b in shown],
             "creeds": creeds,
             "hasKey": bool(review_agent._api_key())}
 
