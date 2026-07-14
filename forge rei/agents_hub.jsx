@@ -11,8 +11,9 @@
 // computed JSX tags — every dynamic component is resolved to a capitalized const first.
 const { useState: useStateHub, useEffect: useEffectHub, useRef: useRefHub } = React;
 
-// Each agent's deep page, relocated from the sidebar into the Console tab. Resolved to a
-// const before render (a computed tag like <Map[x] /> white-screens the app).
+// Each agent's deep page, relocated from the sidebar into the Console tab. Stored as a
+// NAME here and resolved to a capitalized const before render — a computed JSX tag
+// white-screens the app (CLAUDE.md §7), so the component is never indexed inline.
 const HUB_CONSOLE = {
   marcus: "MarcusCommand",
   scout: "ScreeningPage",
