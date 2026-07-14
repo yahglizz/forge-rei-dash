@@ -821,6 +821,36 @@ def active_location(session: Session | None = None) -> str:
     return CONFIG.location_id
 
 
+def guardian_contact(session: Session, guardian_profile_id: Any) -> dict[str, Any] | None:
+    """Name/phone/email for one guardian AT THE ACTIVE CENTER.
+
+    Filtered by active_location and backstopped by RLS, so this can never reach across
+    into another center's family — which matters, because the result gets pushed to GHL.
+    """
+    if not guardian_profile_id:
+        return None
+    rows = _rows(BRIDGE.rest(
+        session, "GET", "profiles",
+        query={
+            "id": f"eq.{guardian_profile_id}",
+            "location_id": f"eq.{active_location(session)}",
+            "select": "id,first_name,last_name,display_name,phone,auth_email",
+            "limit": "1",
+        },
+    ))
+    if not rows:
+        return None
+    guardian = rows[0]
+    name = guardian.get("display_name") or " ".join(
+        value for value in (guardian.get("first_name"), guardian.get("last_name")) if value)
+    return {
+        "id": guardian.get("id"),
+        "name": name or "Family",
+        "phone": guardian.get("phone"),
+        "email": guardian.get("auth_email"),
+    }
+
+
 def list_locations(session: Session) -> dict[str, Any]:
     """The centers this profile may stand in. RLS returns only their memberships."""
     rows = _rows(BRIDGE.rest(

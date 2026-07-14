@@ -3240,19 +3240,51 @@ class Handler(BaseHTTPRequestHandler):
                           "color": room.get("color"),
                           "families": len(reach["recipients"])})
         everyone = daycare_blast.build_audience(children)
+        here = daycare_supabase.active_location(session)
         return {
             "ok": True,
             "centerName": self._daycare_center_name(session),
+            "locationId": here,
             "audience": audience["recipients"],
             "missingPhone": audience["missingPhone"],
             "totalFamilies": len(everyone["recipients"]),
             "classrooms": rooms,
-            "blasts": daycare_blast.list_blasts(),
-            "optOuts": daycare_blast.list_optouts(),
+            "blasts": daycare_blast.list_blasts(here),
+            "optOuts": daycare_blast.list_optouts(here),
             "cap": daycare_blast.cap(),
             "maxChars": daycare_blast.MAX_SMS_CHARS,
             "ghl": daycare_ghl.health(DAYCARE_GHL),
         }
+
+    def _daycare_child_save(self, session, body):
+        """Enroll/update a child, then mirror the family into GHL tagged with THIS center.
+
+        Supabase is the source of truth and its write is authoritative: a GHL failure is
+        REPORTED, never fatal, and never rolls back an enrolled child. The child's
+        location_id comes from save_child (= the active center), so a child can only ever
+        be created in the center the owner is currently standing in.
+        """
+        result = daycare_supabase.save_child(session, body)
+        child = (result or {}).get("child") or {}
+        result["ghlSync"] = self._daycare_sync_family_to_ghl(session, child)
+        return result
+
+    def _daycare_sync_family_to_ghl(self, session, child):
+        guardian = daycare_supabase.guardian_contact(
+            session, (child or {}).get("guardian_profile_id"))
+        if not guardian:
+            return {"ok": True, "synced": False,
+                    "detail": "No guardian linked to this child yet — nothing to sync."}
+        try:
+            return daycare_ghl.sync_family(
+                DAYCARE_GHL,
+                name=guardian.get("name"), phone=guardian.get("phone"),
+                email=guardian.get("email"),
+                location_name=self._daycare_center_name(session),
+                child_name=(child or {}).get("first_name") or "")
+        except Exception as error:  # noqa: BLE001 — never leak a token, never fail the save
+            return {"ok": False, "synced": False,
+                    "detail": f"GHL sync failed: {type(error).__name__}"}
 
     def _daycare_blast_preview(self, session, body):
         audience = self._daycare_blast_audience(session, body.get("classroom_id"))
@@ -3276,7 +3308,8 @@ class Handler(BaseHTTPRequestHandler):
         return daycare_blast.create_blast(
             title=body.get("title"), template=body.get("template"),
             recipients=people, audience_label=body.get("audience_label") or "",
-            center_name=self._daycare_center_name(session))
+            center_name=self._daycare_center_name(session),
+            location_id=daycare_supabase.active_location(session))
 
     def _handle_daycare_post(self, path):
         """Explicit, domain-only Daycare write router (never a generic table proxy)."""
@@ -3347,6 +3380,9 @@ class Handler(BaseHTTPRequestHandler):
             session, set_cookie = self._daycare_resolve_session(sid)
             if path == "/api/daycare/media/sign-upload":
                 result = daycare_supabase.sign_media(session, body, upload=True)
+            elif path == "/api/daycare/child/save":
+                # Enroll in the ACTIVE center + auto-sync the family into GHL, tagged.
+                result = self._daycare_child_save(session, body)
             elif path == "/api/daycare/location/switch":
                 # The DB's set_active_location RPC is the gate — it refuses any center
                 # this profile has no membership row for. We never trust the browser's id.
@@ -3364,12 +3400,19 @@ class Handler(BaseHTTPRequestHandler):
                 result = self._daycare_blast_create(session, body)
             elif path == "/api/daycare/blast/send":
                 # Operator-gated: the console's confirm button IS the approval gate.
-                result = daycare_blast.send_blast(body.get("blast_id"))
+                # location_id pins the send to the active center — a blast id from
+                # another center is refused even if it is guessed.
+                result = daycare_blast.send_blast(
+                    body.get("blast_id"),
+                    location_id=daycare_supabase.active_location(session))
             elif path == "/api/daycare/blast/cancel":
-                result = daycare_blast.cancel_blast(body.get("blast_id"))
+                result = daycare_blast.cancel_blast(
+                    body.get("blast_id"),
+                    location_id=daycare_supabase.active_location(session))
             elif path == "/api/daycare/blast/optout":
                 result = daycare_blast.set_optout(
                     body.get("phone"),
+                    location_id=daycare_supabase.active_location(session),
                     opted_out=body.get("opted_out", True),
                     name=body.get("name") or "")
             elif path == "/api/daycare/director/run":
