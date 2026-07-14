@@ -159,16 +159,20 @@ state in `marcus_state/`).
 - JSX: `node /tmp/valjsx.js FILE` (Babel transform + computed-tag scan)
 - Then deploy (two paths, both validate + SSH-verify):
 
-**Two deploy paths — same box, pick by what changed:**
-1. **`./deploy/quick-deploy.sh` (everyday, works from Mac OR the gaming PC).** Commits →
-   `git push origin main` → SSHes the box to run `deploy-pull.sh`, which `git reset --hard
-   origin/main`, validates (py ast + jsx), rsyncs CODE into the live tree, restarts, health-
-   checks. **No secrets/rsync on the client** — box already holds them. This is the
-   machine-agnostic path that makes Mac + PC co-equal workspaces (both just need git + the
-   `~/.ssh/forge_droplet` key; repo is public `yahglizz/forge-rei-dash`). Box clone lives at
-   `/opt/forge/repo`; it does NOT touch secrets (`config/*.env`), the vault, `marcus_state`,
-   or `uploads`.
-2. **`./deploy/push.sh root@24.199.81.124` (Mac-only, full).** Use when a SECRET (`*.env`) or
+**Three deploy paths — same box, pick by what changed:**
+1. **`git push origin main` (everyday, ANY machine — Mac or the gaming PC).** The box polls
+   GitHub every 60s (`forge-autopull.timer` → `autopull.sh` → `deploy-pull.sh`) and
+   self-deploys any new commit: `git reset --hard origin/main`, validate (py ast + jsx),
+   rsync CODE into the live tree, restart, health-check. **Client needs only git** — no SSH
+   key, no secrets, no rsync. This is what makes Mac + PC co-equal workspaces (repo is public
+   `yahglizz/forge-rei-dash`). A commit that fails validation aborts the deploy (set -e) and
+   the live version keeps running; the next good push recovers. Box clone: `/opt/forge/repo`;
+   never touches secrets (`config/*.env`), vault, `marcus_state`, `uploads`. Watch it:
+   `ssh box 'journalctl -u forge-autopull.service -f'`.
+2. **`./deploy/quick-deploy.sh` (instant, needs `~/.ssh/forge_droplet`).** Same as above but
+   SSHes the box to run `deploy-pull.sh` immediately instead of waiting ≤60s. Use when you
+   want the deploy NOW.
+3. **`./deploy/push.sh root@24.199.81.124` (Mac-only, full).** Use when a SECRET (`*.env`) or
    the brain VAULT changed — it rsyncs those Mac→box (they're gitignored, never in GitHub).
    Also mirrors code to GitHub. The original full-fat deploy.
 
