@@ -174,19 +174,39 @@ class SolomonEngine:
         self.activity.append({"ts": int(time.time() * 1000), "kind": kind, "text": text})
         self.activity = self.activity[-120:]
 
-    # --- brain playbook (mtime-cached seed + vault) --------------------------
+    # --- brain skills (mtime-cached seed + vault) ----------------------------
+    # TOP skills load FIRST and are never truncated away: evidence discipline
+    # (house rule for every agent) → decision loop (how Solomon reasons) →
+    # director craft (what 50 years knows) → the learned playbook last.
     def _load_skills(self):
         try:
             import brain_io
-            parts, sig = [], []
-            for p in (SOLOMON_DIR / "skills" / "solomon-playbook.md",
-                      brain_io.VAULT / "Skills" / "solomon-playbook.md"):
-                if p.is_file():
-                    parts.append(p.read_text(errors="ignore"))
-                    sig.append(p.stat().st_mtime)
+            seed = SOLOMON_DIR / "skills"
+            vault = brain_io.VAULT / "Skills"
+            top = ("agent-evidence-discipline.md", "solomon-decision-loop.md",
+                   "solomon-director-craft.md")
+
+            paths = []
+            for name in top:                       # top skills, seed then vault
+                paths += [seed / name, vault / name]
+            for d in (seed, vault):                # any other solomon-* skill
+                if d.is_dir():
+                    paths += sorted(p for p in d.glob("solomon-*.md")
+                                    if p.name not in top)
+            paths += [seed / "solomon-playbook.md",
+                      vault / "solomon-playbook.md"]   # learned rubric last
+
+            parts, sig, seen = [], [], set()
+            for p in paths:
+                rp = str(p)
+                if rp in seen or not p.is_file():
+                    continue
+                seen.add(rp)
+                parts.append(p.read_text(errors="ignore"))
+                sig.append((rp, p.stat().st_mtime))
             sig = tuple(sig)
             if self._sk_mtime != sig:
-                self._sk_text = "\n\n".join(parts)
+                self._sk_text = "\n\n---\n\n".join(parts)
                 self._sk_mtime = sig
             return self._sk_text
         except Exception:
