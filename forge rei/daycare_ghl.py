@@ -14,11 +14,40 @@ Stdlib only (the client is urllib-based).
 
 from __future__ import annotations
 
+import json
 import re
+import urllib.error
 
 
 def _digits(phone: str | None) -> str:
     return re.sub(r"[^0-9+]", "", str(phone or ""))
+
+
+def _duplicate_contact_id(error) -> str | None:
+    """Pull the EXISTING contact id out of GHL's duplicate-phone rejection.
+
+    GHL sub-accounts can be set to "no duplicate contacts". When they are, POST /contacts/
+    answers 400 "This location does not allow duplicated contacts" AND hands back the id of
+    the contact that already holds that phone, in meta.contactId. That id is authoritative
+    — more reliable than the search endpoint, which does not consistently match a phone
+    written in a different format than it was stored in. Without this, re-saving an
+    existing family (or texting them an invoice twice) raises instead of updating them.
+    """
+    raw = getattr(error, "_body", None)
+    if raw is None:
+        try:
+            raw = error.read()
+        except Exception:  # noqa: BLE001
+            raw = b""
+    try:
+        text = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
+        payload = json.loads(text)
+    except Exception:  # noqa: BLE001
+        return None
+    meta = payload.get("meta") if isinstance(payload, dict) else None
+    if not isinstance(meta, dict):
+        return None
+    return meta.get("contactId") or meta.get("id") or None
 
 
 def health(client) -> dict:
@@ -48,14 +77,27 @@ def find_contact_by_phone(client, phone: str) -> str | None:
 
 
 def ensure_contact(client, *, name: str, phone: str, email: str | None = None) -> str:
-    """Return a GHL contact id for the family, creating it if needed."""
+    """Return a GHL contact id for the family, creating it only if it truly doesn't exist.
+
+    Idempotent by design — this runs every time a child is saved, so the SECOND save of the
+    same family must resolve to the same contact, not explode. Two paths find an existing
+    contact: the search endpoint, and (when search misses on a format mismatch) GHL's own
+    duplicate rejection, which carries the existing id.
+    """
     existing = find_contact_by_phone(client, phone)
     if existing:
         return existing
     body = {"locationId": client.location_id, "name": name or "Family", "phone": _digits(phone)}
     if email and "@" in email and not email.lower().endswith("@login.blessings.app"):
         body["email"] = email
-    created = client.post("/contacts/", body)
+    try:
+        created = client.post("/contacts/", body)
+    except urllib.error.HTTPError as error:
+        if error.code in (400, 409):
+            duplicate = _duplicate_contact_id(error)
+            if duplicate:
+                return duplicate
+        raise
     contact = created.get("contact", created) if isinstance(created, dict) else {}
     return contact.get("id") or created.get("id")
 
