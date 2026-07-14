@@ -96,6 +96,7 @@ function DaycareBlast() {
     setSending(true);
     try {
       const result = await window.DcxRequest("/blast/send", { body: { blast_id: staged.id } });
+      if (result.error) { setError(result.error); return; }
       const summary = result.summary || {};
       setStaged(null); setTitle(""); setTemplate("");
       setFlash("Sent to " + (summary.sent || 0) + " famil" + ((summary.sent === 1) ? "y" : "ies") + (summary.failed ? " · " + summary.failed + " failed" : "") + (summary.skipped ? " · " + summary.skipped + " skipped" : ""));
