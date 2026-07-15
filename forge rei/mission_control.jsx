@@ -129,6 +129,148 @@ function McSystemStrip({ sys, onEnter }) {
   );
 }
 
+// ---- Monthly Spend: the operator's OWN subscriptions/bills, grouped by business. ----
+// Backed by /api/spend/status (spend_tracker.py). Every row is inline-editable; you keep
+// the numbers current, the dashboard keeps the running monthly/yearly total.
+function mcUSD(n) {
+  return "$" + Number(n || 0).toLocaleString(undefined,
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function McSpendRow({ item, onSaved, onEnter }) {
+  const [amount, setAmount] = useStateMC(String(item.amount != null ? item.amount : ""));
+  const [cadence, setCadence] = useStateMC(item.cadence || "monthly");
+  const [busy, setBusy] = useStateMC(false);
+  const dirty = String(item.amount) !== amount.trim() || (item.cadence || "monthly") !== cadence;
+
+  async function save(nextCadence) {
+    const cad = nextCadence || cadence;
+    setBusy(true);
+    try {
+      await window.apiPost("/api/spend/save",
+        { id: item.id, amount: parseFloat(amount) || 0, cadence: cad });
+      onSaved();
+    } catch (e) { /* transient — the next refresh reconciles */ }
+    setBusy(false);
+  }
+  async function remove() {
+    setBusy(true);
+    try { await window.apiPost("/api/spend/delete", { id: item.id }); onSaved(); }
+    catch (e) { /* ignore */ }
+    setBusy(false);
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0",
+      borderTop: "1px solid var(--card-2)", opacity: busy ? 0.55 : 1 }}>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, whiteSpace: "nowrap",
+        overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
+      <span className="faint" style={{ fontSize: 12 }}>$</span>
+      <input value={amount} inputMode="decimal" placeholder="0.00"
+        onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+        onBlur={() => dirty && save()}
+        onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
+        style={{ width: 66, textAlign: "right", fontSize: 12.5, padding: "4px 6px",
+          borderRadius: 8, background: "var(--card-2)", border: "1px solid transparent",
+          color: "var(--text)" }} className="tabnum" />
+      <select value={cadence} onChange={(e) => { setCadence(e.target.value); save(e.target.value); }}
+        style={{ fontSize: 11.5, padding: "4px 4px", borderRadius: 8,
+          background: "var(--card-2)", border: "1px solid transparent", color: "var(--text)" }}>
+        <option value="monthly">/mo</option>
+        <option value="yearly">/yr</option>
+      </select>
+      <button onClick={remove} title="Remove" className="faint"
+        style={{ fontSize: 15, lineHeight: 1, padding: "0 4px", cursor: "pointer" }}>×</button>
+    </div>
+  );
+}
+
+function McSpendGroup({ group, onSaved }) {
+  const [adding, setAdding] = useStateMC(false);
+  const [name, setName] = useStateMC("");
+  const [amount, setAmount] = useStateMC("");
+
+  async function add() {
+    if (!name.trim()) { setAdding(false); return; }
+    try {
+      await window.apiPost("/api/spend/save",
+        { name: name.trim(), amount: parseFloat(amount) || 0, business: group.id });
+      setName(""); setAmount(""); setAdding(false); onSaved();
+    } catch (e) { /* ignore */ }
+  }
+
+  return (
+    <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+        <span style={{ width: 9, height: 9, borderRadius: "50%", background: group.color,
+          display: "inline-block", flexShrink: 0, alignSelf: "center" }} />
+        <div style={{ fontWeight: 700, fontSize: 13.5, flex: 1 }}>{group.label}</div>
+        <div className="tabnum" style={{ fontWeight: 700, fontSize: 13.5 }}>{mcUSD(group.monthlyUSD)}</div>
+        <span className="faint" style={{ fontSize: 10.5 }}>/mo</span>
+      </div>
+
+      {group.items.length === 0 && !adding && (
+        <div className="faint" style={{ fontSize: 12, padding: "5px 0" }}>Nothing here yet.</div>
+      )}
+      {group.items.map((it) => <McSpendRow key={it.id} item={it} onSaved={onSaved} />)}
+
+      {adding ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0 2px",
+          borderTop: "1px solid var(--card-2)" }}>
+          <input autoFocus value={name} placeholder="What is it? (e.g. Metricool)"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") setAdding(false); }}
+            style={{ flex: 1, minWidth: 0, fontSize: 12.5, padding: "5px 8px", borderRadius: 8,
+              background: "var(--card-2)", border: "1px solid transparent", color: "var(--text)" }} />
+          <input value={amount} inputMode="decimal" placeholder="0.00"
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") setAdding(false); }}
+            style={{ width: 66, textAlign: "right", fontSize: 12.5, padding: "5px 6px", borderRadius: 8,
+              background: "var(--card-2)", border: "1px solid transparent", color: "var(--text)" }}
+            className="tabnum" />
+          <button className="tab" style={{ fontSize: 11.5, padding: "5px 10px" }} onClick={add}>Add</button>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} className="faint"
+          style={{ textAlign: "left", fontSize: 12, padding: "6px 0 2px", cursor: "pointer",
+            borderTop: "1px solid var(--card-2)", marginTop: 2 }}>+ Add subscription</button>
+      )}
+    </div>
+  );
+}
+
+function McSpend() {
+  const { data, error, loading, refresh } = window.useApi("/api/spend/status");
+  const d = data || {};
+  const groups = d.groups || [];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>Monthly Spend</div>
+          <div className="faint" style={{ fontSize: 11.5 }}>
+            What you pay to run everything — edit any number to keep it current
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div className="tabnum" style={{ fontSize: 22, fontWeight: 700 }}>{mcUSD(d.monthlyUSD)}</div>
+          <div className="faint" style={{ fontSize: 11 }}>{mcUSD(d.yearlyUSD)} / year</div>
+        </div>
+      </div>
+
+      {loading && !data && <window.LoadingRow label="Loading your subscriptions…" />}
+      {error && !data && <window.ErrorRow error={error} onRetry={refresh} />}
+
+      {data && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
+          {groups.map((g) => <McSpendGroup key={g.id} group={g} onSaved={refresh} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MissionControl({ onEnter, workspaces = [] }) {
   const Icons = window.Icons;
   const [menu, setMenu] = useStateMC(false);
