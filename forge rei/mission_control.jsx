@@ -282,7 +282,7 @@ function MissionControl({ onEnter, workspaces = [] }) {
   const vColor = MC_COLOR[d.verdictStatus] || MC_COLOR.idle;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", padding: "26px clamp(16px, 4vw, 52px) 60px" }}>
+    <div style={{ height: "100vh", overflowY: "auto", background: "var(--bg)", padding: "26px clamp(16px, 4vw, 52px) 60px" }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
 
         {/* Top bar */}
