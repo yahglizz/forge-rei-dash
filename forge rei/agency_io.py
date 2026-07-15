@@ -210,6 +210,12 @@ def get_client(cid):
         return _slim(c) if c else None
 
 
+def get_workspace(cid):
+    """Return a client's workspace dict (repo/site/brand/access), or None."""
+    c = get_client(cid)
+    return c.get("workspace") if c else None
+
+
 # ---------------------------------------------------------------------------
 # Client portal access — each client gets a random, revocable token. The
 # operator shares a link (…/portal?c=<clientId>&k=<token>); the client can then

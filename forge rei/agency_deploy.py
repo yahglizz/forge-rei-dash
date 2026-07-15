@@ -48,6 +48,28 @@ def _client_id(client) -> str:
     return str(client)
 
 
+def resolve_repo(client) -> str:
+    """Find the 'owner/repo' for a client. Order: the client's own workspace
+    record (agency_io) → the GITHUB_DEPLOY_MAP env fallback. Returns '' if none."""
+    # 1. inline on the passed client dict
+    if isinstance(client, dict):
+        ws = client.get("workspace") or {}
+        if isinstance(ws, dict) and ws.get("repo"):
+            return str(ws["repo"]).strip()
+    cid = _client_id(client)
+    # 2. look it up in the client book
+    if cid:
+        try:
+            import agency_io  # deferred to avoid import cycle
+            ws = agency_io.get_workspace(cid) or {}
+            if ws.get("repo"):
+                return str(ws["repo"]).strip()
+        except Exception:
+            pass
+    # 3. env fallback
+    return _deploy_map().get(cid, "")
+
+
 # ---------------------------------------------------------------------------
 # GitHub REST (urllib — mirrors GHLClient._req style)
 # ---------------------------------------------------------------------------
@@ -225,10 +247,11 @@ def ship(client, draft) -> dict:
     if not cid:
         return {"ok": False, "detail": "client id required"}
 
-    repo_full = _deploy_map().get(cid, "")
+    repo_full = resolve_repo(client)
     if not repo_full or "/" not in repo_full:
         return {"ok": False,
-                "detail": f"no repo mapped for client {cid!r} — set GITHUB_DEPLOY_MAP"}
+                "detail": f"no repo linked for client {cid!r} — add it in the "
+                          f"client's Workspace (repo = owner/repo)"}
 
     owner, repo = repo_full.split("/", 1)
     files = draft.get("files") if isinstance(draft, dict) else []
@@ -295,5 +318,98 @@ def status(client_id=None) -> dict:
     connected = bool(token)
     repo = None
     if client_id:
-        repo = _deploy_map().get(_client_id(client_id))
+        repo = resolve_repo(client_id)
     return {"connected": connected, "repo": repo, "lastDeploy": None}
+
+
+# ---------------------------------------------------------------------------
+# Repo READ helpers — so Dyson can see the current code before it edits it.
+# All best-effort: return "" / [] on any failure (no token, no repo, API error).
+# ---------------------------------------------------------------------------
+# File types worth sending to Claude as editable context (text/source only).
+_TEXT_EXT = (".html", ".htm", ".css", ".js", ".jsx", ".ts", ".tsx", ".json",
+             ".md", ".txt", ".svg", ".vue", ".astro", ".mjs", ".cjs")
+_SKIP_DIRS = ("node_modules/", ".git/", "dist/", "build/", ".next/", ".vercel/",
+              "package-lock.json", "yarn.lock", "pnpm-lock.yaml")
+
+
+def list_repo_files(repo_full: str, limit: int = 400) -> list:
+    """Return a flat list of text-file paths in the repo's default branch."""
+    token = _token()
+    if not token or "/" not in (repo_full or ""):
+        return []
+    owner, repo = repo_full.split("/", 1)
+    try:
+        branch = _default_branch(owner, repo, token)
+        head = _branch_sha(owner, repo, branch, token)
+        tree = _gh_get(f"/repos/{owner}/{repo}/git/trees/{head}?recursive=1", token)
+    except Exception:
+        return []
+    out = []
+    for node in (tree.get("tree") or []):
+        if node.get("type") != "blob":
+            continue
+        path = node.get("path", "")
+        low = path.lower()
+        if any(s in low for s in _SKIP_DIRS):
+            continue
+        if not low.endswith(_TEXT_EXT):
+            continue
+        out.append(path)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def read_repo_file(repo_full: str, path: str, max_bytes: int = 24000) -> str:
+    """Return the decoded text content of one repo file (default branch), or ''."""
+    token = _token()
+    if not token or "/" not in (repo_full or "") or not path:
+        return ""
+    owner, repo = repo_full.split("/", 1)
+    try:
+        info = _gh_get(f"/repos/{owner}/{repo}/contents/{urllib.parse.quote(path)}", token)
+        if isinstance(info, dict) and info.get("encoding") == "base64" and info.get("content"):
+            raw = base64.b64decode(info["content"])
+            if len(raw) > max_bytes:
+                raw = raw[:max_bytes]
+            return raw.decode("utf-8", "ignore")
+    except Exception:
+        return ""
+    return ""
+
+
+def read_repo_context(repo_full: str, hint_paths=None, max_files: int = 6,
+                      per_file_bytes: int = 8000) -> list:
+    """Return [{path, content}] for the files most relevant to an edit.
+
+    hint_paths: paths/keywords Claude or the request pointed at. Falls back to
+    common entry files. Caps count + size so the Claude prompt stays lean."""
+    files = list_repo_files(repo_full)
+    if not files:
+        return []
+    hint_paths = [h.lower() for h in (hint_paths or []) if h]
+    scored = []
+    _ENTRY = ("index.html", "app.jsx", "app.tsx", "app.js", "index.jsx",
+              "index.tsx", "home", "page.tsx", "page.jsx")
+    for p in files:
+        low = p.lower()
+        score = 0
+        for h in hint_paths:
+            if h and (h in low or low in h):
+                score += 5
+        if any(low.endswith(e) or ("/" + e) in ("/" + low) for e in _ENTRY):
+            score += 2
+        if low.endswith((".html", ".htm")):
+            score += 1
+        depth = low.count("/")
+        score -= depth  # prefer shallow/top-level files
+        scored.append((score, p))
+    scored.sort(key=lambda t: t[0], reverse=True)
+    picked = [p for s, p in scored[:max_files]]
+    out = []
+    for p in picked:
+        content = read_repo_file(repo_full, p, max_bytes=per_file_bytes)
+        if content:
+            out.append({"path": p, "content": content})
+    return out
