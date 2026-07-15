@@ -180,19 +180,36 @@ AGENCY = GHLClient(_load_env(AGENCY_ENV_CANDIDATES), "agency")
 DAYCARE_GHL = GHLClient(_load_env(DAYCARE_ENV_CANDIDATES), "daycare")
 
 
-def _inject_env(paths):
-    """Inject non-GHL agency keys into os.environ without clobbering real shell vars.
+# Key families that are PER-BUSINESS / per-sub-account and must stay isolated —
+# never merged into the shared process env (CLAUDE.md §11). The three GHL
+# sub-accounts, each business's own Meta ad account + social token, the
+# daycare-internal Supabase/app vars, and Anthropic (unified deliberately via the
+# systemd env, so it must not be re-injected from any file's stale copy).
+_SHARED_ISOLATED = ("GHL_", "ANTHROPIC", "AGENCY_ANTHROPIC",
+                    "META_", "METRICOOL_", "DAYCARE_", "NEXT_PUBLIC_", "SUPABASE")
 
-    Called once at startup so META_ACCESS_TOKEN / N8N_* / METRICOOL_USER_TOKEN /
-    GITHUB_TOKEN are visible to all modules via os.environ.get() — the credential
-    guard pattern used by every M2/M3 module.
+
+def _inject_env(paths, exclude_prefixes=()):
+    """Inject env-file keys into os.environ without clobbering real shell/systemd
+    vars (first-writer-wins). exclude_prefixes skips per-business/isolated families.
+
+    So META_ACCESS_TOKEN / N8N_* / METRICOOL_* / GITHUB_TOKEN (+ every shared app
+    key) are visible to all modules via os.environ.get() — the credential-guard
+    pattern every M2/M3 module uses.
     """
     for k, v in _load_env(paths).items():
-        if v and k not in os.environ:
+        if v and k not in os.environ and not (exclude_prefixes and k.startswith(exclude_prefixes)):
             os.environ[k] = v
 
 
-_inject_env(AGENCY_ENV_CANDIDATES)  # makes META_ACCESS_TOKEN / N8N_* / METRICOOL_* / GITHUB_TOKEN visible
+_inject_env(AGENCY_ENV_CANDIDATES)  # agency's own keys (incl its META/GHL) — unchanged
+# Also expose the OTHER businesses' shared APP keys (RETELL, APIFY, TWILIO,
+# HIGGSFIELD, STRIPE, GOOGLE, N8N, RESEND, OPENAI…) process-wide so ANY agent can
+# call an app whose key lives in another folder. Per-business families
+# (GHL_/META_/METRICOOL_/ANTHROPIC/daycare-internal) stay isolated; first-writer-
+# wins keeps agency's values authoritative for anything genuinely shared.
+_inject_env(DAYCARE_ENV_CANDIDATES, exclude_prefixes=_SHARED_ISOLATED)
+_inject_env(ENV_CANDIDATES, exclude_prefixes=_SHARED_ISOLATED)
 
 # Back-compat: the rest of the app (marcus_engine, analytics, brain, etc.) uses
 # these module-level WHOLESALE handles. Behavior unchanged.
