@@ -98,6 +98,75 @@ function AgGhlPanel() {
   );
 }
 
+// Per-client request-portal link. Each client gets their OWN token-scoped link
+// (?c=<id>&k=<token>) — they only ever see + submit their own requests, so nothing
+// is cross-contaminated between clients. `compact` = a one-tap generate+copy button
+// (for the client row); full = the labeled panel (for the client form).
+function AgPortalLink({ clientId, compact }) {
+  const [url, setUrl] = useStateAg("");
+  const [busy, setBusy] = useStateAg(false);
+  const [copied, setCopied] = useStateAg(false);
+  const [err, setErr] = useStateAg(null);
+
+  async function gen(rotate) {
+    if (!clientId) { setErr("Save the client first"); return; }
+    if (rotate && !window.confirm("Generate a NEW link? This client's current link stops working.")) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await window.apiPost("/api/agency/portal/token", { clientId, rotate: !!rotate });
+      if (r && r.url) {
+        setUrl(r.url);
+        try { await navigator.clipboard.writeText(r.url); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch (e) {}
+        return r.url;
+      }
+      setErr((r && r.error) || "Failed");
+    } catch (e) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+  async function copy() {
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1600); }
+    catch (e) { window.prompt("Copy this link:", url); }
+  }
+
+  if (compact) {
+    return (
+      <button className="tab" style={{ padding: "5px 10px", fontSize: 12, color: copied ? "var(--green)" : undefined }}
+        disabled={busy} onClick={() => gen(false)} title="Generate + copy this client's private request-portal link">
+        {copied ? "Link copied ✓" : (busy ? "…" : "🔗 Portal link")}
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--card-2)" }}>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>🔗 Client Request Portal</div>
+      <div className="faint" style={{ fontSize: 11, marginBottom: 10 }}>
+        This client's own private link. They submit + track only their own edit requests — nothing is shared
+        between clients. Send it once; it keeps working until you regenerate it.
+      </div>
+      {!clientId && <div className="faint" style={{ fontSize: 12 }}>Save the client first, then generate their link.</div>}
+      {clientId && !url && (
+        <button className="tab" disabled={busy} onClick={() => gen(false)}
+          style={{ background: "#8B5CF6", color: "#fff", fontWeight: 700, borderColor: "transparent" }}>
+          {busy ? "Generating…" : "Generate portal link"}
+        </button>
+      )}
+      {url && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input readOnly value={url} onClick={(e) => e.target.select()} style={{ ...agInp, fontFamily: "var(--mono, monospace)", fontSize: 12 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="tab" onClick={copy} style={{ color: copied ? "var(--green)" : undefined }}>
+              {copied ? "Copied ✓" : "Copy link"}</button>
+            <button className="tab" disabled={busy} onClick={() => gen(true)} style={{ color: "var(--muted)" }}>Regenerate</button>
+          </div>
+        </div>
+      )}
+      {err && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 6 }}>{err}</div>}
+    </div>
+  );
+}
+
 // Add / edit a client. onSaved() refreshes the parent list.
 function AgClientForm({ initial, onSaved, onCancel }) {
   const blankWs = { repo: "", branch: "", liveUrl: "", stack: "", brand: "", assets: "", accessNotes: "" };
