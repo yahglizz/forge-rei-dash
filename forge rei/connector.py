@@ -2749,6 +2749,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/workflow/decision",
                                    "/api/agency/eco/generate",
                                    "/api/agency/eco/decision",
+                                   "/api/agency/eco/image",
                                    "/api/agency/approval/decision",
                                    "/api/agency/agents/chat",
                                    "/api/agency/agents/task",
@@ -2957,6 +2958,9 @@ class Handler(BaseHTTPRequestHandler):
                     account=body.get("account"), client=body.get("client"))
             elif parsed.path == "/api/agency/eco/decision":
                 result = agency_eco.decision(body.get("id"), body.get("action"))
+            elif parsed.path == "/api/agency/eco/image":
+                result = agency_eco.generate_concept_image(
+                    body.get("id"), body.get("conceptIndex", 0), body.get("prompt"))
             elif parsed.path == "/api/agency/approval/decision":
                 result = agency_approvals_io.decide(
                     body.get("id"), body.get("action"))

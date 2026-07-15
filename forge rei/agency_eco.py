@@ -660,6 +660,84 @@ def approve_ad(rec_id, concept_index=0):
     return out
 
 
+def image_ready():
+    """True only when Eco can ACTUALLY generate an image (a Higgsfield key is wired,
+    shared with Nova). Never claim generation works otherwise."""
+    try:
+        import higgsfield_io
+        return higgsfield_io.ready(_hf_key())
+    except Exception:
+        return False
+
+
+def _hf_key():
+    """Higgsfield key for the agency side: env → agency.env → shared scan (daycare.env).
+    One Higgsfield account serves every ad agent, so this deliberately falls back to
+    wherever the operator pasted the single key."""
+    try:
+        import higgsfield_io
+        creds = {}
+        for p in AGENCY_ENV_CANDIDATES:
+            try:
+                if p.is_file():
+                    for line in p.read_text().splitlines():
+                        line = line.strip()
+                        if line.startswith("HIGGSFIELD_API_KEY=") and not line.startswith("#"):
+                            creds["HIGGSFIELD_API_KEY"] = line.split("=", 1)[1].strip()
+                    break
+            except Exception:
+                continue
+        return higgsfield_io.resolve_key(creds)
+    except Exception:
+        return ""
+
+
+def generate_concept_image(rec_id, concept_index=0, prompt=None):
+    """Eco generates a creative image for one of its ad concepts via the SHARED Higgsfield
+    helper (same key Nova uses). Uses the concept's creativeDirection + headline as the
+    prompt unless an explicit prompt is given. Stores the resulting URL on the concept and
+    returns it. INTERNAL creative asset — creating it never launches or spends (ad launch
+    stays the separate, approval-gated approve_ad path).
+
+    Returns {ok:True, imageUrl, concept} or {ok:False, error}.
+    """
+    with _LOCK:
+        d = _load()
+        r = next((x for x in d.get("sets", []) if x.get("id") == rec_id), None)
+    if not r:
+        return {"ok": False, "error": f"rec set {rec_id!r} not found"}
+    nxt = r.get("next", [])
+    if not nxt:
+        return {"ok": False, "error": "rec set has no concepts"}
+    idx = max(0, min(int(concept_index or 0), len(nxt) - 1))
+    concept = nxt[idx]
+
+    if not prompt:
+        bits = [concept.get("creativeDirection", ""), concept.get("headline", ""),
+                concept.get("angle", "")]
+        prompt = ". ".join(b for b in bits if b).strip()
+    if not prompt:
+        return {"ok": False, "error": "concept has no creativeDirection/headline to build a prompt from"}
+
+    try:
+        import higgsfield_io
+        res = higgsfield_io.generate_image(prompt, key=_hf_key(),
+                                           extra={"quality": "high", "resolution": "2k"})
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"higgsfield_io failed: {e}"}
+    if not res.get("ok"):
+        return {"ok": False, "error": res.get("error", "image generation failed")}
+
+    url = res["imageUrl"]
+    with _LOCK:
+        d = _load()
+        r2 = next((x for x in d.get("sets", []) if x.get("id") == rec_id), None)
+        if r2 is not None and idx < len(r2.get("next", [])):
+            r2["next"][idx]["imageUrl"] = url
+            _save(d)
+    return {"ok": True, "imageUrl": url, "concept": concept.get("title", f"Concept {idx + 1}")}
+
+
 def competitor_research(client=None, extra_context=""):
     """Public wrapper for competitor analysis — called by the /api/agency/eco/competitor route.
 
