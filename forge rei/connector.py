@@ -905,6 +905,8 @@ HAWK = dropship_agents.HawkEngine()
 BLAZE = dropship_agents.BlazeEngine()
 OTTO = dropship_agents.OttoEngine()
 
+import mission_control  # noqa: E402 — cross-business front-door snapshot (read-only)
+
 
 def _daycare_blast_transport(recipient, text):
     """Wire-send ONE family blast SMS through the daycare's own GHL sub-account.
