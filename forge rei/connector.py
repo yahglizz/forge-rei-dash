@@ -818,6 +818,17 @@ def api_graphify_stats(_q):
     return graphify_io.stats()
 
 
+def api_graphify_build_status(_q):
+    """Last box-native rebuild result (builtAt/nodes/links/byRepo). Presence of
+    graphify_build means the live builder is wired; builtAt=None until first run."""
+    try:
+        import graphify_build
+        return {"ok": True, **graphify_build.status(),
+                "everyMin": graphify_build.REBUILD_EVERY // 60}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
 # ---------------------------------------------------------------------------
 # Weekly review agent (LLM, parallel)
 # ---------------------------------------------------------------------------
@@ -2344,6 +2355,7 @@ ROUTES = {
     "/api/graphify/graph": api_graphify_graph,
     "/api/graphify/search": api_graphify_search,
     "/api/graphify/stats": api_graphify_stats,
+    "/api/graphify/build": api_graphify_build_status,
     "/api/review/latest": api_review_latest,
     "/api/style/latest": api_style_latest,
     "/api/outbound/status": api_outbound_status,
@@ -2439,6 +2451,7 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", 
             "/api/brain/tree", "/api/brain/note", "/api/brain/search",
             "/api/brain/recent", "/api/brain/status", "/api/brain/graph",
             "/api/graphify/graph", "/api/graphify/search", "/api/graphify/stats",
+            "/api/graphify/build",
             "/api/outbound/agent", "/api/outbound/voices", "/api/agents/list",
             "/api/followup/status", "/api/today", "/api/audit/legit",
             "/api/marcus/directives",
@@ -2728,6 +2741,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/chat",
                                    "/api/hub/task",
                                    "/api/hub/task/update",
+                                   "/api/graphify/rebuild",
                                    "/api/coach/broadcast",
                                    "/api/coach/ask",
                                    "/api/goals/update",
@@ -2904,6 +2918,11 @@ class Handler(BaseHTTPRequestHandler):
                                               body.get("note", ""))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
+            elif parsed.path == "/api/graphify/rebuild":
+                # Rebuild the knowledge graph now (internal + read-only over the repo/
+                # vault; writes only the graph file). Handy after a big code change.
+                import graphify_build
+                result = graphify_build.build_graph()
             elif parsed.path == "/api/coach/broadcast":
                 # An agent shares a transferable INSIGHT (text) with a peer/business/all.
                 result = agents_hub.coach_broadcast(body.get("from"), body.get("insight"),
