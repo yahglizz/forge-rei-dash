@@ -35,6 +35,13 @@ on a DigitalOcean box. Three workspaces (profile switcher):
 - **REI (wholesale):** Dashboard, Leads, Conversations, Pipeline, Agents, Brain, etc.
 - **Agency (ClientForge):** Clients, Edit Requests, Agents, Ads, Social, Approvals, Brain.
 - **Daycare:** Dashboard, Solomon/Nora/Nova, Children, Billing, Growth, Brain, etc. (§10)
+- **Dropship (FORGE Dropship):** Dashboard, Agents (Midas/Hawk/Blaze/Otto), Products,
+  Orders, Inventory, Suppliers, Ads & Creative, Customers, Analytics, Brain, Settings.
+  Shopify + AutoDS + Meta store. Folder `forge-dropship/`; engines `dropship_director.py`
+  (Midas) + `dropship_agents.py` (Hawk/Blaze/Otto); integration clients
+  `dropship_shopify.py` / `dropship_autods.py`; routes `/api/dropship/*`. Same
+  propose→approve discipline — every ad launch, supplier order, listing edit, and
+  customer message stays one-tap gated.
 
 Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
 - `forge rei/` — the app (this folder): all `.py` engines + `.jsx` UI + `deploy/`.
@@ -169,6 +176,10 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 | **Solomon** (`daycare_director.py`) | Daycare | Head of all daycare agents — reads the whole center, produces the ranked operating brief, owns enrollment, delegates the rest via the bus. See §10. | Never texts/invoices/launches ads/writes the DB. Proposes + delegates. Self-improves. |
 | **Nora** (`daycare_family.py`) | Daycare | Keeps the roster organized (new enrollments, data gaps, capacity/ratio) + follows up on family comms after a Text Blast. Reports to Solomon. | Never texts/writes records. Proposes only. Self-improves. |
 | **Nova** (`daycare_adops.py`) | Daycare | Campaign health, competitor intel, creative direction for the daycare's Meta ads. Reports to Solomon. | Never launches/spends/generates creative herself. Recommends only. Self-improves. |
+| **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director.** Reads the whole store (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Delegations). Owns product strategy, delegates to Hawk/Blaze/Otto. | Never acts outward. Proposes + delegates. Self-improves. |
+| **Hawk** (`dropship_agents.py`) | Dropship | Product research — scores ideas / hunts winners on margin + real demand signal. Reports to Midas. | Never sources/lists/spends. Proposes only. Self-improves. |
+| **Blaze** (`dropship_agents.py`) | Dropship | Creative & ads — Meta performance read + ad concepts (reuses the agency Meta engine via a locked env-swap). Reports to Midas. | Never launches/changes budget. Recommends + drafts. Self-improves. |
+| **Otto** (`dropship_agents.py`) | Dropship | Fulfillment & support — order/inventory/tracking health + drafts customer replies. Reports to Midas. | Never orders/messages/refunds. Flags + drafts. Self-improves. |
 
 Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls), `brain_io`
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back

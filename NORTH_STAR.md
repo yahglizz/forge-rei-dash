@@ -217,7 +217,7 @@ Shared infra used by every agent above: `review_agent._claude`/`review_agent.MOD
 loader — see §4a of `CLAUDE.md`), `skill_forge.py` (agents propose skill/
 constitution improvements; a human always adopts).
 
-## 7. Env & Integrations Map
+## 8. Env & Integrations Map
 
 Names and purposes only — **never a value**. Every real key lives in a
 git-ignored `*.env` file; every folder below ships a tracked `*.env.example`
@@ -250,16 +250,26 @@ then shared), `NOVA_ANTHROPIC_API_KEY` (same).
 names as agency, separate file/account), `FAMILY_APP_URL`,
 `FORGE_DAYCARE_AUTOADMIN`, `FORGE_DAYCARE_ALLOW_HTTP` (both loopback-only).
 
+**Dropship-only** (`forge-dropship/config/dropship.env`, blank = mock until
+filled): `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_ADMIN_TOKEN`, `SHOPIFY_API_VERSION`,
+`AUTODS_API_KEY`, `AUTODS_STORE_ID`, `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_MAP`
+(same var names as agency/daycare, separate file/account — Blaze reads them only
+through a per-call env-swap so they never leak across workspaces),
+`DROPSHIP_ANTHROPIC_API_KEY` (optional, falls back to shared). Not-yet stubs:
+`TIKTOK_*`, `KLAVIYO_API_KEY`, `GA4_*`, `AFTERSHIP_API_KEY`, `GHL_API_KEY`/
+`GHL_LOCATION_ID`, `HIGGSFIELD_*`, `METRICOOL_USER_TOKEN`.
+
 **Telegram (cross-cutting alerts, not a business):** `TELEGRAM_BOT_TOKEN`,
 `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_IDS`.
 
 **Runtime knobs (not secret):** `FORGE_HOST`/`FORGE_PORT`, `FORGE_VAULT`,
 `FORGE_MARCUS` (box-only loop gate), `FORGE_QUIET_HOURS`/`FORGE_TZ`/
 `FORGE_QUIET_START`/`FORGE_QUIET_END`, `FORGE_SOLOMON_BRIEF_EVERY_H`,
-`FORGE_NORA_BRIEF_EVERY_H`, `FORGE_NOVA_BRIEF_EVERY_H`, every `*_LEARN_EVERY`/
-`*_LEARN_GAP_MIN` self-improvement cadence pair.
+`FORGE_NORA_BRIEF_EVERY_H`, `FORGE_NOVA_BRIEF_EVERY_H`,
+`FORGE_DROPSHIP_BRIEF_EVERY_H`, every `*_LEARN_EVERY`/`*_LEARN_GAP_MIN`
+self-improvement cadence pair.
 
-## 8. How This Document Is Used
+## 9. How This Document Is Used
 
 Every agent's system prompt is built in this order, top to bottom, each layer
 outranking nothing below it in authority but framing everything below it:
@@ -269,8 +279,8 @@ outranking nothing below it in authority but framing everything below it:
 2. **The creed** (`agent_creed.block(business)`) — evidence discipline, in that
    business's own language. Never sees this file; this file never sees it
    either — they're injected independently, in sequence.
-3. **Top skills / decision-loop** (Solomon/Nora/Nova only, via `_load_skills()`)
-   — the operating judgment layer.
+3. **Top skills / decision-loop** (Solomon/Nora/Nova and Midas, via
+   `_load_skills()`) — the operating judgment layer.
 4. **The learned playbook** (`_playbook_only()`) — what `learn()` rewrites.
 
 `north_star.py` (`forge rei/`) loads this file the same way `daycare_context.py`
@@ -295,7 +305,7 @@ itself wouldn't be one.
   and `push.sh` (it lives at the repo root, which neither script syncs by
   default — the copy step is explicit).
 
-## 9. Maintenance Discipline
+## 10. Maintenance Discipline
 
 Keep this current the same way `daycare-context.md` asks its owner to: when a
 business fact changes (a new location, a persona retired, a new agent added,
