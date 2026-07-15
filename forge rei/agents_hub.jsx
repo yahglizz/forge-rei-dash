@@ -92,7 +92,25 @@ function HubChat({ agent, agents }) {
   const [text, setText] = useStateHub("");
   const [busy, setBusy] = useStateHub(false);
   const [err, setErr] = useStateHub(null);
+  const [models, setModels] = useStateHub(null);   // which chat models are available
+  const [curModel, setCurModel] = useStateHub(""); // the one picked for THIS agent
   const endRef = useRefHub(null);
+
+  // Load the model menu for this agent (Claude default; ChatGPT via Codex if set up).
+  useEffectHub(() => {
+    let dead = false;
+    window.apiGet("/api/models?agent=" + encodeURIComponent(agent.id))
+      .then((d) => { if (!dead) { setModels(d || null); setCurModel((d && d.current) || ""); } })
+      .catch(() => { if (!dead) setModels(null); });
+    return () => { dead = true; };
+  }, [agent.id]);
+
+  function pickModel(m) {
+    if (!m) return;
+    setCurModel(m); setErr(null);
+    // A preference, not an action — persisted server-side; next send uses it.
+    window.apiPost("/api/models/set", { agent: agent.id, model: m }).catch(() => {});
+  }
 
   // Always coerce to an array. There is no error boundary in this app (in-browser Babel),
   // so a payload shaped differently than expected doesn't degrade — it blanks the tab.
@@ -129,6 +147,21 @@ function HubChat({ agent, agents }) {
 
   const color = HUB_BIZ_COLOR[agent.business] || "#4F7CFF";
   return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    {models && Array.isArray(models.providers) && <div style={{
+      display: "flex", alignItems: "center", gap: 8, padding: "0 2px 8px", fontSize: 12,
+    }}>
+      <span style={{ opacity: .55, whiteSpace: "nowrap" }}>Model</span>
+      <select className="input" value={curModel} onChange={(e) => pickModel(e.target.value)}
+        title="Who answers — Claude, or your ChatGPT via the Codex CLI"
+        style={{ flex: 1, maxWidth: 300, padding: "4px 8px", fontSize: 12 }}>
+        {models.providers.map((p) => <optgroup key={p.id}
+          label={p.label + (p.ready ? "" : " — " + (p.note || "unavailable"))}>
+          {(p.models || []).map((m) => <option key={m.id} value={m.id} disabled={!p.ready}>
+            {m.label}{p.ready ? "" : " · unavailable"}
+          </option>)}
+        </optgroup>)}
+      </select>
+    </div>}
     <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", minHeight: 0 }}>
       {!msgs.length && !busy && <div style={{ opacity: .55, fontSize: 13, padding: 18, textAlign: "center" }}>
         Talk to {agent.name} — ask what they're seeing, or give them work.
