@@ -59,6 +59,8 @@ def bootstrap(cid, token):
             "priority": r.get("priority"),
             "status": r.get("status"),
             "detail": r.get("detail"),
+            "pageUrl": r.get("pageUrl"),
+            "outcome": r.get("outcome"),
             "createdAt": r.get("createdAt"),
             "updatedAt": r.get("updatedAt"),
             "history": r.get("history") or [],
@@ -105,6 +107,9 @@ def submit(cid, token, payload):
         "type": rtype,
         "priority": priority,
         "detail": detail,
+        "pageUrl": (payload.get("pageUrl") or "").strip()[:300],
+        "outcome": (payload.get("outcome") or "").strip()[:_MAX_DETAIL],
+        "references": (payload.get("references") or "").strip()[:_MAX_DETAIL],
         "source": "portal",
     })
 

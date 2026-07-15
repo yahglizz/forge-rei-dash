@@ -408,24 +408,47 @@ def _claude_draft_fields(req, workspace=None, repo_files=None):
     }
 
 
-def generate_draft(request_id):
-    """Build a draft plan from a request and queue it for approval.
+def _resolve_repo_context(req):
+    """Load the client's workspace + the current repo files most relevant to this
+    request, so Dyson can write a real change. Best-effort → ({}, [], '')."""
+    workspace, repo_files, repo = {}, [], ""
+    try:
+        import agency_io
+        import agency_deploy
+        workspace = agency_io.get_workspace(req.get("clientId")) or {}
+        repo = agency_deploy.resolve_repo(
+            {"id": req.get("clientId"), "workspace": workspace})
+        if repo:
+            hints = [h for h in (req.get("pageUrl", ""), req.get("title", "")) if h]
+            repo_files = agency_deploy.read_repo_context(repo, hint_paths=hints)
+    except Exception:
+        pass
+    return workspace, repo_files, repo
 
-    M1: tries a real Claude call grounded on Dyson's brain playbook first.
-    Falls back to _PLAYBOOK heuristics if no key or Claude call/parse fails.
-    The draft shape is identical in both paths — nothing downstream changes.
+
+def generate_draft(request_id):
+    """Assess a request, and — when a repo is linked and it's agent-appropriate —
+    WRITE the actual file changes, then queue it for approval (one-tap PR → deploy).
+
+    Tries the real Claude path (grounded on the playbook + the client's repo);
+    falls back to _PLAYBOOK heuristics on no key / read / parse failure. Never
+    raises out — a failure just yields a plan-only draft.
     """
     req = agency_requests_io.get_request(request_id)
     if not req:
         return {"error": "request not found"}
 
-    # Try the real Claude path first; fall back silently on any failure.
+    workspace, repo_files, repo = _resolve_repo_context(req)
+
     try:
-        summary, risk, risk_reason, affected, steps = _claude_draft_fields(req)
+        fields = _claude_draft_fields(req, workspace=workspace, repo_files=repo_files)
         source = "claude"
     except Exception:
-        summary, risk, risk_reason, affected, steps = _heuristic_draft_fields(req)
+        fields = _heuristic_draft_fields(req)
         source = "heuristic"
+
+    files = fields.get("files") or []
+    reco = fields.get("recommendation") or "operator"
 
     with _LOCK:
         d = _load()
@@ -437,11 +460,18 @@ def generate_draft(request_id):
             "clientId": req.get("clientId"),
             "clientName": req.get("clientName"),
             "title": f"Plan: {req.get('title')}",
-            "summary": summary,
-            "affected": affected,
-            "risk": risk,
-            "riskReason": risk_reason,
-            "steps": steps,
+            "summary": fields.get("summary", ""),
+            "affected": fields.get("affected", []),
+            "risk": fields.get("risk", "medium"),
+            "riskReason": fields.get("riskReason", ""),
+            "steps": fields.get("steps", []),
+            "complexity": fields.get("complexity", ""),
+            "estimate": fields.get("estimate", ""),
+            "recommendation": reco,
+            "recommendationReason": fields.get("recommendationReason", ""),
+            "repo": repo,
+            "files": files,                       # staged edits — ship() commits these
+            "filesCount": len(files),
             "status": "draft",
             "source": source,
             "createdAt": now,
@@ -449,24 +479,34 @@ def generate_draft(request_id):
         d.setdefault("drafts", []).append(draft)
         _save(d)
 
-    # Hand off to the human-in-the-loop Approval Center.
+    # Hand off to the human-in-the-loop Approval Center. Note who Dyson thinks
+    # should do it + whether the change is already written (filesCount).
+    who = ("🤖 Agent can handle" if reco == "agent" else "👤 Recommend you do this")
+    staged = (f" · {len(files)} file(s) written, ready to ship"
+              if files else (" · no repo linked" if not repo else " · plan only"))
     agency_approvals_io.add(
-        "dyson", draft["id"], draft["title"], draft["summary"],
-        client=req.get("clientName", ""), risk=risk,
-        payload={"affected": [a["name"] for a in affected],
-                 "steps": draft["steps"], "requestId": request_id})
+        "dyson", draft["id"], draft["title"],
+        f"{who}. {fields.get('summary', '')}{staged}",
+        client=req.get("clientName", ""), risk=draft["risk"],
+        payload={"affected": [a["name"] for a in draft["affected"]],
+                 "steps": draft["steps"], "requestId": request_id,
+                 "recommendation": reco, "filesCount": len(files),
+                 "changedFiles": [f["path"] for f in files]})
 
     # Announce the plan on the agent bus → Telegram offers Approve & ship / Reject.
-    # Best-effort; a bus/Telegram hiccup must never fail draft generation.
     try:
         import agent_bus
         agent_bus.send(
             "dyson", "all", "note",
-            f"🛠 Dyson drafted a plan for {req.get('clientName', 'a client')}: {req.get('title')}",
+            f"🛠 Dyson assessed {req.get('clientName', 'a client')}: {req.get('title')}",
             {"type": "dyson_plan", "draftId": draft["id"], "requestId": request_id,
              "client": req.get("clientName", ""), "title": req.get("title", ""),
-             "risk": risk, "summary": summary,
-             "steps": [str(s) for s in steps][:6]},
+             "risk": draft["risk"], "summary": draft["summary"],
+             "recommendation": reco,
+             "recommendationReason": draft["recommendationReason"],
+             "filesCount": len(files),
+             "changedFiles": [f["path"] for f in files][:6],
+             "steps": [str(s) for s in draft["steps"]][:6]},
         )
     except Exception:
         pass
