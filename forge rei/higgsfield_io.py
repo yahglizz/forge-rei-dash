@@ -23,7 +23,17 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 HF_BASE = "https://platform.higgsfield.ai/v1"
-DEFAULT_MODEL = os.environ.get("HIGGSFIELD_MODEL", "gpt_image_2")
+# Verified live 2026-07-15: the text2image "soul" endpoint is the working path. It takes
+# {"params": {...}} and returns a job to poll (statuses Queued/InProgress/Completed →
+# result images[0].url). The old /v1/image/generate {"model":...} shape 404'd ("Model not
+# found") — that endpoint wants registered model UUIDs, not friendly names.
+HF_ENDPOINT = os.environ.get("HIGGSFIELD_ENDPOINT", "/v1/text2image/soul")
+DEFAULT_MODEL = os.environ.get("HIGGSFIELD_MODEL", "soul")
+# width_and_height is a strict enum on Higgsfield's side; 1536x1536 is a verified value.
+DEFAULT_SIZE = os.environ.get("HIGGSFIELD_SIZE", "1536x1536")
+DEFAULT_QUALITY = os.environ.get("HIGGSFIELD_QUALITY", "1080p")
+_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")  # past Cloudflare (403 code 1010)
 
 # Where the shared key may live (one paste in any of these works for all agents).
 _ENV_CANDIDATES = [
