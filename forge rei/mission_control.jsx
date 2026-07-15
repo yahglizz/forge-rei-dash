@@ -137,18 +137,31 @@ function mcUSD(n) {
     { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function McSpendRow({ item, onSaved, onEnter }) {
+const MC_FIELD = {
+  fontSize: 12.5, padding: "5px 8px", borderRadius: 8, background: "var(--card-2)",
+  border: "1px solid transparent", color: "var(--text)",
+};
+
+function McSpendRow({ item, onSaved }) {
+  const [name, setName] = useStateMC(item.name || "");
   const [amount, setAmount] = useStateMC(String(item.amount != null ? item.amount : ""));
   const [cadence, setCadence] = useStateMC(item.cadence || "monthly");
+  const [note, setNote] = useStateMC(item.note || "");
   const [busy, setBusy] = useStateMC(false);
-  const dirty = String(item.amount) !== amount.trim() || (item.cadence || "monthly") !== cadence;
+  const [saved, setSaved] = useStateMC(false);
 
-  async function save(nextCadence) {
-    const cad = nextCadence || cadence;
+  const dirty = name !== (item.name || "")
+    || String(item.amount) !== amount.trim()
+    || (item.cadence || "monthly") !== cadence
+    || note !== (item.note || "");
+
+  async function save() {
+    if (!name.trim()) return;
     setBusy(true);
     try {
       await window.apiPost("/api/spend/save",
-        { id: item.id, amount: parseFloat(amount) || 0, cadence: cad });
+        { id: item.id, name: name.trim(), amount: parseFloat(amount) || 0, cadence, note });
+      setSaved(true); setTimeout(() => setSaved(false), 1600);
       onSaved();
     } catch (e) { /* transient — the next refresh reconciles */ }
     setBusy(false);
@@ -161,26 +174,38 @@ function McSpendRow({ item, onSaved, onEnter }) {
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0",
-      borderTop: "1px solid var(--card-2)", opacity: busy ? 0.55 : 1 }}>
-      <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, whiteSpace: "nowrap",
-        overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</div>
-      <span className="faint" style={{ fontSize: 12 }}>$</span>
-      <input value={amount} inputMode="decimal" placeholder="0.00"
-        onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-        onBlur={() => dirty && save()}
-        onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }}
-        style={{ width: 66, textAlign: "right", fontSize: 12.5, padding: "4px 6px",
-          borderRadius: 8, background: "var(--card-2)", border: "1px solid transparent",
-          color: "var(--text)" }} className="tabnum" />
-      <select value={cadence} onChange={(e) => { setCadence(e.target.value); save(e.target.value); }}
-        style={{ fontSize: 11.5, padding: "4px 4px", borderRadius: 8,
-          background: "var(--card-2)", border: "1px solid transparent", color: "var(--text)" }}>
-        <option value="monthly">/mo</option>
-        <option value="yearly">/yr</option>
-      </select>
-      <button onClick={remove} title="Remove" className="faint"
-        style={{ fontSize: 15, lineHeight: 1, padding: "0 4px", cursor: "pointer" }}>×</button>
+    <div style={{ padding: "8px 0", borderTop: "1px solid var(--card-2)", opacity: busy ? 0.55 : 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input value={name} placeholder="Name"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+          style={{ ...MC_FIELD, flex: 1, minWidth: 0 }} />
+        <span className="faint" style={{ fontSize: 12 }}>$</span>
+        <input value={amount} inputMode="decimal" placeholder="0.00"
+          onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+          onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+          style={{ ...MC_FIELD, width: 66, textAlign: "right", padding: "5px 6px" }} className="tabnum" />
+        <select value={cadence} onChange={(e) => setCadence(e.target.value)}
+          style={{ ...MC_FIELD, padding: "5px 4px", fontSize: 11.5 }}>
+          <option value="monthly">/mo</option>
+          <option value="yearly">/yr</option>
+        </select>
+        <button onClick={save} disabled={!dirty || busy} className="tab"
+          style={{ fontSize: 11.5, padding: "5px 10px", flexShrink: 0,
+            background: dirty ? "var(--accent, #4F7CFF)" : "var(--card-2)",
+            color: dirty ? "#fff" : "var(--text-3)", cursor: dirty ? "pointer" : "default",
+            opacity: dirty || saved ? 1 : 0.6 }}>
+          {saved ? "Saved ✓" : "Save"}
+        </button>
+        <button onClick={remove} title="Remove" className="faint"
+          style={{ fontSize: 15, lineHeight: 1, padding: "0 4px", cursor: "pointer" }}>×</button>
+      </div>
+      <input value={note} placeholder="what it's for (optional)"
+        onChange={(e) => setNote(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+        className="faint"
+        style={{ ...MC_FIELD, width: "100%", marginTop: 5, fontSize: 11.5,
+          background: "transparent", padding: "3px 0" }} />
     </div>
   );
 }
@@ -189,13 +214,16 @@ function McSpendGroup({ group, onSaved }) {
   const [adding, setAdding] = useStateMC(false);
   const [name, setName] = useStateMC("");
   const [amount, setAmount] = useStateMC("");
+  const [cadence, setCadence] = useStateMC("monthly");
+  const [note, setNote] = useStateMC("");
 
+  function resetAdd() { setName(""); setAmount(""); setCadence("monthly"); setNote(""); setAdding(false); }
   async function add() {
-    if (!name.trim()) { setAdding(false); return; }
+    if (!name.trim()) { resetAdd(); return; }
     try {
       await window.apiPost("/api/spend/save",
-        { name: name.trim(), amount: parseFloat(amount) || 0, business: group.id });
-      setName(""); setAmount(""); setAdding(false); onSaved();
+        { name: name.trim(), amount: parseFloat(amount) || 0, cadence, note, business: group.id });
+      resetAdd(); onSaved();
     } catch (e) { /* ignore */ }
   }
 
@@ -215,20 +243,33 @@ function McSpendGroup({ group, onSaved }) {
       {group.items.map((it) => <McSpendRow key={it.id} item={it} onSaved={onSaved} />)}
 
       {adding ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0 2px",
-          borderTop: "1px solid var(--card-2)" }}>
-          <input autoFocus value={name} placeholder="What is it? (e.g. Metricool)"
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") setAdding(false); }}
-            style={{ flex: 1, minWidth: 0, fontSize: 12.5, padding: "5px 8px", borderRadius: 8,
-              background: "var(--card-2)", border: "1px solid transparent", color: "var(--text)" }} />
-          <input value={amount} inputMode="decimal" placeholder="0.00"
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-            onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") setAdding(false); }}
-            style={{ width: 66, textAlign: "right", fontSize: 12.5, padding: "5px 6px", borderRadius: 8,
-              background: "var(--card-2)", border: "1px solid transparent", color: "var(--text)" }}
-            className="tabnum" />
-          <button className="tab" style={{ fontSize: 11.5, padding: "5px 10px" }} onClick={add}>Add</button>
+        <div style={{ padding: "8px 0 2px", borderTop: "1px solid var(--card-2)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input autoFocus value={name} placeholder="What is it? (e.g. Metricool)"
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") resetAdd(); }}
+              style={{ ...MC_FIELD, flex: 1, minWidth: 0 }} />
+            <span className="faint" style={{ fontSize: 12 }}>$</span>
+            <input value={amount} inputMode="decimal" placeholder="0.00"
+              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+              onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") resetAdd(); }}
+              style={{ ...MC_FIELD, width: 66, textAlign: "right", padding: "5px 6px" }} className="tabnum" />
+            <select value={cadence} onChange={(e) => setCadence(e.target.value)}
+              style={{ ...MC_FIELD, padding: "5px 4px", fontSize: 11.5 }}>
+              <option value="monthly">/mo</option>
+              <option value="yearly">/yr</option>
+            </select>
+            <button className="tab" style={{ fontSize: 11.5, padding: "5px 10px", flexShrink: 0,
+              background: "var(--accent, #4F7CFF)", color: "#fff" }} onClick={add}>Add</button>
+            <button onClick={resetAdd} title="Cancel" className="faint"
+              style={{ fontSize: 15, lineHeight: 1, padding: "0 4px", cursor: "pointer" }}>×</button>
+          </div>
+          <input value={note} placeholder="what it's for (optional)"
+            onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") resetAdd(); }}
+            className="faint"
+            style={{ ...MC_FIELD, width: "100%", marginTop: 5, fontSize: 11.5,
+              background: "transparent", padding: "3px 0" }} />
         </div>
       ) : (
         <button onClick={() => setAdding(true)} className="faint"
