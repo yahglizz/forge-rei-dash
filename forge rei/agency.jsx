@@ -100,13 +100,15 @@ function AgGhlPanel() {
 
 // Add / edit a client. onSaved() refreshes the parent list.
 function AgClientForm({ initial, onSaved, onCancel }) {
-  const blank = { name: "", business: "", site: "", plan: "Growth", mrr: "", status: "lead", services: [], ghlContactId: "", notes: "" };
-  const [f, setF] = useStateAg(initial ? { ...blank, ...initial, mrr: initial.mrr || "", services: initial.services || [] } : blank);
+  const blankWs = { repo: "", branch: "", liveUrl: "", stack: "", brand: "", assets: "", accessNotes: "" };
+  const blank = { name: "", business: "", site: "", plan: "Growth", mrr: "", status: "lead", services: [], ghlContactId: "", notes: "", workspace: blankWs };
+  const [f, setF] = useStateAg(initial ? { ...blank, ...initial, mrr: initial.mrr || "", services: initial.services || [], workspace: { ...blankWs, ...(initial.workspace || {}) } } : blank);
   const toggleSvc = (s) => setF((st) => ({ ...st, services: (st.services || []).includes(s)
     ? st.services.filter((x) => x !== s) : [...(st.services || []), s] }));
   const [saving, setSaving] = useStateAg(false);
   const [err, setErr] = useStateAg(null);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const setWs = (k, v) => setF((s) => ({ ...s, workspace: { ...(s.workspace || blankWs), [k]: v } }));
 
   async function submit() {
     if (!f.name.trim()) { setErr("Name is required"); return; }

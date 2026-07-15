@@ -146,7 +146,10 @@
           + '<div class="field"><label>Type</label><select id="f-type">'+ (s.types||[]).map(function(t){return '<option>'+esc(t)+'</option>';}).join("") +'</select></div>'
           + '<div class="field"><label>Priority</label><select id="f-pri">'+ (s.priorities||[]).map(function(p){return '<option value="'+p+'">'+(PRI[p]||p)+'</option>';}).join("") +'</select></div>'
         + '</div>'
-        + '<div class="field"><label>Details</label><textarea id="f-detail" maxlength="4000" placeholder="Tell us exactly what to change — the more detail, the faster we ship it. Paste links or describe the section."></textarea></div>'
+        + '<div class="field"><label>Which page? <span style="color:var(--faint);font-weight:400">(link or name)</span></label><input id="f-page" maxlength="300" placeholder="e.g. the Home page, or yoursite.com/about"/></div>'
+        + '<div class="field"><label>What exactly should change?</label><textarea id="f-detail" maxlength="4000" placeholder="Be specific — the more detail, the more we can do right away. e.g. Replace the headline with X, swap the team photo, change the button to say Y."></textarea></div>'
+        + '<div class="field"><label>What should it look like / do afterward? <span style="color:var(--faint);font-weight:400">(optional)</span></label><textarea id="f-outcome" maxlength="4000" placeholder="The end result you want. e.g. Visitors can book a call from the homepage."></textarea></div>'
+        + '<div class="field"><label>Reference links <span style="color:var(--faint);font-weight:400">(optional)</span></label><input id="f-refs" maxlength="4000" placeholder="Examples, inspiration, or where the new text/images live"/></div>'
         + '<div class="btn-row"><button class="btn" id="f-submit">Send request</button></div>'
         + '<div id="f-msg"></div>'
       + '</div>'
@@ -169,7 +172,10 @@
       c: CID, k: TOKEN, title: title,
       type: document.getElementById("f-type").value,
       priority: document.getElementById("f-pri").value,
-      detail: document.getElementById("f-detail").value
+      pageUrl: document.getElementById("f-page").value,
+      detail: document.getElementById("f-detail").value,
+      outcome: document.getElementById("f-outcome").value,
+      references: document.getElementById("f-refs").value
     }).then(function(res){
       btn.disabled=false; btn.textContent="Send request";
       if(res && res.ok){

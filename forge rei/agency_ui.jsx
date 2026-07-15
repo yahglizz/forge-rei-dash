@@ -104,7 +104,7 @@ function UiClientSelector({ value, onChange, allowAll = false, label = "Client" 
 // ---- reusable edit-request form (used by Requests tab + Client Dashboard) ----
 function UiRequestForm({ initial, lockClient = false, onSaved, onCancel }) {
   const blank = { clientId: "", clientName: "", title: "", type: "Website Edit",
-                  priority: "medium", detail: "" };
+                  priority: "medium", detail: "", pageUrl: "", outcome: "", references: "" };
   const [f, setF] = useStateUi(initial ? { ...blank, ...initial } : blank);
   const [saving, setSaving] = useStateUi(false);
   const [err, setErr] = useStateUi(null);
@@ -139,10 +139,23 @@ function UiRequestForm({ initial, lockClient = false, onSaved, onCancel }) {
             {UI_PRIORITIES.map((p) => <option key={p} value={p}>{UI_PRIORITY[p].label}</option>)}
           </select></div>
       </div>
-      <div style={uiField}><span style={uiLabel}>Details</span>
+      <div style={uiField}><span style={uiLabel}>Which page (link or name)</span>
+        <input style={uiInp} value={f.pageUrl} onChange={(e) => set("pageUrl", e.target.value)}
+          placeholder="e.g. Home, or example.com/about" /></div>
+      <div style={uiField}><span style={uiLabel}>What exactly should change?</span>
         <textarea style={{ ...uiInp, minHeight: 70, resize: "vertical", fontFamily: "inherit" }}
           value={f.detail} onChange={(e) => set("detail", e.target.value)}
-          placeholder="Describe the change you want…" /></div>
+          placeholder="Be specific — the more detail, the more Dyson can do on its own…" /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={uiField}><span style={uiLabel}>Desired outcome (optional)</span>
+          <textarea style={{ ...uiInp, minHeight: 52, resize: "vertical", fontFamily: "inherit" }}
+            value={f.outcome} onChange={(e) => set("outcome", e.target.value)}
+            placeholder="What it should look like / do after" /></div>
+        <div style={uiField}><span style={uiLabel}>Reference links (optional)</span>
+          <textarea style={{ ...uiInp, minHeight: 52, resize: "vertical", fontFamily: "inherit" }}
+            value={f.references} onChange={(e) => set("references", e.target.value)}
+            placeholder="Examples, inspiration, asset links" /></div>
+      </div>
       {err && <div style={{ color: "var(--red)", fontSize: 12.5 }}>{err}</div>}
       <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
         {onCancel && <button className="tab" onClick={onCancel}>Cancel</button>}
