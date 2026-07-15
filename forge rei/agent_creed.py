@@ -29,6 +29,7 @@ CREED_FILE = {
     "wholesale": "wholesale-evidence-discipline.md",
     "agency": "agency-evidence-discipline.md",
     "daycare": "daycare-evidence-discipline.md",
+    "dropship": "dropship-evidence-discipline.md",
 }
 
 # Every sibling agent folder + the brain. The vault is searched LAST so its copy wins
@@ -39,6 +40,7 @@ _SEED_DIRS = [
     HERE.parent / "forge-agency" / "skills",
     HERE.parent / "forge-solomon" / "skills",
     HERE.parent / "forge-daycare" / "skills",
+    HERE.parent / "forge-dropship" / "skills",
 ]
 
 _cache = {}   # business -> (mtime_sig, text)

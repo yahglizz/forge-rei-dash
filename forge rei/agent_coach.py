@@ -37,8 +37,9 @@ BUSINESS_OF = {
     "scout": "wholesale", "marcus": "wholesale", "atlas": "wholesale",
     "dyson": "agency", "eco": "agency",
     "solomon": "daycare", "nora": "daycare", "nova": "daycare",
+    "midas": "dropship", "hawk": "dropship", "blaze": "dropship", "otto": "dropship",
 }
-BUSINESSES = {"wholesale", "agency", "daycare"}
+BUSINESSES = {"wholesale", "agency", "daycare", "dropship"}
 
 _FEED_REL = "Coaching/feed.md"
 _COACH_KIND = "coach"
