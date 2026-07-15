@@ -357,6 +357,9 @@ function MissionControl({ onEnter, workspaces = [] }) {
               {cards.map((c) => <McCard key={c.id} card={c} onEnter={onEnter} />)}
             </div>
 
+            {/* Monthly spend — the operator's own subscriptions, grouped by business */}
+            <McSpend />
+
             <div className="faint" style={{ fontSize: 11, textAlign: "right" }}>
               auto-refreshes every 30s — pick a business above or open one below to dive in
             </div>
