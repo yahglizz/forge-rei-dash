@@ -95,9 +95,28 @@ function App() {
   const [wsId, setWsId] = useStateA(() => localStorage.getItem("forge_ws") || "rei");
   const ws = wsList.find((w) => w.id === wsId) || wsList[0];
 
+  // Mission Control is the front door: the app opens here (a cross-business review)
+  // unless the operator already picked a business this session. "home" = landing.
+  const [view, setView] = useStateA(() => localStorage.getItem("forge_view") || "home");
   const [active, setActive] = useStateA(ws.nav[0][0]);
   const titleMap = Object.fromEntries(ws.nav);
   window.GoTo = setActive;  // let widgets jump pages via "View all"
+
+  function goHome() {
+    setView("home");
+    localStorage.setItem("forge_view", "home");
+  }
+  // Enter a business from Mission Control — optionally landing on a specific page.
+  function enterBusiness(id, page) {
+    const next = wsList.find((w) => w.id === id) || wsList[0];
+    setWsId(next.id);
+    localStorage.setItem("forge_ws", next.id);
+    setActive(page && next.nav.some((n) => n[0] === page) ? page : next.nav[0][0]);
+    setView("workspace");
+    localStorage.setItem("forge_view", "workspace");
+  }
+  window.forgeGoHome = goHome;         // let any page return to the front door
+  window.forgeEnterBusiness = enterBusiness;
   // Jump straight into a seller thread from anywhere (Scout chat, dashboard widget).
   window.openConversation = (lead) => {
     window.__forgeOpenConvo = lead;
@@ -116,13 +135,17 @@ function App() {
   const pageMap = PAGE_MAPS[ws.id] || REI_PAGES;
   const renderPage = pageMap[active] || pageMap[ws.nav[0][0]];
 
+  if (view === "home") {
+    return <window.MissionControl onEnter={enterBusiness} workspaces={wsList} />;
+  }
+
   return (
     <div className={"app app-" + ws.id} style={{ "--workspace-accent": ws.accent }}>
       <window.Sidebar
-        active={active} onNav={setActive} goal={0}
+        active={active} onNav={setActive} goal={0} onHome={goHome}
         brand={ws.brand} sub={ws.sub} nav={ws.nav} accent={ws.accent} showMarcus={ws.id === "rei"} />
       <div className="main">
-        <window.Header title={titleMap[active]} workspaces={wsList} current={ws} onSwitch={switchWs} />
+        <window.Header title={titleMap[active]} workspaces={wsList} current={ws} onSwitch={switchWs} onHome={goHome} />
         <div className="content">
           <div key={ws.id + ":" + active} className="page-wrap">
             {ws.id === "daycare" ? <window.DaycareWorkspace>{renderPage()}</window.DaycareWorkspace> : renderPage()}

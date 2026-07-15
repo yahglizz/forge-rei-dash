@@ -27,18 +27,25 @@ function Logo({ accent = "#4F7CFF" }) {
   );
 }
 
-function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, showMarcus = true, accent = "#4F7CFF" }) {
+function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, showMarcus = true, accent = "#4F7CFF", onHome }) {
   const Icons = window.Icons;
   const items = nav || window.NAV;
   return (
     <aside className="sidebar">
-      <div className="brand">
+      <button className="brand" onClick={() => onHome && onHome()} title="Back to Mission Control"
+        style={{ width: "100%", textAlign: "left", cursor: onHome ? "pointer" : "default", background: "transparent" }}>
         <div className="brand-mark" style={{ boxShadow: "0 0 0 1px " + accent + "40, 0 12px 32px -14px " + accent }}><Logo accent={accent} /></div>
         <div>
           <div className="brand-name">{brand}</div>
           <div className="brand-sub">{sub}</div>
         </div>
-      </div>
+      </button>
+      {onHome && (
+        <button className="nav-item" onClick={() => onHome()} style={{ marginBottom: 4 }}>
+          <Icons.Activity size={18} />
+          <span>Mission Control</span>
+        </button>
+      )}
 
       <nav className="nav">
         {items.map(([key, label]) => {
@@ -77,7 +84,7 @@ function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, sh
   );
 }
 
-function Header({ title, workspaces = [], current = {}, onSwitch = () => {} }) {
+function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onHome }) {
   const Icons = window.Icons;
   const [menu, setMenu] = useStateSh(false);
   const daycare = current.id === "daycare";
