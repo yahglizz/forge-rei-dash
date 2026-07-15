@@ -35,7 +35,6 @@ import time
 from pathlib import Path
 
 import review_agent
-import model_router
 import agent_coach
 
 HERE = Path(__file__).resolve().parent
@@ -202,10 +201,9 @@ def _daycare_chat(agent_id, message, history):
     brief and playbook, so the agent you talk to is the same one that runs the loops,
     not a generic assistant wearing its name."""
     key = review_agent._api_key()
-    if not key and model_router.needs_key(agent_id):
+    if not key:
         return {"needsKey": True,
-                "reply": "Add an Anthropic key to daycare.env so I can answer "
-                         "(or pick ChatGPT/Codex in the model menu)."}
+                "reply": "Add an Anthropic key to daycare.env so I can answer."}
     meta = _BY_ID[agent_id]
     eng = _engine(agent_id)
 
@@ -253,8 +251,7 @@ def _daycare_chat(agent_id, message, history):
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = model_router.complete(system, user, max_tokens=700,
-                                      agent=agent_id, key=key)
+        reply = review_agent._claude(key, system, user, max_tokens=700)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}", "agent": meta["name"]}
     return {"reply": reply or "On it.", "agent": meta["name"]}

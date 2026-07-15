@@ -207,10 +207,9 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
                     "agent": "Scout", "audit": report}
 
     key = review_agent._api_key()
-    if not key and model_router.needs_key(agent_id):
+    if not key:
         return {"needsKey": True,
-                "reply": "Add ANTHROPIC_API_KEY to ghl.env so I can answer "
-                         "(or pick ChatGPT/Codex in the model menu)."}
+                "reply": "Add ANTHROPIC_API_KEY to ghl.env so I can answer."}
 
     # Scout = the lead-triage brain. Answers from live triage data (scout.json).
     if agent_id == "scout":
@@ -233,8 +232,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         )
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
-            reply = model_router.complete(system, user, max_tokens=600,
-                                          agent="scout", key=key)
+            reply = review_agent._claude(key, system, user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Hit an error reaching my brain: {e}"}
         # One consult round: Scout may [ASK MARCUS] mid-answer (agent_collab logs
@@ -274,8 +272,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         )
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
-            reply = model_router.complete(system, user, max_tokens=600,
-                                          agent="atlas", key=key)
+            reply = review_agent._claude(key, system, user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Hit an error reaching my brain: {e}"}
         try:
@@ -307,8 +304,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = model_router.complete(system, user, max_tokens=500,
-                                      agent=agent_id, key=key)
+        reply = review_agent._claude(key, system, user, max_tokens=500)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}"}
     return {"reply": reply or "On it.", "agent": name}

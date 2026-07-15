@@ -20,7 +20,6 @@ import time
 from pathlib import Path
 
 import review_agent  # _claude(key, system, user, max_tokens), MODEL, _api_key()
-import model_router  # operator can pick Claude / ChatGPT(Codex) per agent in chat
 
 HERE = Path(__file__).resolve().parent
 STATE = HERE / "marcus_state" / "agency_agents.json"
@@ -297,11 +296,10 @@ def chat(agent_id, message, history_in=None):
     if not message:
         return {"reply": "Tell me what you need and I'll get on it."}
     key, src = _agency_key()
-    if not key and model_router.needs_key(agent_id):
+    if not key:
         return {"needsKey": True, "connected": False,
                 "reply": "I'm not connected yet — add ANTHROPIC_API_KEY to "
-                         "forge-agency/config/agency.env (or pick ChatGPT/Codex "
-                         "in the model menu), then reload."}
+                         "forge-agency/config/agency.env, then reload."}
 
     system = (agent["system"] + "\n\n=== LIVE CONTEXT ===\n" + _context(agent_id)
               + _skills_block(agent_id))
@@ -315,8 +313,7 @@ def chat(agent_id, message, history_in=None):
             pass
     user = _history_block(history_in) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = model_router.complete(system, user, max_tokens=700,
-                                      agent=agent_id, key=key)
+        reply = review_agent._claude(key, system, user, max_tokens=700)
     except Exception as e:  # noqa: BLE001
         return {"connected": True, "reply": f"Hit an error reaching my brain: {e}"}
 
