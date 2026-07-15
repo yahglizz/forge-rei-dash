@@ -910,6 +910,7 @@ NOVA = daycare_adops.NovaEngine()
 # --- FORGE Dropship (4th business) — Shopify/AutoDS/Meta store + the Midas crew ------
 import dropship_shopify  # noqa: E402 — Shopify Admin REST bridge (read-only; writes gated)
 import dropship_autods  # noqa: E402 — AutoDS sourcing/orders bridge (read-only; orders gated)
+import dropship_pipiads  # noqa: E402 — PiPiAds trending-products bridge (read-only, add-key)
 import dropship_io  # noqa: E402 — dropship local store (watchlist + settings)
 import dropship_context  # noqa: E402 — dropship business brief (read FIRST by every dropship agent)
 import dropship_director  # noqa: E402 — Midas, the dropship head agent (e-com director)

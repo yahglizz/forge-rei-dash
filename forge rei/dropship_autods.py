@@ -145,6 +145,51 @@ def products(limit: int = 50) -> dict:
         return {"ok": False, "configured": True, "error": e.message, "products": []}
 
 
+def marketplace(limit: int = 25, query: str = "") -> dict:
+    """AutoDS Marketplace / Product Finding Hub — winning + trending products (the
+    'product watcher' the operator asked for). This is a PAID add-on on AutoDS and may
+    not be exposed on every account tier's API, so the path is env-overridable
+    (``AUTODS_MARKETPLACE_PATH``) and confirmed against the docs when the key is added.
+    Read-only; mock until keyed; honest error, never fabricated rows."""
+    if not configured():
+        return _mock({"products": []})
+    try:
+        path = dropship_env.get("AUTODS_MARKETPLACE_PATH", "/marketplace/products/")
+        params = {"limit": max(1, min(int(limit), 100))}
+        q = (query or "").strip()
+        if q:
+            params["search"] = q
+        sid = _store_id()
+        if sid:
+            params["store_id"] = sid
+        data = _req("GET", path, params)
+        rows = data.get("results") if isinstance(data, dict) else data
+        rows = rows if isinstance(rows, list) else []
+        out = []
+        for r in rows if isinstance(rows, list) else []:
+            if not isinstance(r, dict):
+                continue
+            out.append({
+                "name": (r.get("title") or r.get("name") or r.get("product_name")
+                         or "(untitled)"),
+                "sourceUrl": r.get("url") or r.get("product_url") or "",
+                "supplier": "AutoDS marketplace",
+                "cost": r.get("buy_price") or r.get("cost") or r.get("price"),
+                "signal": {
+                    "sellPrice": r.get("sell_price") or r.get("recommended_price"),
+                    "sold": r.get("sold_count") or r.get("orders") or r.get("sold"),
+                    "category": r.get("category") or r.get("category_name"),
+                    "supplierName": r.get("supplier") or r.get("source"),
+                },
+                "raw": r,
+            })
+        return {"ok": True, "configured": True, "source": "autods",
+                "products": out, "count": len(out)}
+    except AutoDSError as e:
+        return {"ok": False, "configured": True, "source": "autods",
+                "error": e.message, "products": []}
+
+
 def orders(limit: int = 50) -> dict:
     if not configured():
         return _mock({"orders": []})
