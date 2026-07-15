@@ -34,11 +34,20 @@ const DAYCARE_NAV = [
   ["Reports", "Reports"], ["Brain", "Brain"], ["Settings", "Settings"],
 ];
 
+// FORGE Dropship workspace — Shopify/AutoDS/Meta store run by the Midas agent crew.
+const DROPSHIP_NAV = [
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"],
+  ["Products", "Products"], ["Orders", "Orders"], ["Inventory", "Inventory"],
+  ["Suppliers", "Suppliers"], ["Ads", "Ads & Creative"], ["Customers", "Customers"],
+  ["Analytics", "Analytics"], ["Brain", "Brain"], ["Settings", "Settings"],
+];
+
 // Workspaces the profile switcher offers. REI = the existing dash; Agency = new.
 const WORKSPACES = [
   { id: "rei",    brand: "FORGE", sub: "REI OS",    accent: "#4F7CFF", tag: "Real Estate", nav: NAV },
   { id: "agency", brand: "FORGE", sub: "AI Agency", accent: "#8B5CF6", tag: "ClientForge",  nav: AGENCY_NAV },
   { id: "daycare", brand: "FORGE", sub: "DAYCARE",  accent: "#2DD4BF", tag: "Daycare Operations", nav: DAYCARE_NAV },
+  { id: "dropship", brand: "FORGE", sub: "DROPSHIP", accent: "#F97316", tag: "Dropshipping", nav: DROPSHIP_NAV },
 ];
 
 const KPIS = [
@@ -86,4 +95,4 @@ const STAGE_COLOR = {
   "Qualified": "#22C55E", "Offer Sent": "#F59E0B", "Contract": "#EC4899", "Closed": "#64748B",
 };
 
-Object.assign(window, { NAV, AGENCY_NAV, DAYCARE_NAV, WORKSPACES, KPIS, HOT_LEADS, TASKS_SEED, PIPELINE_COLS, WORKFORCE, ACTIVITY, LEADS_TABLE, STAGE_COLOR });
+Object.assign(window, { NAV, AGENCY_NAV, DAYCARE_NAV, DROPSHIP_NAV, WORKSPACES, KPIS, HOT_LEADS, TASKS_SEED, PIPELINE_COLS, WORKFORCE, ACTIVITY, LEADS_TABLE, STAGE_COLOR });

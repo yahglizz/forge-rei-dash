@@ -82,6 +82,13 @@ const Icons = {
   Lock: (p) => <I {...p}><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></I>,
   Shield: (p) => <I {...p}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="m9 12 2 2 4-4"/></I>,
   Logout: (p) => <I {...p}><path d="M10 17l5-5-5-5M15 12H3M21 3v18h-7"/></I>,
+
+  // --- FORGE Dropship icons ---
+  Products: (p) => <I {...p}><path d="M21 8 12 3 3 8l9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></I>,
+  Orders: (p) => <I {...p}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></I>,
+  Inventory: (p) => <I {...p}><path d="M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></I>,
+  Suppliers: (p) => <I {...p}><rect x="1" y="4" width="14" height="12" rx="1"/><path d="M15 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></I>,
+  Customers: (p) => <I {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></I>,
 };
 
 window.Icons = Icons;
