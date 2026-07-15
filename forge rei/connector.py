@@ -2726,6 +2726,8 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path.startswith("/api/daycare/"):
             return self._handle_daycare_post(parsed.path)
+        if parsed.path.startswith("/api/dropship/"):
+            return self._handle_dropship_post(parsed.path)
         if not (parsed.path.startswith("/api/marcus/")
                 or parsed.path in ("/api/send", "/api/review/run",
                                    "/api/reply/draft", "/api/reply/send",
@@ -3688,6 +3690,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/daycare/"):
             return self._handle_daycare_get(path, urllib.parse.parse_qs(parsed.query))
+
+        if path.startswith("/api/dropship/"):
+            return self._handle_dropship_get(path, urllib.parse.parse_qs(parsed.query))
 
         if path.startswith("/api/"):
             handler = ROUTES.get(path)
