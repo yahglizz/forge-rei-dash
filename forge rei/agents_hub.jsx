@@ -129,21 +129,6 @@ function HubChat({ agent, agents }) {
 
   const color = HUB_BIZ_COLOR[agent.business] || "#4F7CFF";
   return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-    {models && Array.isArray(models.providers) && <div style={{
-      display: "flex", alignItems: "center", gap: 8, padding: "0 2px 8px", fontSize: 12,
-    }}>
-      <span style={{ opacity: .55, whiteSpace: "nowrap" }}>Model</span>
-      <select className="input" value={curModel} onChange={(e) => pickModel(e.target.value)}
-        title="Who answers — Claude, or your ChatGPT via the Codex CLI"
-        style={{ flex: 1, maxWidth: 300, padding: "4px 8px", fontSize: 12 }}>
-        {models.providers.map((p) => <optgroup key={p.id}
-          label={p.label + (p.ready ? "" : " — " + (p.note || "unavailable"))}>
-          {(p.models || []).map((m) => <option key={m.id} value={m.id} disabled={!p.ready}>
-            {m.label}{p.ready ? "" : " · unavailable"}
-          </option>)}
-        </optgroup>)}
-      </select>
-    </div>}
     <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", minHeight: 0 }}>
       {!msgs.length && !busy && <div style={{ opacity: .55, fontSize: 13, padding: 18, textAlign: "center" }}>
         Talk to {agent.name} — ask what they're seeing, or give them work.
