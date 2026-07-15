@@ -10,7 +10,6 @@ Powers the Agents tab (iMessage-style, but the left list is your AGENTS, not lea
 Graceful: no ANTHROPIC_API_KEY -> {"needsKey": True}.
 """
 import review_agent
-import model_router
 import retell_io
 import marcus_chat
 import scout_triage
