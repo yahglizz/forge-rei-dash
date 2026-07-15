@@ -235,9 +235,22 @@ def list_drafts():
         return {"drafts": drafts, "count": len(drafts)}
 
 
+# Which request types the agent can typically handle end-to-end vs. hand to you.
+_OPERATOR_TYPES = ("Integration", "AI Agent", "New Page")
+
+
+def _reco_heuristic(rtype, risk):
+    """Who should do it? Bigger / higher-risk → operator; quick + contained → agent."""
+    if risk == "high" or rtype in _OPERATOR_TYPES:
+        return ("operator",
+                "Bigger or higher-risk job — recommend you take this one personally.")
+    return ("agent",
+            "Quick, contained change — the agent can do this and open a PR for you.")
+
+
 def _heuristic_draft_fields(req):
-    """Build draft fields from _PLAYBOOK heuristics. Returns (summary, risk,
-    riskReason, affected, steps) — exact same shape as the Claude path."""
+    """Build draft fields from _PLAYBOOK heuristics. Returns a dict (same shape as
+    the Claude path). No repo access here → files stays empty (plan only)."""
     rtype = req.get("type") or "Other"
     play = _PLAYBOOK.get(rtype, _PLAYBOOK["Other"])
     risk = _bump_risk(play["risk"], req.get("priority"))
@@ -249,7 +262,14 @@ def _heuristic_draft_fields(req):
     affected = [{"type": t, "name": n} for (t, n) in play["affected"]]
     summary = (f"Dyson drafted a {len(play['steps'])}-step plan for "
                f"this {rtype.lower()} ({risk} risk).")
-    return summary, risk, risk_reason, affected, list(play["steps"])
+    reco, reco_reason = _reco_heuristic(rtype, risk)
+    return {
+        "summary": summary, "risk": risk, "riskReason": risk_reason,
+        "affected": affected, "steps": list(play["steps"]),
+        "complexity": risk, "estimate": "",
+        "recommendation": reco, "recommendationReason": reco_reason,
+        "files": [],
+    }
 
 
 def _claude_draft_fields(req):
