@@ -74,7 +74,21 @@ const DAYCARE_PAGES = {
   Settings:   () => <window.DaycareSettings />,
 };
 
-const PAGE_MAPS = { rei: REI_PAGES, agency: AGENCY_PAGES, daycare: DAYCARE_PAGES };
+const DROPSHIP_PAGES = {
+  Dashboard:  () => <window.DropshipDashboard />,
+  Agents:     () => <window.DropshipAgents />,
+  Products:   () => <window.DropshipProducts />,
+  Orders:     () => <window.DropshipOrders />,
+  Inventory:  () => <window.DropshipInventory />,
+  Suppliers:  () => <window.DropshipSuppliers />,
+  Ads:        () => <window.DropshipAds />,
+  Customers:  () => <window.DropshipSupport />,
+  Analytics:  () => <window.DropshipAnalytics />,
+  Brain:      () => <window.BrainPage />,
+  Settings:   () => <window.DropshipSettings />,
+};
+
+const PAGE_MAPS = { rei: REI_PAGES, agency: AGENCY_PAGES, daycare: DAYCARE_PAGES, dropship: DROPSHIP_PAGES };
 
 function App() {
   const wsList = window.WORKSPACES;

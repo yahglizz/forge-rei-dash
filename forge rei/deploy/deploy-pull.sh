@@ -60,7 +60,7 @@ rsync -a --delete \
   "$APP/" "$LIVE/forge-rei/"
 
 echo "==> sync non-secret agent folders (config/*.env preserved on box)"
-for d in forge-agency forge-scout forge-marcus forge-solomon forge-nora forge-nova forge-telegram forge-daycare; do
+for d in forge-agency forge-scout forge-marcus forge-solomon forge-nora forge-nova forge-telegram forge-daycare forge-dropship; do
   if [ -d "$REPO/$d" ]; then
     rsync -a --exclude '__pycache__' --exclude 'config' --exclude '*.env' \
       "$REPO/$d/" "$LIVE/$d/"
