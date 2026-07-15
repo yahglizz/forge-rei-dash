@@ -46,6 +46,55 @@ function DswAddModal({ item, onClose, onSaved }) {
   </window.DsModal>;
 }
 
+function DswSignalLine(sig) {
+  if (!sig || typeof sig !== "object") return "";
+  const parts = [];
+  const push = (k, v) => { if (v !== null && v !== undefined && v !== "") parts.push(k + ": " + v); };
+  push("ads", sig.adCount); push("revenue/GMV", sig.revenueTrend); push("sold", sig.sold);
+  push("sell price", sig.sellPrice); push("category", sig.category);
+  push("impressions", sig.impressions); push("country", sig.country); push("first seen", sig.firstSeen);
+  push("supplier", sig.supplierName);
+  return parts.join(" · ");
+}
+
+// Pull REAL trending / winning products from whatever ad-spy source is keyed (PiPiAds /
+// AutoDS marketplace). Manual pull only — NEVER auto-polls, so it never spends quota on a
+// timer. One-tap adds a product to the watchlist (carrying its real signal) for Hawk.
+function DswTrending({ onAdded }) {
+  const [q, setQ] = useStateDsw("");
+  const [data, setData] = useStateDsw(null);
+  const [loading, setLoading] = useStateDsw(false);
+  const [err, setErr] = useStateDsw("");
+  const [adding, setAdding] = useStateDsw(null);
+  const [open, setOpen] = useStateDsw(false);
+  const pull = async () => {
+    setLoading(true); setErr("");
+    try { const r = await window.DsRequest("/trending?limit=24&q=" + encodeURIComponent(q.trim())); setData(r); setOpen(true); }
+    catch (e) { setErr(e.message); } finally { setLoading(false); }
+  };
+  const add = async (p) => {
+    setAdding(p.sourceUrl + p.name);
+    const notes = [DswSignalLine(p.signal), p.source ? "via " + p.source : ""].filter(Boolean).join(" — ");
+    try {
+      await window.DsRequest("/watchlist/save", { body: { name: p.name, supplier: p.supplier || p.source || "", cost: p.cost || "", sourceUrl: p.sourceUrl || "", notes } });
+      if (onAdded) onAdded();
+    } catch (e) { window.alert(e.message); } finally { setAdding(null); }
+  };
+  const products = (data && data.products) || [];
+  const sources = (data && data.sources) || [];
+  const anyKeyed = data && data.configured;
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head">
+      <div><div className="card-title">Pull trending products</div><div className="faint">Real winners from PiPiAds / AutoDS ad-spy — the API spend that matters. Manual pull only.</div></div>
+      <div className="dsw-pull-row"><input className="dsw-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="keyword / category (optional)" onKeyDown={(e) => { if (e.key === "Enter") pull(); }} /><button className="dc-primary" disabled={loading} onClick={pull}>{loading ? "Pulling…" : "Pull trending"}</button></div>
+    </div>
+    {err && <div className="dc-form-error">{err}</div>}
+    {open && !anyKeyed && <div className="dsw-addkey"><b>No trend source keyed yet.</b><span>{(data && data.detail) || "Add PIPIADS_API_KEY (pipispy.com) or AUTODS_API_KEY to dropship.env to pull real trending products. $0 until then."}</span></div>}
+    {open && anyKeyed && <div className="dsw-src-line">{sources.filter((s) => s.configured).map((s) => <span key={s.source} className={"dsw-src " + (s.ok ? "ok" : "bad")}>{s.source}: {s.ok ? (s.count + " found") : (s.error || "error")}</span>)}</div>}
+    {open && anyKeyed && products.length ? <div className="dsw-trend-list">{products.map((p, i) => <div key={i} className="dsw-trend-item"><div className="dsw-trend-main"><b>{p.name}</b>{DswSignalLine(p.signal) && <small className="faint">{DswSignalLine(p.signal)}</small>}<small className="faint">source: {p.source}{p.cost ? " · cost " + p.cost : ""}</small></div><div className="dsw-trend-actions">{p.sourceUrl && <a className="link" href={p.sourceUrl} target="_blank" rel="noreferrer">View ↗</a>}<button className="dc-outline dsw-add-btn" disabled={adding === (p.sourceUrl + p.name)} onClick={() => add(p)}>{adding === (p.sourceUrl + p.name) ? "Adding…" : "＋ Watch"}</button></div></div>)}</div> : (open && anyKeyed ? <div className="dc-inline-empty">No trending products returned for that query.</div> : null)}
+  </div>;
+}
+
 function DswChips({ label, items, color }) {
   if (!Array.isArray(items) || !items.length) return null;
   return <div className="dsw-chips-row"><small className="faint">{label}</small><div className="dsw-chips">{items.map((t, i) => <span key={i} className="dsw-chip" style={color ? { borderColor: color + "55", color } : null}>{String(t)}</span>)}</div></div>;
@@ -120,7 +169,8 @@ function DropshipWatch() {
       <window.DsKpi label="Top pick" value={top ? (top.score + "/10") : "—"} sub={top ? top.name : "score some products"} icon="Flame" color={DswScoreColor(top && top.score)}/>
     </div>
     {err && <div className="dc-form-error">{err}</div>}
-    <window.DsState loading={watch.loading} error={watch.error} empty={!items.length} icon="Watch" title="Nothing on watch yet" copy="Add a product you spotted — then let Hawk score it." onRetry={watch.refresh}>
+    <DswTrending onAdded={watch.refresh} />
+    <window.DsState loading={watch.loading} error={watch.error} empty={!items.length} icon="Watch" title="Nothing on watch yet" copy="Pull trending products above, or add one you spotted — then let Hawk score it." onRetry={watch.refresh}>
       <div className="dsw-grid">
         {items.map((it) => <DswCard key={it.id} item={it} scoring={scoringId === it.id} onScore={score} onEdit={(i) => { setEditing(i); setOpen(true); }} onDelete={del} />)}
       </div>

@@ -406,7 +406,23 @@ input, textarea { font-family: inherit; }
 .dsw-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .dsw-chip { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line, rgba(255,255,255,.12)); color: var(--text-2, var(--text-3)); }
 .dsw-raw { white-space: pre-wrap; font-size: 11.5px; line-height: 1.5; margin: 0; }
-@media (max-width: 900px) { .dsw-grid { grid-template-columns: 1fr; } }
+.dsw-pull-row { display: flex; gap: 8px; align-items: center; }
+.dsw-search { min-width: 220px; }
+.dsw-addkey { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 10px; background: rgba(249,115,22,.07); border: 1px solid rgba(249,115,22,.22); font-size: 12px; }
+.dsw-addkey b { font-size: 12.5px; }
+.dsw-addkey span { color: var(--text-3); }
+.dsw-src-line { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; }
+.dsw-src { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line, rgba(255,255,255,.12)); }
+.dsw-src.ok { color: #22C55E; border-color: rgba(34,197,94,.3); }
+.dsw-src.bad { color: #F87171; border-color: rgba(248,113,113,.3); }
+.dsw-trend-list { display: flex; flex-direction: column; gap: 8px; }
+.dsw-trend-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line, rgba(255,255,255,.07)); }
+.dsw-trend-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dsw-trend-main b { font-size: 13px; font-weight: 650; }
+.dsw-trend-main small { font-size: 10.5px; }
+.dsw-trend-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+.dsw-add-btn { font-size: 11.5px; padding: 6px 11px; white-space: nowrap; }
+@media (max-width: 900px) { .dsw-grid { grid-template-columns: 1fr; } .dsw-pull-row { flex-wrap: wrap; } .dsw-search { min-width: 0; flex: 1; } }
 .dc-table-wrap { overflow: hidden; }
 .dc-status { display: inline-flex; align-items: center; color: #5eead4; background: rgba(45,212,191,.08); border: 1px solid rgba(45,212,191,.14); border-radius: 99px; padding: 3px 8px; font-size: 10.5px; font-weight: 650; }
 .dc-modal-layer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; }
