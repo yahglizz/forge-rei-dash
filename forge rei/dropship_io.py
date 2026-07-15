@@ -62,6 +62,9 @@ def _slim(it):
         "angle": it.get("angle") or "",        # the creative/marketing angle
         "notes": it.get("notes") or "",
         "verdict": it.get("verdict") or "",    # Hawk's test/pass/watch
+        "score": it.get("score"),              # Hawk's 1–10 upside rating
+        "analysis": it.get("analysis") or None,  # Hawk's full watch analysis
+        "analyzedAt": it.get("analyzedAt"),
         "dateAdded": it.get("dateAdded"),
         "dateUpdated": it.get("dateUpdated"),
     }
@@ -123,6 +126,42 @@ def save_item(it):
         d["watchlist"] = items
         _save(d)
         return {"ok": True, "item": _slim(saved)}
+
+
+def get_item(iid):
+    """Return the FULL stored item (not slimmed) for an agent to analyze, or None."""
+    if not iid:
+        return None
+    with _LOCK:
+        d = _load()
+        return next((x for x in d.get("watchlist", []) if x.get("id") == iid), None)
+
+
+def save_analysis(iid, analysis):
+    """Persist Hawk's watch analysis onto a watchlist item. Pulls the 1–10 score and
+    verdict out of the analysis so the card can show them at a glance. Internal +
+    reversible (re-score any time) — no outward action."""
+    if not iid:
+        return {"error": "id required"}
+    with _LOCK:
+        d = _load()
+        item = next((x for x in d.get("watchlist", []) if x.get("id") == iid), None)
+        if not item:
+            return {"error": "item not found"}
+        item["analysis"] = analysis if isinstance(analysis, dict) else {"raw": str(analysis)}
+        try:
+            score = int(item["analysis"].get("score"))
+            item["score"] = min(10, max(1, score))
+        except (TypeError, ValueError):
+            item["score"] = None
+        verdict = str(item["analysis"].get("verdict") or "").strip().lower()
+        if verdict in ("test", "pass", "watch"):
+            item["verdict"] = verdict
+        now = int(time.time() * 1000)
+        item["analyzedAt"] = now
+        item["dateUpdated"] = now
+        _save(d)
+        return {"ok": True, "item": _slim(item)}
 
 
 def delete_item(iid):
