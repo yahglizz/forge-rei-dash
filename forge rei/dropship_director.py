@@ -46,6 +46,7 @@ POLL_INTERVAL = 900  # seconds between loop ticks (self-improve + due-brief chec
 _SYSTEMS = [
     ("SHOPIFY_ADMIN_TOKEN", "Shopify (store)"),
     ("AUTODS_API_KEY", "AutoDS (sourcing)"),
+    ("PIPIADS_API_KEY", "PiPiAds (trend spy)"),
     ("META_ACCESS_TOKEN", "Meta Ads"),
     ("KLAVIYO_API_KEY", "Klaviyo (email/SMS)"),
     ("TIKTOK_ACCESS_TOKEN", "TikTok"),

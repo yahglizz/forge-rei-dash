@@ -3780,8 +3780,43 @@ class Handler(BaseHTTPRequestHandler):
                 out["ads"] = {"error": str(e)[:200]}
             return out
 
+        def _trending():
+            """Real trending / winning products from whatever ad-spy sources are keyed
+            (PiPiAds + AutoDS marketplace). This is the paid signal Hawk scores against —
+            mock/'add key' and $0 until a key is present, honest error on failure, never
+            fabricated rows. Read-only."""
+            query = (q.get("q", [""])[0] or "").strip()
+            try:
+                limit = max(1, min(int(q.get("limit", ["20"])[0]), 100))
+            except Exception:
+                limit = 20
+            sources, products = [], []
+            for name, fn in (
+                ("pipiads", lambda: dropship_pipiads.trending(query, limit)),
+                ("autods", lambda: dropship_autods.marketplace(limit, query)),
+            ):
+                try:
+                    r = fn()
+                except Exception as e:  # noqa: BLE001
+                    r = {"ok": False, "source": name, "error": str(e)[:160]}
+                sources.append({"source": name, "configured": bool(r.get("configured")),
+                                "ok": bool(r.get("ok")), "error": r.get("error"),
+                                "count": len(r.get("products") or [])})
+                for p in (r.get("products") or []):
+                    p = dict(p)
+                    p.setdefault("source", name)
+                    products.append(p)
+            any_keyed = any(s["configured"] for s in sources)
+            return {"ok": True, "configured": any_keyed, "query": query,
+                    "sources": sources, "products": products, "count": len(products),
+                    "detail": None if any_keyed else
+                    "Add PIPIADS_API_KEY (pipispy.com) or AUTODS_API_KEY to pull real "
+                    "trending products. Until then this reads mock / add-key."}
+
         handlers = {
             "/api/dropship/overview": _overview,
+            "/api/dropship/trending": _trending,
+            "/api/dropship/pipiads/health": lambda: dropship_pipiads.health(),
             "/api/dropship/products": lambda: dropship_shopify.products(),
             "/api/dropship/orders": lambda: dropship_shopify.orders(),
             "/api/dropship/inventory": lambda: dropship_shopify.inventory(),
