@@ -198,14 +198,43 @@ def _load_skills(agent_id):
         return cached[1] if cached else ""
 
 
+_METHOD_CACHE = {}  # (mtime_sig, text) for the marketing methodology seed
+
+
+def _marketing_methodology():
+    """The distilled Corey-Haines marketing methodology (agency-marketing-methodology.md)
+    — a STABLE floor for how Dyson/Eco market, isolated from _load_skills so learn() can
+    never rewrite it (same rationale as the creed). mtime-cached. Returns "" if absent."""
+    try:
+        p = None
+        for d in SEED_SKILLS_DIRS:
+            cand = d / "agency-marketing-methodology.md"
+            if cand.is_file():
+                p = cand
+                break
+        if not p:
+            return ""
+        sig = p.stat().st_mtime
+        cached = _METHOD_CACHE.get("m")
+        if not cached or cached[0] != sig:
+            text = p.read_text(errors="ignore")
+            _METHOD_CACHE["m"] = (sig, text)
+            return text
+        return cached[1]
+    except Exception:
+        cached = _METHOD_CACHE.get("m")
+        return cached[1] if cached else ""
+
+
 def _skills_block(agent_id):
     """NORTH STAR (the cross-business constitution) + the CREED (agency evidence
-    discipline) + the learned playbook, in that order.
+    discipline) + the MARKETING METHODOLOGY (Corey-Haines floor) + the learned playbook,
+    in that order.
 
-    Neither north_star nor the creed comes from _load_skills — every learn() does
-    ``current = _load_skills(agent_id)`` → "output the FULL UPDATED playbook" → overwrite,
-    so anything reachable through _load_skills is something self-improvement eventually
-    rewrites. Neither must drift, so neither is ever visible to learn().
+    Neither north_star, the creed, nor the methodology comes from _load_skills — every
+    learn() does ``current = _load_skills(agent_id)`` → "output the FULL UPDATED playbook"
+    → overwrite, so anything reachable through _load_skills is something self-improvement
+    eventually rewrites. These stable layers must not drift, so none is visible to learn().
     """
     ns = ""
     try:
@@ -219,11 +248,16 @@ def _skills_block(agent_id):
         creed = agent_creed.block("agency")   # never truncated — it outranks the playbook
     except Exception:
         creed = ""
+    method = _marketing_methodology()
+    method_block = (
+        "\n\n=== MARKETING METHODOLOGY (how to market — a stable floor; apply it, the "
+        "creed still outranks it) ===\n" + method[:3200] if method else ""
+    )
     skills = _load_skills(agent_id)
     if skills:
-        return ns + creed + ("\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n"
-                             + skills[:3000])
-    return ns + creed
+        return ns + creed + method_block + (
+            "\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n" + skills[:3000])
+    return ns + creed + method_block
 
 
 def _history_block(history, limit=10):
