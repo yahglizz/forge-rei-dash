@@ -29,6 +29,11 @@ AGENT_SKILLS = {
     # Daycare — Solomon (head agent) reads/writes his operating playbook; the daycare
     # enrollment engine reads the same learned strategy the brain holds.
     "solomon": ("solomon-playbook.md",),
+    # Dropship — Midas (head) + the specialist crew each keep a learned playbook.
+    "midas": ("midas-playbook.md",),
+    "hawk": ("hawk-playbook.md",),
+    "blaze": ("blaze-playbook.md",),
+    "otto": ("otto-playbook.md",),
 }
 
 
