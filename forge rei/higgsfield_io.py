@@ -89,13 +89,129 @@ def ready(key: str | None = None, secret: str | None = None) -> bool:
     return bool((key or resolve_key()).strip()) and bool((secret or resolve_secret()).strip())
 
 
+# --- soul endpoint plumbing (submit + poll) ----------------------------------
+# HF_BASE already ends in "/v1" and HF_ENDPOINT is a full-from-root path ("/v1/text2image/
+# soul"), so build the submit URL from the ORIGIN to avoid a doubled "/v1".
+_ORIGIN = HF_BASE.split("/v1", 1)[0] or HF_BASE           # https://platform.higgsfield.ai
+_SOUL_URL = _ORIGIN + HF_ENDPOINT                          # …/v1/text2image/soul
+# The submit returns a job/job-set id to poll. The exact poll path is best-effort per the
+# documented spec and MUST be confirmed against the live Higgsfield API — override via env
+# if it differs (e.g. HIGGSFIELD_JOB_URL="https://…/v1/job-sets/{id}").
+_JOB_URL_TMPL = os.environ.get("HIGGSFIELD_JOB_URL", _ORIGIN + "/v1/job-sets/{id}")
+_POLL_INTERVAL = float(os.environ.get("HIGGSFIELD_POLL_INTERVAL", "3"))
+_DONE = {"completed", "complete", "succeeded", "success", "done", "finished", "ready"}
+_FAILED = {"failed", "fail", "error", "errored", "canceled", "cancelled", "rejected", "nsfw"}
+
+
+def _headers(key: str, secret: str) -> dict:
+    # Higgsfield sits behind Cloudflare, which 403s (code 1010) the default Python-urllib
+    # signature. A real browser UA gets past the bot filter. Auth is a PAIR of headers.
+    return {"hf-api-key": key, "hf-secret": secret,
+            "Content-Type": "application/json", "Accept": "application/json",
+            "User-Agent": _UA}
+
+
+def _http_json(url: str, key: str, secret: str, data: bytes | None = None,
+               method: str = "GET", timeout: int = 30) -> dict:
+    req = urllib.request.Request(url, data=data, method=method,
+                                 headers=_headers(key, secret))
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        raw = r.read().decode("utf-8", "ignore")
+    return json.loads(raw) if raw.strip() else {}
+
+
+def _http_err(e: urllib.error.HTTPError) -> str:
+    detail = ""
+    try:
+        detail = e.read().decode("utf-8", "ignore")[:300]
+    except Exception:
+        pass
+    hint = ""
+    if getattr(e, "code", None) in (401, 403):
+        hint = (" — auth rejected; verify the API Key ID + Secret and, if Higgsfield's docs "
+                "name the headers differently, adjust hf-api-key/hf-secret")
+    return f"HTTP {getattr(e, 'code', '?')}{hint}: {detail}"
+
+
+def _deep_find(obj, key_hints: tuple, want_url: bool = False):
+    """Iterative walk of an unknown-shape JSON body. Returns the first string value whose
+    key matches a hint (for URLs, must be http…). Tolerant of the exact soul response
+    nesting, which isn't documented here — so a shape tweak won't silently break us."""
+    stack = [obj]
+    fallback = None
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            for k, v in cur.items():
+                kl = str(k).lower()
+                if isinstance(v, str):
+                    if want_url:
+                        if v.startswith("http"):
+                            if any(h in kl for h in key_hints):
+                                return v
+                            fallback = fallback or v
+                    elif any(h in kl for h in key_hints):
+                        return v
+                elif isinstance(v, (dict, list)):
+                    stack.append(v)
+        elif isinstance(cur, list):
+            for v in cur:
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+    return fallback
+
+
+def _find_url(data) -> str | None:
+    return _deep_find(data, ("url", "image", "result", "output", "asset"), want_url=True)
+
+
+def _find_status(data) -> str:
+    return (_deep_find(data, ("status", "state")) or "").strip().lower()
+
+
+def _find_job_id(data) -> str:
+    if isinstance(data, dict):
+        for k in ("id", "jobSetId", "job_set_id", "jobId", "job_id", "setId"):
+            v = data.get(k)
+            if isinstance(v, str) and v:
+                return v
+        for holder in ("jobs", "job_set", "jobSet", "results", "data"):
+            arr = data.get(holder)
+            if isinstance(arr, list) and arr and isinstance(arr[0], dict):
+                for k in ("id", "jobId", "job_id"):
+                    v = arr[0].get(k)
+                    if isinstance(v, str) and v:
+                        return v
+    return ""
+
+
+def _soul_params(prompt: str, model: str, extra: dict | None) -> dict:
+    """Build the soul-native params. Callers still pass legacy hints
+    ({"quality":"high","resolution":"2k"}) — sanitize so the strict soul enums
+    (width_and_height, quality like "1080p") aren't broken by them."""
+    params = {"prompt": prompt, "width_and_height": DEFAULT_SIZE, "quality": DEFAULT_QUALITY}
+    if model and model != DEFAULT_MODEL:
+        params["model"] = model
+    if isinstance(extra, dict):
+        for k, v in extra.items():
+            if k == "resolution":
+                continue  # legacy; soul sizes via the width_and_height enum
+            if k == "quality" and not (isinstance(v, str) and v.endswith("p")):
+                continue  # soul quality is an enum ("1080p"); drop "high"/"2k"
+            params[k] = v
+    return params
+
+
 def generate_image(prompt: str, key: str | None = None, secret: str | None = None,
                    model: str | None = None, timeout: int = 120,
                    extra: dict | None = None) -> dict:
-    """Generate one image from a text prompt. Returns {ok:True, imageUrl, model} or
-    {ok:False, error, model}. Higgsfield auth is a PAIR — the API Key ID goes in the
-    `hf-api-key` header and the API Key Secret in `hf-secret`. `extra` merges into the
-    request body (e.g. {"quality":"high","resolution":"2k"}). Does NOT raise — every
+    """Generate one image via the Higgsfield **soul** text2image endpoint. Returns
+    {ok:True, imageUrl, model} or {ok:False, error, model}.
+
+    Flow: POST {HF_ENDPOINT} with {"params": {...}} → the API returns a job to poll →
+    poll until Completed (or timeout) → read the result image URL. Auth is a PAIR — the
+    API Key ID in `hf-api-key`, the Secret in `hf-secret`. `extra` carries optional soul
+    params (legacy {"quality","resolution"} hints are sanitized). Does NOT raise — every
     failure comes back as an error dict so callers degrade gracefully (show the prompt,
     don't fake it)."""
     key = (key or resolve_key()).strip()
@@ -108,42 +224,49 @@ def generate_image(prompt: str, key: str | None = None, secret: str | None = Non
                 "model": model}
     if not prompt:
         return {"ok": False, "error": "empty prompt", "model": model}
-    payload = {"model": model, "prompt": prompt}
-    if isinstance(extra, dict):
-        payload.update(extra)
-    body = json.dumps(payload).encode()
-    req = urllib.request.Request(
-        f"{HF_BASE}/image/generate", data=body, method="POST",
-        headers={"hf-api-key": key, "hf-secret": secret, "Content-Type": "application/json",
-                 # Higgsfield sits behind Cloudflare, which 403s (code 1010) the default
-                 # Python-urllib signature. A real browser UA gets past the bot filter.
-                 "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 "
-                                "Safari/537.36"),
-                 "Accept": "application/json"})
+
+    body = json.dumps({"params": _soul_params(prompt, model, extra)}).encode()
+
+    # 1) Submit the generation job.
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read().decode())
+        data = _http_json(_SOUL_URL, key, secret, data=body, method="POST",
+                          timeout=min(timeout, 60))
     except urllib.error.HTTPError as e:
-        detail = ""
-        try:
-            detail = e.read().decode("utf-8", "ignore")[:300]
-        except Exception:
-            pass
-        # 401/403 almost always means the auth scheme/tier differs (key+secret vs Bearer).
-        hint = ""
-        if e.code in (401, 403):
-            hint = (" — auth rejected; verify the API Key ID + Secret are correct and, if "
-                    "Higgsfield's docs name the headers differently, adjust hf-api-key/hf-secret")
-        return {"ok": False, "error": f"HTTP {e.code}{hint}: {detail}", "model": model}
+        return {"ok": False, "error": _http_err(e), "model": model}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}", "model": model}
-    # Higgsfield returns the asset URL under one of a few keys depending on model.
-    url = (data.get("imageUrl") or data.get("url")
-           or (data.get("images") or [{}])[0].get("url") if isinstance(data.get("images"), list)
-           else data.get("imageUrl") or data.get("url"))
-    if not url:
-        url = data.get("output") or data.get("result")
-    if not url:
-        return {"ok": False, "error": f"no image url in response: {str(data)[:200]}", "model": model}
-    return {"ok": True, "imageUrl": url, "model": model}
+
+    # 2) Some responses come back already-complete (sync). Use it if so.
+    status = _find_status(data)
+    url = _find_url(data)
+    if status in _FAILED:
+        return {"ok": False, "error": f"generation {status}: {str(data)[:200]}", "model": model}
+    if url and status in _DONE or (url and not status):
+        return {"ok": True, "imageUrl": url, "model": model}
+
+    # 3) Otherwise poll the returned job/job-set until Completed or timeout.
+    job_id = _find_job_id(data)
+    if not job_id:
+        return {"ok": False,
+                "error": f"no image url or job id in soul response: {str(data)[:200]}",
+                "model": model}
+    poll_url = _JOB_URL_TMPL.format(id=job_id)
+    deadline = time.monotonic() + max(10, timeout)
+    while time.monotonic() < deadline:
+        time.sleep(_POLL_INTERVAL)
+        try:
+            jd = _http_json(poll_url, key, secret, method="GET", timeout=min(timeout, 30))
+        except urllib.error.HTTPError as e:
+            return {"ok": False, "error": _http_err(e), "model": model}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"poll {type(e).__name__}: {e}", "model": model}
+        st = _find_status(jd)
+        u = _find_url(jd)
+        if st in _FAILED:
+            return {"ok": False, "error": f"generation {st}: {str(jd)[:200]}", "model": model}
+        if u and (st in _DONE or not st):
+            return {"ok": True, "imageUrl": u, "model": model}
+        # else Queued / InProgress — keep polling until the deadline.
+    return {"ok": False,
+            "error": f"timed out after {timeout}s waiting for Higgsfield job {job_id}",
+            "model": model}
