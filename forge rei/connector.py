@@ -490,6 +490,15 @@ def api_cost_status(_q):
         return {"ok": False, "error": str(e), "today": {}, "mtd": {}, "trend": []}
 
 
+def api_spend_status(_q):
+    """The operator's own monthly subscriptions/bills, grouped by business (spend_tracker)."""
+    try:
+        import spend_tracker
+        return spend_tracker.status()
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e), "groups": [], "monthlyUSD": 0.0}
+
+
 def api_ace_callready(_q):
     """ACE Phase 4: the call queue — call-ready leads with the full card (anchors, prep)."""
     try:
@@ -2388,6 +2397,7 @@ ROUTES = {
     "/api/ace/state": api_ace_state,
     "/api/ace/status": api_ace_status,
     "/api/cost/status": api_cost_status,
+    "/api/spend/status": api_spend_status,
     "/api/skillforge/pending": api_skillforge_pending,
     "/api/ace/callready": api_ace_callready,
     "/api/ace/digest": api_ace_digest,
@@ -2791,6 +2801,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/reply/draft", "/api/reply/send",
                                    "/api/ace/mode",
                                    "/api/cost/manual", "/api/cost/settings",
+                                   "/api/spend/save", "/api/spend/delete",
                                    "/api/skillforge/act", "/api/ace/ack", "/api/ace/hold",
                                    "/api/style/run", "/api/brain/undo",
                                    "/api/outbound/agent/update",
@@ -2916,6 +2927,15 @@ class Handler(BaseHTTPRequestHandler):
                 result = cost_tracker.set_settings(
                     sms_rate=body.get("smsRate"),
                     monthly_cap_usd=body.get("monthlyCapUSD"))
+            elif parsed.path == "/api/spend/save":
+                import spend_tracker
+                result = spend_tracker.save_item(
+                    item_id=body.get("id"), name=body.get("name"),
+                    amount=body.get("amount"), cadence=body.get("cadence"),
+                    business=body.get("business"), note=body.get("note"))
+            elif parsed.path == "/api/spend/delete":
+                import spend_tracker
+                result = spend_tracker.delete_item(body.get("id"))
             elif parsed.path == "/api/ace/ack":
                 result = ace.ack(body.get("convId"), CONVO)
             elif parsed.path == "/api/ace/hold":
