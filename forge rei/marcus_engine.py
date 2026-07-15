@@ -691,12 +691,20 @@ class MarcusEngine:
                            "picking back up with someone you already talked to, not a cold blast.")
         convo = "\n".join(history[-6:]) if history else f"Seller: {body}"
         try:
+            # sys_prompt (north star + creed + rubric + playbooks + brain notes) is
+            # the biggest, most-repeated system prompt in the app — it's rebuilt fresh
+            # on every seller reply. cache_control lets Anthropic skip re-processing
+            # the unchanged prefix (~90% cheaper on a hit); below the ~2k-token Haiku
+            # minimum it's silently a no-op, so always safe to send.
+            system_payload = (
+                [{"type": "text", "text": sys_prompt, "cache_control": {"type": "ephemeral"}}]
+                if len(sys_prompt) >= 1200 else sys_prompt)
             req = urllib.request.Request(
                 "https://api.anthropic.com/v1/messages",
                 data=json.dumps({
                     "model": "claude-haiku-4-5-20251001",
                     "max_tokens": 300,
-                    "system": sys_prompt,
+                    "system": system_payload,
                     "messages": [{"role": "user", "content":
                                   f"Conversation so far:\n{convo}\n\nWrite Marcus's reply:"}],
                 }).encode(),
@@ -712,8 +720,10 @@ class MarcusEngine:
             try:  # cost telemetry — best-effort, never blocks the draft
                 import cost_tracker
                 u = data.get("usage") or {}
-                cost_tracker.record_anthropic("claude-haiku-4-5-20251001",
-                                              u.get("input_tokens"), u.get("output_tokens"))
+                cost_tracker.record_anthropic(
+                    "claude-haiku-4-5-20251001", u.get("input_tokens"), u.get("output_tokens"),
+                    cache_write_tokens=u.get("cache_creation_input_tokens"),
+                    cache_read_tokens=u.get("cache_read_input_tokens"))
             except Exception:
                 pass
             text = "".join(b.get("text", "") for b in data.get("content", [])).strip()
