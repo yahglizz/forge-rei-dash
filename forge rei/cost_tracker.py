@@ -81,24 +81,37 @@ def _prune(d):
 def _day(d, key=None):
     return d.setdefault("days", {}).setdefault(
         key or _today_key(),
-        {"claudeIn": 0, "claudeOut": 0, "claudeUSD": 0.0, "sms": 0})
+        {"claudeIn": 0, "claudeOut": 0, "claudeUSD": 0.0, "sms": 0,
+         "claudeCacheWrite": 0, "claudeCacheRead": 0})
 
 
 # -- auto capture (called from review_agent / marcus_engine / sms_guard) ------------------
 
-def record_anthropic(model, input_tokens, output_tokens):
+# Anthropic prompt-caching multipliers on the model's base INPUT price: writing a
+# cache entry costs a 25% premium (it still has to process + store the tokens); a
+# cache hit costs 90% less (near-free re-read of an unchanged prefix).
+_CACHE_WRITE_MULT = 1.25
+_CACHE_READ_MULT = 0.10
+
+
+def record_anthropic(model, input_tokens, output_tokens,
+                      cache_write_tokens=0, cache_read_tokens=0):
     """Log one Claude API response's token usage. Best-effort — never raises."""
     try:
         i, o = int(input_tokens or 0), int(output_tokens or 0)
-        if i <= 0 and o <= 0:
+        cw, cr = int(cache_write_tokens or 0), int(cache_read_tokens or 0)
+        if i <= 0 and o <= 0 and cw <= 0 and cr <= 0:
             return
         pin, pout = _price_for(model)
-        usd = (i * pin + o * pout) / 1_000_000.0
+        usd = (i * pin + o * pout + cw * pin * _CACHE_WRITE_MULT
+               + cr * pin * _CACHE_READ_MULT) / 1_000_000.0
         with _LOCK:
             d = _load()
             row = _day(d)
             row["claudeIn"] = int(row.get("claudeIn") or 0) + i
             row["claudeOut"] = int(row.get("claudeOut") or 0) + o
+            row["claudeCacheWrite"] = int(row.get("claudeCacheWrite") or 0) + cw
+            row["claudeCacheRead"] = int(row.get("claudeCacheRead") or 0) + cr
             row["claudeUSD"] = round(float(row.get("claudeUSD") or 0.0) + usd, 6)
             _save(_prune(d))
     except Exception:
@@ -181,7 +194,7 @@ def status():
         trow = dict(days.get(today) or {})
         today_usage = _row_usd(trow, sms_rate)
 
-        mtd_in = mtd_out = mtd_sms = 0
+        mtd_in = mtd_out = mtd_sms = mtd_cache_read = mtd_cache_write = 0
         mtd_claude_usd = 0.0
         for k, row in days.items():
             if not k.startswith(month):
@@ -189,6 +202,8 @@ def status():
             mtd_in += int(row.get("claudeIn") or 0)
             mtd_out += int(row.get("claudeOut") or 0)
             mtd_sms += int(row.get("sms") or 0)
+            mtd_cache_read += int(row.get("claudeCacheRead") or 0)
+            mtd_cache_write += int(row.get("claudeCacheWrite") or 0)
             mtd_claude_usd += float(row.get("claudeUSD") or 0.0)
         mtd_sms_usd = round(mtd_sms * sms_rate, 4)
         day_of_month = int(today[-2:])
@@ -212,10 +227,13 @@ def status():
             "today": {"claudeIn": int(trow.get("claudeIn") or 0),
                       "claudeOut": int(trow.get("claudeOut") or 0),
                       "claudeUSD": round(float(trow.get("claudeUSD") or 0.0), 4),
+                      "claudeCacheWrite": int(trow.get("claudeCacheWrite") or 0),
+                      "claudeCacheRead": int(trow.get("claudeCacheRead") or 0),
                       "sms": int(trow.get("sms") or 0),
                       "usd": today_usage},
             "mtd": {"claudeIn": mtd_in, "claudeOut": mtd_out,
                     "claudeUSD": round(mtd_claude_usd, 4),
+                    "claudeCacheWrite": mtd_cache_write, "claudeCacheRead": mtd_cache_read,
                     "sms": mtd_sms, "smsUSD": mtd_sms_usd,
                     "fixedUSD": fixed_mtd, "totalUSD": mtd_total},
             "fixed": fixed, "fixedMonthlyUSD": fixed_monthly,

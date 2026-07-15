@@ -448,7 +448,11 @@ class ScoutEngine:
                        + skills[:3500])
         user = "Seller messages:\n" + "\n".join(lines)
         try:
-            raw = review_agent._claude(key, system, user, max_tokens=1500)
+            # Structured intent/motivation/price extraction — a classification task,
+            # not a judgment call. Highest-volume Claude call in the system, so the
+            # cheap tier here is where model tiering actually moves the bill.
+            raw = review_agent._claude(key, system, user, max_tokens=1500,
+                                       model=review_agent.HAIKU_MODEL)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"claude: {e}"
             return {}

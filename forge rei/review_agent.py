@@ -49,12 +49,22 @@ def _api_key():
     return None
 
 
-def _claude(key, system, user, max_tokens=1200, tools=None):
+def _claude(key, system, user, max_tokens=1200, tools=None, model=None):
     messages = [{"role": "user", "content": user}]
+    use_model = model or MODEL
+    # System prompts here are mostly static (creed/playbook/brief text reloaded from
+    # disk) and get resent on nearly every call within a session — cache_control lets
+    # Anthropic skip re-processing the unchanged prefix (~90% cheaper on a hit).
+    # Below the per-model minimum this is silently a no-op, so always safe to send.
+    if isinstance(system, str) and len(system) >= _CACHE_MIN_CHARS:
+        system_payload = [{"type": "text", "text": system,
+                            "cache_control": {"type": "ephemeral"}}]
+    else:
+        system_payload = system
     payload = {
-        "model": MODEL,
+        "model": use_model,
         "max_tokens": max_tokens,
-        "system": system,
+        "system": system_payload,
         "messages": messages,
     }
     if tools:
@@ -86,7 +96,10 @@ def _claude(key, system, user, max_tokens=1200, tools=None):
         try:  # cost telemetry — best-effort, never blocks the call
             import cost_tracker
             u = data.get("usage") or {}
-            cost_tracker.record_anthropic(MODEL, u.get("input_tokens"), u.get("output_tokens"))
+            cost_tracker.record_anthropic(
+                use_model, u.get("input_tokens"), u.get("output_tokens"),
+                cache_write_tokens=u.get("cache_creation_input_tokens"),
+                cache_read_tokens=u.get("cache_read_input_tokens"))
         except Exception:
             pass
         if data.get("stop_reason") == "pause_turn" and continuations < 3:
