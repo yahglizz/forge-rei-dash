@@ -3814,6 +3814,17 @@ def main():
               f"{_bc.get('hour')}:00 (box tz offset {_bc.get('tzOffset')}) → Telegram")
         tb = threading.Thread(target=_brief_scheduler_forever, daemon=True)
         tb.start()
+        # Graphify builder — rebuild the code+vault knowledge graph natively on the
+        # box so it stays fresh (the old graph came from a Mac-only launchd job and
+        # went stale). Same JSON schema graphify_io serves. Box only, low-frequency.
+        try:
+            import graphify_build
+            print(f"   Graphify: rebuilding knowledge graph every "
+                  f"{graphify_build.REBUILD_EVERY // 60} min → {graphify_build.GRAPH_PATH}")
+            tgf = threading.Thread(target=graphify_build.run_forever, daemon=True)
+            tgf.start()
+        except Exception as _e:  # noqa: BLE001
+            print(f"   Graphify: builder not started ({_e})")
     else:
         print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS=0) — UI/proxy only")
     print(f"   binding {HOST}:{PORT}")
