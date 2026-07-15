@@ -34,14 +34,14 @@ _ENV_CANDIDATES = [
 ]
 
 
-def _scan_env_files() -> str:
+def _scan_env_files(var: str) -> str:
     for p in _ENV_CANDIDATES:
         try:
             if not p.is_file():
                 continue
             for line in p.read_text().splitlines():
                 line = line.strip()
-                if line.startswith("HIGGSFIELD_API_KEY=") and not line.startswith("#"):
+                if line.startswith(var + "=") and not line.startswith("#"):
                     v = line.split("=", 1)[1].strip().strip('"').strip("'")
                     if v:
                         return v
@@ -50,35 +50,51 @@ def _scan_env_files() -> str:
     return ""
 
 
-def resolve_key(*creds: dict) -> str:
-    """First HIGGSFIELD_API_KEY found in: env var → any passed creds dict → *.env scan."""
-    k = (os.environ.get("HIGGSFIELD_API_KEY") or "").strip()
-    if k:
-        return k
+def _resolve(var: str, creds: tuple) -> str:
+    v = (os.environ.get(var) or "").strip()
+    if v:
+        return v
     for c in creds:
         if isinstance(c, dict):
-            v = (c.get("HIGGSFIELD_API_KEY") or "").strip()
-            if v:
-                return v
-    return _scan_env_files()
+            cv = (c.get(var) or "").strip()
+            if cv:
+                return cv
+    return _scan_env_files(var)
 
 
-def ready(key: str | None = None) -> bool:
-    """True only when a key is actually present — never claim generation works otherwise."""
-    return bool((key or resolve_key()).strip())
+def resolve_key(*creds: dict) -> str:
+    """The API Key ID: env HIGGSFIELD_API_KEY → any passed creds dict → *.env scan."""
+    return _resolve("HIGGSFIELD_API_KEY", creds)
 
 
-def generate_image(prompt: str, key: str | None = None, model: str | None = None,
-                   timeout: int = 120, extra: dict | None = None) -> dict:
+def resolve_secret(*creds: dict) -> str:
+    """The API Key Secret: env HIGGSFIELD_API_SECRET → creds dict → *.env scan."""
+    return _resolve("HIGGSFIELD_API_SECRET", creds)
+
+
+def ready(key: str | None = None, secret: str | None = None) -> bool:
+    """True only when BOTH the key id and secret are present — Higgsfield auth is a pair.
+    Never claim generation works otherwise."""
+    return bool((key or resolve_key()).strip()) and bool((secret or resolve_secret()).strip())
+
+
+def generate_image(prompt: str, key: str | None = None, secret: str | None = None,
+                   model: str | None = None, timeout: int = 120,
+                   extra: dict | None = None) -> dict:
     """Generate one image from a text prompt. Returns {ok:True, imageUrl, model} or
-    {ok:False, error, model}. Bearer auth. `extra` merges into the request body (e.g.
-    {"quality":"high","resolution":"2k"}). Does NOT raise — every failure comes back as
-    an error dict so callers can degrade gracefully (show the prompt, don't fake it)."""
+    {ok:False, error, model}. Higgsfield auth is a PAIR — the API Key ID goes in the
+    `hf-api-key` header and the API Key Secret in `hf-secret`. `extra` merges into the
+    request body (e.g. {"quality":"high","resolution":"2k"}). Does NOT raise — every
+    failure comes back as an error dict so callers degrade gracefully (show the prompt,
+    don't fake it)."""
     key = (key or resolve_key()).strip()
+    secret = (secret or resolve_secret()).strip()
     model = model or DEFAULT_MODEL
     prompt = str(prompt or "").strip()
-    if not key:
-        return {"ok": False, "error": "no HIGGSFIELD_API_KEY wired", "model": model}
+    if not key or not secret:
+        missing = "HIGGSFIELD_API_KEY" if not key else "HIGGSFIELD_API_SECRET"
+        return {"ok": False, "error": f"no {missing} wired (Higgsfield needs both id + secret)",
+                "model": model}
     if not prompt:
         return {"ok": False, "error": "empty prompt", "model": model}
     payload = {"model": model, "prompt": prompt}
@@ -87,7 +103,7 @@ def generate_image(prompt: str, key: str | None = None, model: str | None = None
     body = json.dumps(payload).encode()
     req = urllib.request.Request(
         f"{HF_BASE}/image/generate", data=body, method="POST",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        headers={"hf-api-key": key, "hf-secret": secret, "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read().decode())
@@ -100,8 +116,8 @@ def generate_image(prompt: str, key: str | None = None, model: str | None = None
         # 401/403 almost always means the auth scheme/tier differs (key+secret vs Bearer).
         hint = ""
         if e.code in (401, 403):
-            hint = (" — auth rejected; if Higgsfield issued a key+secret pair rather than a "
-                    "single Bearer key, the header scheme needs adjusting")
+            hint = (" — auth rejected; verify the API Key ID + Secret are correct and, if "
+                    "Higgsfield's docs name the headers differently, adjust hf-api-key/hf-secret")
         return {"ok": False, "error": f"HTTP {e.code}{hint}: {detail}", "model": model}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}", "model": model}
