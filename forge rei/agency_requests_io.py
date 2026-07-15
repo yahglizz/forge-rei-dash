@@ -96,10 +96,30 @@ def _slim(r):
         "priority": r.get("priority") if r.get("priority") in PRIORITIES else "medium",
         "status": r.get("status") if r.get("status") in STATUSES else "submitted",
         "detail": r.get("detail") or "",
+        "source": r.get("source") or "admin",
         "createdAt": r.get("createdAt"),
         "updatedAt": r.get("updatedAt"),
         "history": r.get("history") or [],
     }
+
+
+def _broadcast_new(saved):
+    """Best-effort: announce a brand-new request on the agent bus so the
+    Telegram tap-to-approve flow (and any other notifier) can fire. NEVER raises."""
+    try:
+        import agent_bus
+        who = saved.get("clientName") or "A client"
+        agent_bus.send(
+            "portal", "all", "note",
+            f"📝 New edit request from {who}: {saved.get('title')}",
+            {"type": "edit_request", "requestId": saved.get("id"),
+             "client": saved.get("clientName") or "", "title": saved.get("title") or "",
+             "reqType": saved.get("type") or "", "priority": saved.get("priority") or "",
+             "detail": (saved.get("detail") or "")[:400],
+             "source": saved.get("source") or "admin"},
+        )
+    except Exception:
+        pass
 
 
 def list_requests():
@@ -140,6 +160,7 @@ def save_request(r):
             saved = existing
         else:
             d["seq"] = d.get("seq", 0) + 1
+            src = r.get("source") if r.get("source") in ("admin", "portal") else "admin"
             saved = {
                 "id": rid or f"r{d['seq']}_{now}",
                 "clientId": r.get("clientId", ""),
@@ -149,14 +170,34 @@ def save_request(r):
                 "priority": r.get("priority") if r.get("priority") in PRIORITIES else "medium",
                 "status": "submitted",
                 "detail": r.get("detail", ""),
+                "source": src,
                 "createdAt": now,
                 "updatedAt": now,
-                "history": [{"ts": now, "action": "submitted", "note": "Request submitted"}],
+                "history": [{"ts": now, "action": "submitted",
+                             "note": ("Submitted via client portal" if src == "portal"
+                                      else "Request submitted")}],
             }
             reqs.append(saved)
         d["requests"] = reqs
         _save(d)
-        return {"ok": True, "request": _slim(saved)}
+        out = _slim(saved)
+        # Announce brand-new requests only (edits update in place, no re-ping).
+        if not existing:
+            _broadcast_new(out)
+        return {"ok": True, "request": out}
+
+
+def list_for_client(cid):
+    """Return one client's own requests (newest first). Used by the client portal —
+    scoped so a client only ever sees their own edit requests."""
+    if not cid:
+        return {"requests": [], "count": 0}
+    with _LOCK:
+        d = _load()
+        reqs = [_slim(r) for r in d.get("requests", []) if r.get("clientId") == cid]
+        reqs.sort(key=lambda r: r.get("updatedAt") or r.get("createdAt") or 0,
+                  reverse=True)
+        return {"requests": reqs, "count": len(reqs)}
 
 
 def set_status(rid, status, note=None):

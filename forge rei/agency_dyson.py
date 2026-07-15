@@ -369,6 +369,21 @@ def generate_draft(request_id):
         payload={"affected": [a["name"] for a in affected],
                  "steps": draft["steps"], "requestId": request_id})
 
+    # Announce the plan on the agent bus → Telegram offers Approve & ship / Reject.
+    # Best-effort; a bus/Telegram hiccup must never fail draft generation.
+    try:
+        import agent_bus
+        agent_bus.send(
+            "dyson", "all", "note",
+            f"🛠 Dyson drafted a plan for {req.get('clientName', 'a client')}: {req.get('title')}",
+            {"type": "dyson_plan", "draftId": draft["id"], "requestId": request_id,
+             "client": req.get("clientName", ""), "title": req.get("title", ""),
+             "risk": risk, "summary": summary,
+             "steps": [str(s) for s in steps][:6]},
+        )
+    except Exception:
+        pass
+
     return {"ok": True, "draft": draft}
 
 

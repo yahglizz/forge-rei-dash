@@ -182,6 +182,73 @@ def get_client(cid):
         return _slim(c) if c else None
 
 
+# ---------------------------------------------------------------------------
+# Client portal access — each client gets a random, revocable token. The
+# operator shares a link (…/portal?c=<clientId>&k=<token>); the client can then
+# submit + track edit requests WITHOUT logging in or contacting the operator.
+# The token is a bearer secret scoped to ONE client: it unlocks only that
+# client's own name + own requests (see agency_portal_io.verify_client). It is
+# NOT an API key and grants zero dashboard access — the portal server (a
+# separate, portal-only listener) is the only surface that ever accepts it.
+# ---------------------------------------------------------------------------
+
+
+def ensure_portal_token(cid):
+    """Return the client's portal token, minting one on first use. Idempotent."""
+    if not cid:
+        return {"error": "id required"}
+    with _LOCK:
+        d = _load()
+        c = next((x for x in d.get("clients", []) if x.get("id") == cid), None)
+        if not c:
+            return {"error": "client not found"}
+        if not c.get("portalToken"):
+            c["portalToken"] = secrets.token_urlsafe(18)
+            c["dateUpdated"] = int(time.time() * 1000)
+            _save(d)
+        return {"ok": True, "clientId": cid, "name": c.get("name") or "",
+                "portalToken": c["portalToken"]}
+
+
+def rotate_portal_token(cid):
+    """Mint a fresh token, invalidating any previously shared link for this client."""
+    if not cid:
+        return {"error": "id required"}
+    with _LOCK:
+        d = _load()
+        c = next((x for x in d.get("clients", []) if x.get("id") == cid), None)
+        if not c:
+            return {"error": "client not found"}
+        c["portalToken"] = secrets.token_urlsafe(18)
+        c["dateUpdated"] = int(time.time() * 1000)
+        _save(d)
+        return {"ok": True, "clientId": cid, "name": c.get("name") or "",
+                "portalToken": c["portalToken"]}
+
+
+def verify_portal(cid, token):
+    """Return the slimmed client IFF (cid, token) matches an existing client.
+
+    Constant-ish-time compare via secrets.compare_digest so a bad token can't be
+    probed by timing. Returns None on any mismatch (never raises)."""
+    if not cid or not token:
+        return None
+    with _LOCK:
+        d = _load()
+        c = next((x for x in d.get("clients", []) if x.get("id") == cid), None)
+    if not c:
+        return None
+    stored = c.get("portalToken") or ""
+    if not stored:
+        return None
+    try:
+        if secrets.compare_digest(str(stored), str(token)):
+            return _slim(c)
+    except Exception:
+        return None
+    return None
+
+
 def mark_ghl_synced(cid):
     with _LOCK:
         d = _load()
