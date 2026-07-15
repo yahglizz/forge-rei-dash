@@ -19,6 +19,7 @@ NORA="$(dirname "$DASH")/forge-nora"       # Nora: daycare roster & family follo
 NOVA="$(dirname "$DASH")/forge-nova"       # Nova: daycare ad ops config + seed playbook
 SCREEN="$(dirname "$DASH")/forge-marcus"   # Marcus screening agent: config knobs + seed screening playbook
 TG="$(dirname "$DASH")/forge-telegram"     # Telegram alerts + tap-to-approve: config/telegram.env
+DROPSHIP="$(dirname "$DASH")/forge-dropship" # Dropship crew: Shopify/AutoDS/Meta config + seed skills
 NORTHSTAR="$(dirname "$DASH")/NORTH_STAR.md" # the cross-business constitution (repo root)
 VAULT="$HOME/Desktop/Agentic-OS/vault"
 REMOTE="/opt/forge"
@@ -46,7 +47,7 @@ else
 fi
 
 echo "==> make remote dirs"
-$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-daycare/config $REMOTE/forge-solomon/config $REMOTE/forge-solomon/skills $REMOTE/forge-nora/config $REMOTE/forge-nora/skills $REMOTE/forge-nova/config $REMOTE/forge-nova/skills $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/vault"
+$SSH "$TARGET" "mkdir -p $REMOTE/forge-rei $REMOTE/marcus-wholesale-agent/config $REMOTE/marcus-wholesale-agent/scripts $REMOTE/forge-agency/config $REMOTE/forge-agency/skills $REMOTE/forge-scout/config $REMOTE/forge-scout/skills $REMOTE/forge-daycare/config $REMOTE/forge-solomon/config $REMOTE/forge-solomon/skills $REMOTE/forge-nora/config $REMOTE/forge-nora/skills $REMOTE/forge-nova/config $REMOTE/forge-nova/skills $REMOTE/forge-marcus/config $REMOTE/forge-marcus/skills $REMOTE/forge-telegram/config $REMOTE/forge-dropship/config $REMOTE/forge-dropship/skills $REMOTE/vault"
 
 echo "==> push dashboard (deploy/keys excluded — never ship SSH keys/secret backups to the box)"
 rsync -az --delete -e "$SSH" \
@@ -85,6 +86,21 @@ if [ -d "$DAYCARE" ]; then
   fi
 else
   echo "   (no $DAYCARE folder — Daycare API stays safely unconfigured)"
+fi
+
+echo "==> push Dropship folder (Shopify/AutoDS/Meta config + seed skills; learned playbooks live in the vault)"
+if [ -d "$DROPSHIP" ]; then
+  # Ship the non-secret folder (skills + docs); the real dropship.env travels separately.
+  rsync -az --delete -e "$SSH" --exclude '__pycache__' --exclude 'config' --exclude '*.env' \
+    "$DROPSHIP/" "$TARGET:$REMOTE/forge-dropship/"
+  if [ -f "$DROPSHIP/config/dropship.env" ]; then
+    rsync -az -e "$SSH" "$DROPSHIP/config/dropship.env" "$TARGET:$REMOTE/forge-dropship/config/dropship.env"
+    $SSH "$TARGET" "chmod 600 $REMOTE/forge-dropship/config/dropship.env"
+  else
+    echo "   (no $DROPSHIP/config/dropship.env — Shopify/AutoDS/Meta stay safely unconfigured/mock)"
+  fi
+else
+  echo "   (no $DROPSHIP folder — Dropship stays safely unconfigured)"
 fi
 
 echo "==> push Scout folder (config knobs + seed skills; learned playbook lives in the vault)"
@@ -179,6 +195,7 @@ $SSH "$TARGET" "
   hc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/marcus_state/heartbeats.json); [ \"\$hc\" = 404 ] || { echo \"   !! heartbeats.json served (\$hc) — must 404\"; exit 1; }
   sc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/../marcus-wholesale-agent/config/ghl.env); [ \"\$sc\" != 200 ] || { echo '   !! ghl.env is being served — secret leak'; exit 1; }
   dc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/../forge-daycare/config/daycare.env); [ "\$dc" != 200 ] || { echo '   !! daycare.env is being served — secret leak'; exit 1; }
+  dsc=\$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/../forge-dropship/config/dropship.env); [ "\$dsc" != 200 ] || { echo '   !! dropship.env is being served — secret leak'; exit 1; }
   if [ "\$https_ok" = 1 ]; then
     dch=\$(curl --max-time 10 -s -o /dev/null -w '%{http_code}' https://forge-reios.tail0a2dda.ts.net/forge-daycare/config/daycare.env); [ "\$dch" = 404 ] || { echo "   !! HTTPS daycare.env path returned \$dch — must 404"; exit 1; }
     echo '   OK: service active · local + Tailscale HTTPS Daycare auth status 200 · state/secrets not served'
