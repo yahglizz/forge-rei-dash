@@ -2525,7 +2525,7 @@ ROUTES = {
 # Marcus endpoints are real-time — never serve them from the 45s cache.
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
 NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/ace/state", "/api/ace/status",
-            "/api/cost/status", "/api/skillforge/pending",
+            "/api/cost/status", "/api/spend/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/coach/feed", "/api/sync/status", "/api/sync/check",
             "/api/ace/callready", "/api/ace/digest",
