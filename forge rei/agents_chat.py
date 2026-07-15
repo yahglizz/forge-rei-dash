@@ -10,6 +10,7 @@ Powers the Agents tab (iMessage-style, but the left list is your AGENTS, not lea
 Graceful: no ANTHROPIC_API_KEY -> {"needsKey": True}.
 """
 import review_agent
+import caveman
 import retell_io
 import marcus_chat
 import scout_triage
@@ -232,7 +233,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         )
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
-            reply = review_agent._claude(key, system, user, max_tokens=600)
+            reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Hit an error reaching my brain: {e}"}
         # One consult round: Scout may [ASK MARCUS] mid-answer (agent_collab logs
@@ -272,7 +273,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         )
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
-            reply = review_agent._claude(key, system, user, max_tokens=600)
+            reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Hit an error reaching my brain: {e}"}
         try:
