@@ -3064,7 +3064,11 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/portal/token":
                 # Admin: mint/return (or rotate) a client's portal link.
                 if body.get("rotate"):
-                    result = agency_io.rotate_portal_token(body.get("clientId"))
+                    rot = agency_io.rotate_portal_token(body.get("clientId"))
+                    if rot.get("error"):
+                        result = rot
+                    else:
+                        result = agency_portal_io.link(body.get("clientId"), base=PORTAL_BASE)
                 else:
                     result = agency_portal_io.link(body.get("clientId"), base=PORTAL_BASE)
             elif parsed.path == "/api/portal/submit":

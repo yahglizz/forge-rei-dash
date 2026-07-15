@@ -258,6 +258,7 @@ function AgClientForm({ initial, onSaved, onCancel }) {
       <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Notes</div>
         <textarea style={{ ...agInp, minHeight: 60, resize: "vertical", fontFamily: "inherit" }}
           value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="What you're building for them, status, next step…" /></div>
+      <AgPortalLink clientId={f.id} />
       {err && <div style={{ color: "var(--red)", fontSize: 12.5 }}>{err}</div>}
       <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
         <button className="tab" onClick={onCancel}>Cancel</button>
@@ -313,9 +314,12 @@ function AgClientRow({ c, onEdit, onDelete, onChanged }) {
       <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", borderTop: "1px solid var(--border)", paddingTop: 9 }}>
         {svcs.length > 0 ? svcs.map((s) => <AgSvcPill key={s} name={s} />)
           : <span className="faint" style={{ fontSize: 11.5 }}>No services tagged — edit to add</span>}
-        <button className="tab" style={{ marginLeft: "auto", padding: "5px 10px", fontSize: 12 }} disabled={syncing || svcs.length === 0} onClick={syncGhl}>
-          <Icons.Conversations size={12} /> {syncing ? "Syncing…" : "Push tags to GHL"}
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 7 }}>
+          <AgPortalLink clientId={c.id} compact />
+          <button className="tab" style={{ padding: "5px 10px", fontSize: 12 }} disabled={syncing || svcs.length === 0} onClick={syncGhl}>
+            <Icons.Conversations size={12} /> {syncing ? "Syncing…" : "Push tags to GHL"}
+          </button>
+        </div>
         {c.ghlSyncedAt && <span className="faint" style={{ fontSize: 11 }}>· synced</span>}
       </div>
     </div>
