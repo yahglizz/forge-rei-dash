@@ -29,11 +29,26 @@ function folderColor(s) {
   return FOLDER_COLORS[h % FOLDER_COLORS.length];
 }
 
-// ── Force-directed graph (vanilla, no lib). Settles then stops. ───────────────
+// ── Force-directed graph (vanilla, no lib). Cluster-seeded, settles smoothly. ──
+// One renderer for BOTH the vault brain (~90 nodes) and Graphify (thousands).
+// Caps the rendered set to the most-connected nodes so a big graph can't freeze
+// the tab, seeds by community/folder so it reads as clusters not a hairball, and
+// paints every other frame + stops the moment it settles (smoother, cheaper).
+const GRAPH_MAX = 240;
 function BrainGraph({ data, selId, onPick }) {
   const BOX = { w: 820, h: 580, cx: 410, cy: 290 };
-  const nodes = (data && data.nodes) || [];
-  const links = (data && data.links) || [];
+  const rawNodes = (data && data.nodes) || [];
+  const rawLinks = (data && data.links) || [];
+  // Cap to the top-degree nodes — Graphify returns thousands; rendering all of
+  // them through an O(n²) settle would lock the browser.
+  const truncated = rawNodes.length > GRAPH_MAX;
+  const nodes = truncated
+    ? rawNodes.slice().sort((a, b) => (b.deg || 0) - (a.deg || 0)).slice(0, GRAPH_MAX)
+    : rawNodes;
+  const keep = {};
+  nodes.forEach((n) => { keep[n.id] = true; });
+  const links = truncated ? rawLinks.filter((l) => keep[l.source] && keep[l.target]) : rawLinks;
+
   const posRef = React.useRef({});
   const velRef = React.useRef({});
   const rafRef = React.useRef(0);
@@ -42,18 +57,30 @@ function BrainGraph({ data, selId, onPick }) {
 
   const ids = nodes.map((n) => n.id).join("|");
   React.useEffect(() => {
-    // (re)seed any new nodes on a circle; keep existing positions
+    // Seed new nodes clustered by community (fallback folder) so the layout opens
+    // as separated groups; keep any existing position so a data refresh doesn't teleport.
     const N = nodes.length || 1;
-    nodes.forEach((n, i) => {
-      if (!posRef.current[n.id]) {
-        const a = (i / N) * Math.PI * 2;
-        posRef.current[n.id] = { x: BOX.cx + Math.cos(a) * 200, y: BOX.cy + Math.sin(a) * 200 };
-        velRef.current[n.id] = { x: 0, y: 0 };
-      }
+    const gkey = (n) => String(n.community != null ? "c" + n.community : (n.folder || "?"));
+    const groups = {};
+    nodes.forEach((n) => { const k = gkey(n); (groups[k] = groups[k] || []).push(n); });
+    const gk = Object.keys(groups);
+    const spread = Math.min(250, 80 + N * 1.0);
+    gk.forEach((k, gi) => {
+      const ga = (gi / gk.length) * Math.PI * 2;
+      const gx = BOX.cx + Math.cos(ga) * spread * 0.55;
+      const gy = BOX.cy + Math.sin(ga) * spread * 0.55;
+      groups[k].forEach((n, i) => {
+        if (!posRef.current[n.id]) {
+          const a = (i / groups[k].length) * Math.PI * 2;
+          const rr = 22 + (i % 6) * 9;
+          posRef.current[n.id] = { x: gx + Math.cos(a) * rr, y: gy + Math.sin(a) * rr };
+          velRef.current[n.id] = { x: 0, y: 0 };
+        }
+      });
     });
-    Object.keys(posRef.current).forEach((id) => { if (!nodes.find((n) => n.id === id)) { delete posRef.current[id]; delete velRef.current[id]; } });
+    Object.keys(posRef.current).forEach((id) => { if (!keep[id]) { delete posRef.current[id]; delete velRef.current[id]; } });
 
-    let iter = 0;
+    let iter = 0, frame = 0;
     const step = () => {
       const P = posRef.current, V = velRef.current;
       const arr = nodes;
@@ -81,14 +108,19 @@ function BrainGraph({ data, selId, onPick }) {
         V[l.source].x += ux * f; V[l.source].y += uy * f;
         V[l.target].x -= ux * f; V[l.target].y -= uy * f;
       });
+      let ke = 0; // total kinetic energy — used to stop the moment it settles
       arr.forEach((n) => {
         const p = P[n.id], v = V[n.id]; if (!p) return;
         p.x = Math.max(20, Math.min(BOX.w - 20, p.x + v.x));
         p.y = Math.max(20, Math.min(BOX.h - 20, p.y + v.y));
+        ke += v.x * v.x + v.y * v.y;
       });
-      setTick((t) => t + 1);
+      frame++;
+      if (frame % 2 === 0) setTick((t) => t + 1); // paint every other frame — half the React work, still smooth
       iter++;
-      if (iter < 480) rafRef.current = requestAnimationFrame(step);
+      const settled = iter > 40 && ke / (arr.length || 1) < 0.04;
+      if (iter < 480 && !settled) rafRef.current = requestAnimationFrame(step);
+      else setTick((t) => t + 1); // guarantee a final paint at rest
     };
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(step);
@@ -98,11 +130,12 @@ function BrainGraph({ data, selId, onPick }) {
   const P = posRef.current;
   if (!nodes.length) return <div className="empty" style={{ flex: 1 }}><div className="empty-ico"><window.Icons.Brain size={24} /></div><div style={{ fontWeight: 600, color: "var(--text)" }}>Brain is empty</div><div style={{ fontSize: 12 }}>Notes appear here as the agents learn.</div></div>;
 
+  const bigLabelCut = nodes.length <= 60;
   return (
     <svg viewBox={`0 0 ${BOX.w} ${BOX.h}`} style={{ width: "100%", height: "100%", display: "block" }}>
       {links.map((l, i) => {
         const a = P[l.source], b = P[l.target]; if (!a || !b) return null;
-        return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--border)" strokeWidth="1" opacity="0.6" />;
+        return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--border)" strokeWidth="1" opacity="0.5" />;
       })}
       {nodes.map((n) => {
         const p = P[n.id]; if (!p) return null;
@@ -113,12 +146,17 @@ function BrainGraph({ data, selId, onPick }) {
           <g key={n.id} transform={`translate(${p.x},${p.y})`} style={{ cursor: "pointer" }}
             onClick={() => onPick(n.id)} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)}>
             <circle r={r} fill={col} stroke={on ? "#fff" : "transparent"} strokeWidth="1.5" opacity={on ? 1 : 0.9} />
-            {(on || (n.deg || 0) >= 2 || nodes.length <= 40) && (
+            {(on || (n.deg || 0) >= 2 || bigLabelCut) && (
               <text x={r + 3} y={3.5} fontSize="9" fill={on ? "var(--text)" : "var(--text-3)"} style={{ pointerEvents: "none", fontWeight: on ? 700 : 400 }}>{n.title}</text>
             )}
           </g>
         );
       })}
+      {truncated && (
+        <text x={BOX.w - 8} y={BOX.h - 8} textAnchor="end" fontSize="10" fill="var(--text-3)" style={{ pointerEvents: "none" }}>
+          showing top {GRAPH_MAX} of {rawNodes.length} nodes
+        </text>
+      )}
     </svg>
   );
 }
