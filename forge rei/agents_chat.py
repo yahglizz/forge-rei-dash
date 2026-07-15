@@ -305,7 +305,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system, user, max_tokens=500)
+        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=500)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}"}
     return {"reply": reply or "On it.", "agent": name}

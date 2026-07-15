@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import agent_collab
 import review_agent
+import caveman
 from analytics_engine import _pull_conversations, _to_ms
 
 _STOP = {
@@ -162,7 +163,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
         "Answer now."
     )
     try:
-        reply = review_agent._claude(key, system, user, max_tokens=600)
+        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=600)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}"}
     if _depth == 0:

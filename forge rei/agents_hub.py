@@ -35,6 +35,7 @@ import time
 from pathlib import Path
 
 import review_agent
+import caveman
 import agent_coach
 
 HERE = Path(__file__).resolve().parent
@@ -251,7 +252,7 @@ def _daycare_chat(agent_id, message, history):
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system, user, max_tokens=700)
+        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=700)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}", "agent": meta["name"]}
     return {"reply": reply or "On it.", "agent": meta["name"]}

@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 import review_agent  # _claude(key, system, user, max_tokens), MODEL, _api_key()
+import caveman        # operator-chat brevity block (token discipline)
 
 HERE = Path(__file__).resolve().parent
 STATE = HERE / "marcus_state" / "agency_agents.json"
@@ -313,7 +314,7 @@ def chat(agent_id, message, history_in=None):
             pass
     user = _history_block(history_in) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system, user, max_tokens=700)
+        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=700)
     except Exception as e:  # noqa: BLE001
         return {"connected": True, "reply": f"Hit an error reaching my brain: {e}"}
 
