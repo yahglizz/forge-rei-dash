@@ -929,6 +929,17 @@ def api_hub_roster(q):
     return agents_hub.roster((q.get("business", [None]) or [None])[0])
 
 
+def api_models(q):
+    """Chat providers/models + which one is picked. Powers the Agents model menu.
+    ?agent=<id> reports that agent's resolved model. Presence flags only — no keys."""
+    try:
+        import model_router
+        agent = (q.get("agent", [None]) or [None])[0]
+        return model_router.available(agent)
+    except Exception as e:  # noqa: BLE001
+        return {"providers": [], "default": None, "current": None, "error": str(e)}
+
+
 def api_hub_tasks(q):
     return agents_hub.tasks((q.get("agent", [None]) or [None])[0])
 
@@ -2352,6 +2363,7 @@ ROUTES = {
     "/api/outbound/voices": api_outbound_voices,
     "/api/agents/list": api_agents_list,
     "/api/hub/roster": api_hub_roster,
+    "/api/models": api_models,
     "/api/hub/tasks": api_hub_tasks,
     "/api/hub/bus": api_hub_bus,
     "/api/hub/history": api_hub_history,
@@ -2430,6 +2442,7 @@ ROUTES = {
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
 NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", "/api/ace/status",
             "/api/cost/status", "/api/skillforge/pending",
+            "/api/models",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/coach/feed", "/api/sync/status", "/api/sync/check",
             "/api/ace/callready", "/api/ace/digest",
@@ -2728,6 +2741,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/chat",
                                    "/api/hub/task",
                                    "/api/hub/task/update",
+                                   "/api/models/set",
                                    "/api/coach/broadcast",
                                    "/api/coach/ask",
                                    "/api/goals/update",
@@ -2903,6 +2917,11 @@ class Handler(BaseHTTPRequestHandler):
                                               body.get("note", ""))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
+            elif parsed.path == "/api/models/set":
+                # Operator picks which model answers in chat (global or per-agent).
+                # Internal + reversible: a preference, never an outward action.
+                import model_router
+                result = model_router.set_model(body.get("model"), body.get("agent"))
             elif parsed.path == "/api/coach/broadcast":
                 # An agent shares a transferable INSIGHT (text) with a peer/business/all.
                 result = agents_hub.coach_broadcast(body.get("from"), body.get("insight"),

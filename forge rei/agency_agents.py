@@ -315,7 +315,8 @@ def chat(agent_id, message, history_in=None):
             pass
     user = _history_block(history_in) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system, user, max_tokens=700)
+        reply = model_router.complete(system, user, max_tokens=700,
+                                      agent=agent_id, key=key)
     except Exception as e:  # noqa: BLE001
         return {"connected": True, "reply": f"Hit an error reaching my brain: {e}"}
 
