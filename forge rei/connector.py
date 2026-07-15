@@ -3928,6 +3928,13 @@ def main():
         print(f"   Nova: ad ops · brief every {daycare_adops.BRIEF_EVERY_MS // 3600000}h + self-improves")
         tnova = threading.Thread(target=NOVA.run_forever, daemon=True)
         tnova.start()
+        # Midas — the dropship store's head agent (e-com director). Reads the store
+        # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief, delegates to
+        # Hawk/Blaze/Otto. Propose-only; self-improves. The specialists run on-demand
+        # (routes + handoffs), so only the director carries a background loop.
+        print(f"   Midas: dropship e-com director · brief every {dropship_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
+        tmid = threading.Thread(target=MIDAS.run_forever, daemon=True)
+        tmid.start()
         # Do Today — rebuild the morning battle plan + email the digest at 9 AM Eastern.
         print(f"   Do Today: morning battle plan · rebuilds + emails {do_today.RUN_HOUR}:00 {do_today.TZ_NAME}"
               f" → {DO_TODAY.operator_email or 'NO EMAIL (set GHL_USER_EMAIL)'}")
