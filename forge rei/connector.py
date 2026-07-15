@@ -450,6 +450,19 @@ def api_system_health(_q):
     }
 
 
+def api_mission_control(_q):
+    """The front-door snapshot: one light health + attention read across every
+    business + the loop fleet, each item carrying a jump target. Never 500s."""
+    try:
+        return mission_control.snapshot(
+            scout=SCOUT, solomon=SOLOMON, midas=MIDAS, screener=SCREENER,
+            system=api_system_health(None))
+    except Exception as e:  # last-resort guard — the landing screen must always render
+        return {"ok": False, "verdict": "SNAPSHOT ERROR", "verdictStatus": "down",
+                "attentionCount": 0, "businesses": [], "system": {},
+                "error": str(e)[:200], "generatedAt": int(time.time() * 1000)}
+
+
 def api_ace_state(_q):
     """ACE Phase 1 (read-only): the per-thread conversation state machine — where each seller
     conversation is + which qualifying facts we have. No sends; just observability for the
@@ -2344,6 +2357,7 @@ ROUTES = {
     "/api/sync": api_sync,
     "/api/health": api_health,
     "/api/system/health": api_system_health,
+    "/api/mission-control": api_mission_control,
     "/api/ace/state": api_ace_state,
     "/api/ace/status": api_ace_status,
     "/api/cost/status": api_cost_status,
@@ -2454,7 +2468,7 @@ ROUTES = {
 
 # Marcus endpoints are real-time — never serve them from the 45s cache.
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
-NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", "/api/ace/status",
+NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/ace/state", "/api/ace/status",
             "/api/cost/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/coach/feed", "/api/sync/status", "/api/sync/check",
