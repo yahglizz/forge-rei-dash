@@ -661,35 +661,38 @@ def approve_ad(rec_id, concept_index=0):
 
 
 def image_ready():
-    """True only when Eco can ACTUALLY generate an image (a Higgsfield key is wired,
-    shared with Nova). Never claim generation works otherwise."""
+    """True only when Eco can ACTUALLY generate an image — needs BOTH the Higgsfield key
+    id AND secret (shared with Nova). Never claim generation works otherwise."""
     try:
         import higgsfield_io
-        return higgsfield_io.ready(_hf_key())
+        c = _hf_creds()
+        return higgsfield_io.ready(c.get("HIGGSFIELD_API_KEY"), c.get("HIGGSFIELD_API_SECRET"))
     except Exception:
         return False
 
 
-def _hf_key():
-    """Higgsfield key for the agency side: env → agency.env → shared scan (daycare.env).
-    One Higgsfield account serves every ad agent, so this deliberately falls back to
-    wherever the operator pasted the single key."""
+def _hf_creds():
+    """Higgsfield id+secret for the agency side: env → agency.env → shared scan (daycare.env
+    via higgsfield_io). One Higgsfield account serves every ad agent, so this falls back to
+    wherever the operator pasted the single pair. Returns {HIGGSFIELD_API_KEY, HIGGSFIELD_API_SECRET}."""
+    creds = {}
+    for p in AGENCY_ENV_CANDIDATES:
+        try:
+            if p.is_file():
+                for line in p.read_text().splitlines():
+                    line = line.strip()
+                    for var in ("HIGGSFIELD_API_KEY", "HIGGSFIELD_API_SECRET"):
+                        if line.startswith(var + "=") and not line.startswith("#"):
+                            creds[var] = line.split("=", 1)[1].strip()
+                break
+        except Exception:
+            continue
     try:
         import higgsfield_io
-        creds = {}
-        for p in AGENCY_ENV_CANDIDATES:
-            try:
-                if p.is_file():
-                    for line in p.read_text().splitlines():
-                        line = line.strip()
-                        if line.startswith("HIGGSFIELD_API_KEY=") and not line.startswith("#"):
-                            creds["HIGGSFIELD_API_KEY"] = line.split("=", 1)[1].strip()
-                    break
-            except Exception:
-                continue
-        return higgsfield_io.resolve_key(creds)
+        return {"HIGGSFIELD_API_KEY": higgsfield_io.resolve_key(creds),
+                "HIGGSFIELD_API_SECRET": higgsfield_io.resolve_secret(creds)}
     except Exception:
-        return ""
+        return creds
 
 
 def generate_concept_image(rec_id, concept_index=0, prompt=None):
@@ -721,8 +724,10 @@ def generate_concept_image(rec_id, concept_index=0, prompt=None):
 
     try:
         import higgsfield_io
-        res = higgsfield_io.generate_image(prompt, key=_hf_key(),
-                                           extra={"quality": "high", "resolution": "2k"})
+        c = _hf_creds()
+        res = higgsfield_io.generate_image(
+            prompt, key=c.get("HIGGSFIELD_API_KEY"), secret=c.get("HIGGSFIELD_API_SECRET"),
+            extra={"quality": "high", "resolution": "2k"})
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"higgsfield_io failed: {e}"}
     if not res.get("ok"):

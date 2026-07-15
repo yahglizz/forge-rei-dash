@@ -89,11 +89,17 @@ def _hf_key():
             or creds.get("HIGGSFIELD_API_KEY") or "").strip()
 
 
+def _hf_secret():
+    creds = _daycare_env()
+    return (os.environ.get("HIGGSFIELD_API_SECRET")
+            or creds.get("HIGGSFIELD_API_SECRET") or "").strip()
+
+
 def image_ready():
-    """True only when Nova can ACTUALLY generate an image herself. Never claim otherwise —
-    a UI that says 'generating' while nothing is wired is exactly the confident lie the
-    creed forbids."""
-    return bool(_hf_key())
+    """True only when Nova can ACTUALLY generate an image herself — needs BOTH the
+    Higgsfield API key id AND secret. Never claim otherwise — a UI that says 'generating'
+    while nothing is wired is exactly the confident lie the creed forbids."""
+    return bool(_hf_key()) and bool(_hf_secret())
 
 
 def meta_ready():
@@ -293,7 +299,7 @@ def _higgsfield_image(prompt):
     Only runs when a key is present; keeps Nova's high/2k quality settings."""
     import higgsfield_io
     return higgsfield_io.generate_image(
-        prompt, key=_hf_key(), model=HIGGSFIELD_MODEL,
+        prompt, key=_hf_key(), secret=_hf_secret(), model=HIGGSFIELD_MODEL,
         extra={"quality": "high", "resolution": "2k"})
 
 
