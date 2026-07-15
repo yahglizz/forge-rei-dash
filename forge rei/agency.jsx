@@ -160,6 +160,32 @@ function AgClientForm({ initial, onSaved, onCancel }) {
       </div>
       <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>GHL Contact ID (optional — tags applied to this contact on sync)</div>
         <input style={agInp} value={f.ghlContactId} onChange={(e) => set("ghlContactId", e.target.value)} placeholder="paste the agency GHL contact id" /></div>
+      {/* Workspace & Access — gives the agents (Dyson) the repo + context to make real changes. */}
+      <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--card-2)" }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>🛠 Workspace &amp; Access</div>
+        <div className="faint" style={{ fontSize: 11, marginBottom: 10 }}>
+          Link the site's GitHub repo and Dyson can write the change itself and open a PR you merge to go live.
+          No passwords here — put logins in your password manager and note where.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>GitHub repo (owner/repo)</div>
+            <input style={agInp} value={f.workspace.repo} onChange={(e) => setWs("repo", e.target.value)} placeholder="yahglizz/bloom-dental" /></div>
+          <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Live URL</div>
+            <input style={agInp} value={f.workspace.liveUrl} onChange={(e) => setWs("liveUrl", e.target.value)} placeholder="https://bloomdental.com" /></div>
+          <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Stack</div>
+            <input style={agInp} value={f.workspace.stack} onChange={(e) => setWs("stack", e.target.value)} placeholder="Static HTML · React/Vite · Next.js" /></div>
+          <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Deploy branch (optional)</div>
+            <input style={agInp} value={f.workspace.branch} onChange={(e) => setWs("branch", e.target.value)} placeholder="main (default)" /></div>
+        </div>
+        <div style={{ marginTop: 10 }}><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Brand / design notes (so the agent matches the look)</div>
+          <textarea style={{ ...agInp, minHeight: 44, resize: "vertical", fontFamily: "inherit" }}
+            value={f.workspace.brand} onChange={(e) => setWs("brand", e.target.value)} placeholder="Colors, fonts, voice, do's & don'ts" /></div>
+        <div style={{ marginTop: 10 }}><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Assets (logo / brand kit / image links)</div>
+          <input style={agInp} value={f.workspace.assets} onChange={(e) => setWs("assets", e.target.value)} placeholder="Drive / Figma / asset URLs" /></div>
+        <div style={{ marginTop: 10 }}><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Access notes (where logins live — NOT the passwords)</div>
+          <textarea style={{ ...agInp, minHeight: 44, resize: "vertical", fontFamily: "inherit" }}
+            value={f.workspace.accessNotes} onChange={(e) => setWs("accessNotes", e.target.value)} placeholder="e.g. Hosting = Vercel (my account). Domain at Namecheap. Logins in 1Password › Bloom." /></div>
+      </div>
       <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Notes</div>
         <textarea style={{ ...agInp, minHeight: 60, resize: "vertical", fontFamily: "inherit" }}
           value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="What you're building for them, status, next step…" /></div>

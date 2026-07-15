@@ -449,6 +449,17 @@ def _compose_agency_text(msg, data):
     if dtype == "edit_request" and data.get("detail"):
         parts.append(f"\"{_esc(str(data.get('detail'))[:400])}\"")
     if dtype == "dyson_plan":
+        reco = data.get("recommendation")
+        if reco:
+            who = ("🤖 <b>Agent can handle this</b>" if reco == "agent"
+                   else "👤 <b>Recommend you do this one</b>")
+            rr = data.get("recommendationReason")
+            parts.append(who + (f" — {_esc(str(rr)[:200])}" if rr else ""))
+        n = data.get("filesCount") or 0
+        if n:
+            changed = data.get("changedFiles") or []
+            flist = (": " + _esc(", ".join(changed[:4]))) if changed else ""
+            parts.append(f"✍️ <b>{n} file(s) written</b>{flist} — tap Approve to open the PR.")
         if data.get("summary"):
             parts.append(_esc(str(data.get("summary"))[:300]))
         steps = data.get("steps") or []
