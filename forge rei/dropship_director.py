@@ -53,15 +53,28 @@ _SYSTEMS = [
 ]
 
 
+# Keys that share a name with ANOTHER business's env are NEVER globally injected —
+# they'd leak across workspaces (e.g. the agency reads META_ACCESS_TOKEN straight from
+# os.environ). Dropship reads its own copies of these via dropship_env + a per-call
+# scoped swap (Blaze's Meta), so keeping them file-only preserves isolation. Everything
+# else in dropship.env is uniquely named (SHOPIFY_*, AUTODS_*, DROPSHIP_*, FORGE_DROPSHIP_*)
+# and safe to expose.
+_SHARED_PREFIXES = ("META_", "GHL_")
+
+
 def _load_env_file(p):
-    """Fold forge-dropship/config/dropship.env into the environment (real env wins)."""
+    """Fold forge-dropship/config/dropship.env into the environment (real env wins),
+    EXCEPT shared-namespace keys, which stay file-only to prevent cross-workspace leaks."""
     try:
         if p.exists():
             for line in p.read_text().splitlines():
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     k, v = line.split("=", 1)
-                    os.environ.setdefault(k.strip(), v.strip())
+                    k = k.strip()
+                    if any(k.startswith(pre) for pre in _SHARED_PREFIXES):
+                        continue
+                    os.environ.setdefault(k, v.strip())
     except Exception:
         pass
 
