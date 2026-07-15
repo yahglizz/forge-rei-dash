@@ -14,6 +14,60 @@ const RQ_NEXT = {
   rejected:    [{ to: "in_review", label: "Reopen" }],
 };
 
+// Client portal links — one shareable link per client. The operator sends it and
+// the client submits/tracks edit requests straight from the browser (no login).
+function RqPortalLinks({ onClose }) {
+  const Icons = window.Icons;
+  const [rows, setRows] = useStateRq(null);
+  const [err, setErr] = useStateRq(null);
+  const [copied, setCopied] = useStateRq("");
+
+  useEffectRq(() => {
+    let alive = true;
+    fetch("/api/agency/portal/links").then((r) => r.json()).then((d) => {
+      if (!alive) return;
+      if (d && d.links) setRows(d.links); else setErr((d && d.error) || "Failed to load");
+    }).catch((e) => alive && setErr(e.message || "Failed to load"));
+    return () => { alive = false; };
+  }, []);
+
+  async function copy(url, id) {
+    try { await navigator.clipboard.writeText(url); setCopied(id); setTimeout(() => setCopied(""), 1500); }
+    catch (e) { window.prompt("Copy this link:", url); }
+  }
+
+  return (
+    <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 600, fontSize: 15 }}>Client portal links</div>
+        <button className="tab" style={{ marginLeft: "auto" }} onClick={onClose}>Close</button>
+      </div>
+      <div className="faint" style={{ fontSize: 12.5 }}>
+        Send each client their own link. They submit + track edit requests from any browser —
+        no login, no need to contact you. Requests land here and ping you to approve.
+      </div>
+      {err && <div style={{ color: "var(--red)", fontSize: 12.5 }}>{err}</div>}
+      {!rows && !err && <window.LoadingRow label="Loading links…" />}
+      {rows && rows.length === 0 && (
+        <div className="faint" style={{ fontSize: 12.5 }}>No clients yet — add a client first, then a link appears here.</div>
+      )}
+      {rows && rows.map((r) => (
+        <div key={r.clientId} style={{ display: "flex", alignItems: "center", gap: 10,
+          padding: "9px 11px", background: "var(--card-2)", borderRadius: 9 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 13.5 }}>{r.name}{r.business ? " · " + r.business : ""}</div>
+            <div className="faint mono" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.url}</div>
+          </div>
+          <button className="tab" onClick={() => copy(r.url, r.clientId)}
+            style={{ flexShrink: 0, color: copied === r.clientId ? "var(--green)" : undefined }}>
+            {copied === r.clientId ? "Copied ✓" : "Copy link"}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RqHistory({ history }) {
   if (!history || !history.length) return <div className="faint" style={{ fontSize: 12 }}>No history yet.</div>;
   return (
@@ -71,7 +125,11 @@ function RqRow({ r, onChanged }) {
     <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{r.title}</div>
+          <div style={{ fontWeight: 600, fontSize: 14, display: "flex", alignItems: "center", gap: 7 }}>
+            {r.title}
+            {r.source === "portal" && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px",
+              borderRadius: 999, background: "#8B5CF622", color: "#8B5CF6" }}>via portal</span>}
+          </div>
           <div className="faint" style={{ fontSize: 12 }}>{r.clientName} · {r.type}</div>
         </div>
         <window.AgUI.PriorityBadge priority={r.priority} />
@@ -137,6 +195,7 @@ function AgencyRequests() {
   const Icons = window.Icons;
   const { data, error, loading, refresh } = window.useApi("/api/agency/requests", { interval: 20000 });
   const [creating, setCreating] = useStateRq(false);
+  const [showLinks, setShowLinks] = useStateRq(false);
   const [filter, setFilter] = useStateRq("all");
   const reqs = (data && data.requests) || [];
   const shown = filter === "all" ? reqs : reqs.filter((r) => r.status === filter);
@@ -157,11 +216,17 @@ function AgencyRequests() {
           <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.5px" }}>Client Edit Requests</h1>
           <div className="faint" style={{ fontSize: 12.5, marginTop: 4 }}>Submit, track, and approve client change requests.</div>
         </div>
-        {!creating && <button className="tab" style={{ display: "flex", alignItems: "center", gap: 6 }}
-          onClick={() => setCreating(true)}><Icons.Plus size={14} /> New Request</button>}
+        <div style={{ display: "flex", gap: 9 }}>
+          <button className="tab" style={{ display: "flex", alignItems: "center", gap: 6 }}
+            onClick={() => setShowLinks((s) => !s)}><Icons.Send size={14} /> Client Links</button>
+          {!creating && <button className="tab" style={{ display: "flex", alignItems: "center", gap: 6 }}
+            onClick={() => setCreating(true)}><Icons.Plus size={14} /> New Request</button>}
+        </div>
       </div>
 
       {error && <window.ErrorRow error={error} onRetry={refresh} />}
+
+      {showLinks && <RqPortalLinks onClose={() => setShowLinks(false)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
         {kpis.map((k) => <window.AgUI.AnalyticsCard key={k.label} {...k} />)}
