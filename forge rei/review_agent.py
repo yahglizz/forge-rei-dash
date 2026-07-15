@@ -26,6 +26,12 @@ STATE_DIR = HERE / "marcus_state"
 STATE_DIR.mkdir(exist_ok=True)
 LATEST_FILE = STATE_DIR / "review_latest.json"
 MODEL = os.environ.get("FORGE_REVIEW_MODEL", "claude-sonnet-4-5")
+# Cheap tier for high-volume, low-judgment calls (structured classification/scoring) —
+# callers opt in with _claude(..., model=HAIKU_MODEL). Default model above is unchanged.
+HAIKU_MODEL = os.environ.get("FORGE_HAIKU_MODEL", "claude-haiku-4-5-20251001")
+# Below this, a cached system prompt wouldn't hit Anthropic's per-model minimum
+# (1024 tokens Sonnet/Opus, 2048 Haiku) anyway — skip the wrapper for tiny prompts.
+_CACHE_MIN_CHARS = 1200
 
 
 def _api_key():
