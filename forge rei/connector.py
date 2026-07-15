@@ -885,6 +885,7 @@ import monthly_goals  # noqa: E402
 import agency_io  # noqa: E402
 import agency_ghl  # noqa: E402
 import agency_requests_io  # noqa: E402
+import agency_portal_io  # noqa: E402
 import agency_dyson  # noqa: E402
 import agency_workflows_io  # noqa: E402
 import agency_ads  # noqa: E402
@@ -2280,6 +2281,24 @@ def api_agency_requests(_q):
     return agency_requests_io.list_requests()
 
 
+# The public origin the operator shares with clients. Defaults to the Tailscale
+# HTTPS name; override with FORGE_PORTAL_BASE once a public funnel host is set.
+PORTAL_BASE = os.environ.get(
+    "FORGE_PORTAL_BASE", "https://forge-reios.tail0a2dda.ts.net").rstrip("/")
+
+
+def api_agency_portal_links(_q):
+    """Admin: a shareable client-portal link for every client (mints tokens lazily)."""
+    return agency_portal_io.links_for_all(base=PORTAL_BASE)
+
+
+# --- Client portal (public-safe: only ever touches ONE token-scoped client) ---
+def api_portal_bootstrap(q):
+    cid = (q.get("c", [None]) or [None])[0]
+    token = (q.get("k", [None]) or [None])[0]
+    return agency_portal_io.bootstrap(cid, token)
+
+
 def api_agency_dyson_drafts(_q):
     return agency_dyson.list_drafts()
 
@@ -2449,6 +2468,8 @@ ROUTES = {
     "/api/agency/ghl/pipeline": api_agency_ghl_pipeline,
     "/api/agency/ghl/tags": api_agency_ghl_tags,
     "/api/agency/requests": api_agency_requests,
+    "/api/agency/portal/links": api_agency_portal_links,
+    "/api/portal/bootstrap": api_portal_bootstrap,
     "/api/agency/dyson/drafts": api_agency_dyson_drafts,
     "/api/agency/workflows": api_agency_workflows,
     "/api/agency/ads": api_agency_ads,
@@ -2499,7 +2520,8 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/agency/clients", "/api/agency/stats", "/api/agency/health",
             "/api/agency/ghl/dashboard", "/api/agency/ghl/contacts",
             "/api/agency/ghl/pipeline",
-            "/api/agency/requests", "/api/agency/dyson/drafts",
+            "/api/agency/requests", "/api/agency/portal/links",
+            "/api/portal/bootstrap", "/api/agency/dyson/drafts",
             "/api/agency/workflows", "/api/agency/ads", "/api/agency/ads/accounts",
             "/api/agency/eco", "/api/agency/approvals",
             "/api/agency/agents", "/api/agency/agents/history",
@@ -2787,6 +2809,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/request/save",
                                    "/api/agency/request/delete",
                                    "/api/agency/request/status",
+                                   "/api/agency/portal/token",
+                                   "/api/portal/submit",
                                    "/api/agency/dyson/generate",
                                    "/api/agency/dyson/decision",
                                    "/api/agency/workflow/save",
@@ -2992,6 +3016,16 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/request/status":
                 result = agency_requests_io.set_status(
                     body.get("id"), body.get("status"), body.get("note"))
+            elif parsed.path == "/api/agency/portal/token":
+                # Admin: mint/return (or rotate) a client's portal link.
+                if body.get("rotate"):
+                    result = agency_io.rotate_portal_token(body.get("clientId"))
+                else:
+                    result = agency_portal_io.link(body.get("clientId"), base=PORTAL_BASE)
+            elif parsed.path == "/api/portal/submit":
+                # PUBLIC client-portal submit — token-scoped to one client.
+                result = agency_portal_io.submit(
+                    body.get("c"), body.get("k"), body)
             elif parsed.path == "/api/agency/dyson/generate":
                 result = agency_dyson.generate_draft(body.get("requestId"))
             elif parsed.path == "/api/agency/dyson/decision":
@@ -3867,6 +3901,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/FORGE REI OS.html"
         elif path in ("/m", "/m/", "/mobile", "/mobile/"):
             path = "/mobile/index.html"
+        elif path in ("/portal", "/portal/"):
+            path = "/portal.html"
         rel = urllib.parse.unquote(path.lstrip("/"))
         # Deny dotfiles + sensitive dirs (secrets, source, state, SSH keys).
         parts = Path(rel).parts
