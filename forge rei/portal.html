@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Request an Edit — ClientForge</title>
+<style>
+  :root{
+    --bg:#0b0d12; --card:#141821; --card2:#1b2130; --border:#252c3b;
+    --text:#eef2f8; --muted:#93a0b4; --faint:#66738a;
+    --accent:#8B5CF6; --accent-weak:#8B5CF61f;
+    --green:#22C55E; --amber:#F59E0B; --red:#EF4444; --blue:#4F7CFF;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f6fb; --card:#ffffff; --card2:#f0f2f8; --border:#e2e6ef;
+      --text:#111827; --muted:#586074; --faint:#8b94a6; }
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; line-height:1.5; }
+  .wrap{ max-width:680px; margin:0 auto; padding:24px 18px 64px; }
+  .brand{ display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .brand-badge{ width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--accent),#6366F1); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:16px; }
+  .brand-name{ font-weight:700; font-size:15px; letter-spacing:-.2px; }
+  .brand-sub{ font-size:11.5px; color:var(--faint); }
+  h1{ font-size:23px; font-weight:750; letter-spacing:-.4px; margin:0 0 4px; }
+  .lead{ color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; }
+  .card + .card{ margin-top:12px; }
+  .section-title{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--faint); margin:26px 0 10px; }
+  label{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:5px; }
+  input,select,textarea{ width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:9px; padding:10px 11px; font-size:14px; font-family:inherit; outline:none; }
+  input:focus,select:focus,textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-weak); }
+  textarea{ min-height:96px; resize:vertical; }
+  .field{ margin-bottom:13px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .btn{ appearance:none; border:none; cursor:pointer; font-family:inherit; font-weight:700; font-size:14px; border-radius:10px; padding:11px 16px; background:var(--accent); color:#fff; transition:filter .12s; }
+  .btn:hover{ filter:brightness(1.08); }
+  .btn:disabled{ opacity:.55; cursor:default; }
+  .btn-row{ display:flex; justify-content:flex-end; gap:9px; margin-top:4px; }
+  .msg{ font-size:13px; padding:9px 11px; border-radius:9px; margin-top:10px; }
+  .msg.ok{ background:#22C55E1f; color:var(--green); }
+  .msg.err{ background:#EF44441f; color:var(--red); }
+  .req{ border:1px solid var(--border); border-radius:12px; padding:13px 14px; background:var(--card); }
+  .req + .req{ margin-top:10px; }
+  .req-top{ display:flex; align-items:center; gap:9px; }
+  .req-title{ font-weight:650; font-size:14.5px; flex:1; min-width:0; }
+  .req-meta{ color:var(--faint); font-size:12px; margin-top:2px; }
+  .badge{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .track{ display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:11px; }
+  .step{ font-size:10.5px; font-weight:650; padding:3px 8px; border-radius:999px; }
+  .arrow{ color:var(--faint); font-size:10px; }
+  .det{ font-size:13px; color:var(--muted); margin-top:9px; white-space:pre-wrap; }
+  .empty{ text-align:center; color:var(--faint); font-size:13.5px; padding:26px 10px; }
+  .center{ text-align:center; padding:60px 20px; color:var(--muted); }
+  .spin{ width:26px; height:26px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 0.8s linear infinite; margin:0 auto 14px; }
+  @keyframes sp{ to{ transform:rotate(360deg); } }
+  .foot{ text-align:center; color:var(--faint); font-size:11.5px; margin-top:34px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="center"><div class="spin"></div>Loading your portal…</div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var qs = new URLSearchParams(location.search);
+  var CID = qs.get("c") || "";
+  var TOKEN = qs.get("k") || "";
+  var wrap = document.getElementById("wrap");
+
+  var STATUS = {
+    submitted:   {label:"Submitted",   color:"#4F7CFF"},
+    in_review:   {label:"In review",   color:"#8B5CF6"},
+    approved:    {label:"Approved",    color:"#2DD4BF"},
+    in_progress: {label:"In progress", color:"#F59E0B"},
+    completed:   {label:"Completed",   color:"#22C55E"},
+    rejected:    {label:"Closed",      color:"#EF4444"}
+  };
+  var FLOW = ["submitted","in_review","approved","in_progress","completed"];
+  var PRI = {low:"Low", medium:"Medium", high:"High", urgent:"Urgent"};
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+  function el(html){ var t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; }
+  function timeAgo(ts){
+    if(!ts) return "";
+    var s=Math.floor((Date.now()-ts)/1000);
+    if(s<60) return "just now";
+    var m=Math.floor(s/60); if(m<60) return m+"m ago";
+    var h=Math.floor(m/60); if(h<24) return h+"h ago";
+    var d=Math.floor(h/24); return d+"d ago";
+  }
+  function api(path, body){
+    var opt = body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {};
+    return fetch(path, opt).then(function(r){ return r.json(); });
+  }
+
+  var STATE = null; // bootstrap payload
+
+  function badge(status){
+    var m = STATUS[status] || {label:status, color:"#64748B"};
+    return '<span class="badge" style="background:'+m.color+'22;color:'+m.color+'">'+esc(m.label)+'</span>';
+  }
+  function tracker(status){
+    if(status==="rejected") return "";
+    var idx = FLOW.indexOf(status);
+    var html = '<div class="track">';
+    FLOW.forEach(function(s,i){
+      var m = STATUS[s];
+      var reached = (idx>=i) || status==="completed";
+      if(i>0) html += '<span class="arrow">→</span>';
+      html += '<span class="step" style="color:'+(reached?m.color:"var(--faint)")+';background:'+(reached?m.color+"1c":"var(--card2)")+'">'+esc(m.label)+'</span>';
+    });
+    return html + '</div>';
+  }
+  function reqCard(r){
+    return '<div class="req">'
+      + '<div class="req-top"><div style="flex:1;min-width:0">'
+        + '<div class="req-title">'+esc(r.title)+'</div>'
+        + '<div class="req-meta">'+esc(r.type)+' · '+esc(PRI[r.priority]||r.priority)+' · '+timeAgo(r.updatedAt||r.createdAt)+'</div>'
+      + '</div>'+badge(r.status)+'</div>'
+      + tracker(r.status)
+      + (r.detail ? '<div class="det">'+esc(r.detail)+'</div>' : '')
+      + '</div>';
+  }
+
+  function render(){
+    var s = STATE;
+    var reqs = s.requests || [];
+    var openCount = reqs.filter(function(r){ return r.status!=="completed" && r.status!=="rejected"; }).length;
+
+    wrap.innerHTML = ""
+      + '<div class="brand"><div class="brand-badge">CF</div>'
+        + '<div><div class="brand-name">ClientForge</div><div class="brand-sub">Powered by FORGE AI Agency</div></div></div>'
+      + '<h1>Hi '+esc((s.clientName||"there").split(" ")[0])+' 👋</h1>'
+      + '<p class="lead">Need a change to '+ (s.site? '<b>'+esc(s.business||"your site")+'</b>' : (s.business? '<b>'+esc(s.business)+'</b>' : "your site")) +'? Send it straight to our team below — no email, no back-and-forth. You\'ll see every request move through review, build, and done right here.</p>'
+
+      + '<div class="card">'
+        + '<div style="font-weight:700;font-size:15px;margin-bottom:14px">Request an edit</div>'
+        + '<div class="field"><label>What do you need? *</label><input id="f-title" maxlength="160" placeholder="e.g. Swap the homepage photo and headline"/></div>'
+        + '<div class="row2">'
+          + '<div class="field"><label>Type</label><select id="f-type">'+ (s.types||[]).map(function(t){return '<option>'+esc(t)+'</option>';}).join("") +'</select></div>'
+          + '<div class="field"><label>Priority</label><select id="f-pri">'+ (s.priorities||[]).map(function(p){return '<option value="'+p+'">'+(PRI[p]||p)+'</option>';}).join("") +'</select></div>'
+        + '</div>'
+        + '<div class="field"><label>Details</label><textarea id="f-detail" maxlength="4000" placeholder="Tell us exactly what to change — the more detail, the faster we ship it. Paste links or describe the section."></textarea></div>'
+        + '<div class="btn-row"><button class="btn" id="f-submit">Send request</button></div>'
+        + '<div id="f-msg"></div>'
+      + '</div>'
+
+      + '<div class="section-title">Your requests'+(reqs.length?' · '+openCount+' open':'')+'</div>'
+      + (reqs.length ? reqs.map(reqCard).join("") : '<div class="card"><div class="empty">No requests yet. Send your first one above — we\'ll take it from there.</div></div>')
+      + '<div class="foot">Your requests go straight to the FORGE team and are reviewed before any change goes live.</div>';
+
+    document.getElementById("f-submit").addEventListener("click", submit);
+  }
+
+  function submit(){
+    var btn = document.getElementById("f-submit");
+    var msg = document.getElementById("f-msg");
+    var title = (document.getElementById("f-title").value||"").trim();
+    msg.className=""; msg.textContent="";
+    if(!title){ msg.className="msg err"; msg.textContent="Please add a short title for your request."; return; }
+    btn.disabled = true; btn.textContent = "Sending…";
+    api("/api/portal/submit", {
+      c: CID, k: TOKEN, title: title,
+      type: document.getElementById("f-type").value,
+      priority: document.getElementById("f-pri").value,
+      detail: document.getElementById("f-detail").value
+    }).then(function(res){
+      btn.disabled=false; btn.textContent="Send request";
+      if(res && res.ok){
+        // refresh the list from source of truth
+        return boot(true).then(function(){
+          var m=document.getElementById("f-msg");
+          if(m){ m.className="msg ok"; m.textContent="Got it — your request is in. We'll get moving."; }
+        });
+      }
+      msg.className="msg err"; msg.textContent=(res && res.error) || "Something went wrong. Please try again.";
+    }).catch(function(){
+      btn.disabled=false; btn.textContent="Send request";
+      msg.className="msg err"; msg.textContent="Network error — please try again.";
+    });
+  }
+
+  function boot(silent){
+    if(!CID || !TOKEN){
+      wrap.innerHTML = '<div class="center"><h1>Link not recognized</h1><p class="lead">This portal link looks incomplete. Please use the exact link your FORGE contact sent you.</p></div>';
+      return Promise.resolve();
+    }
+    return api("/api/portal/bootstrap?c="+encodeURIComponent(CID)+"&k="+encodeURIComponent(TOKEN))
+      .then(function(res){
+        if(res && res.ok){ STATE = res; render(); }
+        else { wrap.innerHTML = '<div class="center"><h1>Link expired</h1><p class="lead">'+esc((res&&res.error)||"This link is no longer valid.")+' Please ask your FORGE contact for a fresh link.</p></div>'; }
+      })
+      .catch(function(){
+        if(!silent) wrap.innerHTML = '<div class="center"><h1>Can\'t connect</h1><p class="lead">We couldn\'t reach the portal. Please check your connection and try again.</p></div>';
+      });
+  }
+
+  boot(false);
+})();
+</script>
+</body>
+</html>
