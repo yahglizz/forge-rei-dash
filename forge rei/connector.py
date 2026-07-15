@@ -893,6 +893,18 @@ SOLOMON = daycare_director.SolomonEngine()
 NORA = daycare_family.NoraEngine()
 NOVA = daycare_adops.NovaEngine()
 
+# --- FORGE Dropship (4th business) — Shopify/AutoDS/Meta store + the Midas crew ------
+import dropship_shopify  # noqa: E402 — Shopify Admin REST bridge (read-only; writes gated)
+import dropship_autods  # noqa: E402 — AutoDS sourcing/orders bridge (read-only; orders gated)
+import dropship_io  # noqa: E402 — dropship local store (watchlist + settings)
+import dropship_context  # noqa: E402 — dropship business brief (read FIRST by every dropship agent)
+import dropship_director  # noqa: E402 — Midas, the dropship head agent (e-com director)
+import dropship_agents  # noqa: E402 — Hawk / Blaze / Otto specialist crew
+MIDAS = dropship_director.MidasEngine()
+HAWK = dropship_agents.HawkEngine()
+BLAZE = dropship_agents.BlazeEngine()
+OTTO = dropship_agents.OttoEngine()
+
 
 def _daycare_blast_transport(recipient, text):
     """Wire-send ONE family blast SMS through the daycare's own GHL sub-account.
@@ -3683,6 +3695,120 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:  # never leak tokens, credentials, PII, or upstream bodies
             return self._send_json(
                 {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
+
+    def _handle_dropship_get(self, path, q):
+        """FORGE Dropship read router — open on the tailnet/loopback like the agency side
+        (no PII, no session). Reads are safe; every write / outward action is gated in
+        _handle_dropship_post."""
+        def _overview():
+            try:
+                snap = dropship_shopify.snapshot()
+            except Exception as e:  # noqa: BLE001
+                snap = {"ok": False, "error": str(e)[:200]}
+            return {"ok": True, "store": snap,
+                    "watchlist": dropship_io.stats(),
+                    "settings": dropship_io.get_settings(),
+                    "systems": dropship_director.connected_systems()}
+
+        def _analytics():
+            out = {"ok": True}
+            try:
+                out["shopify"] = dropship_shopify.snapshot()
+            except Exception as e:  # noqa: BLE001
+                out["shopify"] = {"error": str(e)[:200]}
+            try:
+                out["ads"] = BLAZE.meta_overview()
+            except Exception as e:  # noqa: BLE001
+                out["ads"] = {"error": str(e)[:200]}
+            return out
+
+        handlers = {
+            "/api/dropship/overview": _overview,
+            "/api/dropship/products": lambda: dropship_shopify.products(),
+            "/api/dropship/orders": lambda: dropship_shopify.orders(),
+            "/api/dropship/inventory": lambda: dropship_shopify.inventory(),
+            "/api/dropship/suppliers": lambda: dropship_autods.products(),
+            "/api/dropship/watchlist": lambda: dropship_io.list_watchlist(),
+            "/api/dropship/settings": lambda: dropship_io.get_settings(),
+            "/api/dropship/shopify/health": lambda: dropship_shopify.health(),
+            "/api/dropship/autods/health": lambda: dropship_autods.health(),
+            "/api/dropship/ads": lambda: BLAZE.meta_overview(),
+            "/api/dropship/analytics": _analytics,
+            "/api/dropship/agents": lambda: {"ok": True, "agents": [
+                MIDAS.status(), HAWK.status(), BLAZE.status(), OTTO.status()]},
+            "/api/dropship/director/status": lambda: MIDAS.status(),
+            "/api/dropship/director/overview": lambda: MIDAS.overview(),
+            "/api/dropship/director/brief": lambda: MIDAS.brief(),
+            "/api/dropship/director/bus": lambda: agent_bus.recent(30),
+            "/api/dropship/hawk/overview": lambda: HAWK.overview(),
+            "/api/dropship/blaze/overview": lambda: BLAZE.overview(),
+            "/api/dropship/otto/overview": lambda: OTTO.overview(),
+        }
+        handler = handlers.get(path)
+        if not handler:
+            return self._send_json(
+                {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
+        try:
+            return self._send_json(handler())
+        except Exception as e:  # noqa: BLE001 — never leak tokens/bodies
+            return self._send_json(
+                {"ok": False, "error": "Dropship request failed",
+                 "code": "internal_error", "detail": str(e)[:200]}, 500)
+
+    def _handle_dropship_post(self, path):
+        """FORGE Dropship write/action router. Persistence writes (watchlist/settings) +
+        agent runs (Claude, propose-only) are allowed; NO outward action (ad launch,
+        supplier order, listing edit, customer message) is exposed here — those stay the
+        operator's one-tap approval (rule 2)."""
+        allow = {
+            "/api/dropship/settings/save",
+            "/api/dropship/watchlist/save",
+            "/api/dropship/watchlist/delete",
+            "/api/dropship/director/run", "/api/dropship/director/learn",
+            "/api/dropship/hawk/run", "/api/dropship/hawk/learn",
+            "/api/dropship/blaze/run", "/api/dropship/blaze/learn",
+            "/api/dropship/otto/run", "/api/dropship/otto/learn",
+        }
+        if path not in allow:
+            return self._send_json(
+                {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            raw = self.rfile.read(length) if length else b""
+            body = json.loads(raw.decode("utf-8")) if raw.strip() else {}
+        except Exception:
+            body = {}
+        try:
+            if path == "/api/dropship/settings/save":
+                result = dropship_io.save_settings(body)
+            elif path == "/api/dropship/watchlist/save":
+                result = dropship_io.save_item(body)
+            elif path == "/api/dropship/watchlist/delete":
+                result = dropship_io.delete_item(body.get("id"))
+            elif path == "/api/dropship/director/run":
+                result = MIDAS.run_once()
+            elif path == "/api/dropship/director/learn":
+                result = MIDAS.learn()
+            elif path == "/api/dropship/hawk/run":
+                result = HAWK.research(body)
+            elif path == "/api/dropship/hawk/learn":
+                result = HAWK.learn()
+            elif path == "/api/dropship/blaze/run":
+                result = BLAZE.analyze_ads(body)
+            elif path == "/api/dropship/blaze/learn":
+                result = BLAZE.learn()
+            elif path == "/api/dropship/otto/run":
+                result = OTTO.check(body)
+            elif path == "/api/dropship/otto/learn":
+                result = OTTO.learn()
+            else:
+                result = {"ok": False, "error": "unhandled"}
+            _touch_sync()
+            return self._send_json(result)
+        except Exception as e:  # noqa: BLE001 — never leak tokens/bodies
+            return self._send_json(
+                {"ok": False, "error": "Dropship request failed",
+                 "code": "internal_error", "detail": str(e)[:200]}, 500)
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
