@@ -2431,7 +2431,7 @@ ROUTES = {
 NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/ace/state", "/api/ace/status",
             "/api/cost/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
-            "/api/coach/feed",
+            "/api/coach/feed", "/api/sync/status", "/api/sync/check",
             "/api/ace/callready", "/api/ace/digest",
             "/api/contacts", "/api/conversations", "/api/messages",
             "/api/pipeline", "/api/tasks", "/api/dashboard", "/api/analytics",
