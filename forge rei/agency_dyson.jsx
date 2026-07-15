@@ -56,9 +56,34 @@ function DyDraftCard({ d, onChanged }) {
         <window.AgUI.RiskBadge risk={d.risk} />
       </div>
 
+      {d.recommendation && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 11px", borderRadius: 9,
+          background: d.recommendation === "agent" ? "#22C55E18" : "#F59E0B18",
+          border: "1px solid " + (d.recommendation === "agent" ? "#22C55E44" : "#F59E0B44") }}>
+          <span style={{ fontSize: 15 }}>{d.recommendation === "agent" ? "🤖" : "👤"}</span>
+          <div style={{ fontSize: 12.5 }}>
+            <b style={{ color: d.recommendation === "agent" ? "#22C55E" : "#F59E0B" }}>
+              {d.recommendation === "agent" ? "Agent can handle this" : "Recommend you do this one"}</b>
+            {d.recommendationReason ? " — " + d.recommendationReason : ""}
+          </div>
+        </div>
+      )}
+
       {d.summary && <div className="faint" style={{ fontSize: 13 }}>{d.summary}</div>}
       {d.riskReason && (
         <div className="faint" style={{ fontSize: 12 }}>Risk: {d.riskReason}</div>
+      )}
+
+      {(d.files && d.files.length > 0) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="card-title">✍️ Change written · {d.files.length} file{d.files.length > 1 ? "s" : ""} (ships as a PR on approve)</div>
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+            {d.files.map((fl, i) => (
+              <span key={i} className="mono" style={{ fontSize: 11.5, padding: "3px 8px", borderRadius: 6,
+                background: "var(--card-2)", border: "1px solid var(--border)" }}>{fl.path}</span>
+            ))}
+          </div>
+        </div>
       )}
 
       {affected.length > 0 && (
