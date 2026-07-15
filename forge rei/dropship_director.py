@@ -38,7 +38,7 @@ PLAYBOOK_REL = "Skills/midas-playbook.md"
 BRIEF_DIR_REL = "Reports/dropship"         # living operating record written every brief
 LEARN_EVERY = int(os.environ.get("FORGE_DROPSHIP_LEARN_EVERY", "8"))
 LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_DROPSHIP_LEARN_GAP_MIN", "45")) * 60 * 1000
-BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_DROPSHIP_BRIEF_EVERY_H", "6")) * 3600 * 1000)
+BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_DROPSHIP_BRIEF_EVERY_H", "24")) * 3600 * 1000)
 POLL_INTERVAL = 900  # seconds between loop ticks (self-improve + due-brief check)
 
 # Connected systems Midas watches — (env key, display name). Presence only; he

@@ -87,7 +87,7 @@ class _Specialist:
     TITLE = ""          # e.g. "Product Research"
     PLAYBOOK_MD = ""    # e.g. "hawk-playbook.md"
     ROLE_PROMPT = ""    # short system-prompt persona line
-    LEARN_EVERY = 6
+    LEARN_EVERY = 12   # auto self-improve threshold; manual "Learn from brain" button is unaffected
 
     def __init__(self):
         self.lock = threading.RLock()
