@@ -251,7 +251,7 @@ def _skills_block(agent_id):
     method = _marketing_methodology()
     method_block = (
         "\n\n=== MARKETING METHODOLOGY (how to market — a stable floor; apply it, the "
-        "creed still outranks it) ===\n" + method[:3200] if method else ""
+        "creed still outranks it) ===\n" + method[:5000] if method else ""
     )
     skills = _load_skills(agent_id)
     if skills:
