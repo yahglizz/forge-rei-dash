@@ -542,6 +542,10 @@ def _result_text(action, result):
         "scoutdismiss": "\U0001f515 Dismissed",
         "opspause": "🕐 Agents clocked out",
         "opsresume": "🟢 Agents clocked in",
+        "dysonplan": "\U0001f6e0 Dyson is drafting a plan…",
+        "reqdismiss": "\U0001f5d1 Request dismissed",
+        "dysongo": "✅ Approved — shipping",
+        "dysonno": "\U0001f5d1 Plan rejected",
     }
     return labels.get(action, "✅ Done")
 

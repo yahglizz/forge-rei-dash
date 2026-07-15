@@ -3938,6 +3938,111 @@ class Handler(BaseHTTPRequestHandler):
                 raise
 
 
+# ── Client portal — a SEPARATE, public-safe listener ──────────────────────────
+# The main dashboard (Handler above) stays on the private tailnet. This second
+# handler is the ONLY surface intended to face the public internet (via Tailscale
+# Funnel on FORGE_PORTAL_PORT). It answers exactly three things:
+#   GET  /            + /portal        → the client portal page (portal.html)
+#   GET  /api/portal/bootstrap         → that client's own name + requests (token)
+#   POST /api/portal/submit            → file a new edit request (token)
+# EVERYTHING else 404s. There is deliberately NO path from this handler to the
+# CRM, the dashboard APIs, secrets, or any other client — a client's token only
+# ever unlocks their own record (agency_portal_io + agency_io.verify_portal).
+# Off unless FORGE_PORTAL_PORT is set, so the live box is unchanged until the
+# operator opts in.
+_PORTAL_ALLOWED_ORIGINS = None  # same-origin only; portal.html is served from here
+
+
+class PortalHandler(BaseHTTPRequestHandler):
+    server_version = "ForgePortal/1.0"
+
+    def log_message(self, *a):  # keep the portal quiet in the connector log
+        pass
+
+    def _json(self, obj, code=200):
+        body = json.dumps(obj).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _page(self):
+        target = (HERE / "portal.html").resolve()
+        if not (str(target).startswith(str(HERE) + os.sep) and target.is_file()):
+            return self.send_error(404, "Not found")
+        data = target.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        if path in ("/", "/portal", "/portal/", "/portal.html"):
+            return self._page()
+        if path == "/api/portal/bootstrap":
+            q = urllib.parse.parse_qs(parsed.query)
+            cid = (q.get("c", [None]) or [None])[0]
+            token = (q.get("k", [None]) or [None])[0]
+            try:
+                return self._json(agency_portal_io.bootstrap(cid, token))
+            except Exception as e:  # noqa: BLE001
+                return self._json({"error": str(e)}, 500)
+        return self.send_error(404, "Not found")
+
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path != "/api/portal/submit":
+            return self.send_error(404, "Not found")
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            if length > 64 * 1024:  # a client request body is tiny; cap abuse
+                return self._json({"error": "payload too large"}, 413)
+            raw = self.rfile.read(length) if length else b"{}"
+            body = json.loads(raw or b"{}")
+            if not isinstance(body, dict):
+                return self._json({"error": "bad request"}, 400)
+            return self._json(agency_portal_io.submit(
+                body.get("c"), body.get("k"), body))
+        except Exception as e:  # noqa: BLE001
+            return self._json({"error": str(e)}, 500)
+
+
+def _start_portal_server():
+    """Start the public-safe portal listener when FORGE_PORTAL_PORT is set.
+
+    Binds 0.0.0.0 so a Tailscale Funnel target can reach it. Returns the thread
+    or None. Never raises — a portal bind failure must not stop the dashboard."""
+    raw = (os.environ.get("FORGE_PORTAL_PORT") or "").strip()
+    if not raw:
+        return None
+    try:
+        pport = int(raw)
+    except ValueError:
+        print(f"   Portal: FORGE_PORTAL_PORT={raw!r} is not a number — skipped")
+        return None
+    phost = os.environ.get("FORGE_PORTAL_HOST", "0.0.0.0")
+    try:
+        srv = ThreadingHTTPServer((phost, pport), PortalHandler)
+    except Exception as e:  # noqa: BLE001
+        print(f"   Portal: could not bind {phost}:{pport} ({e}) — skipped")
+        return None
+    print(f"   Portal: client edit-request portal on {phost}:{pport} "
+          f"(public-safe) · share base {PORTAL_BASE}")
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    return t
+
+
 def main():
     if not (API_KEY and LOCATION_ID):
         print("!! GHL credentials not found. Checked:")
@@ -4043,6 +4148,7 @@ def main():
             print(f"   Graphify: builder not started ({_e})")
     else:
         print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS=0) — UI/proxy only")
+    _start_portal_server()  # public-safe client portal (only if FORGE_PORTAL_PORT set)
     print(f"   binding {HOST}:{PORT}")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 
