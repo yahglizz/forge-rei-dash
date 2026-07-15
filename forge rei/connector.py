@@ -2842,6 +2842,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/prep/learn",
                                    "/api/agency/client/save",
                                    "/api/agency/client/delete",
+                                   "/api/agency/reset",
                                    "/api/agency/request/save",
                                    "/api/agency/request/delete",
                                    "/api/agency/request/status",
@@ -3054,6 +3055,16 @@ class Handler(BaseHTTPRequestHandler):
                 result = agency_io.save_client(body.get("client") or body)
             elif parsed.path == "/api/agency/client/delete":
                 result = agency_io.delete_client(body.get("id"))
+            elif parsed.path == "/api/agency/reset":
+                # Admin clean-slate: wipe ALL agency clients + edit requests + the
+                # approval queue. No executor runs. Requires {"confirm": true}.
+                if not (isinstance(body, dict) and body.get("confirm") is True):
+                    result = {"ok": False, "error": "reset requires {\"confirm\": true}"}
+                else:
+                    result = {"ok": True,
+                              "clients": agency_io.reset(),
+                              "requests": agency_requests_io.reset(),
+                              "approvals": agency_approvals_io.reset()}
             elif parsed.path == "/api/agency/request/save":
                 result = agency_requests_io.save_request(body.get("request") or body)
             elif parsed.path == "/api/agency/request/delete":

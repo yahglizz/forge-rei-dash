@@ -238,6 +238,16 @@ def delete_request(rid):
         return {"ok": True, "removed": before - len(d["requests"])}
 
 
+def reset():
+    """Admin clean-slate: remove ALL edit requests."""
+    with _LOCK:
+        d = _load()
+        n = len(d.get("requests", []))
+        d["requests"] = []
+        _save(d)
+    return {"ok": True, "cleared": n}
+
+
 def get_request(rid):
     with _LOCK:
         d = _load()

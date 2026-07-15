@@ -141,6 +141,16 @@ def list_queue(status=None):
         return {"queue": items, "counts": counts, "kinds": KINDS}
 
 
+def reset():
+    """Admin clean-slate: clear the entire approval queue (no executor runs)."""
+    with _LOCK:
+        d = _load()
+        n = len(d.get("queue", []))
+        d["queue"] = []
+        _save(d)
+    return {"ok": True, "cleared": n}
+
+
 def _dispatch_approve(it):
     """Dispatch an approved item to its executor. Returns {ok, detail, url?}.
 
