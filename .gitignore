@@ -25,6 +25,10 @@ marcus-wholesale-agent/
 codex-handoff/
 .claude/
 .claude-flow/
+# …but the marketing engine's slash-command skill IS part of the app — keep it tracked
+# so it syncs across machines (Mac + PC). Negation must re-include the dir then its files.
+!marketing/.claude/
+!marketing/.claude/**
 
 # ── Python ──────────────────────────────────────────────────
 __pycache__/
