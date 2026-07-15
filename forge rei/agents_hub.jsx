@@ -92,25 +92,7 @@ function HubChat({ agent, agents }) {
   const [text, setText] = useStateHub("");
   const [busy, setBusy] = useStateHub(false);
   const [err, setErr] = useStateHub(null);
-  const [models, setModels] = useStateHub(null);   // which chat models are available
-  const [curModel, setCurModel] = useStateHub(""); // the one picked for THIS agent
   const endRef = useRefHub(null);
-
-  // Load the model menu for this agent (Claude default; ChatGPT via Codex if set up).
-  useEffectHub(() => {
-    let dead = false;
-    window.apiGet("/api/models?agent=" + encodeURIComponent(agent.id))
-      .then((d) => { if (!dead) { setModels(d || null); setCurModel((d && d.current) || ""); } })
-      .catch(() => { if (!dead) setModels(null); });
-    return () => { dead = true; };
-  }, [agent.id]);
-
-  function pickModel(m) {
-    if (!m) return;
-    setCurModel(m); setErr(null);
-    // A preference, not an action — persisted server-side; next send uses it.
-    window.apiPost("/api/models/set", { agent: agent.id, model: m }).catch(() => {});
-  }
 
   // Always coerce to an array. There is no error boundary in this app (in-browser Babel),
   // so a payload shaped differently than expected doesn't degrade — it blanks the tab.
