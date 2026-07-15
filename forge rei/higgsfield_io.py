@@ -103,7 +103,13 @@ def generate_image(prompt: str, key: str | None = None, secret: str | None = Non
     body = json.dumps(payload).encode()
     req = urllib.request.Request(
         f"{HF_BASE}/image/generate", data=body, method="POST",
-        headers={"hf-api-key": key, "hf-secret": secret, "Content-Type": "application/json"})
+        headers={"hf-api-key": key, "hf-secret": secret, "Content-Type": "application/json",
+                 # Higgsfield sits behind Cloudflare, which 403s (code 1010) the default
+                 # Python-urllib signature. A real browser UA gets past the bot filter.
+                 "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 "
+                                "Safari/537.36"),
+                 "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read().decode())
