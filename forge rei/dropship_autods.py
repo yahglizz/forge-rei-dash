@@ -166,7 +166,7 @@ def marketplace(limit: int = 25, query: str = "") -> dict:
         rows = data.get("results") if isinstance(data, dict) else data
         rows = rows if isinstance(rows, list) else []
         out = []
-        for r in rows if isinstance(rows, list) else []:
+        for r in rows:
             if not isinstance(r, dict):
                 continue
             out.append({
