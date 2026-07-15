@@ -289,30 +289,12 @@ def attach_image(idea_id, image_url=""):
 
 
 def _higgsfield_image(prompt):
-    """Generate via Higgsfield's REST API. Only runs when a key is present."""
-    key = _hf_key()
-    if not key or not prompt:
-        return {"ok": False, "error": "no key or empty prompt"}
-    body = json.dumps({
-        "model": HIGGSFIELD_MODEL,
-        "prompt": prompt,
-        "quality": "high",
-        "resolution": "2k",
-    }).encode()
-    req = urllib.request.Request(
-        f"{_HF_BASE}/image/generate", data=body, method="POST",
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            d = json.loads(r.read().decode() or "{}")
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": f"Higgsfield error: {e}"}
-    url = (d.get("url") or d.get("image_url")
-           or ((d.get("images") or [{}])[0] or {}).get("url") or "")
-    if not url:
-        return {"ok": False, "error": f"Higgsfield returned no image URL: {str(d)[:160]}"}
-    return {"ok": True, "imageUrl": url}
+    """Generate via the shared Higgsfield helper (same key, same account Eco uses).
+    Only runs when a key is present; keeps Nova's high/2k quality settings."""
+    import higgsfield_io
+    return higgsfield_io.generate_image(
+        prompt, key=_hf_key(), model=HIGGSFIELD_MODEL,
+        extra={"quality": "high", "resolution": "2k"})
 
 
 # ── 3. build the ad (PAUSED — never active, never spends) ──────────────────────

@@ -69,9 +69,10 @@ def ready(key: str | None = None) -> bool:
 
 
 def generate_image(prompt: str, key: str | None = None, model: str | None = None,
-                   timeout: int = 120) -> dict:
+                   timeout: int = 120, extra: dict | None = None) -> dict:
     """Generate one image from a text prompt. Returns {ok:True, imageUrl, model} or
-    {ok:False, error, model}. Bearer auth. Does NOT raise — every failure comes back as
+    {ok:False, error, model}. Bearer auth. `extra` merges into the request body (e.g.
+    {"quality":"high","resolution":"2k"}). Does NOT raise — every failure comes back as
     an error dict so callers can degrade gracefully (show the prompt, don't fake it)."""
     key = (key or resolve_key()).strip()
     model = model or DEFAULT_MODEL
@@ -80,7 +81,10 @@ def generate_image(prompt: str, key: str | None = None, model: str | None = None
         return {"ok": False, "error": "no HIGGSFIELD_API_KEY wired", "model": model}
     if not prompt:
         return {"ok": False, "error": "empty prompt", "model": model}
-    body = json.dumps({"model": model, "prompt": prompt}).encode()
+    payload = {"model": model, "prompt": prompt}
+    if isinstance(extra, dict):
+        payload.update(extra)
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(
         f"{HF_BASE}/image/generate", data=body, method="POST",
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
