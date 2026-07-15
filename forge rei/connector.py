@@ -1922,6 +1922,13 @@ telegram_io.set_actions({
     # Clock the agent crew out / in from a Telegram button tap.
     "opspause": lambda _a=None: forge_ops.set_paused(True),
     "opsresume": lambda _a=None: forge_ops.set_paused(False),
+    # Agency edit requests: a new client request → tap to have Dyson draft a plan,
+    # or dismiss it. Dyson's plan → tap to approve+ship (runs agency_deploy) or reject.
+    "dysonplan": lambda rid: agency_dyson.generate_draft(rid),
+    "reqdismiss": lambda rid: agency_requests_io.set_status(
+        rid, "rejected", "Dismissed from Telegram"),
+    "dysongo": lambda did: agency_dyson.decision(did, "approve"),
+    "dysonno": lambda did: agency_dyson.decision(did, "reject"),
 })
 
 

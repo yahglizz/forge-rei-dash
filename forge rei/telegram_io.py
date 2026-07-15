@@ -47,6 +47,8 @@ _DEFAULT_TOGGLES = {
     "missed_sweep": True,
     "handoff": True,
     "agency": True,
+    "edit_request": True,   # new client edit request (agency portal + admin)
+    "dyson_plan": True,     # Dyson drafted a plan → approve & ship
 }
 _DEFAULT_QUIET = {"enabled": False, "start": 22, "end": 7}  # local hour ints
 
@@ -343,7 +345,8 @@ def _event_class(msg):
     """Map a bus message to an event class, or None to skip."""
     data = msg.get("data") if isinstance(msg.get("data"), dict) else {}
     dtype = data.get("type")
-    if dtype in ("hot_lead", "proposal", "missed_sweep", "skill_proposal"):
+    if dtype in ("hot_lead", "proposal", "missed_sweep", "skill_proposal",
+                 "edit_request", "dyson_plan"):
         return dtype
     if msg.get("kind") == "handoff":
         return "handoff"
@@ -407,12 +410,59 @@ def _buttons_for(cls, data):
             [{"text": "✅ Adopt skill", "callback_data": f"skillgo:{pid}"}],
             [{"text": "\U0001f5d1 Dismiss", "callback_data": f"skillno:{pid}"}],
         ]
+    if cls == "edit_request":
+        rid = data.get("requestId")
+        if rid:
+            return [
+                [{"text": "\U0001f6e0 Plan with Dyson", "callback_data": f"dysonplan:{rid}"}],
+                [{"text": "\U0001f5d1 Dismiss", "callback_data": f"reqdismiss:{rid}"}],
+            ]
+    if cls == "dyson_plan":
+        did = data.get("draftId")
+        if did:
+            return [
+                [{"text": "✅ Approve & ship", "callback_data": f"dysongo:{did}"}],
+                [{"text": "\U0001f5d1 Reject", "callback_data": f"dysonno:{did}"}],
+            ]
     return None
+
+
+def _compose_agency_text(msg, data):
+    """HTML message for agency edit-request events (new request / Dyson plan)."""
+    dtype = data.get("type")
+    parts = [_esc(msg.get("text") or "")]
+    client = data.get("client")
+    title = data.get("title")
+    meta = []
+    if client:
+        meta.append(f"<b>{_esc(client)}</b>")
+    if data.get("reqType"):
+        meta.append(_esc(data.get("reqType")))
+    if data.get("priority"):
+        meta.append(_esc(str(data.get("priority")).title()))
+    if data.get("risk"):
+        meta.append(f"{_esc(str(data.get('risk')).title())} risk")
+    if meta:
+        parts.append(" · ".join(meta))
+    if title:
+        parts.append(f"📝 <b>{_esc(str(title)[:200])}</b>")
+    if dtype == "edit_request" and data.get("detail"):
+        parts.append(f"\"{_esc(str(data.get('detail'))[:400])}\"")
+    if dtype == "dyson_plan":
+        if data.get("summary"):
+            parts.append(_esc(str(data.get("summary"))[:300]))
+        steps = data.get("steps") or []
+        if steps:
+            body = "\n".join(f"{i+1}. {_esc(str(s)[:120])}" for i, s in enumerate(steps[:6]))
+            parts.append(f"<b>Plan:</b>\n{body}")
+    return "\n\n".join(p for p in parts if p)
 
 
 def _compose_text(msg, data):
     """Clean HTML message: headline + name/phone, the SELLER'S message that triggered this,
     and (for a reply proposal) Marcus's drafted reply so the operator can approve in context."""
+    if data.get("type") in ("edit_request", "dyson_plan"):
+        return _compose_agency_text(msg, data)
     parts = [_esc(msg.get("text") or "")]
     name = data.get("name")
     phone = data.get("phone")
@@ -462,7 +512,9 @@ def on_bus_message(msg):
 
         buttons = _buttons_for(cls, data)
         text = _compose_text(msg, data)
-        dedupe_key = f"{cls}:{data.get('pid') or data.get('convId') or msg.get('id')}"
+        dedupe_key = f"{cls}:" + str(
+            data.get("pid") or data.get("convId") or data.get("requestId")
+            or data.get("draftId") or msg.get("id"))
         # Fire the network send on a daemon thread so a slow Telegram POST can NEVER block
         # the caller — agent_bus.send is sometimes called while Marcus holds its engine lock.
         threading.Thread(target=send, args=(text, buttons),
