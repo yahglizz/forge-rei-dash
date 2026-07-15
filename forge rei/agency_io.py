@@ -174,6 +174,17 @@ def delete_client(cid):
         return {"ok": True, "removed": before - len(d["clients"])}
 
 
+def reset():
+    """Admin clean-slate: remove ALL clients (keeps the seq counter so new ids stay
+    unique). Reversible only from a backup — the caller confirms intent."""
+    with _LOCK:
+        d = _load()
+        n = len(d.get("clients", []))
+        d["clients"] = []
+        _save(d)
+    return {"ok": True, "cleared": n}
+
+
 def stats():
     with _LOCK:
         d = _load()
