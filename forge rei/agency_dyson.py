@@ -272,54 +272,96 @@ def _heuristic_draft_fields(req):
     }
 
 
-def _claude_draft_fields(req):
-    """Ask Claude to produce draft fields. Returns (summary, risk, riskReason,
-    affected, steps) or raises on failure. Claude must return valid JSON."""
+def _workspace_block(ws):
+    """Human-readable client workspace context for the prompt (never secrets)."""
+    if not isinstance(ws, dict) or not any(ws.values()):
+        return "(no workspace on file — repo/site/brand unknown)"
+    lines = []
+    if ws.get("repo"):        lines.append(f"Repo: {ws['repo']} (edits open a PR → Vercel deploys on merge)")
+    if ws.get("liveUrl"):     lines.append(f"Live URL: {ws['liveUrl']}")
+    if ws.get("stack"):       lines.append(f"Stack: {ws['stack']}")
+    if ws.get("brand"):       lines.append(f"Brand / design notes: {ws['brand']}")
+    if ws.get("assets"):      lines.append(f"Assets: {ws['assets']}")
+    if ws.get("accessNotes"): lines.append(f"Access notes: {ws['accessNotes']}")
+    return "\n".join(lines) if lines else "(workspace mostly empty)"
+
+
+def _files_block(repo_files):
+    """Embed the current repo file contents Dyson may edit."""
+    if not repo_files:
+        return ("(no repo files available — either no repo is linked or it could "
+                "not be read. Produce a PLAN only; do NOT invent file contents.)")
+    parts = ["Current files from the repo (edit these — return the FULL new content "
+             "of any file you change):"]
+    for f in repo_files:
+        parts.append(f"\n----- FILE: {f['path']} -----\n{f['content']}")
+    return "\n".join(parts)
+
+
+def _claude_draft_fields(req, workspace=None, repo_files=None):
+    """Ask Claude to (1) assess who should do it and (2) — when repo files are
+    available and it's agent-appropriate — WRITE the actual edited files.
+
+    Returns a dict {summary, risk, riskReason, affected, steps, complexity,
+    estimate, recommendation, recommendationReason, files}. Raises on failure so
+    the caller falls back to the heuristic path."""
     key, _ = _agency_key()
     if not key:
         raise RuntimeError("no anthropic key")
 
     playbook = _load_skills()
-    playbook_block = (f"\n\n=== DYSON PLAYBOOK ===\n{playbook[:3000]}"
+    playbook_block = (f"\n\n=== DYSON PLAYBOOK ===\n{playbook[:2500]}"
                       if playbook else "")
+    has_files = bool(repo_files)
 
     system = (
-        "You are Dyson, the edit/build agent for Forge AI Agency. You produce "
-        "structured implementation plans for client website and code requests. "
-        "Return ONLY valid JSON (no markdown, no explanation) with these exact keys: "
-        "{\"summary\": str, \"risk\": \"low\"|\"medium\"|\"high\", "
-        "\"riskReason\": str, "
-        "\"affectedFiles\": [str], \"affectedPages\": [str], "
-        "\"steps\": [str], \"estimate\": str}. "
-        "summary: 1-sentence plan overview. "
-        "risk: low/medium/high. riskReason: one sentence justifying the risk. "
-        "affectedFiles: list of filenames/paths likely changed (can be empty list). "
-        "affectedPages: list of page/section names affected (can be empty list). "
-        "steps: numbered implementation steps as plain strings. "
-        "estimate: rough time estimate (e.g. '2-4 hours')." + playbook_block
+        "You are Dyson, the edit/build agent for Forge AI Agency. For each client "
+        "website request you do TWO things:\n"
+        "1) ASSESS who should do it — you (the agent) or the human operator. "
+        "Recommend 'agent' for quick, contained, low-risk edits (copy/image/text/"
+        "small style/section changes) where the intent is clear. Recommend "
+        "'operator' for bigger, ambiguous, design-heavy, or higher-risk work "
+        "(new pages, integrations, agents, brand redesigns, anything touching live "
+        "external systems or needing judgment/assets you don't have).\n"
+        "2) If — and ONLY if — you recommend 'agent' AND the current file contents "
+        "are provided, WRITE the change: return the FULL new content of each file "
+        "you edit, matching the site's existing style and the client's brand. Keep "
+        "the diff minimal and safe. If you recommend 'operator', or no files are "
+        "provided, return files: [] and give a clear plan instead.\n\n"
+        "Return ONLY valid JSON (no markdown) with EXACTLY these keys: "
+        "{\"summary\": str, \"risk\": \"low\"|\"medium\"|\"high\", \"riskReason\": str, "
+        "\"complexity\": \"low\"|\"medium\"|\"high\", \"estimate\": str, "
+        "\"recommendation\": \"agent\"|\"operator\", \"recommendationReason\": str, "
+        "\"affectedFiles\": [str], \"affectedPages\": [str], \"steps\": [str], "
+        "\"files\": [{\"path\": str, \"content\": str}]}. "
+        "files carries the FULL new file content for each edited file (never a diff, "
+        "never a snippet). recommendationReason: one plain sentence to the operator."
+        + playbook_block
     )
 
-    req_details = (
-        f"Request type: {req.get('type', 'Other')}\n"
+    user = (
+        f"CLIENT REQUEST\n"
         f"Client: {req.get('clientName', 'Unknown')}\n"
+        f"Type: {req.get('type', 'Other')} · Priority: {req.get('priority', 'normal')}\n"
         f"Title: {req.get('title', '')}\n"
-        f"Description: {req.get('description', '')}\n"
-        f"Priority: {req.get('priority', 'normal')}"
+        f"Page/URL: {req.get('pageUrl', '') or '(not specified)'}\n"
+        f"Details: {req.get('detail', '') or req.get('description', '')}\n"
+        f"Desired outcome: {req.get('outcome', '') or '(not specified)'}\n"
+        f"Reference links: {req.get('references', '') or '(none)'}\n\n"
+        f"CLIENT WORKSPACE\n{_workspace_block(workspace)}\n\n"
+        f"{_files_block(repo_files)}"
     )
 
-    raw = review_agent._claude(key, system, req_details, max_tokens=800)
+    raw = review_agent._claude(key, system, user, max_tokens=4096)
 
-    # Strip optional markdown fences before parsing.
     cleaned = raw.strip()
     if cleaned.startswith("```"):
         cleaned = cleaned.split("```", 2)[1]
         if cleaned.startswith("json"):
             cleaned = cleaned[4:]
         cleaned = cleaned.rsplit("```", 1)[0].strip()
-
     parsed = json.loads(cleaned)
 
-    # Build affected list in the existing shape [{type, name}].
     affected = []
     for name in (parsed.get("affectedFiles") or []):
         affected.append({"type": "file", "name": name})
@@ -331,14 +373,39 @@ def _claude_draft_fields(req):
     risk = parsed.get("risk", "medium")
     if risk not in _RISK_ORDER:
         risk = "medium"
+    complexity = parsed.get("complexity", risk)
+    if complexity not in _RISK_ORDER:
+        complexity = risk
+    reco = parsed.get("recommendation", "")
+    if reco not in ("agent", "operator"):
+        reco = "operator" if risk == "high" else "agent"
 
-    return (
-        parsed.get("summary", ""),
-        risk,
-        parsed.get("riskReason", ""),
-        affected,
-        [str(s) for s in (parsed.get("steps") or [])],
-    )
+    # Validate + sanitize the files Dyson wants to write. Only keep well-formed
+    # {path, content} entries that target the files we actually gave it (guard
+    # against hallucinated paths), and only when it recommended 'agent'.
+    allowed_paths = {f["path"] for f in (repo_files or [])}
+    files = []
+    if has_files and reco == "agent":
+        for f in (parsed.get("files") or []):
+            if not isinstance(f, dict):
+                continue
+            path = str(f.get("path") or "").strip()
+            content = f.get("content")
+            if path and isinstance(content, str) and content and path in allowed_paths:
+                files.append({"path": path, "content": content})
+
+    return {
+        "summary": parsed.get("summary", ""),
+        "risk": risk,
+        "riskReason": parsed.get("riskReason", ""),
+        "affected": affected,
+        "steps": [str(s) for s in (parsed.get("steps") or [])],
+        "complexity": complexity,
+        "estimate": parsed.get("estimate", ""),
+        "recommendation": reco,
+        "recommendationReason": parsed.get("recommendationReason", ""),
+        "files": files,
+    }
 
 
 def generate_draft(request_id):
