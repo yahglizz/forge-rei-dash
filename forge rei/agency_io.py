@@ -30,6 +30,30 @@ def _services(v):
     return [s for s in v if isinstance(s, str) and s in SERVICES]
 
 
+# What a client's site/build actually IS — so the agents (Dyson) have the context
+# + access to make real changes. This is the client "workspace." repo is the key
+# that unlocks autonomous edits (agent reads the repo, writes the change, opens a
+# PR → Vercel deploys on merge). NO raw passwords here — accessNotes points at
+# where logins live (a password manager), never the secret itself.
+_WORKSPACE_KEYS = ("repo", "branch", "liveUrl", "stack", "brand", "assets", "accessNotes")
+
+
+def _workspace(v):
+    if not isinstance(v, dict):
+        return {k: "" for k in _WORKSPACE_KEYS}
+    out = {}
+    for k in _WORKSPACE_KEYS:
+        val = v.get(k, "")
+        out[k] = str(val) if val is not None else ""
+    # repo normalize: strip a pasted full URL down to owner/repo
+    repo = out.get("repo", "").strip()
+    if repo:
+        repo = repo.replace("https://github.com/", "").replace("http://github.com/", "")
+        repo = repo.replace(".git", "").strip("/ ")
+        out["repo"] = repo
+    return out
+
+
 def _num(v):
     try:
         return max(0.0, float(v))
@@ -67,6 +91,7 @@ def _slim(c):
         "ghlSyncedAt": c.get("ghlSyncedAt"),
         "notes": c.get("notes") or "",
         "portalToken": c.get("portalToken") or "",
+        "workspace": _workspace(c.get("workspace")),
         "dateAdded": c.get("dateAdded"),
         "dateUpdated": c.get("dateUpdated"),
     }
@@ -108,6 +133,8 @@ def save_client(c):
                              else existing.get("services", [])),
                 "ghlContactId": c.get("ghlContactId", existing.get("ghlContactId", "")),
                 "notes": c.get("notes", existing.get("notes", "")),
+                "workspace": (_workspace(c.get("workspace")) if "workspace" in c
+                              else existing.get("workspace") or _workspace(None)),
                 "dateUpdated": now,
             })
             saved = existing
@@ -126,6 +153,7 @@ def save_client(c):
                 "ghlContactId": c.get("ghlContactId", ""),
                 "ghlSyncedAt": None,
                 "notes": c.get("notes", ""),
+                "workspace": _workspace(c.get("workspace")),
                 "dateAdded": now,
                 "dateUpdated": now,
             }
