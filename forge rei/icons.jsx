@@ -89,6 +89,7 @@ const Icons = {
   Inventory: (p) => <I {...p}><path d="M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></I>,
   Suppliers: (p) => <I {...p}><rect x="1" y="4" width="14" height="12" rx="1"/><path d="M15 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/></I>,
   Customers: (p) => <I {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></I>,
+  Watch: (p) => <I {...p}><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></I>,
 };
 
 window.Icons = Icons;

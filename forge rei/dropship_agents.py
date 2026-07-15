@@ -321,6 +321,40 @@ class HawkEngine(_Specialist):
                 + (ideas if isinstance(ideas, str) else json.dumps(ideas)))
         return self.analyze(task, data)
 
+    def watch_score(self, item):
+        """Deep single-product WATCH analysis for a product on the operator's radar (one
+        they can't dropship themselves yet). Returns a 1–10 upside rating, the winning
+        numbers/reasons, why it should sell + who for, and what ads to make. Read-only
+        proposal — Hawk never sources, lists, or spends."""
+        if not isinstance(item, dict) or not str(item.get("name") or "").strip():
+            return {"ok": False, "error": "product item with a name required"}
+        contract = (
+            "Output ONLY this JSON object, nothing else:\n"
+            "{\n"
+            '  "product": "<name>",\n'
+            '  "score": <integer 1-10 — your honest read of how good this product can be>,\n'
+            '  "verdict": "test|watch|pass",\n'
+            '  "headline": "<one line: the core reason for the score>",\n'
+            '  "winningNumbers": ["<a reason WITH a number: margin/markup, price band, '
+            "demand signal, competition — ground it in the item data or the category; if "
+            'you don\'t know it, write it as Unknown>", "..."],\n'
+            '  "whyItWins": "<why it should sell: the problem it solves or the wow factor>",\n'
+            '  "audience": "<who to target — the buyer>",\n'
+            '  "adTypes": ["<ad FORMAT to make: UGC unboxing video, problem→agitate reel, '
+            'before/after, demo, founder story, etc.>", "..."],\n'
+            '  "adAngles": ["<a specific hook/angle to test in the copy>", "..."],\n'
+            '  "biggestUnknown": "<the one thing that could kill it>",\n'
+            '  "nextStep": "<the cheapest way to validate before committing>"\n'
+            "}\n"
+            "NEVER invent a fake metric — every number is grounded or labeled Unknown. The "
+            "score weighs margin headroom, real demand signal, ad-ability, and fulfillment "
+            "sanity, against saturation."
+        )
+        task = ("Analyze this ONE product the operator is WATCHING — they can't dropship it "
+                "themselves yet and want to know how good it can be and how to attack it.\n\n"
+                + contract)
+        return self.analyze(task, {"product": item}, max_tokens=1600)
+
 
 # ---------------------------------------------------------------------------
 # Blaze — creative & ads (reuses the agency Meta engine via a dropship env-swap)

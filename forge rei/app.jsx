@@ -78,6 +78,7 @@ const DROPSHIP_PAGES = {
   Dashboard:  () => <window.DropshipDashboard />,
   Agents:     () => <window.DropshipAgents />,
   Products:   () => <window.DropshipProducts />,
+  Watch:      () => <window.DropshipWatch />,
   Orders:     () => <window.DropshipOrders />,
   Inventory:  () => <window.DropshipInventory />,
   Suppliers:  () => <window.DropshipSuppliers />,

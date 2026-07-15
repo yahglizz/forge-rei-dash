@@ -37,7 +37,7 @@ const DAYCARE_NAV = [
 // FORGE Dropship workspace — Shopify/AutoDS/Meta store run by the Midas agent crew.
 const DROPSHIP_NAV = [
   ["Dashboard", "Dashboard"], ["Agents", "Agents"],
-  ["Products", "Products"], ["Orders", "Orders"], ["Inventory", "Inventory"],
+  ["Products", "Products"], ["Watch", "Product Watch"], ["Orders", "Orders"], ["Inventory", "Inventory"],
   ["Suppliers", "Suppliers"], ["Ads", "Ads & Creative"], ["Customers", "Customers"],
   ["Analytics", "Analytics"], ["Brain", "Brain"], ["Settings", "Settings"],
 ];

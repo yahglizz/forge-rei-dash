@@ -3823,6 +3823,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/watchlist/delete",
             "/api/dropship/director/run", "/api/dropship/director/learn",
             "/api/dropship/hawk/run", "/api/dropship/hawk/learn",
+            "/api/dropship/hawk/watch",
             "/api/dropship/blaze/run", "/api/dropship/blaze/learn",
             "/api/dropship/otto/run", "/api/dropship/otto/learn",
         }
@@ -3850,6 +3851,18 @@ class Handler(BaseHTTPRequestHandler):
                 result = HAWK.research(body)
             elif path == "/api/dropship/hawk/learn":
                 result = HAWK.learn()
+            elif path == "/api/dropship/hawk/watch":
+                item = dropship_io.get_item(body.get("id"))
+                if not item:
+                    result = {"ok": False, "error": "item not found"}
+                else:
+                    r = HAWK.watch_score(item)
+                    if r.get("ok"):
+                        saved = dropship_io.save_analysis(item.get("id"), r.get("result"))
+                        result = {"ok": True, "item": saved.get("item"),
+                                  "analysis": r.get("result")}
+                    else:
+                        result = r
             elif path == "/api/dropship/blaze/run":
                 result = BLAZE.analyze_ads(body)
             elif path == "/api/dropship/blaze/learn":
