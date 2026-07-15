@@ -235,17 +235,31 @@ class _Builder:
                     self._add_link(did, tgt, "references", src_file=rel)
 
 
+# Generic names resolve by bare name to the wrong symbol and become giant noise
+# hubs (every `.get()`/`str()` collapses onto one node). Skip them for `calls`.
+_CALL_STOP = {
+    "get", "set", "str", "int", "len", "list", "dict", "print", "format", "join",
+    "append", "keys", "items", "values", "strip", "lower", "upper", "split", "add",
+    "pop", "sort", "sorted", "map", "filter", "range", "open", "read", "write",
+    "float", "bool", "type", "super", "isinstance", "getattr", "setattr", "hasattr",
+    "min", "max", "sum", "abs", "round", "enumerate", "zip", "any", "all", "next",
+    "encode", "decode", "dumps", "loads", "replace", "find", "update", "extend",
+    "startswith", "endswith", "group", "match", "search", "compile", "sub",
+}
+
+
 def _called_names(func_node):
-    """Norm names of things a function body calls (Name id or Attribute attr)."""
-    out = []
+    """Norm names a function body calls (Name id / Attribute attr), minus generic
+    noise. Short (<4 char) and stoplisted names are dropped so `calls` stays signal."""
+    out = set()
     for n in ast.walk(func_node):
         if isinstance(n, ast.Call):
             f = n.func
-            if isinstance(f, ast.Name):
-                out.append(_norm(f.id))
-            elif isinstance(f, ast.Attribute):
-                out.append(_norm(f.attr))
-    return out
+            nm = _norm(f.id) if isinstance(f, ast.Name) else (
+                _norm(f.attr) if isinstance(f, ast.Attribute) else None)
+            if nm and len(nm) >= 4 and nm not in _CALL_STOP:
+                out.add(nm)
+    return list(out)
 
 
 def build_graph():
