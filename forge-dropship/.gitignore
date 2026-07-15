@@ -1,0 +1,7 @@
+# Never commit real Dropship config / secrets — keep only the example
+config/*.env
+*.env
+!*.env.example
+data/*
+!data/.gitkeep
+.DS_Store
