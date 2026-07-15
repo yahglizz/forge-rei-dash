@@ -4,7 +4,7 @@
 > `{{parameters}}` from the input topic + `/context`, then renders 3 variations that change
 > ONLY ONE parameter at a time so the brand stays recognizable.
 >
-> Renders via the shared Higgsfield **soul** endpoint (`../forge rei/higgsfield_io.py`,
+> Renders via the shared Higgsfield **soul** endpoint (`../../forge rei/higgsfield_io.py`,
 > `/v1/text2image/soul`, `1536x1536`). Higgsfield reads best from ONE prompt = ONE job, kept
 > direct and under ~80 words.
 

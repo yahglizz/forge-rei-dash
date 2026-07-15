@@ -507,6 +507,27 @@ def learn(agent_id, auto=False):
                        {"learnCount": count})
     except Exception:
         pass
+    # Coach the network: distill ONE transferable, business-agnostic lesson from the
+    # freshly-written playbook and broadcast it so peers in the OTHER businesses can absorb
+    # it on their next learn(). Insight text only — the secret-guard in
+    # agent_coach.broadcast drops anything key-shaped, and client-specific detail is
+    # prompted out. Fully guarded: any failure is a silent no-op (zero change to the learn
+    # result). Rule-2 compliant — internal, reversible, brain-logged, no outward action.
+    try:
+        import agent_coach
+        tip_sys = (
+            "You are distilling ONE cross-business coaching insight from an agent's "
+            "updated playbook. Output a SINGLE sentence (under 200 chars): a transferable "
+            "tactic an agent in a DIFFERENT business could adapt. No client names, no "
+            "secrets, no numbers tied to one client, no instruction to take an outward "
+            "action. Output only the sentence.")
+        tip = review_agent._claude(key, tip_sys, new_md[:3000], max_tokens=120)
+        tip = (tip or "").strip().strip('"').split("\n")[0].strip()
+        if 12 <= len(tip) <= 240:
+            agent_coach.broadcast(agent_id, tip, to="all",
+                                  tags=["auto", "self-improve", agent_id])
+    except Exception:
+        pass
     return {"ok": True, "learnCount": count, "wrote": rel,
             "fromEncounters": len(lines),
             "committed": (res or {}).get("committed"), "auto": auto}
