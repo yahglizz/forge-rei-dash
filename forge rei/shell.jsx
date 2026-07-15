@@ -159,6 +159,18 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onH
           <>
             <div onClick={() => setMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
             <div className="card" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 248, padding: 8, zIndex: 50, borderRadius: 14 }}>
+              {onHome && (
+                <button onClick={() => { onHome(); setMenu(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "9px 8px", borderRadius: 10, background: "transparent", textAlign: "left", marginBottom: 2 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 9, background: "var(--card-2)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <Icons.Activity size={17} />
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>Mission Control</div>
+                    <div className="faint" style={{ fontSize: 11 }}>All businesses overview</div>
+                  </div>
+                </button>
+              )}
               <div className="faint" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", padding: "6px 8px 8px" }}>Workspaces</div>
               {workspaces.map((w) => (
                 <button key={w.id} onClick={() => { onSwitch(w.id); setMenu(false); }}
