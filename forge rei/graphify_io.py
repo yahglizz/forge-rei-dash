@@ -4,8 +4,11 @@ Used by:
   - connector.py  → /api/graphify/{graph,search,stats}  (Brain tab UI)
   - agents        → import graphify_io; graphify_io.search("ghl") for cross-project context
 
-The graph is rebuilt every 30 min by the launchd brain-sync job. Reads are cached
-for 60 s so rapid UI polls don't stat the file repeatedly.
+The graph is rebuilt on the box by `graphify_build.py` — a native stdlib builder
+that runs as a connector daemon thread (box only) every FORGE_GRAPHIFY_EVERY_MIN
+minutes, scanning the live repo (code) + vault (docs) into this same JSON schema.
+(Historically it came from a Mac-only launchd job, which left the box stale.)
+Reads here are cached for 60 s so rapid UI polls don't stat the file repeatedly.
 """
 from __future__ import annotations
 import json
