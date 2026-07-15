@@ -6,6 +6,7 @@ across reloads and survives restarts/redeploys.
 """
 import forge_atomic
 import json
+import secrets
 import threading
 import time
 from pathlib import Path
@@ -65,6 +66,7 @@ def _slim(c):
         "ghlContactId": c.get("ghlContactId") or "",
         "ghlSyncedAt": c.get("ghlSyncedAt"),
         "notes": c.get("notes") or "",
+        "portalToken": c.get("portalToken") or "",
         "dateAdded": c.get("dateAdded"),
         "dateUpdated": c.get("dateUpdated"),
     }
