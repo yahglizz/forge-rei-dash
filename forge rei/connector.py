@@ -2513,6 +2513,7 @@ ROUTES = {
     "/api/portal/bootstrap": api_portal_bootstrap,
     "/api/agency/dyson/drafts": api_agency_dyson_drafts,
     "/api/agency/workflows": api_agency_workflows,
+    "/api/agency/build/list": api_agency_build_list,
     "/api/agency/ads": api_agency_ads,
     "/api/agency/ads/accounts": api_agency_ads_accounts,
     "/api/agency/eco": api_agency_eco,
@@ -2563,6 +2564,7 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/agency/ghl/pipeline",
             "/api/agency/requests", "/api/agency/portal/links",
             "/api/portal/bootstrap", "/api/agency/dyson/drafts",
+            "/api/agency/build/list",
             "/api/agency/workflows", "/api/agency/ads", "/api/agency/ads/accounts",
             "/api/agency/eco", "/api/agency/approvals",
             "/api/agency/agents", "/api/agency/agents/history",
@@ -2858,6 +2860,10 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/dyson/decision",
                                    "/api/agency/workflow/save",
                                    "/api/agency/workflow/decision",
+                                   "/api/agency/build/generate",
+                                   "/api/agency/build/delete",
+                                   "/api/agency/build/status",
+                                   "/api/agency/build/handoff",
                                    "/api/agency/eco/generate",
                                    "/api/agency/eco/decision",
                                    "/api/agency/eco/image",
@@ -3102,6 +3108,14 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/workflow/decision":
                 result = agency_workflows_io.decision(
                     body.get("id") or body.get("workflowId"), body.get("action"))
+            elif parsed.path == "/api/agency/build/generate":
+                result = agency_build_studio.generate(body)
+            elif parsed.path == "/api/agency/build/delete":
+                result = agency_build_studio.delete_blueprint(body.get("id"))
+            elif parsed.path == "/api/agency/build/status":
+                result = agency_build_studio.set_status(body.get("id"), body.get("status"))
+            elif parsed.path == "/api/agency/build/handoff":
+                result = agency_build_studio.hand_off(body.get("id"))
             elif parsed.path == "/api/agency/eco/generate":
                 result = agency_eco.generate(
                     account=body.get("account"), client=body.get("client"))

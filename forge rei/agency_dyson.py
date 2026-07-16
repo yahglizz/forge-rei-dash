@@ -541,12 +541,16 @@ def apply(draft):
                 cur["appliedAt"] = int(time.time() * 1000)
                 _save(d)
 
+    commit_url = None
+    pr_url = None
     try:
         import agency_deploy  # Lane E creates this (frozen name from plan §4 M4)
         result = agency_deploy.ship(client, draft)
         ok = bool(result.get("ok"))
         detail = result.get("detail", "shipped" if ok else "deploy failed")
-        url = result.get("commitUrl") or result.get("prUrl")
+        commit_url = result.get("commitUrl")
+        pr_url = result.get("prUrl")
+        url = pr_url or commit_url
     except ImportError:
         ok = False
         detail = "queued, needs GITHUB_TOKEN (agency_deploy not yet available)"
@@ -555,6 +559,21 @@ def apply(draft):
         ok = False
         detail = f"queued, needs GITHUB_TOKEN ({exc})"
         url = None
+
+    # Persist the ship result onto the draft so the UI can show the operator a
+    # permanent "View PR" link (not just in the one-time POST response).
+    if ok and draft_id:
+        with _LOCK:
+            d = _load()
+            cur = next((x for x in d.get("drafts", []) if x.get("id") == draft_id), None)
+            if cur is not None:
+                cur["deploy"] = {"ok": True, "detail": detail, "commitUrl": commit_url,
+                                 "prUrl": pr_url, "shippedAt": int(time.time() * 1000)}
+                if pr_url:
+                    cur["prUrl"] = pr_url
+                if commit_url:
+                    cur["commitUrl"] = commit_url
+                _save(d)
 
     # Write result note to the brain (best-effort).
     note_text = (f"Dyson apply: draft {draft_id} for {draft.get('clientName', '')} — "

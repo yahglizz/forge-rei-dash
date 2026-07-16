@@ -126,9 +126,17 @@ function DyDraftCard({ d, onChanged }) {
           </div>
         </div>
       ) : (
-        <div className="faint" style={{ fontSize: 12, display: "flex", alignItems: "center",
-          gap: 7, justifyContent: "flex-end" }}>
-          Status: <window.AgUI.Badge status={d.status} map={DY_STATUS} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+          {(d.prUrl || d.commitUrl) && (
+            <a href={d.prUrl || d.commitUrl} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 12, fontWeight: 700, color: "#2DD4BF", textDecoration: "none",
+                border: "1px solid #2DD4BF55", background: "#2DD4BF18", padding: "4px 10px", borderRadius: 8 }}>
+              {d.prUrl ? "View PR ↗" : "View commit ↗"}
+            </a>
+          )}
+          <div className="faint" style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 7 }}>
+            Status: <window.AgUI.Badge status={d.status} map={DY_STATUS} />
+          </div>
         </div>
       )}
     </div>
