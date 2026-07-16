@@ -948,6 +948,8 @@ BLAZE = dropship_agents.BlazeEngine()
 OTTO = dropship_agents.OttoEngine()
 
 import mission_control  # noqa: E402 — cross-business front-door snapshot (read-only)
+import mission_control_agent  # noqa: E402 — Orion, the cross-business Chief-of-Staff agent
+ORION = mission_control_agent.OrionEngine()
 
 
 def _daycare_blast_transport(recipient, text):
@@ -2417,6 +2419,8 @@ ROUTES = {
     "/api/health": api_health,
     "/api/system/health": api_system_health,
     "/api/mission-control": api_mission_control,
+    "/api/mission-control/brief": lambda q: ORION.cached_brief(),
+    "/api/mission-control/brief/overview": lambda q: ORION.overview(),
     "/api/ace/state": api_ace_state,
     "/api/ace/status": api_ace_status,
     "/api/cost/status": api_cost_status,
@@ -3573,6 +3577,7 @@ class Handler(BaseHTTPRequestHandler):
         handlers = {
             "/api/daycare/child/save": daycare_supabase.save_child,
             "/api/daycare/child/deactivate": daycare_supabase.deactivate_child,
+            "/api/daycare/guardian/reset-pin": daycare_supabase.reset_credentials,
             "/api/daycare/classroom/save": daycare_supabase.save_classroom,
             "/api/daycare/classroom/archive": daycare_supabase.archive_classroom,
             "/api/daycare/staff/save": daycare_supabase.save_staff,
