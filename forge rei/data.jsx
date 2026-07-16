@@ -14,7 +14,7 @@ const NAV = [
 
 // Forge AI Agency workspace — ClientForge ops + control center
 const AGENCY_NAV = [
-  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Clients", "Clients"], ["ClientView", "Client View"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Build", "Blueprint Studio"], ["Clients", "Clients"], ["ClientView", "Client View"],
   ["Requests", "Edit Requests"],
   ["Workflows", "Workflows"], ["Ads", "Meta Ads"], ["Social", "Social"], ["Approvals", "Approvals"],
   ["Pipeline", "Pipeline"], ["Projects", "Projects"], ["Revenue", "Revenue"],

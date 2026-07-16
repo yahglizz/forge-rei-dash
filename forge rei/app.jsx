@@ -34,6 +34,7 @@ const AGENCY_PAGES = {
   ClientView: () => <window.AgencyClientView />,
   Requests:   () => <window.AgencyRequests />,
   Agents:     () => <window.HubAgentsPage ws="agency" />,
+  Build:      () => <window.AgencyBuild />,
   AgencyAgentsLegacy: () => <window.AgencyAgents />,
   Dyson:      () => <window.AgencyDyson />,
   Workflows:  () => <window.AgencyWorkflows />,
