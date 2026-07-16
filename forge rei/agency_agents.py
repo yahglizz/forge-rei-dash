@@ -199,6 +199,32 @@ def _load_skills(agent_id):
 
 
 _METHOD_CACHE = {}  # (mtime_sig, text) for the marketing methodology seed
+_ADCOPY_CACHE = {}  # (mtime_sig, text) for the four-triggers ad-copy seed
+
+
+def _four_triggers_skill():
+    """Four Triggers ad-copy framework (agency-four-triggers-ad-writer.md) — a STABLE
+    floor for how Eco writes ad copy, isolated from _load_skills so learn() can never
+    rewrite it (same rationale as the marketing methodology). mtime-cached. Eco-only."""
+    try:
+        p = None
+        for d in SEED_SKILLS_DIRS:
+            cand = d / "agency-four-triggers-ad-writer.md"
+            if cand.is_file():
+                p = cand
+                break
+        if not p:
+            return ""
+        sig = p.stat().st_mtime
+        cached = _ADCOPY_CACHE.get("a")
+        if not cached or cached[0] != sig:
+            text = p.read_text(errors="ignore")
+            _ADCOPY_CACHE["a"] = (sig, text)
+            return text
+        return cached[1]
+    except Exception:
+        cached = _ADCOPY_CACHE.get("a")
+        return cached[1] if cached else ""
 
 
 def _marketing_methodology():
@@ -253,11 +279,19 @@ def _skills_block(agent_id):
         "\n\n=== MARKETING METHODOLOGY (how to market — a stable floor; apply it, the "
         "creed still outranks it) ===\n" + method[:5000] if method else ""
     )
+    adcopy_block = ""
+    if agent_id == "eco":
+        adcopy = _four_triggers_skill()
+        if adcopy:
+            adcopy_block = (
+                "\n\n=== AD COPY FRAMEWORK — Four Triggers (a stable floor for writing ad "
+                "concepts; apply it, the creed still outranks it) ===\n" + adcopy[:5000]
+            )
     skills = _load_skills(agent_id)
     if skills:
-        return ns + creed + method_block + (
+        return ns + creed + method_block + adcopy_block + (
             "\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n" + skills[:3000])
-    return ns + creed + method_block
+    return ns + creed + method_block + adcopy_block
 
 
 def _history_block(history, limit=10):

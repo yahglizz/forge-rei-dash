@@ -70,6 +70,29 @@ def _context_block():
         return ""
 
 
+_ADCOPY_CACHE = {}  # (mtime_sig, text) for the four-triggers ad-copy seed (Blaze only)
+
+
+def _four_triggers_block():
+    """Four Triggers ad-copy framework (dropship-four-triggers-ad-writer.md) — a STABLE
+    floor for how Blaze writes ad copy, never touched by learn() (same rationale as the
+    creed). mtime-cached."""
+    try:
+        p = DROPSHIP_DIR / "skills" / "dropship-four-triggers-ad-writer.md"
+        if not p.is_file():
+            return ""
+        sig = p.stat().st_mtime
+        cached = _ADCOPY_CACHE.get("a")
+        if not cached or cached[0] != sig:
+            text = p.read_text(errors="ignore")
+            _ADCOPY_CACHE["a"] = (sig, text)
+            return text
+        return cached[1]
+    except Exception:
+        cached = _ADCOPY_CACHE.get("a")
+        return cached[1] if cached else ""
+
+
 def _strip_fences(raw):
     raw = (raw or "").strip()
     if raw.startswith("```"):
@@ -146,11 +169,21 @@ class _Specialist:
 
     def _system_prompt(self, extra=""):
         pb = self._playbook()
+        adcopy_block = ""
+        if self.AGENT == "blaze":
+            adcopy = _four_triggers_block()
+            if adcopy:
+                adcopy_block = (
+                    "\n\n=== AD COPY FRAMEWORK — Four Triggers (a stable floor for "
+                    "drafting ad concepts; apply it, the creed still outranks it) ===\n"
+                    + adcopy[:5000]
+                )
         return (
             self.ROLE_PROMPT
             + _north_star_block()
             + _context_block()
             + _creed_block()
+            + adcopy_block
             + ("\n\n=== YOUR PLAYBOOK (learned rubric) ===\n" + pb[:4000] if pb else "")
             + (extra or "")
         )
