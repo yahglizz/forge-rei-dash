@@ -346,8 +346,11 @@ function McPriority({ p, onEnter }) {
 function McCeoBrief({ onEnter }) {
   const { data, loading, refresh } = window.useApi("/api/mission-control/brief", { interval: 60000 });
   const [running, setRunning] = useStateMC(false);
+  const [open, setOpen] = useStateMC(false);
   const d = data || {};
   const b = d.brief;
+  const nP = (b && b.priorities && b.priorities.length) || 0;
+  const nR = (b && b.clientRequests && b.clientRequests.length) || 0;
 
   async function run() {
     setRunning(true);
@@ -358,74 +361,78 @@ function McCeoBrief({ onEnter }) {
 
   const btn = (
     <button className="tab" onClick={run} disabled={running || (data && !d.aiReady)}
-      style={{ padding: "8px 14px", fontSize: 12.5, fontWeight: 600, flexShrink: 0,
+      style={{ padding: "5px 10px", fontSize: 11.5, fontWeight: 600, flexShrink: 0,
         background: running ? "var(--card-2)" : "var(--accent, #4F7CFF)", color: running ? "var(--text-3)" : "#fff" }}>
-      {running ? "Orion is thinking…" : (b ? "Refresh brief" : "Generate today's brief")}
+      {running ? "Thinking…" : (b ? "Refresh" : "Generate")}
     </button>
   );
 
   return (
-    <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 13,
-      background: "linear-gradient(135deg, rgba(79,124,255,.10), rgba(139,92,246,.06))",
-      borderColor: "rgba(79,124,255,.25)" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 13, flexWrap: "wrap" }}>
-        <div style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0, display: "grid", placeItems: "center",
-          background: "radial-gradient(circle at 40% 35%, #4F7CFF, #16224a)" }}>
-          <window.Icons.Spark size={20} />
+    <div className="card" style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 9,
+      background: "linear-gradient(135deg, rgba(79,124,255,.08), rgba(139,92,246,.05))",
+      borderColor: "rgba(79,124,255,.22)" }}>
+      {/* Compact header — always shown */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ color: "#4F7CFF", flexShrink: 0, display: "grid", placeItems: "center" }}>
+          <window.Icons.Spark size={16} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+            <span className="faint" style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: .3, flexShrink: 0 }}>ORION</span>
+            <span style={{ fontSize: 13, fontWeight: 650, lineHeight: 1.25, overflow: "hidden",
+              textOverflow: "ellipsis", whiteSpace: open ? "normal" : "nowrap" }}>
+              {b ? b.headline : (loading ? "Reading every business…" : (d.aiReady ? "No brief yet today" : "Add an API key to enable Orion"))}
+            </span>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 160 }}>
-          <div className="faint" style={{ fontSize: 11, fontWeight: 600, letterSpacing: .3 }}>ORION · CHIEF OF STAFF</div>
-          {b ? <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25, marginTop: 2 }}>{b.headline}</div>
-             : <div style={{ fontSize: 16, fontWeight: 600, marginTop: 2 }}>
-                 {loading ? "Reading every business…" : (d.aiReady ? "No brief yet for today" : "Add an API key to any business to enable Orion")}
-               </div>}
-          {b && b.greeting && <div className="faint" style={{ fontSize: 12.5, marginTop: 3 }}>{b.greeting}</div>}
-        </div>
+        {b && (nP + nR > 0) && (
+          <button className="tab" onClick={() => setOpen((o) => !o)}
+            style={{ fontSize: 10.5, padding: "3px 8px", flexShrink: 0 }}>
+            {open ? "Hide" : (nP + " to attack")}
+          </button>
+        )}
         {btn}
       </div>
 
+      {/* Idea line — one line collapsed, full when open */}
       {b && b.idea && (
-        <div style={{ display: "flex", gap: 10, padding: "11px 13px", borderRadius: 11,
-          background: "rgba(245,158,11,.10)", border: "1px solid rgba(245,158,11,.28)" }}>
-          <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
-          <div style={{ fontSize: 13, lineHeight: 1.45 }}>
-            <b>Attack now:</b> {b.idea}
-          </div>
+        <div style={{ fontSize: 12, lineHeight: 1.4, paddingLeft: 26,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: open ? "normal" : "nowrap" }}>
+          <span style={{ color: "#F59E0B", fontWeight: 600 }}>💡 Attack now:</span> {b.idea}
         </div>
       )}
 
-      {b && b.priorities && b.priorities.length > 0 && (
-        <div>
-          <div className="faint" style={{ fontSize: 11, fontWeight: 600, letterSpacing: .3, marginBottom: 2 }}>
-            TODAY'S PRIORITIES
-          </div>
-          {b.priorities.map((p, i) => <McPriority key={i} p={p} onEnter={onEnter} />)}
-        </div>
-      )}
-
-      {b && b.clientRequests && b.clientRequests.length > 0 && (
-        <div style={{ paddingTop: 4 }}>
-          <div className="faint" style={{ fontSize: 11, fontWeight: 600, letterSpacing: .3, marginBottom: 5 }}>
-            CLIENT REQUESTS — WHAT WE NEED TO DO
-          </div>
-          {b.clientRequests.map((r, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, fontSize: 12.5, padding: "3px 0" }}>
-              <span style={{ color: "#8B5CF6", flexShrink: 0 }}>•</span>
-              <span>{typeof r === "string" ? r : (r.title || JSON.stringify(r))}</span>
+      {/* Details — only when expanded */}
+      {open && b && (
+        <div style={{ paddingLeft: 26, display: "flex", flexDirection: "column", gap: 8 }}>
+          {nP > 0 && (
+            <div>
+              {b.priorities.map((p, i) => <McPriority key={i} p={p} onEnter={onEnter} />)}
             </div>
-          ))}
-        </div>
-      )}
-
-      {b && b.watchouts && b.watchouts.length > 0 && (
-        <div className="faint" style={{ fontSize: 11.5, borderTop: "1px solid var(--card-2)", paddingTop: 8 }}>
-          ⚠️ {b.watchouts.map((w) => (typeof w === "string" ? w : "")).filter(Boolean).join(" · ")}
-        </div>
-      )}
-
-      {b && d.generatedAt && (
-        <div className="faint" style={{ fontSize: 10.5, textAlign: "right" }}>
-          synthesized from every business's agents · {window.timeAgo(d.generatedAt)}
+          )}
+          {nR > 0 && (
+            <div>
+              <div className="faint" style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: .3, marginBottom: 4 }}>
+                CLIENT REQUESTS
+              </div>
+              {b.clientRequests.map((r, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, fontSize: 12, padding: "2px 0" }}>
+                  <span style={{ color: "#8B5CF6", flexShrink: 0 }}>•</span>
+                  <span>{typeof r === "string" ? r : (r.title || JSON.stringify(r))}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {b.watchouts && b.watchouts.length > 0 && (
+            <div className="faint" style={{ fontSize: 11, borderTop: "1px solid var(--card-2)", paddingTop: 7 }}>
+              ⚠️ {b.watchouts.map((w) => (typeof w === "string" ? w : "")).filter(Boolean).join(" · ")}
+            </div>
+          )}
+          {d.generatedAt && (
+            <div className="faint" style={{ fontSize: 10, textAlign: "right" }}>
+              from every business's agents · {window.timeAgo(d.generatedAt)}
+            </div>
+          )}
         </div>
       )}
     </div>
