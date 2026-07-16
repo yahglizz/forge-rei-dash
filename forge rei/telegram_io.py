@@ -544,6 +544,14 @@ def _result_text(action, result):
     """Short human result for answerCallbackQuery + the editMessageText footer."""
     if isinstance(result, dict) and result.get("error"):
         return f"⚠ {result['error']}"
+    # Dyson approve → ship: surface the real outcome + the PR link (not a static label).
+    if action == "dysongo" and isinstance(result, dict):
+        ap = result.get("apply") or {}
+        if ap.get("ok"):
+            url = ap.get("url") or ""
+            return "✅ Shipped — PR opened" + (f": {url}" if url else " (Vercel deploys on merge)")
+        if ap:  # approved but the ship couldn't complete (no repo linked / no token)
+            return f"⚠ Approved, not shipped: {ap.get('detail', 'deploy failed')}"
     if isinstance(result, dict) and result.get("message"):
         return f"✅ {result['message']}"
     labels = {
