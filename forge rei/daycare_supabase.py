@@ -1582,6 +1582,25 @@ def deactivate_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "child": _single(rows, "Child")}
 
 
+def reset_credentials(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    """Generate a fresh one-time PIN for a guardian/staff account (management action).
+
+    The service-role password reset lives in the provision-user edge function (the
+    connector only holds the anon key). Here we validate the target id and normalize
+    the response into the same {provision:{login_id,pin}} shape the credentials modal
+    already renders. The edge function enforces same-location + role rules and a fresh
+    PIN is returned exactly once — never stored in FORGE.
+    """
+    profile_id = require_uuid(_body_value(body, "profile_id", "profileId"), "profile_id")
+    result = BRIDGE.edge_function(session, "provision-user", {
+        "action": "reset-pin",
+        "profile_id": profile_id,
+    })
+    return {"ok": True, "provision": {
+        key: result.get(key) for key in ("profile_id", "login_id", "pin", "reset") if key in result
+    }}
+
+
 def save_classroom(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     source = body.get("classroom") if isinstance(body.get("classroom"), dict) else body
     record = {

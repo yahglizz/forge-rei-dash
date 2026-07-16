@@ -1846,6 +1846,30 @@ def _maybe_daily_recap(force=False):
     return {"sent": sent, "text": text, "note": note, "stats": stats}
 
 
+def _maybe_ceo_brief():
+    """Once a day (after FORGE_MISSION_BRIEF_HOUR), Orion synthesizes the cross-business
+    'attack today' brief so the dashboard greets the owner with it. One paid Claude call
+    per day; opening the dashboard reads the cached brief for free. Optional Telegram push
+    via FORGE_MISSION_BRIEF_TELEGRAM=1. Never raises."""
+    try:
+        res = ORION.maybe_daily(scout=SCOUT, solomon=SOLOMON, midas=MIDAS, screener=SCREENER)
+        if (res.get("ok") and not res.get("skipped") and res.get("brief")
+                and os.environ.get("FORGE_MISSION_BRIEF_TELEGRAM", "0") == "1"):
+            b = res["brief"]
+            lines = ["🧭 <b>Orion — today's focus</b>", "", "<b>" + str(b.get("headline", "")) + "</b>"]
+            if b.get("idea"):
+                lines += ["", "💡 " + str(b["idea"])]
+            for p in (b.get("priorities") or [])[:3]:
+                lines.append(f"• [{p.get('business','?')}] {p.get('title','')}")
+            try:
+                telegram_io.send("\n".join(lines), dedupe_key="ceo_brief:" + time.strftime("%Y-%m-%d"))
+            except Exception:
+                pass
+        return res
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)[:160]}
+
+
 def _brief_scheduler_forever():
     """Box-only daily clock for BOTH the morning brief and the evening recap. Checks every
     few minutes; each send is guarded by its own due() (past the set hour, once per day).
@@ -1859,6 +1883,7 @@ def _brief_scheduler_forever():
             if not forge_ops.paused():
                 _maybe_daily_brief()
                 _maybe_daily_recap()
+                _maybe_ceo_brief()
                 # Watch for a workstation whose git auto-sync stalled (self-rate-limited
                 # to FORGE_SYNC_CHECK_MIN; pings Telegram once per fresh<->stale flip).
                 sync_monitor.check_and_alert()
@@ -2535,7 +2560,7 @@ ROUTES = {
 
 # Marcus endpoints are real-time — never serve them from the 45s cache.
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
-NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/ace/state", "/api/ace/status",
+NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status",
             "/api/cost/status", "/api/spend/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/coach/feed", "/api/sync/status", "/api/sync/check",
@@ -2852,6 +2877,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/marcus/directives/run",
                                    "/api/prep/run",
                                    "/api/prep/learn",
+                                   "/api/mission-control/brief/run",
+                                   "/api/mission-control/brief/learn",
                                    "/api/agency/client/save",
                                    "/api/agency/client/delete",
                                    "/api/agency/reset",
@@ -3067,6 +3094,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = handle_prep_run(body)
             elif parsed.path == "/api/prep/learn":
                 result = DEAL_PREP.learn()
+            elif parsed.path == "/api/mission-control/brief/run":
+                result = ORION.build_brief(scout=SCOUT, solomon=SOLOMON,
+                                           midas=MIDAS, screener=SCREENER)
+            elif parsed.path == "/api/mission-control/brief/learn":
+                result = ORION.learn()
             elif parsed.path == "/api/agency/client/save":
                 result = agency_io.save_client(body.get("client") or body)
             elif parsed.path == "/api/agency/client/delete":

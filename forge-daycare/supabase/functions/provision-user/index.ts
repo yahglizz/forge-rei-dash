@@ -246,6 +246,27 @@ Deno.serve(async (request) => {
       return json(201, { profile_id: created.user.id, login_id: loginId, pin, existing: false }, origin);
     }
 
+    if (action === "reset-pin") {
+      const profileId = requiredText(body.profile_id, "Profile id", 64);
+      const { data: target, error: lookupError } = await adminClient
+        .from("profiles")
+        .select("id, login_id, role, location_id, active")
+        .eq("id", profileId)
+        .eq("location_id", caller.location_id)
+        .maybeSingle();
+      if (lookupError) throw new Error(lookupError.message);
+      if (!target || !target.login_id) throw new Error("No account exists for that person");
+      if (!target.active) return json(409, { error: "That account is inactive" }, origin);
+      if (["manager", "admin"].includes(target.role) && caller.role !== "admin") {
+        return json(403, { error: "Only admins may reset a management PIN" }, origin);
+      }
+
+      const pin = securePin();
+      const { error: updateError } = await adminClient.auth.admin.updateUserById(target.id, { password: pin });
+      if (updateError) throw new Error(updateError.message || "Could not reset the PIN");
+      return json(200, { profile_id: target.id, login_id: target.login_id, pin, reset: true }, origin);
+    }
+
     return json(400, { error: "Unsupported action" }, origin);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Provisioning failed";
