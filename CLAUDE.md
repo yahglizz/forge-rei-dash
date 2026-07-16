@@ -408,3 +408,38 @@ sharpen Marcus; Solomon's retention math can inform how Nova frames an offer.
   git-committed** — the same class as the existing `learn()` self-improve loop, so it's
   **rule-2 compliant**. Every outward action (texts, ad launches, invoices, spend, posts)
   stays tap-gated exactly as before.
+
+---
+
+## 12. CAVEMAN — the house answer style (default ON, every response)
+
+**Caveman is the standing communication mode for this whole system** — Claude's replies AND
+the in-app agents' operator-facing text. Skill: **https://github.com/JuliusBrussee/caveman**
+(installed; skill files under `forge rei/.agents/skills/caveman*`). Terse "smart caveman":
+cut filler ~65%, keep 100% of the substance.
+
+**The rule (applies to EVERY response + output):** lead with the answer, no preamble / no
+"great question" / no restating the ask / no sign-off. Terse bullet fragments over full
+sentences. Drop articles + filler. One line when one line does it. Keep every fact, name,
+number, and the reasoning that changes the decision — **short, never wrong.**
+
+**Commands (Claude Code, my sessions):**
+- `/caveman [lite|full|ultra]` — set intensity (default **full**). `/caveman-stats` — token
+  savings. `/caveman-commit` — terse commit msg. `/caveman-review` — one-line PR notes.
+  `/caveman-compress <file>` — shrink a memory/context file permanently. Say **"stop caveman"**
+  / **"normal mode"** to revert.
+
+**BOUNDARIES — write NORMAL (clear, full) prose, caveman OFF, for:**
+- Security warnings, irreversible-action confirmations, and any multi-step sequence where
+  dropping words risks misread (the skill's own Auto-Clarity rule — obey it).
+- **Code, commits, PRs, commands, API names, exact error strings** — verbatim, never abbreviated.
+- Real caveats and Unknowns — evidence discipline / the creed outrank brevity. Be short, not wrong.
+
+**Agent side (already wired — `forge rei/caveman.py`):** `caveman.block(level)` is appended
+to operator-facing chat prompts ONLY — Scout/Atlas (`agents_chat`), Solomon/Nora/Nova
+(`agents_hub`), Dyson/Eco (`agency_agents`), Marcus screening chat (`marcus_chat`). It is
+**NEVER** on seller-facing SMS drafts (`marcus_engine._ai_draft` — voice-critical), internal
+scoring/underwriting, briefs, or the creed. Intensity: `FORGE_CAVEMAN_LEVEL=lite|full|ultra`;
+kill switch: `FORGE_CAVEMAN=0`. When adding any new operator-facing AI chat surface, append
+`caveman.block()` LAST (after the creed/context) — never on an outward-message or structured
+(JSON) generator.
