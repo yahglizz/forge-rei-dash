@@ -920,6 +920,7 @@ import agency_approvals_io  # noqa: E402
 import agency_agents  # noqa: E402
 import agency_social  # noqa: E402
 import agency_deploy  # noqa: E402
+import agency_build_studio  # noqa: E402 — Blueprint Studio: idea -> build-ready plan (propose-only)
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
@@ -2339,6 +2340,11 @@ def api_agency_dyson_drafts(_q):
 
 def api_agency_workflows(_q):
     return agency_workflows_io.list_workflows()
+
+
+def api_agency_build_list(_q):
+    """Blueprint Studio: every idea turned into a build-ready plan (newest first)."""
+    return agency_build_studio.list_blueprints()
 
 
 def api_agency_ads(q):
