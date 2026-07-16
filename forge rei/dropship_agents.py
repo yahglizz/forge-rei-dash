@@ -93,6 +93,29 @@ def _four_triggers_block():
         return cached[1] if cached else ""
 
 
+_ADS_DIAG_CACHE = {}  # (mtime_sig, text) for the Meta ads diagnostician seed (Blaze only)
+
+
+def _meta_ads_diagnostician_block():
+    """Meta Ads Diagnostician (dropship-meta-ads-diagnostician.md) — a STABLE floor for
+    how Blaze reads Meta performance numbers and names the bottleneck, never touched by
+    learn() (same rationale as the creed). mtime-cached."""
+    try:
+        p = DROPSHIP_DIR / "skills" / "dropship-meta-ads-diagnostician.md"
+        if not p.is_file():
+            return ""
+        sig = p.stat().st_mtime
+        cached = _ADS_DIAG_CACHE.get("a")
+        if not cached or cached[0] != sig:
+            text = p.read_text(errors="ignore")
+            _ADS_DIAG_CACHE["a"] = (sig, text)
+            return text
+        return cached[1]
+    except Exception:
+        cached = _ADS_DIAG_CACHE.get("a")
+        return cached[1] if cached else ""
+
+
 def _strip_fences(raw):
     raw = (raw or "").strip()
     if raw.startswith("```"):
@@ -170,6 +193,7 @@ class _Specialist:
     def _system_prompt(self, extra=""):
         pb = self._playbook()
         adcopy_block = ""
+        diag_block = ""
         if self.AGENT == "blaze":
             adcopy = _four_triggers_block()
             if adcopy:
@@ -178,12 +202,20 @@ class _Specialist:
                     "drafting ad concepts; apply it, the creed still outranks it) ===\n"
                     + adcopy[:5000]
                 )
+            diag = _meta_ads_diagnostician_block()
+            if diag:
+                diag_block = (
+                    "\n\n=== AD PERFORMANCE DIAGNOSTICS — the 12 Sliders (a stable floor "
+                    "for reading Meta metrics and naming the bottleneck; apply it, the "
+                    "creed still outranks it) ===\n" + diag[:5000]
+                )
         return (
             self.ROLE_PROMPT
             + _north_star_block()
             + _context_block()
             + _creed_block()
             + adcopy_block
+            + diag_block
             + ("\n\n=== YOUR PLAYBOOK (learned rubric) ===\n" + pb[:4000] if pb else "")
             + (extra or "")
         )
