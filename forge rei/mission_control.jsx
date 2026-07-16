@@ -312,6 +312,126 @@ function McSpend() {
   );
 }
 
+// ---- Orion: the cross-business CEO brief that greets the owner on open. ----
+// Reads the CACHED brief (instant + free). "Refresh" triggers one paid Claude
+// synthesis across every business's agents.
+const MC_BIZ = { rei: { name: "REI", c: "#4F7CFF" }, agency: { name: "Agency", c: "#8B5CF6" },
+  daycare: { name: "Daycare", c: "#2DD4BF" }, dropship: { name: "Dropship", c: "#F97316" } };
+const MC_URG = { now: "#EF4444", today: "#F59E0B", soon: "#4F7CFF" };
+
+function McPriority({ p, onEnter }) {
+  const biz = MC_BIZ[p.business] || { name: p.business || "—", c: "#64748B" };
+  const uc = MC_URG[(p.urgency || "").toLowerCase()] || "#64748B";
+  return (
+    <div style={{ display: "flex", gap: 11, padding: "11px 0", borderTop: "1px solid var(--card-2)" }}>
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: uc, flexShrink: 0, marginTop: 5 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: biz.c, background: biz.c + "22",
+            padding: "1px 7px", borderRadius: 999 }}>{biz.name}</span>
+          <span style={{ fontSize: 13.5, fontWeight: 650 }}>{p.title}</span>
+          {p.urgency && <span className="faint" style={{ fontSize: 10.5, color: uc, textTransform: "uppercase" }}>{p.urgency}</span>}
+        </div>
+        {p.why && <div className="faint" style={{ fontSize: 12, marginTop: 2, lineHeight: 1.4 }}>{p.why}</div>}
+        {p.action && <div style={{ fontSize: 12, marginTop: 3 }}>→ {p.action}</div>}
+      </div>
+      {onEnter && MC_BIZ[p.business] && (
+        <button className="tab" style={{ fontSize: 11, padding: "3px 9px", flexShrink: 0, alignSelf: "flex-start" }}
+          onClick={() => onEnter(p.business, "Dashboard")}>Open →</button>
+      )}
+    </div>
+  );
+}
+
+function McCeoBrief({ onEnter }) {
+  const { data, loading, refresh } = window.useApi("/api/mission-control/brief", { interval: 60000 });
+  const [running, setRunning] = useStateMC(false);
+  const d = data || {};
+  const b = d.brief;
+
+  async function run() {
+    setRunning(true);
+    try { await window.apiPost("/api/mission-control/brief/run", {}); refresh(); }
+    catch (e) { /* transient — next refresh reconciles */ }
+    setRunning(false);
+  }
+
+  const btn = (
+    <button className="tab" onClick={run} disabled={running || (data && !d.aiReady)}
+      style={{ padding: "8px 14px", fontSize: 12.5, fontWeight: 600, flexShrink: 0,
+        background: running ? "var(--card-2)" : "var(--accent, #4F7CFF)", color: running ? "var(--text-3)" : "#fff" }}>
+      {running ? "Orion is thinking…" : (b ? "Refresh brief" : "Generate today's brief")}
+    </button>
+  );
+
+  return (
+    <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 13,
+      background: "linear-gradient(135deg, rgba(79,124,255,.10), rgba(139,92,246,.06))",
+      borderColor: "rgba(79,124,255,.25)" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 13, flexWrap: "wrap" }}>
+        <div style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0, display: "grid", placeItems: "center",
+          background: "radial-gradient(circle at 40% 35%, #4F7CFF, #16224a)" }}>
+          <window.Icons.Spark size={20} />
+        </div>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div className="faint" style={{ fontSize: 11, fontWeight: 600, letterSpacing: .3 }}>ORION · CHIEF OF STAFF</div>
+          {b ? <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25, marginTop: 2 }}>{b.headline}</div>
+             : <div style={{ fontSize: 16, fontWeight: 600, marginTop: 2 }}>
+                 {loading ? "Reading every business…" : (d.aiReady ? "No brief yet for today" : "Add an API key to any business to enable Orion")}
+               </div>}
+          {b && b.greeting && <div className="faint" style={{ fontSize: 12.5, marginTop: 3 }}>{b.greeting}</div>}
+        </div>
+        {btn}
+      </div>
+
+      {b && b.idea && (
+        <div style={{ display: "flex", gap: 10, padding: "11px 13px", borderRadius: 11,
+          background: "rgba(245,158,11,.10)", border: "1px solid rgba(245,158,11,.28)" }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
+          <div style={{ fontSize: 13, lineHeight: 1.45 }}>
+            <b>Attack now:</b> {b.idea}
+          </div>
+        </div>
+      )}
+
+      {b && b.priorities && b.priorities.length > 0 && (
+        <div>
+          <div className="faint" style={{ fontSize: 11, fontWeight: 600, letterSpacing: .3, marginBottom: 2 }}>
+            TODAY'S PRIORITIES
+          </div>
+          {b.priorities.map((p, i) => <McPriority key={i} p={p} onEnter={onEnter} />)}
+        </div>
+      )}
+
+      {b && b.clientRequests && b.clientRequests.length > 0 && (
+        <div style={{ paddingTop: 4 }}>
+          <div className="faint" style={{ fontSize: 11, fontWeight: 600, letterSpacing: .3, marginBottom: 5 }}>
+            CLIENT REQUESTS — WHAT WE NEED TO DO
+          </div>
+          {b.clientRequests.map((r, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, fontSize: 12.5, padding: "3px 0" }}>
+              <span style={{ color: "#8B5CF6", flexShrink: 0 }}>•</span>
+              <span>{typeof r === "string" ? r : (r.title || JSON.stringify(r))}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {b && b.watchouts && b.watchouts.length > 0 && (
+        <div className="faint" style={{ fontSize: 11.5, borderTop: "1px solid var(--card-2)", paddingTop: 8 }}>
+          ⚠️ {b.watchouts.map((w) => (typeof w === "string" ? w : "")).filter(Boolean).join(" · ")}
+        </div>
+      )}
+
+      {b && d.generatedAt && (
+        <div className="faint" style={{ fontSize: 10.5, textAlign: "right" }}>
+          synthesized from every business's agents · {window.timeAgo(d.generatedAt)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MissionControl({ onEnter, workspaces = [] }) {
   const Icons = window.Icons;
   const [menu, setMenu] = useStateMC(false);
@@ -370,6 +490,9 @@ function MissionControl({ onEnter, workspaces = [] }) {
           </div>
           <button className="tab" onClick={refresh} style={{ padding: "9px 13px" }}>Refresh</button>
         </div>
+
+        {/* Orion's CEO brief — greets the owner with today's focus + a fresh idea. */}
+        <McCeoBrief onEnter={onEnter} />
 
         {loading && !data && <window.LoadingRow label="Reading the whole operation…" />}
         {error && !data && <window.ErrorRow error={error} onRetry={refresh} />}
