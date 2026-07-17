@@ -718,7 +718,7 @@ input, textarea { font-family: inherit; }
   .dc-login-art { min-height: 260px; padding: 24px; }.dc-login-art h1 { font-size: 34px; }.dc-login-card { padding: 20px; }
   .dc-form-grid { grid-template-columns: 1fr; }.dc-form-grid .dc-field-wide { grid-column: auto; }.dc-check-grid { grid-template-columns: 1fr; }
   .dc-hero-actions { align-items: stretch; flex-direction: column; }.dc-hero-actions button { width: 100%; }
-  .dc-attendance-list > div { grid-template-columns: 38px 1fr; }.dc-attendance-times { grid-column: 2; }.dc-attendance-list .dc-presence { grid-column: 2; }.dc-attendance-list > div > button { grid-column: 2; justify-self: stretch; }
+  .dc-attendance-list > div { grid-template-columns: 38px 1fr; }.dc-attendance-times { grid-column: 2; }.dc-attendance-list .dc-presence { grid-column: 2; }.dc-attendance-list .dc-beh-dots { grid-column: 2; justify-self: start; }.dc-attendance-list > div > button { grid-column: 2; justify-self: stretch; }
   .dc-schedule-list > div { grid-template-columns: 1fr 1fr; }.dc-schedule-list span { display:none; }.dc-schedule-list button { grid-column: 2; justify-self: end; }
   .dc-messenger { display: flex; flex-direction: column; height: 70vh; }.dc-thread-list { max-height: 150px; border-right: 0; border-bottom: 1px solid var(--border); }.dc-thread-list > button { grid-template-columns: 30px minmax(0,1fr) auto; }.dc-thread-list .dc-avatar { width:30px;height:30px; }
   .dc-message { max-width: 90%; }.dc-conversation > footer > div:last-child { grid-template-columns: 30px minmax(0,1fr); }.dc-conversation > footer .dc-primary { grid-column: 2; }
