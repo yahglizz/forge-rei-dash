@@ -343,6 +343,13 @@ class SolomonEngine:
         import daycare_context
         ctx = daycare_context.context_block()
         metrics, alerts, gather_err = self._gather(session)
+        behavior = {}
+        if session is not None:
+            try:
+                import daycare_supabase
+                behavior = daycare_supabase.behavior_week_summary(session)
+            except Exception:  # noqa: BLE001 — brief still works without the signal
+                behavior = {}
         systems = connected_systems()
         offline = [s["name"] for s in systems if not s["connected"]]
 

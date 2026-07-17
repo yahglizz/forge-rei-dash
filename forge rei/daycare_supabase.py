@@ -1123,6 +1123,50 @@ def get_behavior(session: Session, behavior_date: Any = None) -> dict[str, Any]:
     return {"ok": True, "date": day, "behavior": _rows(rows)}
 
 
+def behavior_week_summary(session: Session) -> dict[str, Any]:
+    """7-day behavior-chart read for Solomon's brief: today's color spread across
+    the roster, the week's yellow/red day tally, and who is on yellow/red right
+    now. Read-only — a wellbeing/retention signal, never an outward action."""
+    empty = {"today": {"green": 0, "yellow": 0, "red": 0}, "weekYellowDays": 0, "weekRedDays": 0, "watchToday": []}
+    ids = _child_ids(session)
+    if not ids:
+        return empty
+    today = date.today()
+    start = (today - timedelta(days=6)).isoformat()
+    rows = _rows(BRIDGE.rest(
+        session,
+        "GET",
+        "behavior_events",
+        query={
+            "child_id": f"in.({','.join(ids)})",
+            "behavior_date": f"gte.{start}",
+            "select": "child_id,behavior_date,color,created_at,children(first_name,last_name)",
+            "order": "created_at.asc",
+            "limit": "1000",
+        },
+    ))
+    # Newest move per (child, day) is that child's color for the day.
+    latest: dict[tuple[Any, Any], dict[str, Any]] = {}
+    for row in rows:
+        latest[(row.get("child_id"), row.get("behavior_date"))] = row
+    week_yellow = sum(1 for row in latest.values() if row.get("color") == "yellow")
+    week_red = sum(1 for row in latest.values() if row.get("color") == "red")
+    today_iso = today.isoformat()
+    today_moved = {cid: row for (cid, day), row in latest.items() if day == today_iso}
+    # Children with no move today read green by default (the chart resets daily).
+    spread = {"green": 0, "yellow": 0, "red": 0}
+    watch: list[dict[str, str]] = []
+    for cid in ids:
+        row = today_moved.get(cid)
+        color = row.get("color") if row else "green"
+        spread[color] = spread.get(color, 0) + 1
+        if row and color in ("yellow", "red"):
+            child = row.get("children") or {}
+            name = f"{child.get('first_name', '')} {child.get('last_name', '')}".strip() or "Child"
+            watch.append({"name": name, "color": color})
+    return {"today": spread, "weekYellowDays": week_yellow, "weekRedDays": week_red, "watchToday": watch}
+
+
 def _range_query(session: Session, table: str, timestamp_column: str, start: Any, end: Any) -> list[dict[str, Any]]:
     start_day = require_date(start or (date.today().replace(day=1)).isoformat(), "from")
     end_day = require_date(end or date.today().isoformat(), "to")
