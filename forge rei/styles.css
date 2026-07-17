@@ -434,7 +434,15 @@ input, textarea { font-family: inherit; }
 .dc-form-grid label > span { display: block; color: var(--text-3); font-size: 10.5px; font-weight: 600; margin-bottom: 6px; }
 .dc-modal-actions, .dc-settings-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--border); }
 .dc-attendance-list { display: flex; flex-direction: column; gap: 9px; }
-.dc-attendance-list > div { padding: 13px 15px; display: grid; grid-template-columns: 40px minmax(160px,1fr) auto auto; align-items: center; gap: 12px; }
+.dc-attendance-list > div { padding: 13px 15px; display: grid; grid-template-columns: 40px minmax(150px,1fr) auto auto auto auto; align-items: center; gap: 12px; }
+.dc-beh-dots { display: inline-flex; gap: 6px; align-items: center; }
+.dc-beh-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,.14); padding: 0; cursor: pointer; opacity: .3; transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease; }
+.dc-beh-dot.green { background: #22c55e; }
+.dc-beh-dot.yellow { background: #eab308; }
+.dc-beh-dot.red { background: #ef4444; }
+.dc-beh-dot:hover:not(:disabled) { opacity: .7; }
+.dc-beh-dot.active { opacity: 1; transform: scale(1.18); box-shadow: 0 0 0 3px rgba(45,212,191,.22); }
+.dc-beh-dot:disabled { cursor: default; }
 .dc-attendance-list b, .dc-staff-card b { display: block; font-size: 13px; }
 .dc-attendance-list small, .dc-staff-card small { display: block; color: var(--text-3); font-size: 11px; margin-top: 3px; }
 .dc-avatar { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: linear-gradient(145deg, rgba(45,212,191,.24), rgba(45,212,191,.07)); color: #67e8d2; font-size: 13px; font-weight: 750; border: 1px solid rgba(45,212,191,.14); }
@@ -484,7 +492,7 @@ input, textarea { font-family: inherit; }
   .dc-kpi-grid, .dc-classroom-grid, .dc-report-grid, .dc-staff-grid, .dc-room-strip, .dc-form-grid { grid-template-columns: 1fr; }
   .dc-day-grid, .dc-menu-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .dc-hero { padding: 22px; }.dc-hero-mark { display: none; }
-  .dc-attendance-list > div { grid-template-columns: 40px 1fr; }.dc-attendance-list .dc-presence { justify-self: start; }.dc-attendance-list button { justify-self: end; }
+  .dc-attendance-list > div { grid-template-columns: 40px 1fr; }.dc-attendance-list .dc-presence { justify-self: start; }.dc-attendance-list button { justify-self: end; }.dc-attendance-list .dc-beh-dots { grid-column: 2; justify-self: start; }
 }
 
 /* Daycare live management extensions */
