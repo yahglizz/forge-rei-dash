@@ -374,6 +374,12 @@ class SolomonEngine:
             "finding it out a priority; an honest unknown beats a confident guess. Then "
             "CLOSE THE LOOP: once more looking would not change your recommendation, "
             "decide. Ship the brief with what you have and name the residual risk. "
+            "The behaviorChart data is a child-wellbeing + retention signal, NOT a "
+            "disciplinary report: a cluster of yellow/red days (weekYellowDays / "
+            "weekRedDays) or several children on the watch list can mean a classroom "
+            "ratio/staffing strain or a family worth a proactive check-in before it "
+            "becomes an unenrollment — weigh it that way, and route any family outreach "
+            "to Family-Comms. Never name a child in an outward-sounding action. "
             "Output ONLY valid JSON with keys: headline (string), priorities (array of "
             "{title, why, area, urgency}), enrollment (array of strings — concrete moves "
             "to book tours, grounded in the brief), money (array of strings), people "
@@ -393,6 +399,7 @@ class SolomonEngine:
         live = {
             "metrics": metrics,
             "alerts": alerts,
+            "behaviorChart": behavior,
             "connectedSystems": [{"name": s["name"], "connected": s["connected"]} for s in systems],
             "offlineChannels": offline,
         }
