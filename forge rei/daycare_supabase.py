@@ -1102,6 +1102,27 @@ def get_attendance(session: Session, attendance_date: Any = None) -> dict[str, A
     return {"ok": True, "date": day, "attendance": _rows(rows)}
 
 
+def get_behavior(session: Session, behavior_date: Any = None) -> dict[str, Any]:
+    day = require_date(behavior_date or date.today().isoformat(), "date")
+    ids = _child_ids(session)
+    if not ids:
+        return {"ok": True, "date": day, "behavior": []}
+    rows = BRIDGE.rest(
+        session,
+        "GET",
+        "behavior_events",
+        query={
+            "child_id": f"in.({','.join(ids)})",
+            "behavior_date": f"eq.{day}",
+            "select": "*,children(id,first_name,last_name,classroom_id)",
+            "order": "created_at.asc",
+        },
+    )
+    # Append-only moves, oldest-first — the caller keeps the newest per child as
+    # that child's color today, matching the parent/staff app's chart logic.
+    return {"ok": True, "date": day, "behavior": _rows(rows)}
+
+
 def _range_query(session: Session, table: str, timestamp_column: str, start: Any, end: Any) -> list[dict[str, Any]]:
     start_day = require_date(start or (date.today().replace(day=1)).isoformat(), "from")
     end_day = require_date(end or date.today().isoformat(), "to")
@@ -1766,6 +1787,18 @@ def sign_out_all(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     )
     records = _rows(rows)
     return {"ok": True, "count": len(records), "attendance": records}
+
+
+def set_behavior(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    # One row per chart MOVE (append-only). A wrong tap is corrected by tapping
+    # the right color (a newer row), so there is no update/delete path.
+    child = _ensure_location_record(session, "children", body.get("child_id") or body.get("childId"))
+    day = require_date(body.get("date") or date.today().isoformat(), "date")
+    color = enum_value(body.get("color"), "color", {"green", "yellow", "red"})
+    note = require_text(body.get("note"), "note", maximum=1000, optional=True)
+    record = {"child_id": child["id"], "behavior_date": day, "color": color, "note": note, "recorded_by": session.profile["id"]}
+    rows = BRIDGE.rest(session, "POST", "behavior_events", body=record, prefer="return=representation")
+    return {"ok": True, "behavior": _single(rows, "Behavior event")}
 
 
 def save_log(session: Session, body: dict[str, Any]) -> dict[str, Any]:

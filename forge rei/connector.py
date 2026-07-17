@@ -3617,6 +3617,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/schedule/save": daycare_supabase.save_schedule,
             "/api/daycare/attendance/set": daycare_supabase.set_attendance,
             "/api/daycare/attendance/sign-out-all": daycare_supabase.sign_out_all,
+            "/api/daycare/behavior/set": daycare_supabase.set_behavior,
             "/api/daycare/log/save": daycare_supabase.save_log,
             "/api/daycare/incident/save": daycare_supabase.save_incident,
             "/api/daycare/announcement/save": daycare_supabase.save_announcement,
@@ -3759,6 +3760,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/overview": lambda session: daycare_supabase.get_overview(session),
             "/api/daycare/children": lambda session: daycare_supabase.get_children(session),
             "/api/daycare/attendance": lambda session: daycare_supabase.get_attendance(
+                session, q.get("date", [None])[0]),
+            "/api/daycare/behavior": lambda session: daycare_supabase.get_behavior(
                 session, q.get("date", [None])[0]),
             "/api/daycare/classrooms": lambda session: daycare_supabase.get_classrooms(session),
             "/api/daycare/staff": lambda session: daycare_supabase.get_staff(session),
