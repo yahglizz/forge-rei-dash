@@ -1632,25 +1632,10 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     if child_id:
         existing = _ensure_location_record(session, "children", child_id)
         rows = BRIDGE.rest(session, "PATCH", "children", query={"id": f"eq.{existing['id']}"}, body=record, prefer="return=representation")
-        child_obj = _single(rows, "Child")
     else:
         record["location_id"] = active_location(session)
-        # INSERT ... RETURNING trips the children SELECT policy: `scoped child access`
-        # calls can_access_child(id), whose self-referential EXISTS on `children` can't
-        # see the row mid-INSERT, so return=representation 42501s even for management.
-        # Insert with return=minimal (WITH CHECK is still enforced), then read the row
-        # back once it's committed and visible to the SELECT policy.
-        BRIDGE.rest(session, "POST", "children", body=record, prefer="return=minimal")
-        child_obj = None
-        guardian_ref = record.get("guardian_profile_id")
-        if guardian_ref:
-            fetched = _rows(BRIDGE.rest(session, "GET", "children", query={
-                "guardian_profile_id": f"eq.{guardian_ref}",
-                "location_id": f"eq.{record['location_id']}",
-                "order": "created_at.desc", "limit": "1", "select": "*",
-            }))
-            child_obj = fetched[0] if fetched else None
-    response = {"ok": True, "child": child_obj}
+        rows = BRIDGE.rest(session, "POST", "children", body=record, prefer="return=representation")
+    response = {"ok": True, "child": _single(rows, "Child")}
     if provision:
         response["provision"] = {key: provision.get(key) for key in ("profile_id", "login_id", "pin", "existing") if key in provision}
     return response
