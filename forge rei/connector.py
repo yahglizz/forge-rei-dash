@@ -3469,6 +3469,34 @@ class Handler(BaseHTTPRequestHandler):
         return {"ok": True, "sent": True, "synced": True, "amountPaid": amount_paid,
                 "status": invoice.get("status")}
 
+    def _daycare_pending_families(self, session):
+        """Families submitted through the public Family Contact Form (GHL), for the
+        dashboard's "From Contact Form" inbox.
+
+        Read-only. Each family is flagged `in_roster` when a guardian with the same
+        email already exists at the ACTIVE Supabase location, so the owner can one-tap
+        provision the rest without creating duplicates. Provisioning targets whatever
+        location the session is on — the card shows each family's GHL location so a
+        mismatch is visible. ponytail: in_roster is scoped to the active location; a
+        family provisioned in another center reads as not-in-roster until you switch to it.
+        """
+        families = daycare_ghl.pending_families(DAYCARE_GHL)
+        emails = set()
+        try:
+            roster = (daycare_supabase.get_children(session) or {}).get("children") or []
+            for child in roster:
+                guardian = child.get("guardian") or child.get("guardian_profile") or {}
+                mail = (guardian.get("auth_email") or "").strip().lower()
+                if mail:
+                    emails.add(mail)
+        except daycare_supabase.DaycareError:
+            pass
+        for family in families:
+            mail = (family.get("email") or "").strip().lower()
+            family["in_roster"] = bool(mail and mail in emails)
+        return {"ok": True, "families": families,
+                "connected": bool(DAYCARE_GHL.configured)}
+
     def _daycare_ghl_text_invoice(self, session, body):
         """Text a family their invoice / payment link via the daycare GHL account.
 
@@ -3806,6 +3834,7 @@ class Handler(BaseHTTPRequestHandler):
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
             "/api/daycare/locations": lambda session: daycare_supabase.list_locations(session),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
+            "/api/daycare/ghl/pending-families": lambda session: self._daycare_pending_families(session),
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(

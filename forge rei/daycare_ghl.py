@@ -177,6 +177,99 @@ def sync_family(client, *, name: str, phone: str, email: str | None = None,
             "tags": tags, "removed": stale}
 
 
+# --- Family Contact Form intake -> dashboard bridge (read-only) -------------
+# The public fillout form (daycare-fillout-form.vercel.app) upserts each existing
+# family into GHL tagged `family-contact-form`, with the child's name/DOB in these
+# custom fields (ids created 2026-07-19, mirrored in that repo's api/submit.js).
+FORM_TAG = "family-contact-form"
+CF_CHILD_NAME = "XuWMrMVQSx3W1drZR0e0"
+CF_CHILD_DOB = "WQctVJsId5tRNHqlhwho"
+
+
+def _cf_map(contact: dict) -> dict:
+    """Flatten a GHL contact's custom fields to {id: value} (v2 shape varies)."""
+    out: dict[str, str] = {}
+    for item in (contact.get("customFields") or contact.get("customField") or []):
+        if not isinstance(item, dict):
+            continue
+        key = item.get("id") or item.get("customFieldId")
+        val = item.get("value")
+        if val is None:
+            val = item.get("field_value") or item.get("fieldValue")
+        if key and val not in (None, ""):
+            out[str(key)] = val
+    return out
+
+
+def _split_name(full: str) -> tuple[str, str]:
+    parts = [p for p in str(full or "").strip().split() if p]
+    if not parts:
+        return "", ""
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:])
+
+
+def _family_from_contact(contact: dict) -> dict:
+    cf = _cf_map(contact)
+    tags = [str(t) for t in (contact.get("tags") or [])]
+    loc_tag = next((t for t in tags if t.lower().startswith("loc-")), "")
+    p_first = (contact.get("firstName") or "").strip()
+    p_last = (contact.get("lastName") or "").strip()
+    if not p_first and not p_last:
+        p_first, p_last = _split_name(contact.get("contactName") or contact.get("name"))
+    child_full = cf.get(CF_CHILD_NAME) or ""
+    c_first, c_last = _split_name(child_full)
+    return {
+        "contact_id": contact.get("id"),
+        "parent_first": p_first,
+        "parent_last": p_last,
+        "parent_name": (p_first + " " + p_last).strip(),
+        "phone": contact.get("phone") or "",
+        "email": (contact.get("email") or "").strip(),
+        "child_name": child_full,
+        "child_first": c_first,
+        "child_last": c_last,
+        "child_dob": cf.get(CF_CHILD_DOB) or "",
+        "location_tag": loc_tag,
+        "created_at": contact.get("dateAdded") or contact.get("createdAt") or "",
+    }
+
+
+def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> list[dict]:
+    """List families submitted through the Family Contact Form (tagged FORM_TAG).
+
+    Read-only. GHL v2 has no server-side tag filter on the list endpoint, so we
+    page the location's contacts and filter client-side.
+    ponytail: caps at max_pages*page_size contacts (form intake is small); raise
+    the cap or move to POST /contacts/search if the account grows past that.
+    """
+    if client is None or not client.configured:
+        return []
+    out: list[dict] = []
+    after: tuple[str, str] | None = None
+    for _ in range(max_pages):
+        params = {"locationId": client.location_id, "limit": page_size}
+        if after:
+            params["startAfterId"] = after[0]
+            if after[1]:
+                params["startAfter"] = after[1]
+        data = client.get("/contacts/", params)
+        contacts = (data.get("contacts") if isinstance(data, dict) else None) or []
+        if not contacts:
+            break
+        for contact in contacts:
+            tags = [str(t).lower() for t in (contact.get("tags") or [])]
+            if FORM_TAG in tags:
+                out.append(_family_from_contact(contact))
+        meta = (data.get("meta") if isinstance(data, dict) else None) or {}
+        nxt_id = meta.get("startAfterId")
+        if not nxt_id:
+            break
+        after = (str(nxt_id), str(meta.get("startAfter") or ""))
+    return out
+
+
 def send_sms(client, *, contact_id: str, message: str) -> dict:
     """Send one SMS to a family contact. Owner-initiated; not autonomous."""
     if client is None or not client.configured:
