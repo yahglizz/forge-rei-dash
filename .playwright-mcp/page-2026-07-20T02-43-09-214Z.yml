@@ -1,0 +1,31 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e37]:
+    - complementary [ref=f1e38]:
+      - generic [ref=f1e42]:
+        - strong [ref=f1e43]: Blessings
+        - generic [ref=f1e44]: DAYCARE PLATFORM
+      - navigation [ref=f1e45]:
+        - button "Dashboard" [ref=f1e46] [cursor=pointer]
+        - button "Attendance" [ref=f1e50] [cursor=pointer]
+        - button "Daily Logs" [ref=f1e53] [cursor=pointer]
+        - button "Rewards" [ref=f1e57] [cursor=pointer]
+        - button "Messages" [ref=f1e62] [cursor=pointer]
+        - button "Enrollment" [ref=f1e65] [cursor=pointer]
+        - button "Billing" [ref=f1e69] [cursor=pointer]
+        - button "Payroll" [ref=f1e73] [cursor=pointer]
+        - button "Staff" [ref=f1e77] [cursor=pointer]
+        - button "Announcements" [ref=f1e83] [cursor=pointer]
+      - generic [ref=f1e87]:
+        - strong [ref=f1e88]: Center Owner
+        - text: Management
+    - main [ref=f1e89]:
+      - generic [ref=f1e90]:
+        - generic [ref=f1e91]: CO
+        - generic [ref=f1e92]:
+          - generic [ref=f1e93]: A Touch of Blessings
+          - heading "Dashboard" [level=1] [ref=f1e94]
+        - button "Notifications" [ref=f1e95] [cursor=pointer]
+        - button "Switch profile" [ref=f1e99] [cursor=pointer]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f1e33] [cursor=pointer]
+  - alert [ref=f1e27]

@@ -1,0 +1,54 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e14]:
+    - complementary [ref=f2e15]:
+      - generic [ref=f2e19]:
+        - strong [ref=f2e20]: Blessings
+        - generic [ref=f2e21]: DAYCARE PLATFORM
+      - navigation [ref=f2e22]:
+        - button "Dashboard" [ref=f2e23] [cursor=pointer]
+        - button "Attendance" [ref=f2e27] [cursor=pointer]
+        - button "Daily Logs" [ref=f2e30] [cursor=pointer]
+        - button "Rewards" [ref=f2e34] [cursor=pointer]
+        - button "Messages" [ref=f2e39] [cursor=pointer]
+        - button "Enrollment" [active] [ref=f2e42] [cursor=pointer]
+        - button "Billing" [ref=f2e46] [cursor=pointer]
+        - button "Payroll" [ref=f2e50] [cursor=pointer]
+        - button "Staff" [ref=f2e54] [cursor=pointer]
+        - button "Announcements" [ref=f2e60] [cursor=pointer]
+      - generic [ref=f2e64]:
+        - strong [ref=f2e65]: Center Owner
+        - text: Management
+    - main [ref=f2e66]:
+      - generic [ref=f2e67]:
+        - generic [ref=f2e68]: CO
+        - generic [ref=f2e69]:
+          - generic [ref=f2e70]: A Touch of Blessings
+          - heading "Enrollment" [level=1] [ref=f2e71]
+        - button "Notifications" [ref=f2e72] [cursor=pointer]
+        - button "Switch profile" [ref=f2e76] [cursor=pointer]
+      - generic [ref=f2e81]:
+        - generic [ref=f2e82]:
+          - generic [ref=f2e83]:
+            - heading "Enrollment" [level=2] [ref=f2e84]
+            - paragraph [ref=f2e85]: Active child records and classroom placement
+          - button "Add child" [ref=f2e87] [cursor=pointer]
+        - generic [ref=f2e89]:
+          - generic [ref=f2e90]:
+            - strong [ref=f2e95]: "1"
+            - generic [ref=f2e96]: Active children
+          - generic [ref=f2e97]:
+            - strong [ref=f2e103]: "0"
+            - generic [ref=f2e104]: Classrooms
+          - generic [ref=f2e105]:
+            - strong [ref=f2e110]: "0"
+            - generic [ref=f2e111]: Allergy plans
+        - heading "Child roster" [level=3] [ref=f2e113]
+        - generic [ref=f2e115]:
+          - generic [ref=f2e116]: EB
+          - generic [ref=f2e117]:
+            - strong [ref=f2e118]: E2E Testchild Blessing
+            - generic [ref=f2e119]: Unassigned · Born Mar 15, 2021
+          - generic [ref=f2e120]: Active
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f2e9] [cursor=pointer]
+  - alert [ref=f2e13]
