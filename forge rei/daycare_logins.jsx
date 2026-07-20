@@ -15,36 +15,45 @@ function DclCopy({ text }) {
   return <button className="dc-quiet dcl-copy" onClick={go} title="Copy Login ID">{ok ? "Copied" : "Copy"}</button>;
 }
 
-function DclPendingPanel({ families, onCreate }) {
-  const fresh = families.filter((f) => !f.in_roster);
-  const linked = families.length - fresh.length;
+function DclPendingPanel({ families, activeLoc, onCreate }) {
+  // Organize by center: the roster + dedup are scoped to the active center (RLS), so
+  // this center's families are actionable here; families for other centers get a
+  // "switch center" nudge (unknown-location families fall through to the active center).
+  const here = families.filter((f) => !f.location_id || f.location_id === activeLoc);
+  const elsewhere = families.filter((f) => f.location_id && f.location_id !== activeLoc);
+  const fresh = here.filter((f) => !f.in_roster);
+  const linked = here.length - fresh.length;
+  const centerName = (here.find((f) => f.location_name) || {}).location_name || "";
   return <div className="card card-pad dc-panel dcl-pending">
-    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form</div><div className="faint">Families who filled out the form, not yet in the dashboard</div></div><b>{fresh.length}</b></div>
+    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Families who filled out the form for this center, not yet in the dashboard</div></div><b>{fresh.length}</b></div>
     {fresh.length === 0
-      ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard." : "New form submissions will show here to create a login."}</span></div></div>
+      ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard for this center." : "New form submissions for this center will show here to create a login."}</span></div></div>
       : <div className="dcl-inbox-list">{fresh.map((f) => <div key={f.contact_id} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
           <span className="dc-severity info" style={{ flex: "0 0 auto" }} />
           <div style={{ flex: "1 1 auto", minWidth: 0 }}>
             <b style={{ fontWeight: 500 }}>{f.parent_name || "Parent"}{f.child_name ? " · " + f.child_name : ""}</b>
-            <small style={{ display: "block", opacity: .6 }}>{[f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
+            <small style={{ display: "block", opacity: .6 }}>{[f.location_name || f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
           </div>
           <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> Create login</button>
         </div>)}</div>}
-    {linked > 0 && fresh.length > 0 && <div className="dc-form-hint">{linked} other form {linked === 1 ? "family is" : "families are"} already in the dashboard.</div>}
+    {elsewhere.length > 0 && <div className="dc-form-hint">{elsewhere.length} more form {elsewhere.length === 1 ? "family is" : "families are"} waiting at other centers — switch center at the top to see them.</div>}
+    {linked > 0 && fresh.length > 0 && <div className="dc-form-hint">{linked} other form {linked === 1 ? "family is" : "families are"} already in this center.</div>}
   </div>;
 }
 
 function DaycareParentLogins() {
   const childrenRes = window.DcxUseResource("/children", "children", 30000);
   const roomsRes = window.DcxUseResource("/classrooms", "classrooms", 60000);
-  const pendingRes = window.DcxUseResource("/ghl/pending-families", "families", 60000);
+  const pendingRes = window.DcxUseResource("/ghl/pending-families", "pendingfam", 60000);
   const [search, setSearch] = useStateDcl("");
   const [credentials, setCredentials] = useStateDcl(null);
   const [enrollInit, setEnrollInit] = useStateDcl(null);
   const [busyGid, setBusyGid] = useStateDcl("");
   const children = Array.isArray(childrenRes.data) ? childrenRes.data : [];
   const rooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
-  const pending = Array.isArray(pendingRes.data) ? pendingRes.data : [];
+  const pendingPayload = (pendingRes.data && typeof pendingRes.data === "object" && !Array.isArray(pendingRes.data)) ? pendingRes.data : {};
+  const pending = Array.isArray(pendingPayload.families) ? pendingPayload.families : [];
+  const activeLoc = pendingPayload.active_location_id || "";
 
   // One row per parent — group children by guardian; children with no linked
   // guardian each get their own "no login yet" row.
@@ -83,7 +92,7 @@ function DaycareParentLogins() {
 
   return <div className="dc-page">
     <window.DcxPageHead title="Parent Logins" eyebrow="APP ACCESS" copy="Look up a parent or student, then hand off their Login ID. PINs are shown once — reveal a fresh one when a parent needs it. Nothing is stored." actions={actions} />
-    {pending.length > 0 && <DclPendingPanel families={pending} onCreate={createFromForm} />}
+    {pending.length > 0 && <DclPendingPanel families={pending} activeLoc={activeLoc} onCreate={createFromForm} />}
     <window.DcxState loading={childrenRes.loading} error={childrenRes.error} onRetry={childrenRes.refresh} empty={!families.length} icon="Children" title="No families yet" copy="Enroll a child (or create a login from a form submission above) to generate parent app access." />
     {families.length > 0 && <div className="card dc-table-wrap"><table className="lead-table dc-table"><thead><tr><th>Parent</th><th>Student(s)</th><th>Login ID</th><th></th></tr></thead><tbody>{visible.map((f, index) => <tr key={f.gid || ("solo-" + index)}>
       <td><div className="dc-person"><div className="dc-avatar">{(f.parent || "?").slice(0, 1)}</div><div><b>{f.parent}</b><small>{f.students.length} {f.students.length === 1 ? "child" : "children"}</small></div></div></td>
