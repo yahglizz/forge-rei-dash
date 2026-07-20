@@ -1,0 +1,13 @@
+- generic [ref=f7e3]:
+  - generic [ref=f7e4]:
+    - img "A Touch of Blessings" [ref=f7e5]
+    - generic [ref=f7e6]:
+      - heading "Family Contact Form" [level=1] [ref=f7e7]
+      - paragraph [ref=f7e8]: Help us get your family set up in our system so we can send you updates, reminders, and important messages about your child.
+  - generic [ref=f7e117]:
+    - heading "Thank you so much for being with us! 💜" [level=2] [ref=f7e121]
+    - paragraph [ref=f7e122]: We're so grateful your family is part of A Touch of Blessings. Your child's information has been saved to our system.
+    - paragraph [ref=f7e123]: You're all set — you can safely close this window now. If we need anything else, we'll reach out.
+    - generic [ref=f7e124]: Questions? Call us at (215) 236-5439
+    - button "Add another child" [ref=f7e128] [cursor=pointer]
+  - paragraph [ref=f7e105]: A Touch of Blessings & A Mother's Touch · North Philadelphia · (215) 236-5439
