@@ -1,0 +1,44 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e37]:
+    - complementary [ref=f4e38]:
+      - generic [ref=f4e42]:
+        - strong [ref=f4e43]: Blessings
+        - generic [ref=f4e44]: DAYCARE PLATFORM
+      - navigation [ref=f4e45]:
+        - button "Clock In" [ref=f4e46] [cursor=pointer]
+        - button "My Class" [active] [ref=f4e50] [cursor=pointer]
+        - button "Daily Logs" [ref=f4e56] [cursor=pointer]
+        - button "Rewards" [ref=f4e60] [cursor=pointer]
+        - button "Messages" [ref=f4e65] [cursor=pointer]
+      - generic [ref=f4e68]:
+        - strong [ref=f4e69]: Tessa Teachcheck
+        - text: staff
+    - main [ref=f4e70]:
+      - generic [ref=f4e71]:
+        - generic [ref=f4e72]: TT
+        - generic [ref=f4e73]:
+          - generic [ref=f4e74]: A Touch of Blessings
+          - heading "My Class" [level=1] [ref=f4e121]
+        - button "Notifications" [ref=f4e76] [cursor=pointer]
+        - button "Switch profile" [ref=f4e80] [cursor=pointer]
+      - generic [ref=f4e85]:
+        - generic [ref=f4e122]:
+          - generic [ref=f4e123]:
+            - heading "My classroom" [level=2] [ref=f4e124]
+            - paragraph [ref=f4e125]: 1 children in your assigned room
+          - button "Log activity" [ref=f4e127] [cursor=pointer]
+        - generic [ref=f4e130]:
+          - generic [ref=f4e131]: VC
+          - generic [ref=f4e132]:
+            - strong [ref=f4e133]: Verify Crosscheck
+            - generic [ref=f4e134]: Little Lambs · No listed allergies
+          - group "Behavior chart for Verify — on Green" [ref=f4e135]:
+            - button "Move Verify to Green" [pressed] [ref=f4e136] [cursor=pointer]
+            - button "Move Verify to Yellow" [ref=f4e137] [cursor=pointer]
+            - button "Move Verify to Red" [ref=f4e138] [cursor=pointer]
+          - button "Out" [ref=f4e139] [cursor=pointer]
+          - button "Quick report" [ref=f4e140] [cursor=pointer]
+        - heading "Staff announcements" [level=3] [ref=f4e143]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f4e32] [cursor=pointer]
+  - alert [ref=f4e36]

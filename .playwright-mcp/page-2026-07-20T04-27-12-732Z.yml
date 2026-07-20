@@ -1,0 +1,73 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e14]:
+    - complementary [ref=f3e15]:
+      - generic [ref=f3e19]:
+        - strong [ref=f3e20]: Blessings
+        - generic [ref=f3e21]: DAYCARE PLATFORM
+      - navigation [ref=f3e22]:
+        - button "Dashboard" [ref=f3e23] [cursor=pointer]
+        - button "Attendance" [ref=f3e27] [cursor=pointer]
+        - button "Daily Logs" [ref=f3e30] [cursor=pointer]
+        - button "Rewards" [ref=f3e34] [cursor=pointer]
+        - button "Messages" [ref=f3e39] [cursor=pointer]
+        - button "Enrollment" [ref=f3e42] [cursor=pointer]
+        - button "Billing" [ref=f3e46] [cursor=pointer]
+        - button "Payroll" [ref=f3e50] [cursor=pointer]
+        - button "Staff" [ref=f3e54] [cursor=pointer]
+        - button "Announcements" [ref=f3e60] [cursor=pointer]
+      - generic [ref=f3e64]:
+        - strong [ref=f3e65]: Center Owner
+        - text: Management
+    - main [ref=f3e66]:
+      - generic [ref=f3e67]:
+        - generic [ref=f3e68]: CO
+        - generic [ref=f3e69]:
+          - generic [ref=f3e70]: A Touch of Blessings
+          - heading "Dashboard" [level=1] [ref=f3e71]
+        - button "Notifications" [ref=f3e72] [cursor=pointer]
+        - button "Switch profile" [active] [ref=f3e76] [cursor=pointer]
+      - generic [ref=f3e81]:
+        - generic [ref=f3e83]:
+          - heading "Monday, at a glance." [level=2] [ref=f3e84]
+          - paragraph [ref=f3e85]: A Touch of Blessings · Owner view
+        - generic [ref=f3e86]:
+          - generic [ref=f3e87]:
+            - strong [ref=f3e92]: "0"
+            - generic [ref=f3e93]: Children checked in
+          - generic [ref=f3e94]:
+            - strong [ref=f3e101]: "0"
+            - generic [ref=f3e102]: Staff on duty
+          - generic [ref=f3e103]:
+            - strong [ref=f3e108]: On track
+            - generic [ref=f3e109]: Ratio compliance
+          - generic [ref=f3e110]:
+            - strong [ref=f3e116]: 5%
+            - generic [ref=f3e117]: Enrollment capacity
+        - heading "Quick actions" [level=3] [ref=f3e119]
+        - generic [ref=f3e120]:
+          - button [ref=f3e121] [cursor=pointer]
+          - button [ref=f3e125] [cursor=pointer]
+          - button [ref=f3e130] [cursor=pointer]
+          - button [ref=f3e134] [cursor=pointer]
+          - button [ref=f3e138] [cursor=pointer]
+          - button [ref=f3e145] [cursor=pointer]
+        - generic [ref=f3e150]:
+          - generic [ref=f3e151]:
+            - generic [ref=f3e152]:
+              - heading "Staff on duty" [level=3] [ref=f3e153]
+              - generic [ref=f3e154]: 0 active
+            - generic [ref=f3e156]:
+              - heading "No one clocked in" [level=3] [ref=f3e161]
+              - paragraph [ref=f3e162]: Active shifts will appear here.
+          - generic [ref=f3e164]:
+            - heading "Announcements" [level=3] [ref=f3e165]
+            - generic [ref=f3e166]: Live feed
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f3e167] [cursor=pointer]:
+    - generic [ref=f3e170]:
+      - text: Rendering
+      - generic [ref=f3e171]:
+        - generic [ref=f3e172]: .
+        - generic [ref=f3e173]: .
+        - generic [ref=f3e174]: .
+  - alert [ref=f3e13]

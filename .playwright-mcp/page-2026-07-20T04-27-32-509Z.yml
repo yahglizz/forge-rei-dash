@@ -1,0 +1,48 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e37]:
+    - complementary [ref=f4e38]:
+      - generic [ref=f4e42]:
+        - strong [ref=f4e43]: Blessings
+        - generic [ref=f4e44]: DAYCARE PLATFORM
+      - navigation [ref=f4e45]:
+        - button "Clock In" [ref=f4e46] [cursor=pointer]
+        - button "My Class" [ref=f4e50] [cursor=pointer]
+        - button "Daily Logs" [ref=f4e56] [cursor=pointer]
+        - button "Rewards" [ref=f4e60] [cursor=pointer]
+        - button "Messages" [ref=f4e65] [cursor=pointer]
+      - generic [ref=f4e68]:
+        - strong [ref=f4e69]: Tessa Teachcheck
+        - text: staff
+    - main [ref=f4e70]:
+      - generic [ref=f4e71]:
+        - generic [ref=f4e72]: TT
+        - generic [ref=f4e73]:
+          - generic [ref=f4e74]: A Touch of Blessings
+          - heading "Clock In" [level=1] [ref=f4e75]
+        - button "Notifications" [ref=f4e76] [cursor=pointer]
+        - button "Switch profile" [ref=f4e80] [cursor=pointer]
+      - generic [ref=f4e85]:
+        - generic [ref=f4e87]:
+          - heading "Good morning, Tessa." [level=2] [ref=f4e88]
+          - paragraph [ref=f4e89]: Monday, July 20
+        - generic [ref=f4e90]:
+          - generic [ref=f4e91]: Not clocked in
+          - generic [ref=f4e92]: 12:27 AM
+          - paragraph [ref=f4e93]: Ready when you are.
+          - button "Clock In" [ref=f4e94] [cursor=pointer]
+        - generic [ref=f4e95]:
+          - heading "This week" [level=3] [ref=f4e96]
+          - generic [ref=f4e97]: 0.0 / 40 hours
+        - generic [ref=f4e100]:
+          - generic "0.0h" [ref=f4e101]: M
+          - generic "0.0h" [ref=f4e103]: T
+          - generic "0.0h" [ref=f4e105]: W
+          - generic "0.0h" [ref=f4e107]: T
+          - generic "0.0h" [ref=f4e109]: F
+        - heading "Today" [level=3] [ref=f4e112]
+        - generic [ref=f4e114]:
+          - heading "No active shift" [level=3] [ref=f4e119]
+          - paragraph [ref=f4e120]: Clock in to start tracking today’s hours.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f4e32] [cursor=pointer]
+  - alert [ref=f4e36]
