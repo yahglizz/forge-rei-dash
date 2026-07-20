@@ -181,12 +181,15 @@ def sync_family(client, *, name: str, phone: str, email: str | None = None,
 # The public fillout form (daycare-fillout-form.vercel.app) upserts each existing
 # family into GHL tagged `family-contact-form`, with the child's name/DOB in these
 # custom fields (ids created 2026-07-19, mirrored in that repo's api/submit.js).
-FORM_TAG = "family-contact-form"
+FORM_TAG = "family-contact-form"       # existing-student intake (submit.js)
+LEAD_TAG = "website-lead"              # brand-new inquiry from the marketing site (enroll.js)
+ENROLLED_TAGS = ("enrolled", "existing-student")  # a family the daycare actually has
 CF_CHILD_NAME = "XuWMrMVQSx3W1drZR0e0"
 CF_CHILD_DOB = "WQctVJsId5tRNHqlhwho"
 CF_EMERG_NAME = "pF09l1zZhPh1zOi7CWLc"
 CF_EMERG_PHONE = "ZidoyoCzWfoNVak9G494"
 CF_EMERG_REL = "eKCWiJmLhRwbHyeO0Rkh"
+CF_ENROLL_STATUS = "d7sKOSmyfbxmXnuIOtNr"  # 'Enrolled' (form) vs 'Lead' (inquiry)
 
 
 def _cf_map(contact: dict) -> dict:
@@ -216,7 +219,16 @@ def _split_name(full: str) -> tuple[str, str]:
 def _family_from_contact(contact: dict) -> dict:
     cf = _cf_map(contact)
     tags = [str(t) for t in (contact.get("tags") or [])]
+    tl = {t.lower() for t in tags}
     loc_tag = next((t for t in tags if t.lower().startswith("loc-")), "")
+    # Enrolled vs brand-new inquiry: only an actually-enrolled family (existing-student
+    # form) ever gets a parent app login. A website-lead is a prospect — no login until
+    # they enroll. Tags are the truth; the enrollStatus custom field is the fallback.
+    enrolled = any(t in tl for t in ENROLLED_TAGS)
+    enroll_status = (cf.get(CF_ENROLL_STATUS) or "").strip() or (
+        "Enrolled" if enrolled else ("Lead" if LEAD_TAG in tl else ""))
+    if not enrolled and enroll_status.lower() == "enrolled":
+        enrolled = True
     p_first = (contact.get("firstName") or "").strip()
     p_last = (contact.get("lastName") or "").strip()
     if not p_first and not p_last:
