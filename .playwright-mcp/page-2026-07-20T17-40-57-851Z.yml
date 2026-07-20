@@ -1,0 +1,13 @@
+- generic [ref=f1e3]:
+  - generic [ref=f1e4]:
+    - generic [ref=f1e5]: A Mother's Touch
+    - generic [ref=f1e6]:
+      - heading "Family Contact Form" [level=1] [ref=f1e7]
+      - paragraph [ref=f1e8]: Help us get your family set up in our system so we can send you updates, reminders, and important messages about your child.
+  - generic [ref=f1e96]:
+    - heading "Thank you so much for being with us! 💜" [level=2] [ref=f1e100]
+    - paragraph [ref=f1e101]: We're so grateful your family is part of A Mother's Touch. Your child's information has been saved to our system.
+    - paragraph [ref=f1e102]: You're all set — you can safely close this window now. If we need anything else, we'll reach out.
+    - generic [ref=f1e103]: Questions? Call us at (215) 236-5439
+    - button "Add another child" [ref=f1e107] [cursor=pointer]
+  - paragraph [ref=f1e95]: A Mother's Touch · North Philadelphia · (215) 236-5439
