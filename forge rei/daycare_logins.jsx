@@ -22,13 +22,13 @@ function DclPendingPanel({ families, onCreate }) {
     <div className="dc-panel-head"><div><div className="card-title">From the Contact Form</div><div className="faint">Families who filled out the form, not yet in the dashboard</div></div><b>{fresh.length}</b></div>
     {fresh.length === 0
       ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard." : "New form submissions will show here to create a login."}</span></div></div>
-      : <div className="dc-alert-list">{fresh.map((f) => <div key={f.contact_id}>
-          <span className="dc-severity info" />
-          <div style={{ flex: 1 }}>
+      : <div className="dcl-inbox-list">{fresh.map((f) => <div key={f.contact_id} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+          <span className="dc-severity info" style={{ flex: "0 0 auto" }} />
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
             <b style={{ fontWeight: 500 }}>{f.parent_name || "Parent"}{f.child_name ? " · " + f.child_name : ""}</b>
             <small style={{ display: "block", opacity: .6 }}>{[f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
           </div>
-          <button className="dc-primary" style={{ flexShrink: 0, whiteSpace: "nowrap" }} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> Create login</button>
+          <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> Create login</button>
         </div>)}</div>}
     {linked > 0 && fresh.length > 0 && <div className="dc-form-hint">{linked} other form {linked === 1 ? "family is" : "families are"} already in the dashboard.</div>}
   </div>;
