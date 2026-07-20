@@ -94,7 +94,7 @@ Deno.serve(async (request) => {
 
   const { data: caller, error: callerError } = await callerClient
     .from("profiles")
-    .select("id, location_id, role, active")
+    .select("id, location_id, active_location_id, role, active")
     .eq("id", authData.user.id)
     .single();
   if (callerError || !caller?.active || !caller.location_id || !["manager", "admin"].includes(caller.role)) {
@@ -115,11 +115,27 @@ Deno.serve(async (request) => {
       const firstName = requiredText(body.first_name, "First name", 80);
       const lastName = requiredText(body.last_name, "Last name", 80);
 
+      // Multi-location: provision the guardian into the caller's ACTIVE center (the one the
+      // dashboard is currently switched to), not just their home location — but only when the
+      // caller actually holds membership there. Falls back to home, so single-center behavior
+      // is unchanged. Keeps the child's guardian at the same center the child is created in,
+      // which the "management creates children" WITH CHECK policy requires.
+      let effectiveLocation = caller.location_id;
+      if (caller.active_location_id && caller.active_location_id !== caller.location_id) {
+        const { data: membership } = await adminClient
+          .from("profile_locations")
+          .select("location_id")
+          .eq("profile_id", caller.id)
+          .eq("location_id", caller.active_location_id)
+          .maybeSingle();
+        if (membership) effectiveLocation = caller.active_location_id;
+      }
+
       const { data: existing, error: lookupError } = await adminClient
         .from("profiles")
         .select("id, login_id, role, location_id, active")
         .eq("auth_email", contactEmail)
-        .eq("location_id", caller.location_id)
+        .eq("location_id", effectiveLocation)
         .maybeSingle();
       if (lookupError) throw new Error(lookupError.message);
       if (existing) {
@@ -142,7 +158,7 @@ Deno.serve(async (request) => {
 
       try {
         const { data: updatedProfile, error: profileError } = await adminClient.from("profiles").update({
-          location_id: caller.location_id,
+          location_id: effectiveLocation,
           role: "parent",
           first_name: firstName,
           last_name: lastName,
@@ -155,7 +171,7 @@ Deno.serve(async (request) => {
 
         const { error: guardianError } = await adminClient.from("guardians").upsert({
           profile_id: created.user.id,
-          location_id: caller.location_id,
+          location_id: effectiveLocation,
           relationship_label: "Parent",
           emergency_contact: true,
           authorized_pickup: true,
