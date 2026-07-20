@@ -101,6 +101,21 @@ Deno.serve(async (request) => {
     return json(403, { error: "Active management access required" }, origin);
   }
 
+  // Multi-location: operate on the caller's ACTIVE center (the one the dashboard is switched
+  // to), not just their home — but only when they actually hold membership there. Falls back
+  // to home, so single-center behavior is unchanged. Every action below (guardian, staff,
+  // reset-pin) scopes to effectiveLocation so management can provision at any center it runs.
+  let effectiveLocation = caller.location_id;
+  if (caller.active_location_id && caller.active_location_id !== caller.location_id) {
+    const { data: membership } = await adminClient
+      .from("profile_locations")
+      .select("location_id")
+      .eq("profile_id", caller.id)
+      .eq("location_id", caller.active_location_id)
+      .maybeSingle();
+    if (membership) effectiveLocation = caller.active_location_id;
+  }
+
   let body: JsonRecord;
   try {
     body = await request.json();
