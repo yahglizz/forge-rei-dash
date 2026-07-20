@@ -1,0 +1,81 @@
+- generic [ref=f1e3]:
+  - generic [ref=f1e4]:
+    - generic [ref=f1e5]: A Mother's Touch
+    - generic [ref=f1e6]:
+      - heading "Family Contact Form" [level=1] [ref=f1e7]
+      - paragraph [ref=f1e8]: Help us get your family set up in our system so we can send you updates, reminders, and important messages about your child.
+  - generic [ref=f1e9]:
+    - generic [ref=f1e11]:
+      - text: Do not fill this out
+      - textbox [ref=f1e12]
+    - generic [ref=f1e13]:
+      - paragraph [ref=f1e14]: A Mother's Touch
+      - paragraph [ref=f1e15]: All fields marked * are required. Takes about 2 minutes.
+    - generic [ref=f1e16]:
+      - heading "Your Child" [level=3] [ref=f1e22]
+      - generic [ref=f1e23]:
+        - generic [ref=f1e24]:
+          - text: Child's full name *
+          - textbox "Child's full name *" [ref=f1e25]:
+            - /placeholder: First and last name
+        - generic [ref=f1e26]:
+          - text: Date of birth
+          - textbox "Date of birth" [ref=f1e27]
+        - generic [ref=f1e28]:
+          - text: Age
+          - textbox "Age" [ref=f1e29]:
+            - /placeholder: e.g. 3 years
+      - heading "Your location" [level=3] [ref=f1e36]
+      - generic [ref=f1e38]:
+        - radio "A Mother's Touch Inc. 1923 Cecil B. Moore Ave., Philadelphia, PA 19121" [checked] [ref=f1e39]
+        - generic [ref=f1e40]:
+          - generic [ref=f1e41]: A Mother's Touch Inc.
+          - generic [ref=f1e42]: 1923 Cecil B. Moore Ave., Philadelphia, PA 19121
+      - heading "Parent / Guardian" [level=3] [ref=f1e51]
+      - paragraph [ref=f1e52]: This is where we'll send texts and updates about your child.
+      - generic [ref=f1e53]:
+        - generic [ref=f1e54]:
+          - text: Parent / guardian full name *
+          - textbox "Parent / guardian full name *" [ref=f1e55]:
+            - /placeholder: First and last name
+        - generic [ref=f1e56]:
+          - text: Mobile phone (for texts) *
+          - textbox "Mobile phone (for texts) *" [ref=f1e57]:
+            - /placeholder: (215) 555-0100
+        - generic [ref=f1e58]:
+          - text: Email address *
+          - textbox "Email address *" [ref=f1e59]:
+            - /placeholder: you@email.com
+        - generic [ref=f1e60]:
+          - text: Relationship to child
+          - textbox "Relationship to child" [ref=f1e61]:
+            - /placeholder: e.g. Mother, Father, Guardian
+      - heading "Emergency Contact" [level=3] [ref=f1e67]
+      - paragraph [ref=f1e68]: Someone other than the parent above we can reach if needed.
+      - generic [ref=f1e69]:
+        - generic [ref=f1e70]:
+          - text: Contact name *
+          - textbox "Contact name *" [ref=f1e71]:
+            - /placeholder: Full name
+        - generic [ref=f1e72]:
+          - text: Phone number *
+          - textbox "Phone number *" [ref=f1e73]:
+            - /placeholder: (215) 555-0100
+        - generic [ref=f1e74]:
+          - text: Relationship to child *
+          - textbox "Relationship to child *" [ref=f1e75]:
+            - /placeholder: e.g. Grandparent, Aunt, Family friend
+      - heading "Other Authorized People (optional)" [level=3] [ref=f1e82]
+      - paragraph [ref=f1e83]: Anyone else allowed to pick up your child or receive updates — grandparents, siblings, sitters, etc.
+      - button "Add a person" [ref=f1e84] [cursor=pointer]
+      - generic [ref=f1e87]:
+        - text: Anything else we should know? (optional)
+        - textbox "Anything else we should know? (optional)" [ref=f1e88]:
+          - /placeholder: Allergies, second guardian, pickup notes, etc.
+      - generic [ref=f1e89] [cursor=pointer]:
+        - checkbox "I agree to receive text/SMS messages and updates from A Mother's Touch about my child's care, daily updates, scheduling, and important announcements. Message & data rates may apply. Reply STOP to opt out. *" [ref=f1e90]
+        - generic [ref=f1e91]: I agree to receive text/SMS messages and updates from A Mother's Touch about my child's care, daily updates, scheduling, and important announcements. Message & data rates may apply. Reply STOP to opt out. *
+    - generic [ref=f1e92]:
+      - button "Submit & Send to Our Team" [ref=f1e93] [cursor=pointer]
+      - paragraph [ref=f1e94]: Your information is only used to set up your family in our system.
+  - paragraph [ref=f1e95]: A Mother's Touch · North Philadelphia · (215) 236-5439

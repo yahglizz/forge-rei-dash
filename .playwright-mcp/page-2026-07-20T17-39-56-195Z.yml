@@ -1,0 +1,87 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - img "A Touch of Blessings" [ref=e5]
+    - generic [ref=e6]:
+      - heading "Family Contact Form" [level=1] [ref=e7]
+      - paragraph [ref=e8]: Help us get your family set up in our system so we can send you updates, reminders, and important messages about your child.
+  - generic [ref=e9]:
+    - generic [ref=e11]:
+      - text: Do not fill this out
+      - textbox [ref=e12]
+    - generic [ref=e13]:
+      - paragraph [ref=e14]: A Touch of Blessings
+      - paragraph [ref=e15]: All fields marked * are required. Takes about 2 minutes.
+    - generic [ref=e16]:
+      - heading "Your Child" [level=3] [ref=e22]
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - text: Child's full name *
+          - textbox "Child's full name *" [ref=e25]:
+            - /placeholder: First and last name
+        - generic [ref=e26]:
+          - text: Date of birth
+          - textbox "Date of birth" [ref=e27]
+        - generic [ref=e28]:
+          - text: Age
+          - textbox "Age" [ref=e29]:
+            - /placeholder: e.g. 3 years
+      - heading "Which location is your child at? *" [level=3] [ref=e36]
+      - generic [ref=e37]:
+        - generic [ref=e38] [cursor=pointer]:
+          - radio "A Touch of Blessings 921 N 18th St., Philadelphia, PA 19130" [ref=e39]
+          - generic [ref=e40]:
+            - generic [ref=e41]: A Touch of Blessings
+            - generic [ref=e42]: 921 N 18th St., Philadelphia, PA 19130
+        - generic [ref=e43] [cursor=pointer]:
+          - radio "A Touch of Blessings 2 & 3 2318 Cecil B. Moore Ave., Philadelphia, PA 19121" [ref=e44]
+          - generic [ref=e45]:
+            - generic [ref=e46]: A Touch of Blessings 2 & 3
+            - generic [ref=e47]: 2318 Cecil B. Moore Ave., Philadelphia, PA 19121
+      - heading "Parent / Guardian" [level=3] [ref=e56]
+      - paragraph [ref=e57]: This is where we'll send texts and updates about your child.
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - text: Parent / guardian full name *
+          - textbox "Parent / guardian full name *" [ref=e60]:
+            - /placeholder: First and last name
+        - generic [ref=e61]:
+          - text: Mobile phone (for texts) *
+          - textbox "Mobile phone (for texts) *" [ref=e62]:
+            - /placeholder: (215) 555-0100
+        - generic [ref=e63]:
+          - text: Email address *
+          - textbox "Email address *" [ref=e64]:
+            - /placeholder: you@email.com
+        - generic [ref=e65]:
+          - text: Relationship to child
+          - textbox "Relationship to child" [ref=e66]:
+            - /placeholder: e.g. Mother, Father, Guardian
+      - heading "Emergency Contact" [level=3] [ref=e72]
+      - paragraph [ref=e73]: Someone other than the parent above we can reach if needed.
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - text: Contact name *
+          - textbox "Contact name *" [ref=e76]:
+            - /placeholder: Full name
+        - generic [ref=e77]:
+          - text: Phone number *
+          - textbox "Phone number *" [ref=e78]:
+            - /placeholder: (215) 555-0100
+        - generic [ref=e79]:
+          - text: Relationship to child *
+          - textbox "Relationship to child *" [ref=e80]:
+            - /placeholder: e.g. Grandparent, Aunt, Family friend
+      - heading "Other Authorized People (optional)" [level=3] [ref=e87]
+      - paragraph [ref=e88]: Anyone else allowed to pick up your child or receive updates — grandparents, siblings, sitters, etc.
+      - button "Add a person" [ref=e89] [cursor=pointer]
+      - generic [ref=e92]:
+        - text: Anything else we should know? (optional)
+        - textbox "Anything else we should know? (optional)" [ref=e93]:
+          - /placeholder: Allergies, second guardian, pickup notes, etc.
+      - generic [ref=e94] [cursor=pointer]:
+        - checkbox "I agree to receive text/SMS messages and updates from A Touch of Blessings about my child's care, daily updates, scheduling, and important announcements. Message & data rates may apply. Reply STOP to opt out. *" [ref=e95]
+        - generic [ref=e96]: I agree to receive text/SMS messages and updates from A Touch of Blessings about my child's care, daily updates, scheduling, and important announcements. Message & data rates may apply. Reply STOP to opt out. *
+    - generic [ref=e97]:
+      - button "Submit & Send to Our Team" [ref=e98] [cursor=pointer]
+      - paragraph [ref=e99]: Your information is only used to set up your family in our system.
+  - paragraph [ref=e100]: A Touch of Blessings · North Philadelphia · (215) 236-5439
