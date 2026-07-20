@@ -3471,15 +3471,23 @@ class Handler(BaseHTTPRequestHandler):
 
     def _daycare_pending_families(self, session):
         """Families submitted through the public Family Contact Form (GHL), for the
-        dashboard's "From Contact Form" inbox.
+        dashboard's "From Contact Form" inbox — organized by center.
 
-        Read-only. Each family is flagged `in_roster` when a guardian with the same
-        email already exists at the ACTIVE Supabase location, so the owner can one-tap
-        provision the rest without creating duplicates. Provisioning targets whatever
-        location the session is on — the card shows each family's GHL location so a
-        mismatch is visible. ponytail: in_roster is scoped to the active location; a
-        family provisioned in another center reads as not-in-roster until you switch to it.
+        Read-only. Each family's GHL location tag is mapped to its Supabase center
+        (`location_id` + `location_name`) so the inbox can group them by location. A
+        family is flagged `in_roster` when a guardian with the same email already
+        exists at the ACTIVE center (RLS scopes the roster to one center at a time, so
+        dedup is only meaningful for the family's own center). Provisioning lands in the
+        active center — the owner picks it with the location switcher — so switching to a
+        center then creating a login keeps every family organized under the right one.
         """
+        active = daycare_supabase.active_location(session)
+        names = {}
+        try:
+            for loc in (daycare_supabase.list_locations(session) or {}).get("locations", []):
+                names[str(loc.get("id"))] = loc.get("name")
+        except daycare_supabase.DaycareError:
+            pass
         families = daycare_ghl.pending_families(DAYCARE_GHL)
         emails = set()
         try:
@@ -3492,10 +3500,15 @@ class Handler(BaseHTTPRequestHandler):
         except daycare_supabase.DaycareError:
             pass
         for family in families:
+            loc_id = DAYCARE_FORM_LOCATION_BY_TAG.get((family.get("location_tag") or "").lower())
+            family["location_id"] = loc_id
+            family["location_name"] = names.get(str(loc_id)) if loc_id else None
             mail = (family.get("email") or "").strip().lower()
-            family["in_roster"] = bool(mail and mail in emails)
+            # Dedup only holds for the active center (RLS shows one center's roster).
+            family["in_roster"] = bool(loc_id and str(loc_id) == str(active) and mail and mail in emails)
         return {"ok": True, "families": families,
-                "connected": bool(DAYCARE_GHL.configured)}
+                "connected": bool(DAYCARE_GHL.configured),
+                "active_location_id": active}
 
     def _daycare_ghl_text_invoice(self, session, body):
         """Text a family their invoice / payment link via the daycare GHL account.
