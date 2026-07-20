@@ -179,6 +179,16 @@ WHOLESALE = GHLClient(_load_env(ENV_CANDIDATES), "wholesale")
 AGENCY = GHLClient(_load_env(AGENCY_ENV_CANDIDATES), "agency")
 DAYCARE_GHL = GHLClient(_load_env(DAYCARE_ENV_CANDIDATES), "daycare")
 
+# Family Contact Form GHL location tag -> Supabase center id. The public form tags
+# each submission with its center (submit.js); this maps that tag to the Supabase
+# `locations` row so the dashboard inbox can organize families by center and provision
+# each into the right one. IDs are stable business identifiers (not secrets).
+DAYCARE_FORM_LOCATION_BY_TAG = {
+    "loc-921-n-18th": "11111111-1111-1111-1111-111111111111",       # A Touch of Blessings
+    "loc-2318-cecil-b-moore": "22222222-2222-2222-2222-222222222222",  # A Touch of Blessings 2
+    "loc-1923-cecil-b-moore": "44444444-4444-4444-4444-444444444444",  # A Mother's Touch
+}
+
 
 # Key families that are PER-BUSINESS / per-sub-account and must stay isolated —
 # never merged into the shared process env (CLAUDE.md §11). The three GHL
