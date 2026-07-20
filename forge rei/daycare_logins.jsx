@@ -28,7 +28,7 @@ function DclPendingPanel({ families, onCreate }) {
             <b style={{ fontWeight: 500 }}>{f.parent_name || "Parent"}{f.child_name ? " · " + f.child_name : ""}</b>
             <small style={{ display: "block", opacity: .6 }}>{[f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
           </div>
-          <button className="dc-primary" onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> Create login</button>
+          <button className="dc-primary" style={{ flexShrink: 0, whiteSpace: "nowrap" }} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> Create login</button>
         </div>)}</div>}
     {linked > 0 && fresh.length > 0 && <div className="dc-form-hint">{linked} other form {linked === 1 ? "family is" : "families are"} already in the dashboard.</div>}
   </div>;
