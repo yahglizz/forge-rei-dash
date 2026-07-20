@@ -30,7 +30,7 @@ function DclPendingPanel({ families, activeLoc, onCreate }) {
   const linked = here.length - fresh.length;
   const centerName = (here.find((f) => f.location_name) || {}).location_name || "";
   const row = (f, action) => <div key={f.contact_id} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
-      <span className={"dc-severity " + (f.enrolled ? "info" : "warn")} style={{ flex: "0 0 auto" }} />
+      <span className={"dc-severity " + (f.enrolled ? "info" : "warning")} style={{ flex: "0 0 auto" }} />
       <div style={{ flex: "1 1 auto", minWidth: 0 }}>
         <b style={{ fontWeight: 500 }}>{f.parent_name || "Parent"}{f.child_name ? " · " + f.child_name : ""}</b>
         <small style={{ display: "block", opacity: .6 }}>{[f.location_name || f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
@@ -46,7 +46,7 @@ function DclPendingPanel({ families, activeLoc, onCreate }) {
     {inquiries.length > 0 && <div className="dcl-inquiries" style={{ marginTop: "14px" }}>
       <div className="faint" style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500 }}><window.Icons.Bell size={13} /> New inquiries — not enrolled yet · no app login</div>
       <div className="dcl-inbox-list">{inquiries.map((f) => row(f,
-        <span className="dc-chip" style={{ flex: "0 0 auto", whiteSpace: "nowrap", opacity: .7 }}>Inquiry · in Enrollment pipeline</span>))}</div>
+        <span style={{ flex: "0 0 auto", whiteSpace: "nowrap", fontSize: "11px", fontWeight: 600, color: "#f6c979", background: "rgba(244,184,96,.1)", borderRadius: "99px", padding: "3px 9px" }}>Inquiry · Enrollment pipeline</span>))}</div>
       <div className="dc-form-hint">Brand-new inquiries stay a lead in GoHighLevel. A login is created only once they enroll.</div>
     </div>}
     {elsewhere.length > 0 && <div className="dc-form-hint">{elsewhere.length} more form {elsewhere.length === 1 ? "family is" : "families are"} waiting at other centers — switch center at the top to see them.</div>}
