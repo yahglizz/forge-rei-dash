@@ -104,14 +104,12 @@ insert into public.reward_items (location_id, name, description, cost, icon)
 select l.id, x.name, x.description, x.cost, x.icon
 from public.locations l
 cross join (values
-  ('Extra Recess Pick', 'Pick the playground activity', 10, 'Sun'),
-  ('Front of Line Pass', null, 10, 'ChevronRight'),
-  ('Lunch with a Friend', 'Sit with any friend at lunch', 15, 'Utensils'),
-  ('Classroom Helper for a Day', null, 15, 'Star'),
-  ('Sticker Pack', null, 20, 'Sticker'),
-  ('Small Toy from Prize Box', null, 30, 'Gift'),
-  ('Class Dance Party', '10-minute dance party for the class', 50, 'Music'),
-  ('Movie Afternoon', null, 75, 'Clapperboard'),
+  ('Bag of Chips', 'A crunchy snack', 15, 'Popcorn'),
+  ('Juice / Cold Drink', 'Pick a cold drink', 15, 'CupSoda'),
+  ('Candy', 'A sweet treat', 20, 'Candy'),
+  ('Cookies', 'Fresh-baked cookies', 20, 'Cookie'),
+  ('Ice Cream Treat', 'A frozen treat', 30, 'IceCreamCone'),
+  ('Lunch on Teacher', 'Your teacher treats you to lunch', 60, 'Sandwich'),
   ('Pizza Party Contribution', 'Counts toward the next class pizza party', 100, 'Pizza')
 ) as x(name, description, cost, icon);
 
