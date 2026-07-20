@@ -86,6 +86,9 @@ function DaycareParentLogins() {
     first_name: family.child_first || "", last_name: family.child_last || "", birth_date: family.child_dob || "",
     guardian_first_name: family.parent_first || "", guardian_last_name: family.parent_last || "",
     guardian_phone: family.phone || "", guardian_email: family.email || "",
+    // Route the child + guardian to the center the parent picked on the form (falls back to
+    // the active center when the form had no recognizable location tag).
+    location_id: family.location_id || "", location_name: family.location_name || "",
   });
 
   const actions = <div className="dc-search"><window.Icons.Search size={14} /><input placeholder="Search parent or student…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>;
