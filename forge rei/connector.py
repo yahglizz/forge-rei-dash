@@ -3516,6 +3516,21 @@ class Handler(BaseHTTPRequestHandler):
             mail = (family.get("email") or "").strip().lower()
             # Dedup only holds for the active center (RLS shows one center's roster).
             family["in_roster"] = bool(loc_id and str(loc_id) == str(active) and mail and mail in emails)
+            # For families the owner can still provision, read the GHL intake note for the
+            # bits the form keeps only there — authorized-pickup people + the freeform note —
+            # so "Create login" carries them into the child's pickup_notes / medical_notes.
+            # Bounded to actionable (not-yet-provisioned) families; the note fetch is skipped
+            # for everything already in the roster.
+            if not family["in_roster"] and family.get("contact_id"):
+                intake = daycare_ghl.family_intake(DAYCARE_GHL, family["contact_id"])
+                people = intake.get("authorized_pickup") or []
+                if people:
+                    base = family.get("pickup_notes") or ""
+                    family["pickup_notes"] = (
+                        base + ("\n" if base else "") + "Authorized pickup:\n"
+                        + "\n".join("  - " + p for p in people)).strip()
+                if intake.get("notes"):
+                    family["medical_notes"] = intake["notes"]
         return {"ok": True, "families": families,
                 "connected": bool(DAYCARE_GHL.configured),
                 "active_location_id": active}

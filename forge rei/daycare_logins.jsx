@@ -89,6 +89,9 @@ function DaycareParentLogins() {
     // Route the child + guardian to the center the parent picked on the form (falls back to
     // the active center when the form had no recognizable location tag).
     location_id: family.location_id || "", location_name: family.location_name || "",
+    // Carry the intake's medical/allergy note + emergency & authorized-pickup people into the
+    // child record so they show in the app (owner can review/edit before saving).
+    allergies: family.allergies || "", medical_notes: family.medical_notes || "", pickup_notes: family.pickup_notes || "",
   });
 
   const actions = <div className="dc-search"><window.Icons.Search size={14} /><input placeholder="Search parent or student…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>;

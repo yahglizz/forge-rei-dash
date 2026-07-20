@@ -296,6 +296,14 @@ def _contact_note_body(client, contact_id: str) -> str:
     return (notes[0].get("body") or "") if notes else ""
 
 
+def family_intake(client, contact_id: str) -> dict:
+    """Read a family's GHL intake note → the authorized-pickup people + freeform notes
+    (the parts the form keeps only in the Note, not custom fields). Read-only, best-effort;
+    used to fill the child's pickup_notes / medical_notes when provisioning from the inbox."""
+    people, freeform = _parse_intake_note(_contact_note_body(client, contact_id))
+    return {"authorized_pickup": people, "notes": freeform}
+
+
 def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> list[dict]:
     """List families submitted through the Family Contact Form (tagged FORM_TAG).
 
