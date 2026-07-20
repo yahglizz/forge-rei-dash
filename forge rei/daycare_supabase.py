@@ -1588,57 +1588,74 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "enrollment_date": require_date(_body_value(source, "enrollment_date", "enrollmentDate") or date.today().isoformat(), "enrollment_date"),
         "active": bool(source.get("active", True)),
     }
-    provision: dict[str, Any] | None = None
-    guardian_id = _body_value(source, "guardian_profile_id", "guardianProfileId")
-    guardian_email = _body_value(source, "guardian_email", "guardianEmail")
-    guardian_fields_present = any(_body_value(source, key, alias) for key, alias in (
-        ("guardian_first_name", "guardianFirstName"),
-        ("guardian_last_name", "guardianLastName"),
-        ("guardian_phone", "guardianPhone"),
-    ))
-    if not child_id and guardian_fields_present and not guardian_email and not guardian_id:
-        raise DaycareError(
-            400,
-            "guardian_email is required when provisioning a guardian",
-            "validation_error",
-        )
-    if not child_id and guardian_email:
-        provision = BRIDGE.edge_function(session, "provision-user", {
-            "action": "ensure-guardian",
-            "email": require_text(guardian_email, "guardian_email", maximum=254),
-            "first_name": require_text(_body_value(source, "guardian_first_name", "guardianFirstName"), "guardian_first_name", maximum=100),
-            "last_name": require_text(_body_value(source, "guardian_last_name", "guardianLastName"), "guardian_last_name", maximum=100),
-        })
-        guardian_id = provision.get("profile_id")
-        if guardian_id:
-            guardian_id = require_uuid(guardian_id, "guardian_profile_id")
-        guardian_phone = require_text(
-            _body_value(source, "guardian_phone", "guardianPhone"),
-            "guardian_phone",
-            maximum=40,
-            optional=True,
-        )
-        if guardian_phone and guardian_id:
-            BRIDGE.rest(
-                session,
-                "PATCH",
-                "profiles",
-                query={"id": f"eq.{guardian_id}", "location_id": f"eq.{active_location(session)}"},
-                body={"phone": guardian_phone},
-                prefer="return=minimal",
+    # Auto-route provisioning to the family's center. When the caller passes a target
+    # location_id (the Contact-Form inbox routes a family to the center they picked on the
+    # form), switch the session's active center so the guardian AND child both land there —
+    # the "management creates children" WITH CHECK policy requires
+    # guardian.location_id == child.location_id == my_location(). Only for NEW children, and
+    # the active center is restored afterward so the dashboard view is unchanged.
+    # switch_location's RPC refuses any center the caller has no membership for.
+    restore_location = None
+    if not child_id:
+        target_location = require_uuid(_body_value(source, "location_id", "locationId"), "location_id", optional=True)
+        if target_location and target_location != active_location(session):
+            restore_location = active_location(session)
+            switch_location(session, {"location_id": target_location})
+    try:
+        provision: dict[str, Any] | None = None
+        guardian_id = _body_value(source, "guardian_profile_id", "guardianProfileId")
+        guardian_email = _body_value(source, "guardian_email", "guardianEmail")
+        guardian_fields_present = any(_body_value(source, key, alias) for key, alias in (
+            ("guardian_first_name", "guardianFirstName"),
+            ("guardian_last_name", "guardianLastName"),
+            ("guardian_phone", "guardianPhone"),
+        ))
+        if not child_id and guardian_fields_present and not guardian_email and not guardian_id:
+            raise DaycareError(
+                400,
+                "guardian_email is required when provisioning a guardian",
+                "validation_error",
             )
-    if guardian_id:
-        record["guardian_profile_id"] = require_uuid(guardian_id, "guardian_profile_id")
-    if child_id:
-        existing = _ensure_location_record(session, "children", child_id)
-        rows = BRIDGE.rest(session, "PATCH", "children", query={"id": f"eq.{existing['id']}"}, body=record, prefer="return=representation")
-    else:
-        record["location_id"] = active_location(session)
-        rows = BRIDGE.rest(session, "POST", "children", body=record, prefer="return=representation")
-    response = {"ok": True, "child": _single(rows, "Child")}
-    if provision:
-        response["provision"] = {key: provision.get(key) for key in ("profile_id", "login_id", "pin", "existing") if key in provision}
-    return response
+        if not child_id and guardian_email:
+            provision = BRIDGE.edge_function(session, "provision-user", {
+                "action": "ensure-guardian",
+                "email": require_text(guardian_email, "guardian_email", maximum=254),
+                "first_name": require_text(_body_value(source, "guardian_first_name", "guardianFirstName"), "guardian_first_name", maximum=100),
+                "last_name": require_text(_body_value(source, "guardian_last_name", "guardianLastName"), "guardian_last_name", maximum=100),
+            })
+            guardian_id = provision.get("profile_id")
+            if guardian_id:
+                guardian_id = require_uuid(guardian_id, "guardian_profile_id")
+            guardian_phone = require_text(
+                _body_value(source, "guardian_phone", "guardianPhone"),
+                "guardian_phone",
+                maximum=40,
+                optional=True,
+            )
+            if guardian_phone and guardian_id:
+                BRIDGE.rest(
+                    session,
+                    "PATCH",
+                    "profiles",
+                    query={"id": f"eq.{guardian_id}", "location_id": f"eq.{active_location(session)}"},
+                    body={"phone": guardian_phone},
+                    prefer="return=minimal",
+                )
+        if guardian_id:
+            record["guardian_profile_id"] = require_uuid(guardian_id, "guardian_profile_id")
+        if child_id:
+            existing = _ensure_location_record(session, "children", child_id)
+            rows = BRIDGE.rest(session, "PATCH", "children", query={"id": f"eq.{existing['id']}"}, body=record, prefer="return=representation")
+        else:
+            record["location_id"] = active_location(session)
+            rows = BRIDGE.rest(session, "POST", "children", body=record, prefer="return=representation")
+        response = {"ok": True, "child": _single(rows, "Child")}
+        if provision:
+            response["provision"] = {key: provision.get(key) for key in ("profile_id", "login_id", "pin", "existing") if key in provision}
+        return response
+    finally:
+        if restore_location:
+            switch_location(session, {"location_id": restore_location})
 
 
 def deactivate_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
