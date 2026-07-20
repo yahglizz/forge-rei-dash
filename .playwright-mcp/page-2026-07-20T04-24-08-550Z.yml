@@ -1,0 +1,54 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e39]:
+    - complementary [ref=f2e40]:
+      - generic [ref=f2e44]:
+        - strong [ref=f2e45]: Blessings
+        - generic [ref=f2e46]: DAYCARE PLATFORM
+      - navigation [ref=f2e47]:
+        - button "Dashboard" [ref=f2e48] [cursor=pointer]
+        - button "Attendance" [ref=f2e52] [cursor=pointer]
+        - button "Daily Logs" [ref=f2e55] [cursor=pointer]
+        - button "Rewards" [ref=f2e59] [cursor=pointer]
+        - button "Messages" [ref=f2e64] [cursor=pointer]
+        - button "Enrollment" [active] [ref=f2e67] [cursor=pointer]
+        - button "Billing" [ref=f2e71] [cursor=pointer]
+        - button "Payroll" [ref=f2e75] [cursor=pointer]
+        - button "Staff" [ref=f2e79] [cursor=pointer]
+        - button "Announcements" [ref=f2e85] [cursor=pointer]
+      - generic [ref=f2e89]:
+        - strong [ref=f2e90]: Center Owner
+        - text: Management
+    - main [ref=f2e91]:
+      - generic [ref=f2e92]:
+        - generic [ref=f2e93]: CO
+        - generic [ref=f2e94]:
+          - generic [ref=f2e95]: A Touch of Blessings
+          - heading "Enrollment" [level=1] [ref=f2e192]
+        - button "Notifications" [ref=f2e97] [cursor=pointer]
+        - button "Switch profile" [ref=f2e101] [cursor=pointer]
+      - generic [ref=f2e106]:
+        - generic [ref=f2e193]:
+          - generic [ref=f2e194]:
+            - heading "Enrollment" [level=2] [ref=f2e195]
+            - paragraph [ref=f2e196]: Active child records and classroom placement
+          - button "Add child" [ref=f2e198] [cursor=pointer]
+        - generic [ref=f2e200]:
+          - generic [ref=f2e201]:
+            - strong [ref=f2e206]: "1"
+            - generic [ref=f2e207]: Active children
+          - generic [ref=f2e208]:
+            - strong [ref=f2e214]: "2"
+            - generic [ref=f2e215]: Classrooms
+          - generic [ref=f2e216]:
+            - strong [ref=f2e221]: "0"
+            - generic [ref=f2e222]: Allergy plans
+        - heading "Child roster" [level=3] [ref=f2e224]
+        - generic [ref=f2e226]:
+          - generic [ref=f2e227]: VC
+          - generic [ref=f2e228]:
+            - strong [ref=f2e229]: Verify Crosscheck
+            - generic [ref=f2e230]: Unassigned · Born May 10, 2022
+          - generic [ref=f2e231]: Active
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f2e32] [cursor=pointer]
+  - alert [ref=f2e36]
