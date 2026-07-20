@@ -184,6 +184,9 @@ def sync_family(client, *, name: str, phone: str, email: str | None = None,
 FORM_TAG = "family-contact-form"
 CF_CHILD_NAME = "XuWMrMVQSx3W1drZR0e0"
 CF_CHILD_DOB = "WQctVJsId5tRNHqlhwho"
+CF_EMERG_NAME = "pF09l1zZhPh1zOi7CWLc"
+CF_EMERG_PHONE = "ZidoyoCzWfoNVak9G494"
+CF_EMERG_REL = "eKCWiJmLhRwbHyeO0Rkh"
 
 
 def _cf_map(contact: dict) -> dict:
@@ -220,6 +223,14 @@ def _family_from_contact(contact: dict) -> dict:
         p_first, p_last = _split_name(contact.get("contactName") or contact.get("name"))
     child_full = cf.get(CF_CHILD_NAME) or ""
     c_first, c_last = _split_name(child_full)
+    emerg_name = (cf.get(CF_EMERG_NAME) or "").strip()
+    emerg_phone = (cf.get(CF_EMERG_PHONE) or "").strip()
+    emerg_rel = (cf.get(CF_EMERG_REL) or "").strip()
+    pickup_lines = []
+    if emerg_name:
+        rel = f" ({emerg_rel})" if emerg_rel else ""
+        ph = f" — {emerg_phone}" if emerg_phone else ""
+        pickup_lines.append(f"Emergency contact: {emerg_name}{rel}{ph}")
     return {
         "contact_id": contact.get("id"),
         "parent_first": p_first,
@@ -231,9 +242,58 @@ def _family_from_contact(contact: dict) -> dict:
         "child_first": c_first,
         "child_last": c_last,
         "child_dob": cf.get(CF_CHILD_DOB) or "",
+        "emergency_name": emerg_name,
+        "emergency_phone": emerg_phone,
+        "emergency_relationship": emerg_rel,
+        # Seed the child's pickup_notes with the emergency contact (from custom fields);
+        # pending_families() appends the authorized-pickup people + freeform note it reads
+        # from the GHL Note body, and fills medical_notes.
+        "pickup_notes": "\n".join(pickup_lines),
+        "medical_notes": "",
+        "allergies": "",
         "location_tag": loc_tag,
         "created_at": contact.get("dateAdded") or contact.get("createdAt") or "",
     }
+
+
+def _parse_intake_note(body: str) -> tuple[list[str], str]:
+    """Pull the authorized-pickup people + the freeform NOTES section out of the Family
+    Contact Form intake note (format from the fillout form's summaryText). Returns
+    (people_lines, freeform_notes). Section headers are ALL-CAPS lines; items under them
+    are indented. Best-effort — an unrecognized note yields ([], "")."""
+    people: list[str] = []
+    notes_lines: list[str] = []
+    section = None
+    for raw in str(body or "").splitlines():
+        stripped = raw.strip()
+        upper = stripped.upper()
+        if upper in ("OTHER AUTHORIZED PEOPLE", "NOTES", "CHILD", "PARENT / GUARDIAN",
+                     "EMERGENCY CONTACT", "FAMILY CONTACT FORM — STUDENT INTAKE"):
+            section = upper
+            continue
+        if not stripped:
+            continue
+        if section == "OTHER AUTHORIZED PEOPLE":
+            people.append(stripped)
+        elif section == "NOTES":
+            notes_lines.append(stripped)
+    return people, " ".join(notes_lines).strip()
+
+
+def _contact_note_body(client, contact_id: str) -> str:
+    """Newest Family-Contact-Form intake note body for a contact (read-only, best-effort)."""
+    if not contact_id:
+        return ""
+    try:
+        data = client.get(f"/contacts/{contact_id}/notes")
+    except Exception:  # noqa: BLE001 — a note read must never break the inbox
+        return ""
+    notes = data.get("notes") if isinstance(data, dict) else None
+    for note in (notes or []):
+        body = note.get("body") or ""
+        if "STUDENT INTAKE" in body or "EMERGENCY CONTACT" in body:
+            return body
+    return (notes[0].get("body") or "") if notes else ""
 
 
 def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> list[dict]:
