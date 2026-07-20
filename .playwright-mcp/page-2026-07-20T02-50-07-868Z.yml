@@ -1,0 +1,44 @@
+- generic [ref=f5e1]:
+  - generic [ref=f5e37]:
+    - complementary [ref=f5e38]:
+      - generic [ref=f5e42]:
+        - strong [ref=f5e43]: Blessings
+        - generic [ref=f5e44]: DAYCARE PLATFORM
+      - navigation [ref=f5e45]:
+        - button "Clock In" [ref=f5e46] [cursor=pointer]
+        - button "My Class" [active] [ref=f5e50] [cursor=pointer]
+        - button "Daily Logs" [ref=f5e56] [cursor=pointer]
+        - button "Rewards" [ref=f5e60] [cursor=pointer]
+        - button "Messages" [ref=f5e65] [cursor=pointer]
+      - generic [ref=f5e68]:
+        - strong [ref=f5e69]: E2E Teacher
+        - text: staff
+    - main [ref=f5e70]:
+      - generic [ref=f5e71]:
+        - generic [ref=f5e72]: ET
+        - generic [ref=f5e73]:
+          - generic [ref=f5e74]: A Touch of Blessings
+          - heading "My Class" [level=1] [ref=f5e121]
+        - button "Notifications" [ref=f5e76] [cursor=pointer]
+        - button "Switch profile" [ref=f5e80] [cursor=pointer]
+      - generic [ref=f5e85]:
+        - generic [ref=f5e122]:
+          - generic [ref=f5e123]:
+            - heading "My classroom" [level=2] [ref=f5e124]
+            - paragraph [ref=f5e125]: 1 children in your assigned room
+          - button "Log activity" [ref=f5e127] [cursor=pointer]
+        - generic [ref=f5e130]:
+          - generic [ref=f5e131]: EB
+          - generic [ref=f5e132]:
+            - strong [ref=f5e133]: E2E Testchild Blessing
+            - generic [ref=f5e134]: E2E Pre-K Room · No listed allergies
+          - group "Behavior chart for E2E Testchild — on Green" [ref=f5e135]:
+            - button "Move E2E Testchild to Green" [pressed] [ref=f5e136] [cursor=pointer]
+            - button "Move E2E Testchild to Yellow" [ref=f5e137] [cursor=pointer]
+            - button "Move E2E Testchild to Red" [ref=f5e138] [cursor=pointer]
+          - button "Out" [ref=f5e139] [cursor=pointer]
+          - button "Quick report" [ref=f5e140] [cursor=pointer]
+        - heading "Staff announcements" [level=3] [ref=f5e143]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f5e32] [cursor=pointer]
+  - alert [ref=f5e36]

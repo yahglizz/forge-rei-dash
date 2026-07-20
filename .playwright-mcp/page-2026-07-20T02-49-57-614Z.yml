@@ -1,0 +1,48 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e37]:
+    - complementary [ref=f5e38]:
+      - generic [ref=f5e42]:
+        - strong [ref=f5e43]: Blessings
+        - generic [ref=f5e44]: DAYCARE PLATFORM
+      - navigation [ref=f5e45]:
+        - button "Clock In" [ref=f5e46] [cursor=pointer]
+        - button "My Class" [ref=f5e50] [cursor=pointer]
+        - button "Daily Logs" [ref=f5e56] [cursor=pointer]
+        - button "Rewards" [ref=f5e60] [cursor=pointer]
+        - button "Messages" [ref=f5e65] [cursor=pointer]
+      - generic [ref=f5e68]:
+        - strong [ref=f5e69]: E2E Teacher
+        - text: staff
+    - main [ref=f5e70]:
+      - generic [ref=f5e71]:
+        - generic [ref=f5e72]: ET
+        - generic [ref=f5e73]:
+          - generic [ref=f5e74]: A Touch of Blessings
+          - heading "Clock In" [level=1] [ref=f5e75]
+        - button "Notifications" [ref=f5e76] [cursor=pointer]
+        - button "Switch profile" [ref=f5e80] [cursor=pointer]
+      - generic [ref=f5e85]:
+        - generic [ref=f5e87]:
+          - heading "Good afternoon, E2E." [level=2] [ref=f5e88]
+          - paragraph [ref=f5e89]: Sunday, July 19
+        - generic [ref=f5e90]:
+          - generic [ref=f5e91]: Not clocked in
+          - generic [ref=f5e92]: 10:49 PM
+          - paragraph [ref=f5e93]: Ready when you are.
+          - button "Clock In" [ref=f5e94] [cursor=pointer]
+        - generic [ref=f5e95]:
+          - heading "This week" [level=3] [ref=f5e96]
+          - generic [ref=f5e97]: 0.0 / 40 hours
+        - generic [ref=f5e100]:
+          - generic "0.0h" [ref=f5e101]: M
+          - generic "0.0h" [ref=f5e103]: T
+          - generic "0.0h" [ref=f5e105]: W
+          - generic "0.0h" [ref=f5e107]: T
+          - generic "0.0h" [ref=f5e109]: F
+        - heading "Today" [level=3] [ref=f5e112]
+        - generic [ref=f5e114]:
+          - heading "No active shift" [level=3] [ref=f5e119]
+          - paragraph [ref=f5e120]: Clock in to start tracking today’s hours.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f5e32] [cursor=pointer]
+  - alert [ref=f5e36]
