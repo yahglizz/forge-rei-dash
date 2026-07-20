@@ -1,0 +1,59 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e37]:
+    - complementary [ref=f3e38]:
+      - generic [ref=f3e42]:
+        - strong [ref=f3e43]: Blessings
+        - generic [ref=f3e44]: DAYCARE PLATFORM
+      - navigation [ref=f3e45]:
+        - button "Home" [ref=f3e46] [cursor=pointer]
+        - button "Reports" [ref=f3e50] [cursor=pointer]
+        - button "Blessing Coins" [ref=f3e54] [cursor=pointer]
+        - button "Photos" [ref=f3e60] [cursor=pointer]
+        - button "Attendance" [ref=f3e64] [cursor=pointer]
+        - button "Billing" [ref=f3e67] [cursor=pointer]
+        - button "Messages" [ref=f3e70] [cursor=pointer]
+      - generic [ref=f3e73]:
+        - strong [ref=f3e74]: E2E Testparent Blessing
+        - text: parent
+    - main [ref=f3e75]:
+      - generic [ref=f3e76]:
+        - generic [ref=f3e77]: EB
+        - generic [ref=f3e78]:
+          - generic [ref=f3e79]: Good afternoon
+          - heading "Home" [level=1] [ref=f3e80]
+        - button "Notifications" [ref=f3e81] [cursor=pointer]
+        - button "Switch profile" [ref=f3e85] [cursor=pointer]
+      - generic [ref=f3e90]:
+        - generic [ref=f3e91]:
+          - generic [ref=f3e92]:
+            - heading "Hello, family." [level=2] [ref=f3e93]
+            - paragraph [ref=f3e94]: Sunday, July 19
+          - button "Messages" [ref=f3e96] [cursor=pointer]
+        - article [ref=f3e100]:
+          - generic [ref=f3e101]: EB
+          - generic [ref=f3e103]:
+            - generic [ref=f3e104]:
+              - generic [ref=f3e105]:
+                - heading "E2E Testchild" [level=3] [ref=f3e106]
+                - paragraph [ref=f3e107]: Classroom pending
+              - generic [ref=f3e108]:
+                - generic [ref=f3e109]: Green
+                - generic [ref=f3e111]: Not signed in
+            - generic [ref=f3e112]:
+              - button "Sign In" [ref=f3e113] [cursor=pointer]
+              - button "Sign Out" [disabled] [ref=f3e114]
+            - generic [ref=f3e116]:
+              - strong [ref=f3e117]: Signed out
+              - text: Today's sign-in and moments will appear here.
+            - generic [ref=f3e118]:
+              - button "Report" [ref=f3e119] [cursor=pointer]
+              - button "Profile" [ref=f3e123] [cursor=pointer]
+        - generic [ref=f3e127]:
+          - heading "Family bulletin" [level=3] [ref=f3e128]
+          - generic [ref=f3e129]: 0 updates
+        - generic [ref=f3e132]:
+          - heading "All caught up" [level=3] [ref=f3e137]
+          - paragraph [ref=f3e138]: New daycare updates will appear here.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f3e32] [cursor=pointer]
+  - alert [ref=f3e36]
