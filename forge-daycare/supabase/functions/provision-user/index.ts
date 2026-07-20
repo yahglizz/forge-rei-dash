@@ -130,22 +130,6 @@ Deno.serve(async (request) => {
       const firstName = requiredText(body.first_name, "First name", 80);
       const lastName = requiredText(body.last_name, "Last name", 80);
 
-      // Multi-location: provision the guardian into the caller's ACTIVE center (the one the
-      // dashboard is currently switched to), not just their home location — but only when the
-      // caller actually holds membership there. Falls back to home, so single-center behavior
-      // is unchanged. Keeps the child's guardian at the same center the child is created in,
-      // which the "management creates children" WITH CHECK policy requires.
-      let effectiveLocation = caller.location_id;
-      if (caller.active_location_id && caller.active_location_id !== caller.location_id) {
-        const { data: membership } = await adminClient
-          .from("profile_locations")
-          .select("location_id")
-          .eq("profile_id", caller.id)
-          .eq("location_id", caller.active_location_id)
-          .maybeSingle();
-        if (membership) effectiveLocation = caller.active_location_id;
-      }
-
       const { data: existing, error: lookupError } = await adminClient
         .from("profiles")
         .select("id, login_id, role, location_id, active")
@@ -224,7 +208,7 @@ Deno.serve(async (request) => {
         const { data: rooms, error: roomError } = await adminClient
           .from("classrooms")
           .select("id")
-          .eq("location_id", caller.location_id)
+          .eq("location_id", effectiveLocation)
           .eq("active", true)
           .in("id", classroomIds);
         if (roomError) throw new Error(roomError.message);
@@ -244,7 +228,7 @@ Deno.serve(async (request) => {
 
       try {
         const { data: updatedProfile, error: profileError } = await adminClient.from("profiles").update({
-          location_id: caller.location_id,
+          location_id: effectiveLocation,
           role,
           first_name: firstName,
           last_name: lastName,
@@ -257,7 +241,7 @@ Deno.serve(async (request) => {
 
         const { data: staff, error: staffError } = await adminClient.from("staff_members").insert({
           profile_id: created.user.id,
-          location_id: caller.location_id,
+          location_id: effectiveLocation,
           job_title: jobTitle,
           hourly_rate: hourlyRate,
           hire_date: new Date().toISOString().slice(0, 10),
@@ -283,7 +267,7 @@ Deno.serve(async (request) => {
         .from("profiles")
         .select("id, login_id, role, location_id, active")
         .eq("id", profileId)
-        .eq("location_id", caller.location_id)
+        .eq("location_id", effectiveLocation)
         .maybeSingle();
       if (lookupError) throw new Error(lookupError.message);
       if (!target || !target.login_id) throw new Error("No account exists for that person");
