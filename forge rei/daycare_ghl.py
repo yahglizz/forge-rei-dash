@@ -264,6 +264,11 @@ def _family_from_contact(contact: dict) -> dict:
         "medical_notes": "",
         "allergies": "",
         "location_tag": loc_tag,
+        # kind drives the inbox: "enrolled" families can be given a login; "inquiry"
+        # (brand-new, not in the daycare yet) are shown marked, with NO login.
+        "enrolled": enrolled,
+        "enroll_status": enroll_status,
+        "kind": "enrolled" if enrolled else "inquiry",
         "created_at": contact.get("dateAdded") or contact.get("createdAt") or "",
     }
 
@@ -340,7 +345,9 @@ def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> lis
             break
         for contact in contacts:
             tags = [str(t).lower() for t in (contact.get("tags") or [])]
-            if FORM_TAG in tags:
+            # Existing-student form families (get a login) AND brand-new website inquiries
+            # (shown marked, no login) — so the inbox tells them apart instead of guessing.
+            if FORM_TAG in tags or LEAD_TAG in tags:
                 out.append(_family_from_contact(contact))
         meta = (data.get("meta") if isinstance(data, dict) else None) or {}
         nxt_id = meta.get("startAfterId")

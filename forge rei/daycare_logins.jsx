@@ -22,22 +22,35 @@ function DclPendingPanel({ families, activeLoc, onCreate }) {
   const here = families.filter((f) => !f.location_id || f.location_id === activeLoc);
   const elsewhere = families.filter((f) => f.location_id && f.location_id !== activeLoc);
   const fresh = here.filter((f) => !f.in_roster);
+  // Split by enrollment: only an actually-enrolled family gets a parent app login.
+  // Brand-new website inquiries (not in the daycare yet) are shown MARKED, no login —
+  // they live in the Enrollment pipeline until they enroll.
+  const enrolledFresh = fresh.filter((f) => f.enrolled);
+  const inquiries = fresh.filter((f) => !f.enrolled);
   const linked = here.length - fresh.length;
   const centerName = (here.find((f) => f.location_name) || {}).location_name || "";
+  const row = (f, action) => <div key={f.contact_id} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+      <span className={"dc-severity " + (f.enrolled ? "info" : "warn")} style={{ flex: "0 0 auto" }} />
+      <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+        <b style={{ fontWeight: 500 }}>{f.parent_name || "Parent"}{f.child_name ? " · " + f.child_name : ""}</b>
+        <small style={{ display: "block", opacity: .6 }}>{[f.location_name || f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
+      </div>
+      {action}
+    </div>;
   return <div className="card card-pad dc-panel dcl-pending">
-    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Families who filled out the form for this center, not yet in the dashboard</div></div><b>{fresh.length}</b></div>
-    {fresh.length === 0
+    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Enrolled families who filled out the form for this center, not yet in the dashboard</div></div><b>{enrolledFresh.length}</b></div>
+    {enrolledFresh.length === 0
       ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard for this center." : "New form submissions for this center will show here to create a login."}</span></div></div>
-      : <div className="dcl-inbox-list">{fresh.map((f) => <div key={f.contact_id} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
-          <span className="dc-severity info" style={{ flex: "0 0 auto" }} />
-          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-            <b style={{ fontWeight: 500 }}>{f.parent_name || "Parent"}{f.child_name ? " · " + f.child_name : ""}</b>
-            <small style={{ display: "block", opacity: .6 }}>{[f.location_name || f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
-          </div>
-          <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> Create login</button>
-        </div>)}</div>}
+      : <div className="dcl-inbox-list">{enrolledFresh.map((f) => row(f,
+          <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> Create login</button>))}</div>}
+    {inquiries.length > 0 && <div className="dcl-inquiries" style={{ marginTop: "14px" }}>
+      <div className="faint" style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500 }}><window.Icons.Bell size={13} /> New inquiries — not enrolled yet · no app login</div>
+      <div className="dcl-inbox-list">{inquiries.map((f) => row(f,
+        <span className="dc-chip" style={{ flex: "0 0 auto", whiteSpace: "nowrap", opacity: .7 }}>Inquiry · in Enrollment pipeline</span>))}</div>
+      <div className="dc-form-hint">Brand-new inquiries stay a lead in GoHighLevel. A login is created only once they enroll.</div>
+    </div>}
     {elsewhere.length > 0 && <div className="dc-form-hint">{elsewhere.length} more form {elsewhere.length === 1 ? "family is" : "families are"} waiting at other centers — switch center at the top to see them.</div>}
-    {linked > 0 && fresh.length > 0 && <div className="dc-form-hint">{linked} other form {linked === 1 ? "family is" : "families are"} already in this center.</div>}
+    {linked > 0 && enrolledFresh.length > 0 && <div className="dc-form-hint">{linked} other form {linked === 1 ? "family is" : "families are"} already in this center.</div>}
   </div>;
 }
 
