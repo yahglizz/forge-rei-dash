@@ -1,0 +1,25 @@
+- generic [active] [ref=f2e1]:
+  - main [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - generic [ref=f2e6]:
+        - paragraph [ref=f2e7]: A Touch of
+        - heading "Blessings" [level=1] [ref=f2e8]
+        - paragraph [ref=f2e9]: A calmer way for families and educators to stay close to every little moment.
+      - paragraph [ref=f2e10]: Philadelphia, Pennsylvania · Family care portal
+    - generic [ref=f2e12]:
+      - heading "Welcome back." [level=1] [ref=f2e13]
+      - paragraph [ref=f2e14]: Sign in with your Login ID and PIN.
+      - form "Sign in with Login ID and PIN" [ref=f2e15]:
+        - generic [ref=f2e16]:
+          - generic [ref=f2e17]: Login ID
+          - textbox "Login ID" [ref=f2e18]:
+            - /placeholder: BL-PAR-001
+        - generic [ref=f2e19]:
+          - generic [ref=f2e20]: PIN
+          - textbox "PIN" [ref=f2e21]:
+            - /placeholder: 6-digit PIN
+        - button "Sign in" [disabled] [ref=f2e22]
+        - paragraph [ref=f2e26]: Your Login ID and PIN come from the center. Ask the front desk if you need yours reset.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f2e32] [cursor=pointer]
+  - alert [ref=f2e36]

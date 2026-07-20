@@ -1,0 +1,56 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e37]:
+    - complementary [ref=f1e38]:
+      - generic [ref=f1e42]:
+        - strong [ref=f1e43]: Blessings
+        - generic [ref=f1e44]: DAYCARE PLATFORM
+      - navigation [ref=f1e45]:
+        - button "Home" [ref=f1e46] [cursor=pointer]
+        - button "Reports" [ref=f1e50] [cursor=pointer]
+        - button "Blessing Coins" [ref=f1e54] [cursor=pointer]
+        - button "Photos" [ref=f1e60] [cursor=pointer]
+        - button "Attendance" [ref=f1e64] [cursor=pointer]
+        - button "Billing" [ref=f1e67] [cursor=pointer]
+        - button "Messages" [ref=f1e70] [cursor=pointer]
+      - generic [ref=f1e73]:
+        - strong [ref=f1e74]: vera crosscheck
+        - text: parent
+    - main [ref=f1e75]:
+      - generic [ref=f1e76]:
+        - generic [ref=f1e77]: VC
+        - generic [ref=f1e78]:
+          - generic [ref=f1e79]: Good morning
+          - heading "Child Profile" [level=1] [ref=f1e139]
+        - button "Notifications" [ref=f1e81] [cursor=pointer]
+        - button "Switch profile" [active] [ref=f1e85] [cursor=pointer]
+      - generic [ref=f1e90]:
+        - generic [ref=f1e140]:
+          - generic [ref=f1e141]:
+            - heading "Verify's profile" [level=2] [ref=f1e142]
+            - paragraph [ref=f1e143]: Profile photo and care details
+          - button "Back home" [ref=f1e145] [cursor=pointer]
+        - generic [ref=f1e146]:
+          - generic [ref=f1e147]: VC
+          - heading "Verify Crosscheck" [level=3] [ref=f1e149]
+          - paragraph [ref=f1e150]: · Born May 10, 2022
+          - generic [ref=f1e151]: Change photo
+        - heading "Care details" [level=3] [ref=f1e156]
+        - generic [ref=f1e157]:
+          - generic [ref=f1e159]:
+            - strong [ref=f1e160]: Allergies
+            - generic [ref=f1e161]: None listed
+          - generic [ref=f1e163]:
+            - strong [ref=f1e164]: Medical notes
+            - generic [ref=f1e165]: Allergic to peanuts and eggs. Carries an EpiPen.
+          - generic [ref=f1e167]:
+            - strong [ref=f1e168]: Pickup notes
+            - generic [ref=f1e169]: "Emergency contact: Uncle Verify (Uncle) — (215) 555-0143 Authorized pickup: - 1. Grandma Check (Grandmother) — (215) 555-0144"
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f1e170] [cursor=pointer]:
+    - generic [ref=f1e173]:
+      - text: Rendering
+      - generic [ref=f1e174]:
+        - generic [ref=f1e175]: .
+        - generic [ref=f1e176]: .
+        - generic [ref=f1e177]: .
+  - alert [ref=f1e27]
