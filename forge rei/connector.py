@@ -3749,6 +3749,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/media/sign-upload", "/api/daycare/location/switch",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
+                "/api/daycare/ghl/enroll",
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
                 "/api/daycare/blast/send", "/api/daycare/blast/cancel",
                 "/api/daycare/blast/optout",
@@ -3818,6 +3819,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = daycare_ghl.dismiss(body.get("contact_id"))
             elif path == "/api/daycare/ghl/undismiss":
                 result = daycare_ghl.undismiss(body.get("contact_id"))
+            elif path == "/api/daycare/ghl/enroll":
+                result = self._daycare_ghl_enroll(session, body)
             elif path == "/api/daycare/blast/preview":
                 result = self._daycare_blast_preview(session, body)
             elif path == "/api/daycare/blast/create":

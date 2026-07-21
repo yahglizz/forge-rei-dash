@@ -64,8 +64,8 @@ function DaycareParentLogins() {
   const pendingRes = window.DcxUseResource("/ghl/pending-families", "pendingfam", 60000);
   const [search, setSearch] = useStateDcl("");
   const [credentials, setCredentials] = useStateDcl(null);
-  const [enrollInit, setEnrollInit] = useStateDcl(null);
   const [busyGid, setBusyGid] = useStateDcl("");
+  const [busyContact, setBusyContact] = useStateDcl("");
   const children = Array.isArray(childrenRes.data) ? childrenRes.data : [];
   const rooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
   const pendingPayload = (pendingRes.data && typeof pendingRes.data === "object" && !Array.isArray(pendingRes.data)) ? pendingRes.data : {};
@@ -104,17 +104,19 @@ function DaycareParentLogins() {
     catch (error) { window.alert(error.message); }
   };
 
-  const createFromForm = (family) => setEnrollInit({
-    first_name: family.child_first || "", last_name: family.child_last || "", birth_date: family.child_dob || "",
-    guardian_first_name: family.parent_first || "", guardian_last_name: family.parent_last || "",
-    guardian_phone: family.phone || "", guardian_email: family.email || "",
-    // Route the child + guardian to the center the parent picked on the form (falls back to
-    // the active center when the form had no recognizable location tag).
-    location_id: family.location_id || "", location_name: family.location_name || "",
-    // Carry the intake's medical/allergy note + emergency & authorized-pickup people into the
-    // child record so they show in the app (owner can review/edit before saving).
-    allergies: family.allergies || "", medical_notes: family.medical_notes || "", pickup_notes: family.pickup_notes || "",
-  });
+  // One click does everything: creates the child (classroom auto-matched by the form's
+  // age-band tag), creates the guardian login when parent info is present, syncs GHL,
+  // and dismisses the card — no review form. The click itself is the approval (an
+  // explicit owner action on one already-consented family record).
+  const createFromForm = async (family) => {
+    setBusyContact(family.contact_id);
+    try {
+      const payload = await window.DcxRequest("/ghl/enroll", { body: { family } });
+      if (payload.provision) setCredentials(payload.provision);
+      childrenRes.refresh(); roomsRes.refresh(); pendingRes.refresh();
+    } catch (error) { window.alert(error.message); }
+    finally { setBusyContact(""); }
+  };
 
   const actions = <div className="dc-search"><window.Icons.Search size={14} /><input placeholder="Search parent or student…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>;
 
