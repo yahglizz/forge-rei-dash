@@ -3634,6 +3634,44 @@ class Handler(BaseHTTPRequestHandler):
         result["ghlSync"] = self._daycare_sync_family_to_ghl(session, child)
         return result
 
+    def _daycare_ghl_enroll(self, session, body):
+        """One-click enroll straight from the Contact-Form inbox card — the owner's click
+        IS the approval gate (CLAUDE.md rule 2: an explicit click on a specific, already-
+        consented family), so this does the full write in one shot: no intermediate
+        review form. Maps the family object the inbox already has (from
+        /ghl/pending-families) into a save_child call — auto-matching the classroom by
+        the form's age-band tag, creating the guardian login when parent info is present
+        (save_child's own optional-guardian rule, unchanged) — then dismisses the GHL
+        card so it drops out of the inbox once it's a real Supabase record.
+        """
+        family = body.get("family") if isinstance(body.get("family"), dict) else {}
+        contact_id = family.get("contact_id")
+        if not contact_id:
+            raise daycare_supabase.DaycareError(400, "contact_id is required", "validation_error")
+        classroom_id = None
+        location_id = family.get("location_id")
+        if location_id:
+            classroom_id = daycare_supabase.find_classroom_id(
+                session, location_id, family.get("classroom_label") or "")
+        child_body = {
+            "first_name": family.get("child_first") or family.get("child_name") or "",
+            "last_name": family.get("child_last") or "",
+            "birth_date": family.get("child_dob") or "",
+            "classroom_id": classroom_id,
+            "allergies": family.get("allergies") or "",
+            "medical_notes": family.get("medical_notes") or "",
+            "pickup_notes": family.get("pickup_notes") or "",
+            "location_id": location_id,
+            "guardian_first_name": family.get("parent_first") or "",
+            "guardian_last_name": family.get("parent_last") or "",
+            "guardian_phone": family.get("phone") or "",
+            "guardian_email": family.get("email") or "",
+            "active": True,
+        }
+        result = self._daycare_child_save(session, {"child": child_body})
+        result["dismissed"] = daycare_ghl.dismiss(contact_id)
+        return result
+
     def _daycare_sync_family_to_ghl(self, session, child):
         guardian = daycare_supabase.guardian_contact(
             session, (child or {}).get("guardian_profile_id"))

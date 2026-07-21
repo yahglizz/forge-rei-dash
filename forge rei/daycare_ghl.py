@@ -227,6 +227,15 @@ def sync_family(client, *, name: str, phone: str, email: str | None = None,
 FORM_TAG = "family-contact-form"       # existing-student intake (submit.js)
 LEAD_TAG = "website-lead"              # brand-new inquiry from the marketing site (enroll.js)
 ENROLLED_TAGS = ("enrolled", "existing-student")  # a family the daycare actually has
+# age-band tag (both forms' GROUP_TAG constant) -> the keyword to match against a
+# Supabase classroom's name/age_group when auto-assigning on enroll (daycare_supabase
+# .find_classroom_id). Keep in sync with GROUP_TAG in submit.js / enroll.js.
+GROUP_TAG_LABEL = {
+    "group-infants": "Infant",
+    "group-toddlers": "Toddler",
+    "group-prek": "Pre-K",
+    "group-schoolage": "School-Age",
+}
 CF_CHILD_NAME = "XuWMrMVQSx3W1drZR0e0"
 CF_PARENT_NAME = "68zgbWrCHH0e9OIyuRJx"  # added 2026-07-21 — contact identity flipped to
 # the child's name (firstName/lastName), parent's name now lives here instead.
@@ -300,12 +309,16 @@ def _family_from_contact(contact: dict) -> dict:
         rel = f" ({emerg_rel})" if emerg_rel else ""
         ph = f" — {emerg_phone}" if emerg_phone else ""
         pickup_lines.append(f"Emergency contact: {emerg_name}{rel}{ph}")
+    classroom_label = next((label for tag, label in GROUP_TAG_LABEL.items() if tag in tl), "")
     return {
         "contact_id": contact.get("id"),
         # website-lead vs family-contact-form — roster dedup only makes sense for a
         # lead who already enrolled elsewhere; an existing-student form submission
         # being in the roster is expected, not a reason to hide it.
         "is_lead": LEAD_TAG in tl,
+        # age-band keyword ("Infant"/"Toddler"/"Pre-K"/"School-Age") for auto-matching
+        # a Supabase classroom on one-click enroll — "" when the form had no age tag.
+        "classroom_label": classroom_label,
         "parent_first": p_first,
         "parent_last": p_last,
         "parent_name": (p_first + " " + p_last).strip(),

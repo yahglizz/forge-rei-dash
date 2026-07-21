@@ -1051,6 +1051,28 @@ def get_classrooms(session: Session) -> dict[str, Any]:
     return {"ok": True, "classrooms": rows}
 
 
+def find_classroom_id(session: Session, location_id: str, band_keyword: str) -> str | None:
+    """Match a family's age-band keyword ("Infant"/"Toddler"/"Pre-K"/"School-Age") to an
+    active classroom at the given center, for one-click enroll. Reads classrooms for
+    ANY location, not just the active one (unlike get_classrooms) — the target center
+    may not be the one currently switched to. Substring match on name/age_group so it
+    works both for plainly-named rooms ("Toddlers") and combined ones ("Little Lambs",
+    age_group "Infant / Toddler"). Returns None (leave Unassigned) on no match — never
+    blocks the enroll itself."""
+    if not location_id or not band_keyword:
+        return None
+    rows = _rows(BRIDGE.rest(
+        session, "GET", "classrooms",
+        query={"location_id": f"eq.{location_id}", "active": "eq.true", "select": "id,name,age_group"},
+    ))
+    needle = band_keyword.lower()
+    for room in rows:
+        haystack = f"{room.get('name') or ''} {room.get('age_group') or ''}".lower()
+        if needle in haystack:
+            return room.get("id")
+    return None
+
+
 def get_staff(session: Session) -> dict[str, Any]:
     rows = BRIDGE.rest(
         session,
