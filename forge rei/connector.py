@@ -3514,8 +3514,14 @@ class Handler(BaseHTTPRequestHandler):
             family["location_id"] = loc_id
             family["location_name"] = names.get(str(loc_id)) if loc_id else None
             mail = (family.get("email") or "").strip().lower()
-            # Dedup only holds for the active center (RLS shows one center's roster).
-            family["in_roster"] = bool(loc_id and str(loc_id) == str(active) and mail and mail in emails)
+            # Dedup only holds for the active center (RLS shows one center's roster),
+            # and only for a brand-new website LEAD who already enrolled elsewhere —
+            # a Family Contact Form submission being in the roster is the *expected*
+            # case (that form is existing-student intake), not a reason to hide it.
+            family["in_roster"] = bool(
+                family.get("is_lead") and loc_id and str(loc_id) == str(active)
+                and mail and mail in emails)
+            family["dismissed"] = daycare_ghl.is_dismissed(family.get("contact_id"))
             # For families the owner can still provision, read the GHL intake note for the
             # bits the form keeps only there — authorized-pickup people + the freeform note —
             # so "Create login" carries them into the child's pickup_notes / medical_notes.
@@ -3704,7 +3710,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/auth/login", "/api/daycare/auth/test-login", "/api/daycare/auth/logout",
                 "/api/daycare/media/sign-upload", "/api/daycare/location/switch",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
-                "/api/daycare/ghl/text-invoice",
+                "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
                 "/api/daycare/blast/send", "/api/daycare/blast/cancel",
                 "/api/daycare/blast/optout",
@@ -3768,6 +3774,12 @@ class Handler(BaseHTTPRequestHandler):
                 result = self._daycare_stripe_sync_payment(session, body)
             elif path == "/api/daycare/ghl/text-invoice":
                 result = self._daycare_ghl_text_invoice(session, body)
+            elif path == "/api/daycare/ghl/dismiss":
+                # Owner marks a Contact-Form inbox entry as reviewed — internal +
+                # reversible (undo just re-adds it), no approval gate (rule 2).
+                result = daycare_ghl.dismiss(body.get("contact_id"))
+            elif path == "/api/daycare/ghl/undismiss":
+                result = daycare_ghl.undismiss(body.get("contact_id"))
             elif path == "/api/daycare/blast/preview":
                 result = self._daycare_blast_preview(session, body)
             elif path == "/api/daycare/blast/create":
