@@ -3527,7 +3527,8 @@ class Handler(BaseHTTPRequestHandler):
             # so "Create login" carries them into the child's pickup_notes / medical_notes.
             # Bounded to actionable (not-yet-provisioned) families; the note fetch is skipped
             # for everything already in the roster.
-            if not family["in_roster"] and family.get("enrolled") and family.get("contact_id"):
+            if (not family["in_roster"] and not family["dismissed"]
+                    and family.get("enrolled") and family.get("contact_id")):
                 intake = daycare_ghl.family_intake(DAYCARE_GHL, family["contact_id"])
                 people = intake.get("authorized_pickup") or []
                 if people:
