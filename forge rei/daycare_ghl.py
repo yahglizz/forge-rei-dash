@@ -16,7 +16,50 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import urllib.error
+from pathlib import Path
+
+import forge_atomic
+
+_DISMISSED_STATE = Path(__file__).resolve().parent / "marcus_state" / "daycare_dismissed_contacts.json"
+_DISMISSED_LOCK = threading.Lock()
+
+
+def _load_dismissed() -> set[str]:
+    if _DISMISSED_STATE.exists():
+        try:
+            d = json.loads(_DISMISSED_STATE.read_text())
+            if isinstance(d, dict) and isinstance(d.get("contact_ids"), list):
+                return set(str(c) for c in d["contact_ids"])
+        except Exception:  # noqa: BLE001
+            pass
+    return set()
+
+
+def is_dismissed(contact_id: str | None) -> bool:
+    if not contact_id:
+        return False
+    with _DISMISSED_LOCK:
+        return str(contact_id) in _load_dismissed()
+
+
+def dismiss(contact_id: str) -> dict:
+    """Owner marks a Contact-Form inbox entry as reviewed — internal + reversible
+    (undo just removes the id again), so no approval gate needed (CLAUDE.md rule 2)."""
+    with _DISMISSED_LOCK:
+        ids = _load_dismissed()
+        ids.add(str(contact_id))
+        forge_atomic.atomic_write_json(_DISMISSED_STATE, {"contact_ids": sorted(ids)})
+    return {"ok": True, "contact_id": contact_id}
+
+
+def undismiss(contact_id: str) -> dict:
+    with _DISMISSED_LOCK:
+        ids = _load_dismissed()
+        ids.discard(str(contact_id))
+        forge_atomic.atomic_write_json(_DISMISSED_STATE, {"contact_ids": sorted(ids)})
+    return {"ok": True, "contact_id": contact_id}
 
 
 def _digits(phone: str | None) -> str:
@@ -259,6 +302,10 @@ def _family_from_contact(contact: dict) -> dict:
         pickup_lines.append(f"Emergency contact: {emerg_name}{rel}{ph}")
     return {
         "contact_id": contact.get("id"),
+        # website-lead vs family-contact-form — roster dedup only makes sense for a
+        # lead who already enrolled elsewhere; an existing-student form submission
+        # being in the roster is expected, not a reason to hide it.
+        "is_lead": LEAD_TAG in tl,
         "parent_first": p_first,
         "parent_last": p_last,
         "parent_name": (p_first + " " + p_last).strip(),
