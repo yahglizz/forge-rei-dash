@@ -3662,12 +3662,19 @@ class Handler(BaseHTTPRequestHandler):
             "medical_notes": family.get("medical_notes") or "",
             "pickup_notes": family.get("pickup_notes") or "",
             "location_id": location_id,
-            "guardian_first_name": family.get("parent_first") or "",
-            "guardian_last_name": family.get("parent_last") or "",
-            "guardian_phone": family.get("phone") or "",
-            "guardian_email": family.get("email") or "",
             "active": True,
         }
+        # A parent login is created ONLY when the family gave an email — enrollment and
+        # login are independent. save_child raises if guardian NAME is passed without an
+        # email, so we attach the guardian block only when an email is present; otherwise
+        # the child still enrolls (no login), and a login can be added later from here.
+        if (family.get("email") or "").strip():
+            child_body.update({
+                "guardian_first_name": family.get("parent_first") or "",
+                "guardian_last_name": family.get("parent_last") or "",
+                "guardian_phone": family.get("phone") or "",
+                "guardian_email": family.get("email"),
+            })
         result = self._daycare_child_save(session, {"child": child_body})
         result["dismissed"] = daycare_ghl.dismiss(contact_id)
         return result
