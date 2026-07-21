@@ -185,6 +185,8 @@ FORM_TAG = "family-contact-form"       # existing-student intake (submit.js)
 LEAD_TAG = "website-lead"              # brand-new inquiry from the marketing site (enroll.js)
 ENROLLED_TAGS = ("enrolled", "existing-student")  # a family the daycare actually has
 CF_CHILD_NAME = "XuWMrMVQSx3W1drZR0e0"
+CF_PARENT_NAME = "68zgbWrCHH0e9OIyuRJx"  # added 2026-07-21 — contact identity flipped to
+# the child's name (firstName/lastName), parent's name now lives here instead.
 CF_CHILD_DOB = "WQctVJsId5tRNHqlhwho"
 CF_EMERG_NAME = "pF09l1zZhPh1zOi7CWLc"
 CF_EMERG_PHONE = "ZidoyoCzWfoNVak9G494"
@@ -229,12 +231,24 @@ def _family_from_contact(contact: dict) -> dict:
         "Enrolled" if enrolled else ("Lead" if LEAD_TAG in tl else ""))
     if not enrolled and enroll_status.lower() == "enrolled":
         enrolled = True
-    p_first = (contact.get("firstName") or "").strip()
-    p_last = (contact.get("lastName") or "").strip()
-    if not p_first and not p_last:
-        p_first, p_last = _split_name(contact.get("contactName") or contact.get("name"))
-    child_full = cf.get(CF_CHILD_NAME) or ""
-    c_first, c_last = _split_name(child_full)
+    # Contact identity flipped 2026-07-21: submit.js / enroll.js now write firstName/
+    # lastName from the CHILD's name, with the parent's name in CF_PARENT_NAME. Contacts
+    # created before that fix have it the other way (firstName/lastName = parent,
+    # CF_CHILD_NAME = child). CF_PARENT_NAME's presence tells us which regime applies.
+    parent_full = cf.get(CF_PARENT_NAME) or ""
+    child_cf = cf.get(CF_CHILD_NAME) or ""
+    if parent_full:
+        c_first = (contact.get("firstName") or "").strip()
+        c_last = (contact.get("lastName") or "").strip()
+        child_full = (c_first + " " + c_last).strip() or child_cf
+        p_first, p_last = _split_name(parent_full)
+    else:
+        p_first = (contact.get("firstName") or "").strip()
+        p_last = (contact.get("lastName") or "").strip()
+        if not p_first and not p_last:
+            p_first, p_last = _split_name(contact.get("contactName") or contact.get("name"))
+        child_full = child_cf
+        c_first, c_last = _split_name(child_full)
     emerg_name = (cf.get(CF_EMERG_NAME) or "").strip()
     emerg_phone = (cf.get(CF_EMERG_PHONE) or "").strip()
     emerg_rel = (cf.get(CF_EMERG_REL) or "").strip()
