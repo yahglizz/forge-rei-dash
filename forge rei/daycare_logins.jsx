@@ -15,13 +15,13 @@ function DclCopy({ text }) {
   return <button className="dc-quiet dcl-copy" onClick={go} title="Copy Login ID">{ok ? "Copied" : "Copy"}</button>;
 }
 
-function DclPendingPanel({ families, activeLoc, onCreate }) {
+function DclPendingPanel({ families, activeLoc, onCreate, onDismiss, error }) {
   // Organize by center: the roster + dedup are scoped to the active center (RLS), so
   // this center's families are actionable here; families for other centers get a
   // "switch center" nudge (unknown-location families fall through to the active center).
   const here = families.filter((f) => !f.location_id || f.location_id === activeLoc);
   const elsewhere = families.filter((f) => f.location_id && f.location_id !== activeLoc);
-  const fresh = here.filter((f) => !f.in_roster);
+  const fresh = here.filter((f) => !f.in_roster && !f.dismissed);
   // Split by enrollment: only an actually-enrolled family gets a parent app login.
   // Brand-new website inquiries (not in the daycare yet) are shown MARKED, no login —
   // they live in the Enrollment pipeline until they enroll.
@@ -29,16 +29,20 @@ function DclPendingPanel({ families, activeLoc, onCreate }) {
   const inquiries = fresh.filter((f) => !f.enrolled);
   const linked = here.length - fresh.length;
   const centerName = (here.find((f) => f.location_name) || {}).location_name || "";
+  const dismissBtn = (f) => <button className="dc-quiet" title="Dismiss — already handled"
+      style={{ flex: "0 0 auto", fontSize: "16px", lineHeight: 1 }} onClick={() => onDismiss(f.contact_id)}>&times;</button>;
   const row = (f, action) => <div key={f.contact_id} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
       <span className={"dc-severity " + (f.enrolled ? "info" : "warning")} style={{ flex: "0 0 auto" }} />
       <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-        <b style={{ fontWeight: 500 }}>{f.parent_name || "Parent"}{f.child_name ? " · " + f.child_name : ""}</b>
+        <b style={{ fontWeight: 500 }}>{f.child_name || "Student"}{f.parent_name ? " · " + f.parent_name : ""}</b>
         <small style={{ display: "block", opacity: .6 }}>{[f.location_name || f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
       </div>
       {action}
+      {dismissBtn(f)}
     </div>;
   return <div className="card card-pad dc-panel dcl-pending">
     <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Enrolled families who filled out the form for this center, not yet in the dashboard</div></div><b>{enrolledFresh.length}</b></div>
+    {error && <div className="dc-form-hint" style={{ color: "#f28b82" }}>Couldn't load the newest submissions ({error.message || "connection error"}) — showing the last successful load. Refresh to retry.</div>}
     {enrolledFresh.length === 0
       ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard for this center." : "New form submissions for this center will show here to create a login."}</span></div></div>
       : <div className="dcl-inbox-list">{enrolledFresh.map((f) => row(f,
@@ -95,6 +99,11 @@ function DaycareParentLogins() {
     finally { setBusyGid(""); }
   };
 
+  const dismissFamily = async (contactId) => {
+    try { await window.DcxRequest("/ghl/dismiss", { body: { contact_id: contactId } }); pendingRes.refresh(); }
+    catch (error) { window.alert(error.message); }
+  };
+
   const createFromForm = (family) => setEnrollInit({
     first_name: family.child_first || "", last_name: family.child_last || "", birth_date: family.child_dob || "",
     guardian_first_name: family.parent_first || "", guardian_last_name: family.parent_last || "",
@@ -111,7 +120,7 @@ function DaycareParentLogins() {
 
   return <div className="dc-page">
     <window.DcxPageHead title="Parent Logins" eyebrow="APP ACCESS" copy="Look up a parent or student, then hand off their Login ID. PINs are shown once — reveal a fresh one when a parent needs it. Nothing is stored." actions={actions} />
-    {pending.length > 0 && <DclPendingPanel families={pending} activeLoc={activeLoc} onCreate={createFromForm} />}
+    {(pending.length > 0 || pendingRes.error) && <DclPendingPanel families={pending} activeLoc={activeLoc} onCreate={createFromForm} onDismiss={dismissFamily} error={pendingRes.error} />}
     <window.DcxState loading={childrenRes.loading} error={childrenRes.error} onRetry={childrenRes.refresh} empty={!families.length} icon="Children" title="No families yet" copy="Enroll a child (or create a login from a form submission above) to generate parent app access." />
     {families.length > 0 && <div className="card dc-table-wrap"><table className="lead-table dc-table"><thead><tr><th>Parent</th><th>Student(s)</th><th>Login ID</th><th></th></tr></thead><tbody>{visible.map((f, index) => <tr key={f.gid || ("solo-" + index)}>
       <td><div className="dc-person"><div className="dc-avatar">{(f.parent || "?").slice(0, 1)}</div><div><b>{f.parent}</b><small>{f.students.length} {f.students.length === 1 ? "child" : "children"}</small></div></div></td>
