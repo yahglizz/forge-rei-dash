@@ -931,6 +931,7 @@ import agency_agents  # noqa: E402
 import agency_social  # noqa: E402
 import agency_deploy  # noqa: E402
 import agency_build_studio  # noqa: E402 — Blueprint Studio: idea -> build-ready plan (propose-only)
+import agency_calls  # noqa: E402
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
@@ -2404,6 +2405,10 @@ def api_agency_eco(q):
 def api_agency_approvals(q):
     status = (q.get("status", [None]) or [None])[0]
     return agency_approvals_io.list_queue(status=status)
+
+
+def api_agency_calls(_q):
+    return agency_calls.summary()
 
 
 # Operable AI agents (Dyson, Eco) — Anthropic-backed, chat + tasks.
