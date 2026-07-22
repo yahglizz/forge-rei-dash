@@ -72,6 +72,14 @@ A2P/SMS compliance, the Retell AI receptionist, and the parent/ops app build run
 
 ---
 
+## Current Workflow
+
+- Family Contact Form submissions auto-enroll the child straight into the Supabase
+  roster at the family's center the moment the Parent Logins inbox loads them — no
+  manual step to get them on the roster.
+- Parent app **logins** are still created by Yahjair from the Parent Logins inbox
+  (one click) — credentials (Login ID + PIN) show once, so that step stays owner-gated.
+
 ## Needs Your Input To Stay Accurate
 
 - Current enrolled count + staffing count (all 3 locations)
