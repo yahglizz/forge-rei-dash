@@ -396,6 +396,9 @@ function AgencyCallCenter() {
         </button>
       </div>
 
+      {/* call sheet */}
+      <CcCallSheet refreshTally={refresh} />
+
       {/* today's log */}
       <div className="card card-pad">
         <div style={{ fontWeight: 600, marginBottom: 8 }}>Today's log</div>
