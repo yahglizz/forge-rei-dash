@@ -2562,6 +2562,7 @@ ROUTES = {
     "/api/agency/ads/accounts": api_agency_ads_accounts,
     "/api/agency/eco": api_agency_eco,
     "/api/agency/approvals": api_agency_approvals,
+    "/api/agency/calls": api_agency_calls,
     "/api/agency/agents": api_agency_agents,
     "/api/agency/agents/history": api_agency_agents_history,
     "/api/agency/agents/tasks": api_agency_agents_tasks,
@@ -2610,7 +2611,7 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/portal/bootstrap", "/api/agency/dyson/drafts",
             "/api/agency/build/list",
             "/api/agency/workflows", "/api/agency/ads", "/api/agency/ads/accounts",
-            "/api/agency/eco", "/api/agency/approvals",
+            "/api/agency/eco", "/api/agency/approvals", "/api/agency/calls",
             "/api/agency/agents", "/api/agency/agents/history",
             "/api/agency/agents/tasks", "/api/agency/social",
             "/api/agency/social/besttime", "/api/agency/social/posts",
@@ -2914,6 +2915,9 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/eco/decision",
                                    "/api/agency/eco/image",
                                    "/api/agency/approval/decision",
+                                   "/api/agency/calls/log",
+                                   "/api/agency/calls/undo",
+                                   "/api/agency/calls/goal",
                                    "/api/agency/agents/chat",
                                    "/api/agency/agents/task",
                                    "/api/agency/agents/task/update",
@@ -3178,6 +3182,12 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/approval/decision":
                 result = agency_approvals_io.decide(
                     body.get("id"), body.get("action"))
+            elif parsed.path == "/api/agency/calls/log":
+                result = agency_calls.log_call(body.get("outcome"))
+            elif parsed.path == "/api/agency/calls/undo":
+                result = agency_calls.undo_last()
+            elif parsed.path == "/api/agency/calls/goal":
+                result = agency_calls.set_goal(body.get("goal"))
             elif parsed.path == "/api/agency/agents/chat":
                 result = agency_agents.chat(
                     body.get("agentId"), body.get("message"), body.get("history"))
