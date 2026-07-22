@@ -62,6 +62,41 @@ def undismiss(contact_id: str) -> dict:
     return {"ok": True, "contact_id": contact_id}
 
 
+# Auto-enroll ledger: GHL contact id -> the Supabase child row created for it.
+# Lets the inbox auto-create the child ON ARRIVAL (internal + reversible — the row
+# can be deleted) while keeping the parent LOGIN behind the owner's button, and lets
+# the button UPDATE that same row instead of inserting a duplicate.
+_FORM_CHILD_STATE = Path(__file__).resolve().parent / "marcus_state" / "daycare_form_children.json"
+_FORM_CHILD_LOCK = threading.Lock()
+
+
+def _load_form_children() -> dict[str, str]:
+    if _FORM_CHILD_STATE.exists():
+        try:
+            d = json.loads(_FORM_CHILD_STATE.read_text())
+            if isinstance(d, dict) and isinstance(d.get("children"), dict):
+                return {str(k): str(v) for k, v in d["children"].items()}
+        except Exception:  # noqa: BLE001
+            pass
+    return {}
+
+
+def form_child_id(contact_id: str | None) -> str:
+    if not contact_id:
+        return ""
+    with _FORM_CHILD_LOCK:
+        return _load_form_children().get(str(contact_id), "")
+
+
+def record_form_child(contact_id: str, child_id: str) -> None:
+    if not contact_id or not child_id:
+        return
+    with _FORM_CHILD_LOCK:
+        kids = _load_form_children()
+        kids[str(contact_id)] = str(child_id)
+        forge_atomic.atomic_write_json(_FORM_CHILD_STATE, {"children": kids})
+
+
 def _digits(phone: str | None) -> str:
     return re.sub(r"[^0-9+]", "", str(phone or ""))
 

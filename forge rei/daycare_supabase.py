@@ -1614,16 +1614,17 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     # location_id (the Contact-Form inbox routes a family to the center they picked on the
     # form), switch the session's active center so the guardian AND child both land there —
     # the "management creates children" WITH CHECK policy requires
-    # guardian.location_id == child.location_id == my_location(). Only for NEW children, and
-    # the active center is restored afterward so the dashboard view is unchanged.
-    # switch_location's RPC refuses any center the caller has no membership for.
+    # guardian.location_id == child.location_id == my_location(). Applies to updates too
+    # (the inbox's Create-login button now UPDATES the auto-enrolled child at its own
+    # center), and the active center is restored afterward so the dashboard view is
+    # unchanged. switch_location's RPC refuses any center the caller has no membership for.
     restore_location = None
-    if not child_id:
-        target_location = require_uuid(_body_value(source, "location_id", "locationId"), "location_id", optional=True)
-        if target_location and target_location != active_location(session):
-            restore_location = active_location(session)
-            switch_location(session, {"location_id": target_location})
+    target_location = require_uuid(_body_value(source, "location_id", "locationId"), "location_id", optional=True)
+    if target_location and target_location != active_location(session):
+        restore_location = active_location(session)
+        switch_location(session, {"location_id": target_location})
     try:
+        existing = _ensure_location_record(session, "children", child_id) if child_id else None
         provision: dict[str, Any] | None = None
         guardian_id = _body_value(source, "guardian_profile_id", "guardianProfileId")
         guardian_email = _body_value(source, "guardian_email", "guardianEmail")
@@ -1638,7 +1639,10 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
                 "guardian_email is required when provisioning a guardian",
                 "validation_error",
             )
-        if not child_id and guardian_email:
+        # Provision a login for a NEW child with a guardian email, or for an EXISTING
+        # child that has no guardian yet (the auto-enrolled Contact-Form case — the
+        # child row exists, the login stays behind the owner's button).
+        if guardian_email and (not child_id or (existing and not existing.get("guardian_profile_id"))):
             provision = BRIDGE.edge_function(session, "provision-user", {
                 "action": "ensure-guardian",
                 "email": require_text(guardian_email, "guardian_email", maximum=254),
@@ -1666,7 +1670,6 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         if guardian_id:
             record["guardian_profile_id"] = require_uuid(guardian_id, "guardian_profile_id")
         if child_id:
-            existing = _ensure_location_record(session, "children", child_id)
             rows = BRIDGE.rest(session, "PATCH", "children", query={"id": f"eq.{existing['id']}"}, body=record, prefer="return=representation")
         else:
             record["location_id"] = active_location(session)
