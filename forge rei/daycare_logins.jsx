@@ -41,12 +41,15 @@ function DclPendingPanel({ families, activeLoc, onCreate, onDismiss, error, busy
       {dismissBtn(f)}
     </div>;
   return <div className="card card-pad dc-panel dcl-pending">
-    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Enrolled families who filled out the form for this center, not yet in the dashboard</div></div><b>{enrolledFresh.length}</b></div>
+    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Form kids are enrolled to the roster automatically — click to create the parent's app login</div></div><b>{enrolledFresh.length}</b></div>
     {error && <div className="dc-form-hint" style={{ color: "#f28b82" }}>Couldn't load the newest submissions ({error.message || "connection error"}) — showing the last successful load. Refresh to retry.</div>}
     {enrolledFresh.length === 0
       ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard for this center." : "New form submissions for this center will show here to create a login."}</span></div></div>
       : <div className="dcl-inbox-list">{enrolledFresh.map((f) => row(f,
-          <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} disabled={busyContact === f.contact_id} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> {busyContact === f.contact_id ? "Enrolling…" : "Create login"}</button>))}</div>}
+          <React.Fragment>
+            {f.child_id && <span style={{ flex: "0 0 auto", whiteSpace: "nowrap", fontSize: "11px", fontWeight: 600, color: "#81c995", background: "rgba(129,201,149,.1)", borderRadius: "99px", padding: "3px 9px" }}>Enrolled ✓</span>}
+            <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} disabled={busyContact === f.contact_id} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> {busyContact === f.contact_id ? "Creating…" : "Create login"}</button>
+          </React.Fragment>))}</div>}
     {inquiries.length > 0 && <div className="dcl-inquiries" style={{ marginTop: "14px" }}>
       <div className="faint" style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500 }}><window.Icons.Bell size={13} /> New inquiries — not enrolled yet · no app login</div>
       <div className="dcl-inbox-list">{inquiries.map((f) => row(f,

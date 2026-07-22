@@ -3538,6 +3538,24 @@ class Handler(BaseHTTPRequestHandler):
                         + "\n".join("  - " + p for p in people)).strip()
                 if intake.get("notes"):
                     family["medical_notes"] = intake["notes"]
+                # Auto-enroll: every enrolled Contact-Form kid becomes a roster child
+                # the moment it lands — internal + reversible (a deletable row), same
+                # rule-2 class as the HOT-lead auto-tag. The parent LOGIN stays behind
+                # the owner's Create-login button (no guardian is provisioned here).
+                # Idempotent via the contact->child ledger; a failed attempt (e.g. no
+                # DOB on the form) is left for the button. FORGE_DAYCARE_AUTOENROLL=0
+                # reverts to button-only enrollment.
+                child_id = daycare_ghl.form_child_id(family["contact_id"])
+                if not child_id and os.environ.get("FORGE_DAYCARE_AUTOENROLL", "1") != "0":
+                    try:
+                        saved = daycare_supabase.save_child(
+                            session, {"child": self._daycare_family_child_body(session, family)})
+                        child_id = ((saved or {}).get("child") or {}).get("id") or ""
+                        if child_id:
+                            daycare_ghl.record_form_child(family["contact_id"], child_id)
+                    except Exception:  # noqa: BLE001 — auto-enroll must never break the inbox
+                        child_id = ""
+                family["child_id"] = child_id
         return {"ok": True, "families": families,
                 "connected": bool(DAYCARE_GHL.configured),
                 "active_location_id": active}
@@ -3649,22 +3667,11 @@ class Handler(BaseHTTPRequestHandler):
         contact_id = family.get("contact_id")
         if not contact_id:
             raise daycare_supabase.DaycareError(400, "contact_id is required", "validation_error")
-        classroom_id = None
-        location_id = family.get("location_id")
-        if location_id:
-            classroom_id = daycare_supabase.find_classroom_id(
-                session, location_id, family.get("classroom_label") or "")
-        child_body = {
-            "first_name": family.get("child_first") or family.get("child_name") or "",
-            "last_name": family.get("child_last") or "",
-            "birth_date": family.get("child_dob") or "",
-            "classroom_id": classroom_id,
-            "allergies": family.get("allergies") or "",
-            "medical_notes": family.get("medical_notes") or "",
-            "pickup_notes": family.get("pickup_notes") or "",
-            "location_id": location_id,
-            "active": True,
-        }
+        child_body = self._daycare_family_child_body(session, family)
+        # If the kid was already auto-enrolled from the inbox, pass its id so
+        # save_child UPDATES that row (and provisions the login) instead of
+        # inserting a duplicate.
+        child_body["id"] = daycare_ghl.form_child_id(contact_id) or None
         # A parent login is created ONLY when the family gave an email — enrollment and
         # login are independent. save_child raises if guardian NAME is passed without an
         # email, so we attach the guardian block only when an email is present; otherwise
@@ -3677,8 +3684,31 @@ class Handler(BaseHTTPRequestHandler):
                 "guardian_email": family.get("email"),
             })
         result = self._daycare_child_save(session, {"child": child_body})
+        saved_id = ((result or {}).get("child") or {}).get("id")
+        if saved_id:
+            daycare_ghl.record_form_child(contact_id, saved_id)
         result["dismissed"] = daycare_ghl.dismiss(contact_id)
         return result
+
+    def _daycare_family_child_body(self, session, family):
+        """Map a Contact-Form inbox family object to a save_child body (no guardian
+        block — the login is attached separately by the enroll path)."""
+        classroom_id = None
+        location_id = family.get("location_id")
+        if location_id:
+            classroom_id = daycare_supabase.find_classroom_id(
+                session, location_id, family.get("classroom_label") or "")
+        return {
+            "first_name": family.get("child_first") or family.get("child_name") or "",
+            "last_name": family.get("child_last") or "",
+            "birth_date": family.get("child_dob") or "",
+            "classroom_id": classroom_id,
+            "allergies": family.get("allergies") or "",
+            "medical_notes": family.get("medical_notes") or "",
+            "pickup_notes": family.get("pickup_notes") or "",
+            "location_id": location_id,
+            "active": True,
+        }
 
     def _daycare_sync_family_to_ghl(self, session, child):
         guardian = daycare_supabase.guardian_contact(
