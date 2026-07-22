@@ -272,6 +272,7 @@ update that skill if you improved the pattern.
   GHL. Knobs: `FORGE_SCOUT_AUDIT_CANDIDATES`, `FORGE_SCOUT_AUDIT_PAGES`, `FORGE_SCOUT_AUDIT_MSGS`.
 - Agency agents: `/api/agency/agents{,/history,/tasks,/chat,/task,/task/update,/learn}`
 - Agency Call Center (`agency_calls.py` + `agency_callcenter.jsx`): tap-to-log dial tracker — Answered/No-Answer buttons, daily log, editable dial goal, streak (consecutive days ≥ goal; in-progress today never breaks it). `/api/agency/calls{,/log,/undo,/goal}`, state `marcus_state/agency_calls.json`. Internal tally only — no approval gate.
+- Agency Call Sheet (`agency_callsheet.py`, same tab): upload a PDF of biz leads (or paste text) → Claude parses to rows (`review_agent._claude`; regex fallback, pypdf/PyPDF2/pdftotext extraction chain — box has pypdf) → CRM-style table with search + status chips; per-row quick-marks New/Answered/No answer/Call back/Move on, tap-to-dial `tel:` links, inline notes, phone-dedupe on import. Marking answered/no_answer auto-bumps the daily tally. `/api/agency/callsheet{,/import-pdf,/import-text,/status,/note,/delete,/clear-dead}`, state `marcus_state/agency_callsheet.json`.
 - Bus: `/api/bus` · Brain: `/api/brain/{tree,note,search,recent,graph,activity,status}`
 - Telegram alerts + tap-to-approve (`telegram_io.py`): pings on hot lead / Marcus reply
   needing approval (warm+ only) / weekly missed sweep / handoffs+agency; inline buttons
