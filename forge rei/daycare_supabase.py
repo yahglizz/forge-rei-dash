@@ -1592,6 +1592,40 @@ def save_settings(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "settings": _single(rows, "Daycare location")}
 
 
+def find_child_id(session: Session, location_id: str, first_name: str, last_name: str) -> str:
+    """Best-effort child lookup by name at a center (case-insensitive) — used by the
+    Contact-Form auto-enroll to adopt an already-enrolled kid instead of duplicating.
+    Temporarily switches the active center when needed (restored after). Returns ""
+    when no match or on any error.
+    ponytail: name-only match, first 200 kids; add DOB tiebreak if a center ever has
+    two same-named children."""
+    first = (first_name or "").strip().lower()
+    last = (last_name or "").strip().lower()
+    if not first:
+        return ""
+    restore = None
+    try:
+        if location_id and location_id != active_location(session):
+            restore = active_location(session)
+            switch_location(session, {"location_id": location_id})
+        rows = BRIDGE.rest(session, "GET", "children", query={
+            "location_id": f"eq.{active_location(session)}",
+            "select": "id,first_name,last_name", "limit": "200"})
+        for row in rows or []:
+            if ((row.get("first_name") or "").strip().lower() == first
+                    and (row.get("last_name") or "").strip().lower() == last):
+                return str(row.get("id") or "")
+        return ""
+    except Exception:  # noqa: BLE001 — a dedup miss just means the caller inserts
+        return ""
+    finally:
+        if restore:
+            try:
+                switch_location(session, {"location_id": restore})
+            except Exception:  # noqa: BLE001
+                pass
+
+
 def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     source = body.get("child") if isinstance(body.get("child"), dict) else body
     child_id = source.get("id")

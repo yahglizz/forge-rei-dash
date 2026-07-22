@@ -3548,9 +3548,15 @@ class Handler(BaseHTTPRequestHandler):
                 child_id = daycare_ghl.form_child_id(family["contact_id"])
                 if not child_id and os.environ.get("FORGE_DAYCARE_AUTOENROLL", "1") != "0":
                     try:
-                        saved = daycare_supabase.save_child(
-                            session, {"child": self._daycare_family_child_body(session, family)})
-                        child_id = ((saved or {}).get("child") or {}).get("id") or ""
+                        child_body = self._daycare_family_child_body(session, family)
+                        # Adopt an already-enrolled kid (same name at the family's
+                        # center) instead of inserting a duplicate row.
+                        child_id = daycare_supabase.find_child_id(
+                            session, family.get("location_id"),
+                            child_body["first_name"], child_body["last_name"])
+                        if not child_id:
+                            saved = daycare_supabase.save_child(session, {"child": child_body})
+                            child_id = ((saved or {}).get("child") or {}).get("id") or ""
                         if child_id:
                             daycare_ghl.record_form_child(family["contact_id"], child_id)
                     except Exception:  # noqa: BLE001 — auto-enroll must never break the inbox
@@ -3700,7 +3706,9 @@ class Handler(BaseHTTPRequestHandler):
                 session, location_id, family.get("classroom_label") or "")
         return {
             "first_name": family.get("child_first") or family.get("child_name") or "",
-            "last_name": family.get("child_last") or "",
+            # Forms often carry a first-name-only child ("Mu'nir") — fall back to the
+            # family surname so save_child's required last_name never blocks intake.
+            "last_name": family.get("child_last") or family.get("parent_last") or "",
             "birth_date": family.get("child_dob") or "",
             "classroom_id": classroom_id,
             "allergies": family.get("allergies") or "",
