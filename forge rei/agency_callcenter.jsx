@@ -49,11 +49,11 @@ function CcRow({ lead, busy, onMark, onNote, onDelete }) {
     <tr>
       <td>
         <div style={{ fontWeight: 600 }}>{lead.name || lead.company || "(no name)"}</div>
-        {((lead.name && lead.company) || lead.location) && (
-          <div className="faint" style={{ fontSize: 11.5 }}>
-            {[lead.name ? lead.company : "", lead.location].filter(Boolean).join(" · ")}
-          </div>
-        )}
+        {(() => {
+          const head = lead.name || lead.company || "";
+          const sub = [lead.company !== head ? lead.company : "", lead.location].filter(Boolean).join(" · ");
+          return sub ? <div className="faint" style={{ fontSize: 11.5 }}>{sub}</div> : null;
+        })()}
       </td>
       <td>
         {lead.phone ? (
