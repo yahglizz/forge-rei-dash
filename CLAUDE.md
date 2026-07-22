@@ -271,6 +271,7 @@ update that skill if you improved the pattern.
   Scout's loop) → brain note `Reports/missed-leads-<date>.md` + agent-bus alert. Read-only on
   GHL. Knobs: `FORGE_SCOUT_AUDIT_CANDIDATES`, `FORGE_SCOUT_AUDIT_PAGES`, `FORGE_SCOUT_AUDIT_MSGS`.
 - Agency agents: `/api/agency/agents{,/history,/tasks,/chat,/task,/task/update,/learn}`
+- Agency Call Center (`agency_calls.py` + `agency_callcenter.jsx`): tap-to-log dial tracker — Answered/No-Answer buttons, daily log, editable dial goal, streak (consecutive days ≥ goal; in-progress today never breaks it). `/api/agency/calls{,/log,/undo,/goal}`, state `marcus_state/agency_calls.json`. Internal tally only — no approval gate.
 - Bus: `/api/bus` · Brain: `/api/brain/{tree,note,search,recent,graph,activity,status}`
 - Telegram alerts + tap-to-approve (`telegram_io.py`): pings on hot lead / Marcus reply
   needing approval (warm+ only) / weekly missed sweep / handoffs+agency; inline buttons
