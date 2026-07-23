@@ -361,6 +361,121 @@ class DaycareSecurityTests(unittest.TestCase):
         self.assertEqual(
             result["thread"]["thread_participants"], result["thread"]["participants"])
 
+    # ── Blessing Coins ───────────────────────────────────────────────────────
+    # The ledger rules the DB enforces (award>0, redemption<0, adjustment needs a
+    # note) have to hold on the way IN too, or the owner gets a raw Postgres error
+    # instead of a usable message. Balance is derived, never stored.
+
+    def test_coin_balance_sums_the_whole_ledger_not_the_capped_feed(self):
+        active = session()
+        child_a = "66666666-6666-4666-8666-666666666666"
+        child_b = "77777777-7777-4777-8777-777777777777"
+        with mock.patch.object(
+            daycare, "_child_ids", return_value=[child_a, child_b]
+        ), mock.patch.object(
+            daycare.BRIDGE,
+            "rest",
+            side_effect=[
+                [{"id": "item-1", "name": "Cookies", "cost": 20, "active": True}],
+                [  # full ledger — balances come from here
+                    {"child_id": child_a, "amount": 10},
+                    {"child_id": child_a, "amount": 15},
+                    {"child_id": child_a, "amount": -20},
+                    {"child_id": child_b, "amount": 5},
+                ],
+                [{"id": "tx-1", "child_id": child_a, "amount": -20}],  # capped feed
+            ],
+        ):
+            result = daycare.get_rewards(active)
+        self.assertEqual(5, result["balances"][child_a])
+        self.assertEqual(5, result["balances"][child_b])
+        self.assertEqual(4, result["ledgerCount"])
+        self.assertEqual(1, len(result["coins"]))
+        self.assertEqual(daycare.AWARD_REASONS, result["awardReasons"])
+
+    def test_award_rejects_non_positive_amounts_and_requires_a_child(self):
+        active = session()
+        child_id = "66666666-6666-4666-8666-666666666666"
+        with mock.patch.object(
+            daycare, "_ensure_location_record",
+            return_value={"id": child_id, "location_id": LOCATION_ID},
+        ):
+            for bad in (0, -5):
+                with self.assertRaises(daycare.DaycareError) as rejected:
+                    daycare.award_coins(active, {"child_ids": [child_id], "amount": bad,
+                                                 "reason_label": "Sharing"})
+                self.assertEqual(400, rejected.exception.status)
+        with self.assertRaises(daycare.DaycareError) as empty:
+            daycare.award_coins(active, {"child_ids": [], "amount": 5, "reason_label": "Sharing"})
+        self.assertEqual(400, empty.exception.status)
+
+    def test_award_writes_one_positive_row_per_child_with_the_actor(self):
+        active = session()
+        kids = ["66666666-6666-4666-8666-666666666666", "77777777-7777-4777-8777-777777777777"]
+        with mock.patch.object(
+            daycare, "_ensure_location_record",
+            side_effect=[{"id": kid, "location_id": LOCATION_ID} for kid in kids],
+        ), mock.patch.object(
+            daycare.BRIDGE, "rest", return_value=[{"id": "tx"}]
+        ) as rest:
+            result = daycare.award_coins(active, {"child_ids": kids, "amount": 10,
+                                                  "reason_label": "Sharing"})
+        self.assertEqual(2, result["awarded"])
+        self.assertEqual(2, rest.call_count)
+        for call in rest.call_args_list:
+            body = call.kwargs["body"]
+            self.assertEqual("award", body["kind"])
+            self.assertEqual(10, body["amount"])
+            self.assertEqual(PROFILE_ID, body["actor_id"])
+
+    def test_adjustment_requires_a_note_and_a_non_zero_amount(self):
+        active = session()
+        child_id = "66666666-6666-4666-8666-666666666666"
+        with mock.patch.object(
+            daycare, "_ensure_location_record",
+            return_value={"id": child_id, "location_id": LOCATION_ID},
+        ):
+            with self.assertRaises(daycare.DaycareError) as no_note:
+                daycare.adjust_coins(active, {"child_id": child_id, "amount": -5})
+            self.assertEqual(400, no_note.exception.status)
+            with self.assertRaises(daycare.DaycareError) as zero:
+                daycare.adjust_coins(active, {"child_id": child_id, "amount": 0, "note": "typo"})
+            self.assertEqual(400, zero.exception.status)
+
+    def test_redemption_is_stored_negative_at_the_catalog_cost(self):
+        active = session()
+        child_id = "66666666-6666-4666-8666-666666666666"
+        item_id = "88888888-8888-4888-8888-888888888888"
+        with mock.patch.object(
+            daycare, "_ensure_location_record",
+            side_effect=[
+                {"id": child_id, "location_id": LOCATION_ID},
+                {"id": item_id, "name": "Cookies", "cost": 20},
+            ],
+        ), mock.patch.object(
+            daycare.BRIDGE, "rest", return_value=[{"id": "tx"}]
+        ) as rest:
+            result = daycare.redeem_reward(active, {"child_id": child_id, "reward_item_id": item_id})
+        body = rest.call_args.kwargs["body"]
+        self.assertEqual("redemption", body["kind"])
+        self.assertEqual(-20, body["amount"])
+        self.assertEqual("Cookies", body["reason_label"])
+        self.assertEqual(item_id, body["reward_item_id"])
+        self.assertEqual(20, result["cost"])
+
+    def test_retiring_a_prize_patches_active_and_never_deletes(self):
+        active = session()
+        item_id = "88888888-8888-4888-8888-888888888888"
+        with mock.patch.object(
+            daycare, "_ensure_location_record",
+            return_value={"id": item_id, "name": "Cookies", "cost": 20, "active": True},
+        ), mock.patch.object(
+            daycare.BRIDGE, "rest", return_value=[{"id": item_id, "active": False}]
+        ) as rest:
+            daycare.set_reward_item_active(active, {"id": item_id, "active": False})
+        self.assertEqual("PATCH", rest.call_args.args[1])
+        self.assertEqual({"active": False}, rest.call_args.kwargs["body"])
+
 
 if __name__ == "__main__":
     unittest.main()
