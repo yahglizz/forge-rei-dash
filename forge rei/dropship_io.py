@@ -4,12 +4,16 @@ Server-side JSON store mirroring agency_io.py: the 24/7 connector owns the singl
 source of truth at marcus_state/dropship.json, so the Dropship workspace persists
 across reloads and survives restarts/redeploys.
 
-Holds the two things that are genuinely LOCAL — not already in Shopify/AutoDS:
+Holds the things that are genuinely LOCAL — not already in Shopify/AutoDS:
   • settings  — store facts the agents ground on (niche, target margin, price band).
   • watchlist — product ideas Hawk / the operator are tracking through the research
                 pipeline (idea → testing → winner → killed). Shopify owns live
                 products; this owns the funnel BEFORE a product is live.
+  • mcp       — the MCP server registry (which servers this store talks to, their
+                URLs, and the NAME of the env var holding each one's token — never
+                the token itself). Powers the Connections & MCP tab.
 """
+import dropship_env
 import forge_atomic
 import json
 import threading
