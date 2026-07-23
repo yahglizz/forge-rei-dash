@@ -170,11 +170,21 @@ function DropshipConnections() {
 
     <div className="card card-pad dc-panel">
       <div className="dc-panel-head"><div><div className="card-title">REST integrations</div><div className="faint">The always-on bridges — read-only today, every write stays gated</div></div><button className="link" onClick={() => window.GoTo("Settings")}>Settings</button></div>
-      <div className="dc-room-strip">
-        <div><window.DsChannel name="Shopify (store)" connected={!!sh.connected} detail={sh.detail || sh.error} /></div>
-        <div><window.DsChannel name="AutoDS (sourcing)" connected={!!ad.connected} detail={ad.detail || ad.error} /></div>
-        <div><window.DsChannel name="Meta Ads" connected={!!(meta.connected || meta.source === "live")} detail="Add META_ACCESS_TOKEN" /></div>
-        <div><window.DsChannel name="PiPiAds (trend spy)" connected={!!pp.connected} detail={pp.detail || pp.error} /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 12 }}>
+        {[["Shopify (store)", !!sh.connected, sh.detail || sh.error || "Add SHOPIFY_STORE_DOMAIN + SHOPIFY_ADMIN_TOKEN"],
+          ["AutoDS (sourcing)", !!ad.connected, ad.detail || ad.error || "Add AUTODS_API_KEY"],
+          ["Meta Ads", !!(meta.connected || meta.source === "live"), "Add META_ACCESS_TOKEN"],
+          ["PiPiAds (trend spy)", !!pp.connected, pp.detail || pp.error || "Add PIPIADS_API_KEY"]].map((c) => (
+          <div key={c[0]} className="card card-pad" style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", gap: 9, alignItems: "flex-start", minWidth: 0 }}>
+              <span className={"dc-integration-dot " + (c[1] ? "online" : "offline")} style={{ marginTop: 5, flex: "0 0 auto" }} />
+              <div style={{ minWidth: 0 }}>
+                <b style={{ display: "block" }}>{c[0]}</b>
+                <small className="faint" style={{ display: "block", lineHeight: 1.4 }}>{c[1] ? "Connected" : c[2]}</small>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
 
