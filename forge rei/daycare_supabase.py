@@ -1921,6 +1921,193 @@ def set_behavior(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "behavior": _single(rows, "Behavior event")}
 
 
+# ── Blessing Coins ──────────────────────────────────────────────────────────────
+# The owner-side half of the reward system the parent/staff app already runs
+# (lib/coins.ts + portal-app.tsx), over the SAME two tables. A child's balance is
+# always SUM(amount) over the ledger — never stored — and the ledger is immutable:
+# mistakes are corrected with an 'adjustment' row, retired prizes keep active=false.
+# See forge-daycare/supabase/migrations/202607170002_blessing_coins.sql.
+
+# Kept byte-for-byte in step with AWARD_REASONS in the app's lib/coins.ts so a coin
+# awarded from the dashboard reads identically to one awarded from the app.
+AWARD_REASONS: list[dict[str, Any]] = [
+    {"label": "Kind Words", "amount": 5},
+    {"label": "Great Listening", "amount": 5},
+    {"label": "Clean Up", "amount": 5},
+    {"label": "Sharing", "amount": 10},
+    {"label": "Helping a Friend", "amount": 10},
+    {"label": "Super Star Day", "amount": 15},
+    {"label": "Above & Beyond", "amount": 20},
+]
+
+_COIN_MAX = 1000        # per-transaction ceiling; a fat-fingered 100000 is a support ticket
+_COIN_CHILD_MAX = 100   # one award tap covers a classroom, not a franchise
+_COIN_RECENT = 200      # rows returned for the activity feed (balances use the full ledger)
+
+
+def _coin_children(session: Session, body: dict[str, Any]) -> list[dict[str, Any]]:
+    """Resolve + location-check every child id in an award/adjust request."""
+    raw = _body_value(body, "child_ids", "childIds")
+    if raw is None:
+        single = _body_value(body, "child_id", "childId")
+        raw = [single] if single is not None else []
+    if not isinstance(raw, list) or not raw:
+        raise DaycareError(400, "Pick at least one child", "validation_error")
+    if len(raw) > _COIN_CHILD_MAX:
+        raise DaycareError(400, f"At most {_COIN_CHILD_MAX} children per award", "validation_error")
+    seen: dict[str, dict[str, Any]] = {}
+    for value in raw:
+        child = _ensure_location_record(session, "children", value)
+        seen[str(child["id"])] = child
+    return list(seen.values())
+
+
+def _coin_insert(
+    session: Session,
+    child: dict[str, Any],
+    kind: str,
+    amount: int,
+    reason_label: str,
+    note: str | None = None,
+    reward_item_id: str | None = None,
+) -> dict[str, Any]:
+    record = {
+        "child_id": child["id"],
+        "location_id": child.get("location_id") or active_location(session),
+        "kind": kind,
+        "amount": amount,
+        "reason_label": reason_label,
+        "note": note,
+        "reward_item_id": reward_item_id,
+        "actor_id": session.profile["id"],
+    }
+    rows = BRIDGE.rest(session, "POST", "coin_transactions", body=record, prefer="return=representation")
+    return _single(rows, "Coin transaction")
+
+
+def get_rewards(session: Session) -> dict[str, Any]:
+    catalog = _rows(BRIDGE.rest(
+        session,
+        "GET",
+        "reward_items",
+        query={
+            "location_id": f"eq.{active_location(session)}",
+            "select": "*",
+            "order": "active.desc,cost.asc",
+        },
+    ))
+    ids = _child_ids(session)
+    if not ids:
+        return {"ok": True, "rewardItems": catalog, "coins": [], "balances": {}, "awardReasons": AWARD_REASONS}
+    child_filter = f"in.({','.join(ids)})"
+    # Balances come from the WHOLE ledger; the feed below is capped for payload size.
+    # Deriving balances from a capped feed would silently under-report an active child.
+    totals = _rows(BRIDGE.rest(
+        session,
+        "GET",
+        "coin_transactions",
+        query={"child_id": child_filter, "select": "child_id,amount"},
+    ))
+    balances: dict[str, int] = {}
+    for row in totals:
+        key = str(row.get("child_id"))
+        try:
+            balances[key] = balances.get(key, 0) + int(row.get("amount") or 0)
+        except (TypeError, ValueError):
+            continue
+    recent = _rows(BRIDGE.rest(
+        session,
+        "GET",
+        "coin_transactions",
+        query={
+            "child_id": child_filter,
+            "select": "*,children(id,first_name,last_name,classroom_id)",
+            "order": "created_at.desc",
+            "limit": str(_COIN_RECENT),
+        },
+    ))
+    return {
+        "ok": True,
+        "rewardItems": catalog,
+        "coins": recent,
+        "balances": balances,
+        "awardReasons": AWARD_REASONS,
+        "ledgerCount": len(totals),
+        "recentLimit": _COIN_RECENT,
+    }
+
+
+def award_coins(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    children = _coin_children(session, body)
+    amount = require_int(_body_value(body, "amount", "coins"), "amount", 1, _COIN_MAX)
+    reason = require_text(_body_value(body, "reason_label", "reasonLabel", body.get("reason")),
+                          "reason_label", maximum=120)
+    note = require_text(body.get("note"), "note", maximum=1000, optional=True)
+    awarded = [_coin_insert(session, child, "award", amount, reason, note) for child in children]
+    return {"ok": True, "coins": awarded, "awarded": len(awarded), "amount": amount}
+
+
+def adjust_coins(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    children = _coin_children(session, body)
+    amount = require_int(_body_value(body, "amount", "coins"), "amount", -_COIN_MAX, _COIN_MAX)
+    if amount == 0:
+        raise DaycareError(400, "Adjustment must be a non-zero amount", "validation_error")
+    # The DB enforces this too (adjustment_needs_note); failing here gives a usable message.
+    note = require_text(body.get("note"), "note", maximum=1000)
+    label = require_text(_body_value(body, "reason_label", "reasonLabel") or "Manual adjustment",
+                         "reason_label", maximum=120)
+    rows = [_coin_insert(session, child, "adjustment", amount, label, note) for child in children]
+    return {"ok": True, "coins": rows, "amount": amount}
+
+
+def redeem_reward(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    children = _coin_children(session, body)
+    item_id = _body_value(body, "reward_item_id", "rewardItemId")
+    if item_id:
+        item = _ensure_location_record(session, "reward_items", item_id)
+        cost = require_int(item.get("cost"), "cost", 1, _COIN_MAX)
+        label = str(item.get("name") or "Reward")
+        item_key: str | None = str(item["id"])
+    else:
+        cost = require_int(_body_value(body, "amount", "cost"), "amount", 1, _COIN_MAX)
+        label = require_text(_body_value(body, "reason_label", "reasonLabel"), "reason_label", maximum=120)
+        item_key = None
+    note = require_text(body.get("note"), "note", maximum=1000, optional=True)
+    # Redemptions are stored negative (DB constraint redemption_negative).
+    rows = [_coin_insert(session, child, "redemption", -cost, label, note, item_key) for child in children]
+    return {"ok": True, "coins": rows, "cost": cost, "reward": label}
+
+
+def save_reward_item(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    source = body.get("item") if isinstance(body.get("item"), dict) else body
+    payload = {
+        "name": require_text(source.get("name"), "name", maximum=120),
+        "description": require_text(source.get("description"), "description", maximum=500, optional=True),
+        "cost": require_int(source.get("cost"), "cost", 1, _COIN_MAX),
+        "icon": require_text(source.get("icon"), "icon", maximum=60, optional=True),
+    }
+    item_id = source.get("id") or _body_value(source, "reward_item_id", "rewardItemId")
+    if item_id:
+        item = _ensure_location_record(session, "reward_items", item_id)
+        rows = BRIDGE.rest(session, "PATCH", "reward_items", query={"id": f"eq.{item['id']}"},
+                           body=payload, prefer="return=representation")
+    else:
+        payload["location_id"] = active_location(session)
+        payload["active"] = True
+        rows = BRIDGE.rest(session, "POST", "reward_items", body=payload, prefer="return=representation")
+    return {"ok": True, "item": _single(rows, "Reward item")}
+
+
+def set_reward_item_active(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    # Prizes are retired, never deleted — the migration has no delete policy and
+    # past redemptions still point at the row.
+    item = _ensure_location_record(session, "reward_items", body.get("id") or _body_value(body, "reward_item_id", "rewardItemId"))
+    active = bool(body.get("active", not item.get("active")))
+    rows = BRIDGE.rest(session, "PATCH", "reward_items", query={"id": f"eq.{item['id']}"},
+                       body={"active": active}, prefer="return=representation")
+    return {"ok": True, "item": _single(rows, "Reward item")}
+
+
 def save_log(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     source = body.get("log") if isinstance(body.get("log"), dict) else body
     child = _ensure_location_record(session, "children", source.get("child_id") or source.get("childId"))
