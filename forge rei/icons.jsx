@@ -73,6 +73,7 @@ const Icons = {
   Billing: (p) => <I {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></I>,
   Meals: (p) => <I {...p}><path d="M7 3v7a3 3 0 0 0 3 3V3M7 7h3M8.5 13v8M16 3v18M16 3c3 2 4 5 4 8h-4"/></I>,
   Reports: (p) => <I {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></I>,
+  Rewards: (p) => <I {...p}><circle cx="9" cy="9" r="6"/><path d="M9 6.5v5M7.5 8h3M16.2 4.3a6 6 0 0 1 0 15.4M13.5 21a6 6 0 0 0 0-12"/></I>,
   CareLogs: (p) => <I {...p}><path d="M4 3h16v18H4zM8 8h8M8 12h8M8 16h5"/><path d="M9 3V1M15 3V1"/></I>,
   Incidents: (p) => <I {...p}><path d="M12 3 2 21h20z"/><path d="M12 9v5M12 18h.01"/></I>,
   Payroll: (p) => <I {...p}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 14h4M16 13v4M14 15h4"/></I>,
