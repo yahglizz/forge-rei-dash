@@ -4131,9 +4131,38 @@ class Handler(BaseHTTPRequestHandler):
                     "Add PIPIADS_API_KEY (pipispy.com) or AUTODS_API_KEY to pull real "
                     "trending products. Until then this reads mock / add-key."}
 
+        def _mcp_registry():
+            """The MCP registry + live presence. Presence only — a server's token stays
+            in dropship.env and is referenced by env-var NAME (rule 4)."""
+            reg = dropship_io.get_mcp()
+            out = []
+            for s in reg.get("servers", []):
+                out.append({**s,
+                            "hasAuth": dropship_mcp.has_auth(s),
+                            "configured": dropship_mcp.configured(s),
+                            "protocol": dropship_mcp.PROTOCOL_VERSION})
+            return {"ok": True, "servers": out, "count": len(out),
+                    "recent": dropship_mcp.recent(20)}
+
+        def _mcp_probe():
+            """Live handshake against one server (initialize → tools/list). Read-only —
+            probing never invokes a tool."""
+            sid = (q.get("id", [""])[0] or "").strip()
+            server = dropship_io.get_mcp_server(sid)
+            if not server:
+                return {"ok": False, "error": "unknown MCP server", "code": "not_found"}
+            result = dropship_mcp.probe(server)
+            try:
+                dropship_io.record_mcp_probe(sid, result)
+            except Exception:  # noqa: BLE001 — caching must never break the probe
+                pass
+            return {**result, "id": sid, "name": server.get("name")}
+
         handlers = {
             "/api/dropship/overview": _overview,
             "/api/dropship/trending": _trending,
+            "/api/dropship/mcp": _mcp_registry,
+            "/api/dropship/mcp/probe": _mcp_probe,
             "/api/dropship/pipiads/health": lambda: dropship_pipiads.health(),
             "/api/dropship/products": lambda: dropship_shopify.products(),
             "/api/dropship/orders": lambda: dropship_shopify.orders(),
@@ -4143,6 +4172,10 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/settings": lambda: dropship_io.get_settings(),
             "/api/dropship/shopify/health": lambda: dropship_shopify.health(),
             "/api/dropship/autods/health": lambda: dropship_autods.health(),
+            "/api/dropship/autods/orders": lambda: dropship_autods.orders(),
+            "/api/dropship/autods/marketplace": lambda: dropship_autods.marketplace(
+                50, (q.get("q", [""])[0] or "").strip()),
+            "/api/dropship/autods/wiring": _autods_wiring,
             "/api/dropship/ads": lambda: BLAZE.meta_overview(),
             "/api/dropship/analytics": _analytics,
             "/api/dropship/agents": lambda: {"ok": True, "agents": [

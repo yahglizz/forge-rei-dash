@@ -232,3 +232,172 @@ def save_settings(data):
         d["settings"] = updated
         _save(d)
         return {"ok": True, **updated}
+
+
+# ---------------------------------------------------------------------------
+# MCP server registry — which MCP servers this store talks to.
+#
+# A record NEVER holds a token. ``authEnv`` is the NAME of the env var in
+# dropship.env that holds it (rule 4); dropship_mcp reads the value at call time
+# and the browser only ever sees presence. URLs are operator-editable because MCP
+# endpoint shapes should be confirmed against each vendor's live docs — the same
+# posture as the AUTODS_*_PATH env overrides in dropship_autods.
+# ---------------------------------------------------------------------------
+
+_MCP_FIELDS = {
+    "id": "", "name": "", "transport": "http", "url": "", "command": "",
+    "authEnv": "", "authScheme": "Bearer", "authHeader": "Authorization",
+    "note": "", "enabled": True,
+}
+
+
+def _mcp_seed():
+    """Built-in rows. Regenerated on every read, so a row the operator has never
+    saved tracks dropship.env (e.g. the Shopify URL follows SHOPIFY_STORE_DOMAIN).
+    The moment a row is saved, the saved copy wins."""
+    domain = dropship_env.get("SHOPIFY_STORE_DOMAIN", "").strip()
+    storefront = dropship_env.get("SHOPIFY_STOREFRONT_MCP_URL", "").strip()
+    if not storefront and domain and "your-store" not in domain:
+        storefront = f"https://{domain}/api/mcp"
+    return [
+        {**_MCP_FIELDS, "id": "shopify-storefront", "name": "Shopify Storefront MCP",
+         "transport": "http", "url": storefront, "seeded": True,
+         "note": "Your store's own MCP endpoint — catalog, cart, policies. "
+                 "Public (no token). URL follows SHOPIFY_STORE_DOMAIN until you edit it."},
+        {**_MCP_FIELDS, "id": "shopify-dev", "name": "Shopify Dev MCP",
+         "transport": "stdio", "command": "npx -y @shopify/dev-mcp@latest",
+         "seeded": True,
+         "note": "Docs/schema search. Runs in your Claude session — the box cannot "
+                 "reach a stdio server, so it never shows as 'connected' here."},
+        {**_MCP_FIELDS, "id": "autods", "name": "AutoDS MCP",
+         "transport": "http", "url": dropship_env.get("AUTODS_MCP_URL", "").strip(),
+         "authEnv": "AUTODS_MCP_TOKEN", "seeded": True,
+         "note": "Paste the AutoDS MCP URL when you have it, then Probe — the real "
+                 "tool list loads from the server. Sourcing reads work over REST "
+                 "(Suppliers tab) meanwhile."},
+    ]
+
+
+def _mcp_slim(r):
+    out = {**_MCP_FIELDS, **{k: v for k, v in r.items() if k in _MCP_FIELDS}}
+    out["id"] = str(out["id"] or "").strip()
+    out["name"] = str(out["name"] or "").strip() or out["id"]
+    out["transport"] = out["transport"] if out["transport"] in ("http", "stdio") else "http"
+    out["enabled"] = bool(out["enabled"])
+    out["seeded"] = bool(r.get("seeded"))
+    out["note"] = str(r.get("note") or "")
+    if isinstance(r.get("lastProbe"), dict):
+        out["lastProbe"] = r["lastProbe"]
+    return out
+
+
+def get_mcp():
+    """The registry: seeded rows (overridden by anything saved) + custom rows."""
+    with _LOCK:
+        stored = (_load().get("mcp") or [])
+    by_id = {}
+    for r in stored:
+        if isinstance(r, dict) and str(r.get("id") or "").strip():
+            by_id[str(r["id"]).strip()] = r
+    servers = []
+    for seed in _mcp_seed():
+        saved = by_id.pop(seed["id"], None)
+        servers.append(_mcp_slim({**seed, **saved} if saved else seed))
+    for leftover in by_id.values():
+        servers.append(_mcp_slim(leftover))
+    return {"ok": True, "servers": servers, "count": len(servers)}
+
+
+def get_mcp_server(sid):
+    """One record by id, or None. What dropship_mcp.probe/call is handed."""
+    sid = str(sid or "").strip()
+    if not sid:
+        return None
+    return next((s for s in get_mcp()["servers"] if s["id"] == sid), None)
+
+
+def save_mcp_server(rec):
+    """Add or update a server. Rejects a token pasted into a field — tokens live in
+    dropship.env and are referenced by env-var NAME only (rule 4)."""
+    if not isinstance(rec, dict):
+        return {"error": "server object required"}
+    name = str(rec.get("name") or "").strip()
+    sid = str(rec.get("id") or "").strip()
+    if not sid:
+        sid = "".join(c if c.isalnum() else "-" for c in name.lower()).strip("-")
+        sid = sid or f"mcp{int(time.time())}"
+    if not name:
+        return {"error": "name required"}
+    for field in ("url", "command", "authEnv"):
+        val = str(rec.get(field) or "")
+        if any(val.startswith(p) for p in ("shpat_", "sk-", "sk_live", "Bearer ")):
+            return {"error": "Put the token in dropship.env and reference its variable "
+                             "NAME here — never paste the token itself."}
+    # A seeded row keeps its built-in note/flag when the operator edits its URL.
+    base = next((s for s in _mcp_seed() if s["id"] == sid), _MCP_FIELDS)
+    incoming = _mcp_slim({**base, **rec, "id": sid, "name": name})
+    incoming["seeded"] = bool(base.get("seeded"))
+    incoming["note"] = str(rec.get("note") or base.get("note") or "")
+    with _LOCK:
+        d = _load()
+        rows = [r for r in (d.get("mcp") or []) if isinstance(r, dict)]
+        existing = next((r for r in rows if str(r.get("id") or "").strip() == sid), None)
+        if existing:
+            if isinstance(existing.get("lastProbe"), dict):
+                incoming["lastProbe"] = existing["lastProbe"]
+            rows[rows.index(existing)] = incoming
+        else:
+            rows.append(incoming)
+        d["mcp"] = rows
+        _save(d)
+    return {"ok": True, "server": incoming}
+
+
+def delete_mcp_server(sid):
+    """Remove a saved record. A seeded row reverts to its built-in default rather
+    than disappearing — additive, nothing is ever lost (rule 5)."""
+    sid = str(sid or "").strip()
+    if not sid:
+        return {"error": "id required"}
+    with _LOCK:
+        d = _load()
+        rows = [r for r in (d.get("mcp") or []) if isinstance(r, dict)]
+        d["mcp"] = [r for r in rows if str(r.get("id") or "").strip() != sid]
+        removed = len(rows) - len(d["mcp"])
+        _save(d)
+    seeded = any(s["id"] == sid for s in _mcp_seed())
+    return {"ok": True, "removed": removed, "revertedToDefault": seeded}
+
+
+def record_mcp_probe(sid, result):
+    """Cache a probe so the tab shows the tool list without re-handshaking on load."""
+    sid = str(sid or "").strip()
+    if not sid or not isinstance(result, dict):
+        return {"error": "id and result required"}
+    tools = result.get("tools") if isinstance(result.get("tools"), list) else []
+    snap = {
+        "ts": result.get("ts") or int(time.time() * 1000),
+        "connected": bool(result.get("connected")),
+        "serverInfo": result.get("serverInfo") or {},
+        "protocolVersion": result.get("protocolVersion") or "",
+        "instructions": result.get("instructions") or "",
+        "toolCount": len(tools),
+        "tools": tools[:100],
+        "error": result.get("error") or "",
+        "code": result.get("code") or "",
+    }
+    with _LOCK:
+        d = _load()
+        rows = [r for r in (d.get("mcp") or []) if isinstance(r, dict)]
+        existing = next((r for r in rows if str(r.get("id") or "").strip() == sid), None)
+        if existing:
+            existing["lastProbe"] = snap
+        else:
+            seed = next((s for s in _mcp_seed() if s["id"] == sid), None)
+            if seed:
+                rows.append({**seed, "lastProbe": snap})
+            else:
+                return {"error": "unknown server"}
+        d["mcp"] = rows
+        _save(d)
+    return {"ok": True, "lastProbe": snap}
