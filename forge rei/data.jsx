@@ -39,8 +39,9 @@ const DAYCARE_NAV = [
 const DROPSHIP_NAV = [
   ["Dashboard", "Dashboard"], ["Agents", "Agents"],
   ["Products", "Products"], ["Watch", "Product Watch"], ["Orders", "Orders"], ["Inventory", "Inventory"],
-  ["Suppliers", "Suppliers"], ["Ads", "Ads & Creative"], ["Customers", "Customers"],
-  ["Analytics", "Analytics"], ["Brain", "Brain"], ["Settings", "Settings"],
+  ["Suppliers", "AutoDS · Suppliers"], ["Ads", "Ads & Creative"], ["Customers", "Customers"],
+  ["Analytics", "Analytics"], ["Connections", "Connections & MCP"],
+  ["Brain", "Brain"], ["Settings", "Settings"],
 ];
 
 // Workspaces the profile switcher offers. REI = the existing dash; Agency = new.

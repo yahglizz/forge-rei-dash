@@ -88,6 +88,7 @@ const DROPSHIP_PAGES = {
   Ads:        () => <window.DropshipAds />,
   Customers:  () => <window.DropshipSupport />,
   Analytics:  () => <window.DropshipAnalytics />,
+  Connections: () => <window.DropshipConnections />,
   Brain:      () => <window.BrainPage />,
   Settings:   () => <window.DropshipSettings />,
 };
