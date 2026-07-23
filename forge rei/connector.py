@@ -950,7 +950,8 @@ NOVA = daycare_adops.NovaEngine()
 import dropship_shopify  # noqa: E402 — Shopify Admin REST bridge (read-only; writes gated)
 import dropship_autods  # noqa: E402 — AutoDS sourcing/orders bridge (read-only; orders gated)
 import dropship_pipiads  # noqa: E402 — PiPiAds trending-products bridge (read-only, add-key)
-import dropship_io  # noqa: E402 — dropship local store (watchlist + settings)
+import dropship_io  # noqa: E402 — dropship local store (watchlist + settings + MCP registry)
+import dropship_mcp  # noqa: E402 — MCP client (probe read-only; tool calls operator-gated)
 import dropship_context  # noqa: E402 — dropship business brief (read FIRST by every dropship agent)
 import dropship_director  # noqa: E402 — Midas, the dropship head agent (e-com director)
 import dropship_agents  # noqa: E402 — Hawk / Blaze / Otto specialist crew
@@ -4131,6 +4132,26 @@ class Handler(BaseHTTPRequestHandler):
                     "Add PIPIADS_API_KEY (pipispy.com) or AUTODS_API_KEY to pull real "
                     "trending products. Until then this reads mock / add-key."}
 
+        def _autods_wiring():
+            """What AutoDS is actually wired with — key PRESENCE (never a value) plus the
+            endpoint paths currently in use, so a wrong account-tier path is visible
+            instead of silently returning nothing."""
+            import dropship_env as _denv
+            present = {k: bool((_denv.get(k, "") or "").strip())
+                       for k in ("AUTODS_API_KEY", "AUTODS_STORE_ID", "AUTODS_MCP_URL",
+                                 "AUTODS_MCP_TOKEN")}
+            paths = {
+                "base": _denv.get("AUTODS_API_BASE", "https://v2-api.autods.com"),
+                "products": _denv.get("AUTODS_PRODUCTS_PATH", "/products/"),
+                "orders": _denv.get("AUTODS_ORDERS_PATH", "/orders/"),
+                "marketplace": _denv.get("AUTODS_MARKETPLACE_PATH", "/marketplace/products/"),
+            }
+            return {"ok": True, "configured": dropship_autods.configured(),
+                    "keys": present, "paths": paths,
+                    "detail": "Paths are env-overridable (AUTODS_*_PATH) — confirm them "
+                              "against your AutoDS plan's API docs if a read comes back "
+                              "empty."}
+
         def _mcp_registry():
             """The MCP registry + live presence. Presence only — a server's token stays
             in dropship.env and is referenced by env-var NAME (rule 4)."""
@@ -4200,14 +4221,24 @@ class Handler(BaseHTTPRequestHandler):
                  "code": "internal_error", "detail": str(e)[:200]}, 500)
 
     def _handle_dropship_post(self, path):
-        """FORGE Dropship write/action router. Persistence writes (watchlist/settings) +
-        agent runs (Claude, propose-only) are allowed; NO outward action (ad launch,
-        supplier order, listing edit, customer message) is exposed here — those stay the
-        operator's one-tap approval (rule 2)."""
+        """FORGE Dropship write/action router. Persistence writes (watchlist/settings/MCP
+        registry) + agent runs (Claude, propose-only) are allowed; NO outward action (ad
+        launch, supplier order, listing edit, customer message) is exposed here — those
+        stay the operator's one-tap approval (rule 2).
+
+        MCP: /mcp/call invokes a tool on an MCP server. It is OPERATOR-INITIATED ONLY —
+        dropship_mcp.call refuses any actor but "operator", no agent or background loop
+        has a path to it, the dashboard fires it behind a confirm dialog (the dialog IS
+        the approval gate, same class as the daycare "Text" button), and every call
+        leaves a receipt on the agent bus + dropship_mcp_log.json."""
         allow = {
             "/api/dropship/settings/save",
             "/api/dropship/watchlist/save",
             "/api/dropship/watchlist/delete",
+            "/api/dropship/mcp/save",
+            "/api/dropship/mcp/delete",
+            "/api/dropship/mcp/probe",
+            "/api/dropship/mcp/call",
             "/api/dropship/director/run", "/api/dropship/director/learn",
             "/api/dropship/hawk/run", "/api/dropship/hawk/learn",
             "/api/dropship/hawk/watch",
@@ -4230,6 +4261,36 @@ class Handler(BaseHTTPRequestHandler):
                 result = dropship_io.save_item(body)
             elif path == "/api/dropship/watchlist/delete":
                 result = dropship_io.delete_item(body.get("id"))
+            elif path == "/api/dropship/mcp/save":
+                result = dropship_io.save_mcp_server(body)
+            elif path == "/api/dropship/mcp/delete":
+                result = dropship_io.delete_mcp_server(body.get("id"))
+            elif path == "/api/dropship/mcp/probe":
+                sid = str(body.get("id") or "").strip()
+                server = dropship_io.get_mcp_server(sid)
+                if not server:
+                    result = {"ok": False, "error": "unknown MCP server",
+                              "code": "not_found"}
+                else:
+                    result = dropship_mcp.probe(server)
+                    try:
+                        dropship_io.record_mcp_probe(sid, result)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    result = {**result, "id": sid, "name": server.get("name")}
+            elif path == "/api/dropship/mcp/call":
+                # Operator-initiated tool invocation. actor is pinned to "operator" HERE
+                # and nowhere else in the codebase — no agent can reach dropship_mcp.call.
+                sid = str(body.get("id") or "").strip()
+                server = dropship_io.get_mcp_server(sid)
+                if not server:
+                    result = {"ok": False, "error": "unknown MCP server",
+                              "code": "not_found"}
+                else:
+                    args = body.get("args")
+                    result = dropship_mcp.call(
+                        server, body.get("tool"),
+                        args if isinstance(args, dict) else {}, actor="operator")
             elif path == "/api/dropship/director/run":
                 result = MIDAS.run_once()
             elif path == "/api/dropship/director/learn":
