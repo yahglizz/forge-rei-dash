@@ -200,7 +200,8 @@ class SolomonEngine:
     # Prompt order: CREED (daycare-evidence-discipline, via agent_creed — never
     # reachable from learn()) → TOP SKILLS below → the learned playbook last.
     # decision loop (how Solomon reasons) → director craft (what 50 years knows).
-    TOP_SKILLS = ("solomon-decision-loop.md", "solomon-director-craft.md")
+    TOP_SKILLS = ("solomon-decision-loop.md", "solomon-director-craft.md",
+                  "solomon-roster-craft.md", "solomon-adops-craft.md")
     PLAYBOOK_MD = "solomon-playbook.md"
 
     def _load_skills(self):
