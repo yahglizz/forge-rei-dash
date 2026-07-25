@@ -34,19 +34,19 @@ on a DigitalOcean box. Three workspaces (profile switcher):
 
 - **REI (wholesale):** Dashboard, Leads, Conversations, Pipeline, Agents, Brain, etc.
 - **Agency (ClientForge):** Clients, Edit Requests, Agents, Ads, Social, Approvals, Brain.
-- **Daycare:** Dashboard, Solomon/Nora/Nova, Children, Billing, Growth, Brain, etc. (§10)
-- **Dropship (FORGE Dropship):** Dashboard, Agents (Midas/Hawk/Blaze/Otto), Products,
+- **Daycare:** Dashboard, Solomon, Children, Billing, Growth, Brain, etc. (§10)
+- **Dropship (FORGE Dropship):** Dashboard, Agents (Midas), Products,
   Orders, Inventory, Suppliers, Ads & Creative, Customers, Analytics, Brain, Settings.
   Shopify + AutoDS + Meta store. Folder `forge-dropship/`; engines `dropship_director.py`
-  (Midas) + `dropship_agents.py` (Hawk/Blaze/Otto); integration clients
+  (Midas, all three lanes); integration clients
   `dropship_shopify.py` / `dropship_autods.py`; routes `/api/dropship/*`. Same
   propose→approve discipline — every ad launch, supplier order, listing edit, and
   customer message stays one-tap gated.
 
 Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
 - `forge rei/` — the app (this folder): all `.py` engines + `.jsx` UI + `deploy/`.
-- `forge-agency/`, `forge-scout/`, `forge-marcus/`, `forge-solomon/`, `forge-nora/`,
-  `forge-nova/`, `forge-daycare/`, `forge-telegram/` — each business/agent's own config
+- `forge-agency/`, `forge-scout/`, `forge-marcus/`, `forge-solomon/`,
+  `forge-daycare/`, `forge-telegram/`, `forge-dropship/` — each business/agent's own config
   + seed skills, outside the web root. **Full map (every folder, every agent, every env
   var) → `NORTH_STAR.md` §6-7 — that table is the authoritative one now; this list is
   just the orientation.**
@@ -174,12 +174,7 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
 | **Solomon** (`daycare_director.py`) | Daycare | Head of all daycare agents — reads the whole center, produces the ranked operating brief, owns enrollment, delegates the rest via the bus. See §10. | Never texts/invoices/launches ads/writes the DB. Proposes + delegates. Self-improves. |
-| **Nora** (`daycare_family.py`) | Daycare | Keeps the roster organized (new enrollments, data gaps, capacity/ratio) + follows up on family comms after a Text Blast. Reports to Solomon. | Never texts/writes records. Proposes only. Self-improves. |
-| **Nova** (`daycare_adops.py`) | Daycare | Campaign health, competitor intel, creative direction for the daycare's Meta ads. Reports to Solomon. | Never launches/spends/generates creative herself. Recommends only. Self-improves. |
-| **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director.** Reads the whole store (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Delegations). Owns product strategy, delegates to Hawk/Blaze/Otto. | Never acts outward. Proposes + delegates. Self-improves. |
-| **Hawk** (`dropship_agents.py`) | Dropship | Product research — scores ideas / hunts winners on margin + real demand signal. Reports to Midas. | Never sources/lists/spends. Proposes only. Self-improves. |
-| **Blaze** (`dropship_agents.py`) | Dropship | Creative & ads — Meta performance read + ad concepts (reuses the agency Meta engine via a locked env-swap). Reports to Midas. | Never launches/changes budget. Recommends + drafts. Self-improves. |
-| **Otto** (`dropship_agents.py`) | Dropship | Fulfillment & support — order/inventory/tracking health + drafts customer replies. Reports to Midas. | Never orders/messages/refunds. Flags + drafts. Self-improves. |
+| **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
 Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls), `brain_io`
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back
@@ -375,13 +370,18 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
 - **Secrets + flags** all live in `forge-daycare/config/daycare.env` (git-ignored, 404 over
   HTTP, chmod 600, shipped by `push.sh`). Design spec:
   `docs/superpowers/specs/2026-07-13-daycare-os-design.md`.
-- **Solomon — the daycare HEAD agent (executive director).** `daycare_director.py`
-  (`SolomonEngine`) is the first daycare agent and the head of all daycare agents: a
-  **50-year** childcare director. He reads the whole center (Supabase ops metrics + alerts,
-  billing, staffing, connected-systems health, the `daycare-context.md` brief FIRST),
-  produces a ranked **operating brief** (Attention Now / Enrollment / Money / People /
-  Delegations), **owns enrollment**, and **delegates** to role sub-agents via `agent_bus`
-  (hand-off per role). Same self-improving-agent pattern as Scout: own env folder
+- **Solomon — the daycare's ONE agent (executive director).** `daycare_director.py`
+  (`SolomonEngine`) is a **50-year** childcare director who runs the whole center. He reads
+  it all (Supabase ops metrics + alerts, roster/classrooms, the blast log, Meta campaign
+  health + competitor read, billing, staffing, connected-systems health, the
+  `daycare-context.md` brief FIRST) and produces ONE ranked **operating brief** (Attention
+  Now / Enrollment / Money / People / **Roster** / **Follow-ups** / **Campaign health** /
+  **Creative** / Delegations). He **owns enrollment** and **delegates** via `agent_bus`
+  only what genuinely needs a human. Nora (roster/family-comms) and Nova (ad ops) were
+  merged into him on 2026-07-25 — their rubrics are his `solomon-roster-craft` /
+  `solomon-adops-craft` top skills, their routes (`/api/daycare/{family,adops}/*`) now
+  narrow his brief via `roster_view()`/`adops_view()`. One brief, one Claude call, one
+  auto-admin session instead of three of each. Same self-improving-agent pattern as Scout: own env folder
   `forge-solomon/` (config + seed `skills/`), key fallback (own →
   shared agency/wholesale), mtime-cached brain skills, `learn()` self-improvement into
   `<vault>/Skills/solomon-playbook.md`, background loop gated by `FORGE_MARCUS` (box only,
@@ -390,15 +390,20 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
   writes are his playbook + bus notes. Console: the **Solomon · Director** tab (daycare
   workspace). Routes `/api/daycare/director/{status,overview,brief,run,learn,bus}`. His
   "access to the env files" = reading which systems are **wired** (presence only, never
-  the secret value) via `connected_systems()`. Add role agents under him with the same
-  `forge-self-improving-agent` recipe; they consume his bus delegations.
+  the secret value) via `connected_systems()`. He answers to every bus role he absorbed
+  (`BUS_ROLES` = solomon · family-comms · enrollment · ads · growth · nora · nova), so a
+  delegation addressed to any of them still lands. **Before adding a role agent under him,
+  ask whether a new brief section would do the job** — that is what the 2026-07-25
+  consolidation concluded for the last two.
   - **His skills (see §4a — creed + top skills outrank the playbook).** Prompt order:
     `daycare-evidence-discipline` (the **creed**, via `agent_creed.block("daycare")` —
     never guess capacity/start date/rate/ratio; ground/infer/**Unknown**) →
     `solomon-decision-loop` (ranked falsifiable hypotheses; **close the loop** and decide —
     unknowns never block the brief) → `solomon-director-craft` (the 50 years: triage order,
-    funnel-leak vs. lead-volume, speed-to-lead, retention math, discount last) → the
-    learned `solomon-playbook` last. The creed comes from `agent_creed` (invisible to
+    funnel-leak vs. lead-volume, speed-to-lead, retention math, discount last) →
+    `solomon-roster-craft` (ratio/safety gaps before follow-ups; ground every family
+    follow-up in the blast log) → `solomon-adops-craft` (account mismatch is a hard stop;
+    refresh before new angles; PAUSED always) → the learned `solomon-playbook` last. The creed comes from `agent_creed` (invisible to
     `learn()`); the top skills come from `_load_skills()` while `_playbook_only()` feeds
     `learn()` — so self-improvement can rewrite the playbook and nothing above it. The
     brief prompt also carries the evidence rule inline as a backstop, so it holds even if
@@ -418,8 +423,9 @@ converting, a screening tactic, a pricing-conversation move) to a peer, a busine
 default in another. Coaching flows both ways and across all three businesses.
 
 *Example:* Eco (agency ads) sees a carousel angle beating single-image for a client and
-coaches Nova (daycare ads); Nova adapts it to enrollment ads. Scout's screening tell can
-sharpen Marcus; Solomon's retention math can inform how Nova frames an offer.
+coaches Solomon (who owns the daycare's ads); he adapts it to enrollment ads. Scout's
+screening tell can sharpen Marcus; Solomon's retention math can inform how Midas frames
+an offer.
 
 - **Module:** `forge rei/agent_coach.py` — stdlib, connector-free. `broadcast()`,
   `insights_for()`, `insights_block()`, `ask()`, `feed()`.
@@ -465,7 +471,7 @@ number, and the reasoning that changes the decision — **short, never wrong.**
 - Real caveats and Unknowns — evidence discipline / the creed outrank brevity. Be short, not wrong.
 
 **Agent side (already wired — `forge rei/caveman.py`):** `caveman.block(level)` is appended
-to operator-facing chat prompts ONLY — Scout/Atlas (`agents_chat`), Solomon/Nora/Nova
+to operator-facing chat prompts ONLY — Scout/Atlas (`agents_chat`), Solomon
 (`agents_hub`), Dyson/Eco (`agency_agents`), Marcus screening chat (`marcus_chat`). It is
 **NEVER** on seller-facing SMS drafts (`marcus_engine._ai_draft` — voice-critical), internal
 scoring/underwriting, briefs, or the creed. Intensity: `FORGE_CAVEMAN_LEVEL=lite|full|ultra`;
