@@ -315,6 +315,14 @@ class SolomonEngine:
             _sec("Enrollment (Solomon owns)", brief.get("enrollment"), lambda s: str(s))
             _sec("Money", brief.get("money"), lambda s: str(s))
             _sec("People", brief.get("people"), lambda s: str(s))
+            _sec("Roster", brief.get("roster"),
+                 lambda r: f"[{r.get('urgency','?')}/{r.get('area','?')}] {r.get('title','')} — {r.get('why','')}")
+            _sec("Family follow-ups", brief.get("followUps"),
+                 lambda f: f"{f.get('family','?')} — {f.get('reason','')} → {f.get('suggestedNextStep','')}")
+            _sec("Campaign health", brief.get("campaignHealth"),
+                 lambda c: f"[{c.get('urgency','?')}] {c.get('title','')} — {c.get('why','')}")
+            _sec("Creative direction", brief.get("creativeRecommendations"),
+                 lambda c: f"{c.get('angle','?')} — {c.get('why','')} → {c.get('action','')}")
             _sec("Delegations", brief.get("delegations"),
                  lambda d: f"**{d.get('role','team')}** → {d.get('task','')}  [[solomon-playbook]]")
             content = "\n".join(lines)
@@ -505,13 +513,19 @@ class SolomonEngine:
             "weekRedDays) or several children on the watch list can mean a classroom "
             "ratio/staffing strain or a family worth a proactive check-in before it "
             "becomes an unenrollment — weigh it that way, and route any family outreach "
-            "to Family-Comms. Never name a child in an outward-sounding action. "
+            "as a follow-up. Never name a child in an outward-sounding action. "
             "Output ONLY valid JSON with keys: headline (string), priorities (array of "
             "{title, why, area, urgency}), enrollment (array of strings — concrete moves "
             "to book tours, grounded in the brief), money (array of strings), people "
-            "(array of strings), delegations (array of {role, task}). 3–5 priorities, "
-            "ranked; lead with anything unsafe / under-ratio / money-at-risk, then "
-            "enrollment."
+            "(array of strings), roster (array of {title, why, area, urgency} — roster "
+            "findings from the live roster data), followUps (array of {family, reason, "
+            "suggestedNextStep} — grounded ONLY in what the blast log actually recorded, "
+            "never an invented family response), campaignHealth (array of {title, why, "
+            "urgency}), competitorRead (object {summary, angles, gap}), "
+            "creativeRecommendations (array of {angle, why, action}), delegations (array "
+            "of {role, task}). 3–5 priorities, ranked; lead with anything unsafe / "
+            "under-ratio / money-at-risk, then enrollment. The lane arrays may be empty "
+            "when their data was unavailable — an empty array beats an invented finding."
             + _north_star_block()
             + (ctx or "")
             + _creed_block()
@@ -526,6 +540,12 @@ class SolomonEngine:
             "metrics": metrics,
             "alerts": alerts,
             "behaviorChart": behavior,
+            "roster": roster,
+            "recentBlasts": blasts,
+            "optOuts": len(optouts),
+            "campaign": campaign,
+            "competitor": competitor,
+            "busDelegations": [{"from": m.get("from"), "text": m.get("text")} for m in inbox],
             "connectedSystems": [{"name": s["name"], "connected": s["connected"]} for s in systems],
             "offlineChannels": offline,
         }
@@ -534,6 +554,12 @@ class SolomonEngine:
             "numbers):\n" + json.dumps(live, indent=2)
             + ("\n\n(Live ops metrics were unavailable this run — reason from the brief "
                "and connected-systems status; do not fabricate counts.)" if gather_err else "")
+            + ("\n\n(Live roster detail was unavailable this run — leave roster empty or "
+               "reason from the blast log only; do not fabricate roster counts.)"
+               if roster_err else "")
+            + ("\n\n(Campaign data was unavailable this run — say so plainly in "
+               "campaignHealth; do not fabricate ad performance numbers.)"
+               if campaign_err else "")
             + "\n\nProduce the operating brief now."
         )
         try:
@@ -549,8 +575,17 @@ class SolomonEngine:
             "enrollment": parsed.get("enrollment") or [],
             "money": parsed.get("money") or [],
             "people": parsed.get("people") or [],
+            # roster + family-comms lane (absorbed from Nora)
+            "roster": parsed.get("roster") or [],
+            "followUps": parsed.get("followUps") or [],
+            # ad-ops lane (absorbed from Nova)
+            "campaignHealth": parsed.get("campaignHealth") or [],
+            "competitorRead": parsed.get("competitorRead") or {},
+            "creativeRecommendations": parsed.get("creativeRecommendations") or [],
             "delegations": parsed.get("delegations") or [],
             "metrics": metrics,
+            "rosterData": roster,
+            "campaign": campaign,
             "systems": systems,
             "generatedAt": int(time.time() * 1000),
             "contextLoaded": bool(ctx),
@@ -614,6 +649,14 @@ class SolomonEngine:
                               f"{p.get('title','')} — {p.get('why','')}")
             for e in (last.get("enrollment") or [])[:4]:
                 sample.append(f"enrollment: {e}")
+            for r in (last.get("roster") or [])[:4]:
+                sample.append(f"roster[{r.get('urgency','?')}] {r.get('title','')} — {r.get('why','')}")
+            for f in (last.get("followUps") or [])[:3]:
+                sample.append(f"followUp: {f.get('family','?')} — {f.get('reason','')}")
+            for c in (last.get("campaignHealth") or [])[:3]:
+                sample.append(f"campaign[{c.get('urgency','?')}] {c.get('title','')} — {c.get('why','')}")
+            for c in (last.get("creativeRecommendations") or [])[:3]:
+                sample.append(f"creative[{c.get('angle','?')}] {c.get('why','')} → {c.get('action','')}")
             for d in (last.get("delegations") or [])[:5]:
                 sample.append(f"delegated → {d.get('role','?')}: {d.get('task','')}")
         if not sample:
@@ -623,13 +666,15 @@ class SolomonEngine:
             "You are Solomon, a SELF-IMPROVING daycare executive director. Below is your "
             "CURRENT operating playbook and a sample of the briefs you actually produced. "
             "Improve yourself: sharpen how you rank priorities, tighten the enrollment "
-            "plays that fit this specific daycare, refine which work you delegate to which "
-            "role agent, and cut guidance that didn't help. Keep the hard rules (read the "
+            "plays that fit this specific daycare, sharpen the roster/family-comms and "
+            "ad-ops lanes you now own directly, refine what you delegate, and cut guidance "
+            "that didn't help. Keep the hard rules (read the "
             "business brief first; never act outward; never quote a price or promise a "
             "start date the brief doesn't support; ground everything in real data; the "
             "JSON output contract). "
             "You ALSO carry separate, permanent top skills — evidence discipline, the "
-            "decision loop, and director craft. Those are NOT yours to rewrite and are not "
+            "decision loop, director craft, roster craft, and ad-ops craft. Those are NOT "
+            "yours to rewrite and are not "
             "shown here. Do not restate or summarize them in the playbook; assume they "
             "always apply and keep the playbook to what you have actually learned from "
             "running THIS center. Output the FULL UPDATED playbook as clean markdown — "
