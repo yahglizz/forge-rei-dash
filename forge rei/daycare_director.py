@@ -5,8 +5,15 @@ He reads the whole center — live ops metrics + alerts (Supabase), billing, sta
 the growth channels, the connected-systems health (GHL / Stripe / Meta / Metricool),
 and the business brief (forge-daycare/skills/daycare-context.md, read FIRST) — then
 produces a prioritized OPERATING BRIEF (Attention Now, Enrollment, Money, People,
-Delegations). He OWNS enrollment and DELEGATES the rest to role sub-agents via the
-shared agent bus.
+Roster, Follow-ups, Campaign Health, Creative, Delegations). He OWNS enrollment and
+DELEGATES the rest to role sub-agents via the shared agent bus.
+
+2026-07-25: the daycare crew collapsed into one director. Nora (roster + family
+follow-ups) and Nova (ad ops) were merged into Solomon — their craft skills live on as
+solomon-roster-craft.md / solomon-adops-craft.md (top skills, never rewritten by learn()),
+their data reads are the _gather_roster/_gather_blasts/_gather_campaign/_gather_competitor
+methods below, and their old routes narrow this brief via roster_view()/adops_view().
+One brief, one Claude call, one auto-admin session — instead of three of each.
 
 Solomon never takes an outward or irreversible action. No SMS, invoice send, ad
 launch, or Supabase/GHL write. He proposes + delegates; a human taps to execute.
@@ -597,6 +604,8 @@ class SolomonEngine:
             self.learn_state["briefsSinceLearn"] = self.learn_state.get("briefsSinceLearn", 0) + 1
             self.last_error = gather_err if gather_err else None
             self._log("brief", f"Built operating brief — {len(brief['priorities'])} priorities, "
+                               f"{len(brief['roster'])} roster findings, "
+                               f"{len(brief['campaignHealth'])} campaign items, "
                                f"{len(brief['delegations'])} delegations")
             self._save()
         committed = self._write_brief_note(brief)   # live vault update every brief
@@ -770,6 +779,29 @@ class SolomonEngine:
 
     def brief(self):
         return {"ok": True, "brief": self.last_brief, "lastBriefAt": self.last_brief_at}
+
+    # --- lane views (Nora/Nova's old consoles read these shapes) --------------
+    # Nora and Nova were merged into Solomon; their routes now narrow his brief to
+    # the lane instead of running a second agent. Same keys the old briefs emitted,
+    # so anything still pointed at /api/daycare/{family,adops}/* keeps working.
+    def _lane(self, name, title, keys):
+        b = self.last_brief or {}
+        lane = {k: b.get(k) for k in keys} if b else {}
+        if b:
+            lane["headline"] = b.get("headline", title)
+            lane["generatedAt"] = b.get("generatedAt")
+        return {"ok": True, **self.status(), "lane": name, "title": title,
+                "brief": lane or None, "lastBriefAt": self.last_brief_at,
+                "activity": list(reversed(self.activity[-40:]))}
+
+    def roster_view(self):
+        return self._lane("roster", "Roster & Family Comms",
+                          ("roster", "followUps", "rosterData"))
+
+    def adops_view(self):
+        return self._lane("adops", "Ad Ops",
+                          ("campaignHealth", "competitorRead", "creativeRecommendations",
+                           "campaign"))
 
     # --- background loop (box only, FORGE_MARCUS gate) -----------------------
     def run_once(self, session=None):

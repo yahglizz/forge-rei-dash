@@ -940,11 +940,10 @@ import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoici
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
-import daycare_family  # noqa: E402 — Nora, roster organizer & family follow-up (reports to Solomon)
-import daycare_adops  # noqa: E402 — Nova, ad ops: campaign health, competitor intel, creative direction
+# Nora (roster/family-comms) and Nova (ad ops) were merged into Solomon on 2026-07-25 —
+# one director, one brief, one Claude call. Their routes narrow his brief; see
+# SolomonEngine.roster_view()/adops_view().
 SOLOMON = daycare_director.SolomonEngine()
-NORA = daycare_family.NoraEngine()
-NOVA = daycare_adops.NovaEngine()
 
 # --- FORGE Dropship (4th business) — Shopify/AutoDS/Meta store + the Midas crew ------
 import dropship_shopify  # noqa: E402 — Shopify Admin REST bridge (read-only; writes gated)
@@ -3976,14 +3975,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = SOLOMON.run_once(session)
             elif path == "/api/daycare/director/learn":
                 result = SOLOMON.learn()
-            elif path == "/api/daycare/family/run":
-                result = NORA.run_once(session)
-            elif path == "/api/daycare/family/learn":
-                result = NORA.learn()
-            elif path == "/api/daycare/adops/run":
-                result = NOVA.run_once(session)
-            elif path == "/api/daycare/adops/learn":
-                result = NOVA.learn()
+            # Nora/Nova merged into Solomon — their lanes are sections of his brief now.
+            elif path in ("/api/daycare/family/run", "/api/daycare/adops/run"):
+                result = SOLOMON.run_once(session)
+            elif path in ("/api/daycare/family/learn", "/api/daycare/adops/learn"):
+                result = SOLOMON.learn()
             else:
                 result = handlers[path](session, body)
             _touch_sync()
