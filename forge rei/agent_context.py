@@ -77,3 +77,46 @@ def graphify_context(query, k=6):
 def seller_query(name="", *extra):
     """Convenience: build a lead query from a seller name + any situation text fields."""
     return _keywords(name, *extra)
+
+
+# --- the WHOLESALE business brief --------------------------------------------
+# Agency, daycare and dropship each read a business brief first (agency-context.md,
+# daycare_context.py, dropship_context.py). Wholesale was the only side whose brief
+# (forge-scout/skills/wholesale-context.md) existed but was never loaded. It lives
+# here rather than in a fourth near-identical *_context.py module.
+_WS_CACHE = {}      # str(path) -> (mtime, text)
+
+
+def _wholesale_path():
+    from pathlib import Path
+    here = Path(__file__).resolve().parent
+    for p in (here.parent / "forge-scout" / "skills" / "wholesale-context.md",
+              Path.home() / "Desktop" / "forge-scout" / "skills" / "wholesale-context.md",
+              Path("/opt/forge/forge-scout/skills/wholesale-context.md")):
+        try:
+            if p.is_file():
+                return p
+        except OSError:
+            continue
+    return None
+
+
+def wholesale_context(limit=3000):
+    """Prompt-ready wholesale business brief (mtime-cached). "" when absent, so callers
+    can concatenate unconditionally."""
+    try:
+        p = _wholesale_path()
+        if p is None:
+            return ""
+        mtime = p.stat().st_mtime
+        cached = _WS_CACHE.get(str(p))
+        if not cached or cached[0] != mtime:
+            _WS_CACHE[str(p)] = (mtime, p.read_text(errors="ignore"))
+        text = (_WS_CACHE[str(p)][1] or "").strip()
+        if not text:
+            return ""
+        return ("\n\n=== WHOLESALE BUSINESS CONTEXT (read this FIRST — source of truth "
+                "for the business; never contradict its market, buy-box, or process "
+                "facts) ===\n" + text[:limit])
+    except Exception:
+        return ""
