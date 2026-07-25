@@ -40,7 +40,7 @@ def _ceo_key():
         v = os.environ.get(env_key)
         if v and not v.startswith("sk-ant-..."):
             return v
-    for mod, fn in (("agency_eco", "_agency_key"), ("dropship_agents", "_dropship_key")):
+    for mod, fn in (("agency_eco", "_agency_key"), ("dropship_director", "_midas_key")):
         try:
             m = __import__(mod)
             k = getattr(m, fn)()

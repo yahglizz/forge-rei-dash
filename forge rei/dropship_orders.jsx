@@ -1,4 +1,4 @@
-// dropship_orders.jsx — Orders (Shopify) + Customers/Support (Otto: fulfillment + reply drafts).
+// dropship_orders.jsx — Orders (Shopify) + Customers/Support (Midas's fulfillment lane).
 const { useState: useStateDso } = React;
 
 function DsoBadge({ value, map }) {
@@ -50,13 +50,13 @@ function DropshipSupport() {
   };
   const last = st.lastResult || null;
   return <div className="dc-page">
-    <window.DsPageHead title="Customers & Support" copy="Otto watches fulfillment and drafts replies. Every reply is a proposal — you send it." actions={<button className="dc-outline" disabled={busy} onClick={() => run(false)}>{busy ? "Reading…" : "Check fulfillment"}</button>} />
-    <div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Draft a support reply</div><div className="faint">Paste a customer message — Otto grounds the reply in the order data</div></div>{st.aiReady === false && <span className="dc-error-text">Add a Claude key</span>}</div>
+    <window.DsPageHead title="Customers & Support" copy="Midas watches fulfillment and drafts replies. Every reply is a proposal — you send it." actions={<button className="dc-outline" disabled={busy} onClick={() => run(false)}>{busy ? "Reading…" : "Check fulfillment"}</button>} />
+    <div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Draft a support reply</div><div className="faint">Paste a customer message — Midas grounds the reply in the order data</div></div>{st.aiReady === false && <span className="dc-error-text">Add a Claude key</span>}</div>
       <textarea className="dc-textarea" rows="4" value={ticket} onChange={(e) => setTicket(e.target.value)} placeholder="e.g. 'Where is my order #1023? It's been 10 days.'" />
       <div className="dc-modal-actions"><button className="dc-primary" disabled={busy || !ticket.trim()} onClick={() => run(true)}>{busy ? "Drafting…" : "Draft reply (proposal)"}</button></div>
       {err && <div className="dc-form-error">{err}</div>}
     </div>
-    {(result || last) && <div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Otto's read</div><div className="faint">proposal — nothing sent</div></div></div><DsoResult result={result || last} /></div>}
+    {(result || last) && <div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Midas's read</div><div className="faint">proposal — nothing sent</div></div></div><DsoResult result={result || last} /></div>}
   </div>;
 }
 

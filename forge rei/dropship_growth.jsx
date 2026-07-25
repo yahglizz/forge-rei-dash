@@ -1,7 +1,7 @@
-// dropship_growth.jsx — Ads & Creative (Blaze), Analytics, and the Agents crew console.
+// dropship_growth.jsx — Ads & Creative, Analytics, and the Midas agent console.
 const { useState: useStateDsg } = React;
 
-// ---- Ads & Creative (Blaze) ----
+// ---- Ads & Creative (Midas's ads lane) ----
 function DsgList({ items, render }) {
   if (!items || !items.length) return null;
   return <div className="dc-alert-list">{items.map((it, i) => <div key={i}><span className="dc-severity info" />{render(it)}</div>)}</div>;
@@ -21,7 +21,7 @@ function DropshipAds() {
   };
   const res = result || {};
   return <div className="dc-page">
-    <window.DsPageHead title="Ads & Creative" copy="Blaze reads Meta performance and drafts concepts. Launching / changing budget stays your approval." actions={<button className="dc-primary" disabled={busy} onClick={run}>{busy ? "Analyzing…" : "Analyze & draft concepts"}</button>} />
+    <window.DsPageHead title="Ads & Creative" copy="Midas reads Meta performance and drafts concepts. Launching / changing budget stays your approval." actions={<button className="dc-primary" disabled={busy} onClick={run}>{busy ? "Analyzing…" : "Analyze & draft concepts"}</button>} />
     <div className="card card-pad"><window.DsChannel name="Meta Ads (dropship account)" connected={connected} detail="Add META_ACCESS_TOKEN + META_AD_ACCOUNT_MAP to dropship.env" /></div>
     {err && <div className="dc-form-error">{err}</div>}
     {res.raw && <div className="card card-pad dc-panel"><pre className="dc-pre">{res.raw}</pre></div>}

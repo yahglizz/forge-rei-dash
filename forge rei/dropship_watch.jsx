@@ -1,5 +1,5 @@
 // dropship_watch.jsx — Product Watch: track products you can't dropship yourself yet,
-// and let Hawk score each 1–10 with winning numbers, why it wins, and what ads to make.
+// and let Midas score each 1–10 with winning numbers, why it wins, and what ads to make.
 const { useState: useStateDsw } = React;
 
 const DSW_STAGES = ["idea", "researching", "testing", "winner", "killed"];
@@ -30,7 +30,7 @@ function DswAddModal({ item, onClose, onSaved }) {
     try { await window.DsRequest("/watchlist/save", { body: form }); onSaved(); onClose(); }
     catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
-  return <window.DsModal title={item && item.id ? "Edit watched product" : "Add product to watch"} copy="Track a product you can't dropship yourself yet — Hawk scores it on demand." onClose={onClose}>
+  return <window.DsModal title={item && item.id ? "Edit watched product" : "Add product to watch"} copy="Track a product you can't dropship yourself yet — Midas scores it on demand." onClose={onClose}>
     {err && <div className="dc-form-error">{err}</div>}
     <div className="dc-form-grid">
       <window.DsField label="Product name"><input autoFocus value={form.name} onChange={set("name")} placeholder="what is it" /></window.DsField>
@@ -59,7 +59,7 @@ function DswSignalLine(sig) {
 
 // Pull REAL trending / winning products from whatever ad-spy source is keyed (PiPiAds /
 // AutoDS marketplace). Manual pull only — NEVER auto-polls, so it never spends quota on a
-// timer. One-tap adds a product to the watchlist (carrying its real signal) for Hawk.
+// timer. One-tap adds a product to the watchlist (carrying its real signal) for Midas.
 function DswTrending({ onAdded }) {
   const [q, setQ] = useStateDsw("");
   const [data, setData] = useStateDsw(null);
@@ -128,12 +128,12 @@ function DswCard({ item, onScore, onEdit, onDelete, scoring }) {
         <b>{item.name}</b>
         <small className="faint">stage: {item.stage} · margin {DswMargin(item)}{item.supplier ? " · " + item.supplier : ""}{verdict ? " · " : ""}{verdict ? <span style={{ color }}>{verdict}</span> : null}</small>
       </div>
-      <button className="dc-primary dsw-score-btn" disabled={scoring} onClick={() => onScore(item)}>{scoring ? "Hawk scoring…" : (a ? "Re-score" : "Score with Hawk")}</button>
+      <button className="dc-primary dsw-score-btn" disabled={scoring} onClick={() => onScore(item)}>{scoring ? "Midas scoring…" : (a ? "Re-score" : "Score with Midas")}</button>
     </div>
     {a ? <>
       <button className="link dsw-toggle" onClick={() => setOpen(!open)}>{open ? "Hide breakdown" : "Show breakdown"}</button>
       {open && <DswAnalysis a={a} />}
-    </> : <div className="dsw-empty-hint">Not scored yet — hit “Score with Hawk” for the 1–10 read, winning numbers, and ad plays.</div>}
+    </> : <div className="dsw-empty-hint">Not scored yet — hit “Score with Midas” for the 1–10 read, winning numbers, and ad plays.</div>}
     <div className="dc-mini-actions">
       {item.sourceUrl && <a className="link" href={item.sourceUrl} target="_blank" rel="noreferrer">Source ↗</a>}
       <button className="link" onClick={() => onEdit(item)}>Edit</button>
@@ -156,21 +156,21 @@ function DropshipWatch() {
   const score = async (item) => {
     setScoringId(item.id); setErr("");
     try { await window.DsRequest("/hawk/watch", { body: { id: item.id } }); watch.refresh(); }
-    catch (e) { setErr("Hawk: " + e.message); } finally { setScoringId(null); }
+    catch (e) { setErr("Midas: " + e.message); } finally { setScoringId(null); }
   };
   const del = async (id) => { if (!window.confirm("Remove this watched product?")) return; try { await window.DsRequest("/watchlist/delete", { body: { id } }); watch.refresh(); } catch (e) { window.alert(e.message); } };
 
   return <div className="dc-page">
-    <window.DsPageHead title="Product Watch" copy="Products on your radar you can't dropship yet. Hawk rates each 1–10 with winning numbers, why it should win, and what ads to make." actions={<button className="dc-primary" onClick={() => { setEditing(null); setOpen(true); }}><window.Icons.Plus size={14}/> Add product</button>} />
+    <window.DsPageHead title="Product Watch" copy="Products on your radar you can't dropship yet. Midas rates each 1–10 with winning numbers, why it should win, and what ads to make." actions={<button className="dc-primary" onClick={() => { setEditing(null); setOpen(true); }}><window.Icons.Plus size={14}/> Add product</button>} />
     <div className="dc-kpi-grid">
       <window.DsKpi label="Watching" value={items.length} sub="on the radar" icon="Watch"/>
       <window.DsKpi label="Scored" value={scored.length} sub={(items.length - scored.length) + " to score"} icon="Target" color="#8B5CF6"/>
-      <window.DsKpi label="Avg score" value={avg ? avg + "/10" : "—"} sub="Hawk rating" icon="Trend" color={DswScoreColor(avg)}/>
+      <window.DsKpi label="Avg score" value={avg ? avg + "/10" : "—"} sub="Midas rating" icon="Trend" color={DswScoreColor(avg)}/>
       <window.DsKpi label="Top pick" value={top ? (top.score + "/10") : "—"} sub={top ? top.name : "score some products"} icon="Flame" color={DswScoreColor(top && top.score)}/>
     </div>
     {err && <div className="dc-form-error">{err}</div>}
     <DswTrending onAdded={watch.refresh} />
-    <window.DsState loading={watch.loading} error={watch.error} empty={!items.length} icon="Watch" title="Nothing on watch yet" copy="Pull trending products above, or add one you spotted — then let Hawk score it." onRetry={watch.refresh}>
+    <window.DsState loading={watch.loading} error={watch.error} empty={!items.length} icon="Watch" title="Nothing on watch yet" copy="Pull trending products above, or add one you spotted — then let Midas score it." onRetry={watch.refresh}>
       <div className="dsw-grid">
         {items.map((it) => <DswCard key={it.id} item={it} scoring={scoringId === it.id} onScore={score} onEdit={(i) => { setEditing(i); setOpen(true); }} onDelete={del} />)}
       </div>
