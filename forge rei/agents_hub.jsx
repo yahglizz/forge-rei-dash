@@ -20,8 +20,6 @@ const HUB_CONSOLE = {
   dyson: "AgencyDyson",
   eco: "AgencyEco",
   solomon: "DaycareDirector",
-  nora: "DaycareFamilyAgent",
-  nova: "DaycareAdOpsAgent",
 };
 
 const HUB_BIZ_COLOR = {

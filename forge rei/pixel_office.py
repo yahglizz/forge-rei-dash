@@ -5,7 +5,7 @@ Code sessions as pixel characters in an office. That project is a Vite/React-19 
 Fastify + VS Code extension wired to Claude Code's hook stream — none of which this
 dashboard has (buildless React 18 UMD + a stdlib connector). So this is the same IDEA
 rebuilt on what's already here: the departments are the four workspaces, the characters
-are the twelve real agents, and the animation is driven by REAL agent activity, not a
+are the real agents, and the animation is driven by REAL agent activity, not a
 demo loop.
 
 Two jobs, and nothing more:
@@ -93,7 +93,7 @@ _ENGINE_ATTR = {
 
 def _engine(agent_id):
     """The live engine instance for an agent, or None. Read-only, same lookup shape as
-    agents_hub._engine — extended with the four dropship engines. The id is checked
+    agents_hub._engine — extended with the dropship director. The id is checked
     BEFORE importing the connector so an unknown agent costs nothing."""
     attr = _ENGINE_ATTR.get(agent_id)
     if not attr:
@@ -364,7 +364,7 @@ def dispatch(agent_id, title, note="", chat_fn=None):
     task_id = ""
     try:
         import agents_hub
-        # Only the eight hub agents have a task store; dropship tasks live in the job log.
+        # Only the hub agents have a task store; dropship tasks live in the job log.
         if agent_id in _hub_agents():
             out = agents_hub.send_task(agent_id, title, note)
             task_id = ((out or {}).get("task") or {}).get("id", "")

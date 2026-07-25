@@ -4,7 +4,7 @@
 // draws Claude Code sessions as pixel people in an office. That project is Vite +
 // React 19 + Fastify + a VS Code extension; this dashboard is buildless React 18 UMD
 // on a stdlib connector, so nothing there could be dropped in. What IS the same: four
-// rooms (our four departments), twelve characters (our twelve real agents), and
+// rooms (our four departments), one character per real agent, and
 // animation driven by real work — pixel_office.state() derives every pose from the
 // agent bus, the task store and each engine's own status().
 //

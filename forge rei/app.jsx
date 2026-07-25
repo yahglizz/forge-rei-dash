@@ -57,8 +57,6 @@ const DAYCARE_PAGES = {
   Agents:     () => <window.HubAgentsPage ws="daycare" />,
   Office:     () => <window.PixelOfficePage />,
   Director:   () => <window.DaycareDirector />,
-  Family:     () => <window.DaycareFamilyAgent />,
-  AdOps:      () => <window.DaycareAdOpsAgent />,
   Children:   () => <window.DaycareChildren />,
   Attendance: () => <window.DaycareAttendance />,
   CareLogs:   () => <window.DaycareCareLogs />,
