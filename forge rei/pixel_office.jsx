@@ -16,10 +16,12 @@
 const { useState: useStatePO, useEffect: useEffectPO, useRef: useRefPO } = React;
 
 // ── floor geometry (logical pixel-art coords, scaled up by CSS) ───────────────
-const PO_W = 680;
-const PO_H = 424;
-const PO_ROOM_W = 340;
-const PO_ROOM_H = 212;
+// Deliberately small: the canvas is upscaled ~2x by CSS with image-rendering:pixelated,
+// which is what makes an 11px-tall character read as pixel art instead of a smudge.
+const PO_W = 476;
+const PO_H = 298;
+const PO_ROOM_W = 238;
+const PO_ROOM_H = 149;
 const PO_ROOM_POS = { rei: [0, 0], agency: [1, 0], daycare: [0, 1], dropship: [1, 1] };
 
 const PO_PALETTE = [
@@ -154,12 +156,13 @@ function poDrawRoom(c, rx, ry, dept, t) {
   void t;
 }
 
-// Desk anchor for agent #i of n inside a room at (rx, ry).
+// Desk anchor for agent #i of n inside a room at (rx, ry). Two staggered rows so four
+// agents never overlap, and everything stays inside the room's walls.
 function poDeskXY(rx, ry, i, n) {
-  const span = PO_ROOM_W - 60;
+  const span = PO_ROOM_W - 62;
   const step = n > 1 ? span / (n - 1) : 0;
-  const x = rx + 22 + (n > 1 ? step * i : span / 2);
-  const y = ry + (i % 2 === 0 ? 82 : 148);
+  const x = rx + 20 + (n > 1 ? step * i : span / 2);
+  const y = ry + (i % 2 === 0 ? 56 : 101);
   return [x, y];
 }
 
@@ -205,8 +208,8 @@ function PixelOfficeFloor({ departments, selected, onSelect }) {
             act.tx = desk[0] + 8;
             act.ty = desk[1] + 26;
           } else {
-            act.tx = desk[0] + 8 + Math.sin((t + act.seed) / 2600) * 26;
-            act.ty = desk[1] + 30 + Math.cos((t + act.seed) / 3300) * 12;
+            act.tx = desk[0] + 8 + Math.sin((t + act.seed) / 2600) * 20;
+            act.ty = desk[1] + 28 + Math.cos((t + act.seed) / 3300) * 7;
           }
           const speed = a.activity === "walk" ? 0.09 : 0.03;
           act.x += (act.tx - act.x) * speed;
