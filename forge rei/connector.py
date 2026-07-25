@@ -4040,13 +4040,14 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/director/overview": lambda session: SOLOMON.overview(),
             "/api/daycare/director/brief": lambda session: SOLOMON.brief(),
             "/api/daycare/director/bus": lambda session: agent_bus.recent(30),
-            "/api/daycare/family/status": lambda session: NORA.status(),
-            "/api/daycare/family/overview": lambda session: NORA.overview(),
-            "/api/daycare/family/brief": lambda session: NORA.brief(),
+            # Nora/Nova retired into Solomon — these narrow his brief to the lane.
+            "/api/daycare/family/status": lambda session: SOLOMON.status(),
+            "/api/daycare/family/overview": lambda session: SOLOMON.roster_view(),
+            "/api/daycare/family/brief": lambda session: SOLOMON.roster_view(),
             "/api/daycare/family/bus": lambda session: agent_bus.recent(30),
-            "/api/daycare/adops/status": lambda session: NOVA.status(),
-            "/api/daycare/adops/overview": lambda session: NOVA.overview(),
-            "/api/daycare/adops/brief": lambda session: NOVA.brief(),
+            "/api/daycare/adops/status": lambda session: SOLOMON.status(),
+            "/api/daycare/adops/overview": lambda session: SOLOMON.adops_view(),
+            "/api/daycare/adops/brief": lambda session: SOLOMON.adops_view(),
             "/api/daycare/adops/bus": lambda session: agent_bus.recent(30),
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
@@ -4581,18 +4582,12 @@ def main():
         print("   Atlas: deal underwriter · auto-preps interested sellers every 15 min")
         ta = threading.Thread(target=DEAL_PREP.run_forever, daemon=True)
         ta.start()
-        # Solomon — daycare head agent: periodic operating brief + self-improve (box only).
+        # Solomon — daycare head agent: one operating brief covering ops, enrollment,
+        # money, people, roster/family-comms (was Nora) and ad ops (was Nova). One loop,
+        # one Claude call, one auto-admin session.
         print(f"   Solomon: daycare director · operating brief every {daycare_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
         tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True)
         tsol.start()
-        # Nora — roster organizer & family follow-up (reports to Solomon).
-        print(f"   Nora: roster & family follow-up · brief every {daycare_family.BRIEF_EVERY_MS // 3600000}h + self-improves")
-        tnora = threading.Thread(target=NORA.run_forever, daemon=True)
-        tnora.start()
-        # Nova — ad ops: campaign health, competitor intel, creative direction (reports to Solomon).
-        print(f"   Nova: ad ops · brief every {daycare_adops.BRIEF_EVERY_MS // 3600000}h + self-improves")
-        tnova = threading.Thread(target=NOVA.run_forever, daemon=True)
-        tnova.start()
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief, delegates to
         # Hawk/Blaze/Otto. Propose-only; self-improves. The specialists run on-demand

@@ -68,14 +68,9 @@ AGENTS = [
      "role": "Ads Agent — strategy + Meta",
      "blurb": "Ad strategy, performance reads, creative concepts. Launches on approval."},
     {"id": "solomon", "name": "Solomon", "business": "daycare", "emoji": "🏛️",
-     "role": "Executive Director — head of the daycare agents",
-     "blurb": "Reads the whole center, ranks what matters today, owns enrollment, delegates."},
-    {"id": "nora", "name": "Nora", "business": "daycare", "emoji": "💬",
-     "role": "Family Agent — comms + retention",
-     "blurb": "Watches family engagement, flags who's drifting, drafts the outreach."},
-    {"id": "nova", "name": "Nova", "business": "daycare", "emoji": "🎨",
-     "role": "Ad Ops — enrollment campaigns",
-     "blurb": "Runs the enrollment ad angles + creative. Spend stays approval-gated."},
+     "role": "Executive Director — the whole center",
+     "blurb": "Ops, enrollment, money, people, roster + family follow-ups, and the "
+              "enrollment ads. Ranks it all, owns enrollment, never acts outward."},
 ]
 
 _BY_ID = {a["id"]: a for a in AGENTS}
@@ -112,8 +107,6 @@ def _engine(agent_id):
         "marcus": getattr(connector, "MARCUS", None),
         "atlas": getattr(connector, "DEAL_PREP", None),
         "solomon": getattr(connector, "SOLOMON", None),
-        "nora": getattr(connector, "NORA", None),
-        "nova": getattr(connector, "NOVA", None),
     }.get(agent_id)
 
 
