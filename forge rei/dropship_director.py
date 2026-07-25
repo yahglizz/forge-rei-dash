@@ -18,6 +18,7 @@ Mirrors the FORGE self-improving-agent pattern (daycare_director.py): own env fo
 comms, background loop gated by FORGE_MARCUS so only the box runs it. State persists
 to marcus_state/midas.json — no new database.
 """
+import contextlib
 import json
 import os
 import threading
@@ -609,6 +610,215 @@ class MidasEngine:
 
     def brief(self):
         return {"ok": True, "brief": self.last_brief, "lastBriefAt": self.last_brief_at}
+
+    # --- lane views (Hawk/Blaze/Otto's old consoles read these shapes) --------
+    # The three specialists were merged into Midas on 2026-07-25. Their routes now
+    # narrow his brief instead of running three more agents with three more playbooks.
+    def _lane(self, name, title, keys):
+        b = self.last_brief or {}
+        lane = {k: b.get(k) for k in keys} if b else {}
+        if b:
+            lane["headline"] = b.get("headline", title)
+            lane["generatedAt"] = b.get("generatedAt")
+        return {"ok": True, **self.status(), "lane": name, "title": title,
+                "brief": lane or None, "result": self.last_result,
+                "lastBriefAt": self.last_brief_at,
+                "activity": list(reversed(self.activity[-40:]))}
+
+    def products_view(self):
+        return self._lane("products", "Product Research", ("winners", "priorities"))
+
+    def ads_view(self):
+        return self._lane("ads", "Creative & Ads", ("ads", "priorities"))
+
+    def ops_view(self):
+        return self._lane("ops", "Fulfillment & Support", ("ops", "money"))
+
+    # --- lane work (absorbed from Hawk / Blaze / Otto) ------------------------
+    def analyze(self, task, data=None, max_tokens=1800, lane=""):
+        """One grounded Claude call in Midas's own voice, for a lane task.
+
+        Same constitution as the brief (creed → top skills → playbook) so a lane task
+        and the daily brief are the same operator, not two personalities. Read-only:
+        it returns a proposal, it never acts.
+        """
+        key = _midas_key()
+        if not key:
+            return {"ok": False, "error": "no anthropic key"}
+        try:
+            import dropship_context
+            ctx = dropship_context.context_block()
+        except Exception:
+            ctx = ""
+        skills = self._load_skills()
+        playbook = self._playbook_only()
+        system = (
+            "You are Midas, the e-commerce director of the FORGE Dropship store. You run "
+            "product research, creative & ads, and fulfillment & support yourself. Read the "
+            "DROPSHIP CONTEXT brief FIRST and never contradict its niche, target margin, "
+            "price bands, or supplier facts. You NEVER take an outward action — no ad "
+            "launch, budget change, supplier order, listing edit, customer message, or "
+            "refund. You propose; the operator approves. EVIDENCE DISCIPLINE outranks "
+            "everything: every number carries its source and window, or is Unknown. Never "
+            "call a product a winner without the margin math. Label anything from a mock or "
+            "unconnected channel as mock."
+            + (f" You are working the {lane} lane right now." if lane else "")
+            + _north_star_block()
+            + (ctx or "")
+            + _creed_block()
+            + ("\n\n=== YOUR TOP SKILLS (these OUTRANK the learned playbook below; when "
+               "they conflict, these win) ===\n" + skills if skills else "")
+            + ("\n\n=== YOUR PLAYBOOK (learned rubric — apply it within the skills above) "
+               "===\n" + playbook[:4000] if playbook else "")
+        )
+        user = str(task or "").strip()
+        if data is not None:
+            user += ("\n\nGROUNDED DATA (use these — do not invent numbers; label mock/"
+                     "unconnected channels as mock):\n"
+                     + json.dumps(data, indent=2, default=str))
+        user += "\n\nRespond with ONLY the JSON your playbook's output contract specifies."
+        try:
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=max_tokens))
+        except Exception as e:  # noqa: BLE001
+            self.last_error = str(e)
+            return {"ok": False, "error": f"claude: {e}"}
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            parsed = {"raw": raw}
+        with self.lock:
+            self.last_result = parsed
+            self._log("run", (parsed.get("headline") if isinstance(parsed, dict) else "")
+                      or f"{lane or 'lane'} analysis")
+            self._save()
+        try:
+            import agent_bus
+            head = (parsed.get("headline") if isinstance(parsed, dict) else "") or ""
+            agent_bus.send("midas", "all", "note",
+                           f"Midas ran the {lane or 'lane'} analysis. {head}"[:300],
+                           {"lane": lane})
+        except Exception:
+            pass
+        return {"ok": True, "result": parsed}
+
+    def research(self, payload=None):
+        """Product research lane. payload: {ideas: "free text or list", data: {...}}.
+        With no ideas, chews on the local watchlist so there's always something to score."""
+        payload = payload or {}
+        ideas = payload.get("ideas") or payload.get("task") or ""
+        data = payload.get("data")
+        if not ideas:
+            try:
+                import dropship_io
+                wl = dropship_io.list_watchlist()
+                data = {"watchlist": wl.get("items", [])}
+                ideas = ("Score the current product watchlist below. For each, give a verdict "
+                         "(test/pass/watch), grounded reasons, the biggest Unknown, and the "
+                         "cheapest next step.")
+            except Exception:
+                ideas = "No product ideas provided. Ask the operator to add ideas to the watchlist."
+        task = ("Research + score these product ideas per the Product Research output "
+                "contract in your playbook.\n\nIDEAS:\n"
+                + (ideas if isinstance(ideas, str) else json.dumps(ideas)))
+        return self.analyze(task, data, lane="product research")
+
+    def watch_score(self, item):
+        """Deep single-product WATCH analysis for something on the operator's radar they
+        can't dropship themselves yet. 1–10 upside read. Read-only proposal."""
+        if not isinstance(item, dict) or not str(item.get("name") or "").strip():
+            return {"ok": False, "error": "product item with a name required"}
+        contract = (
+            "Output ONLY this JSON object, nothing else:\n"
+            "{\n"
+            '  "product": "<name>",\n'
+            '  "score": <integer 1-10 — your honest read of how good this product can be>,\n'
+            '  "verdict": "test|watch|pass",\n'
+            '  "headline": "<one line: the core reason for the score>",\n'
+            '  "winningNumbers": ["<a reason WITH a number: margin/markup, price band, '
+            "demand signal, competition — ground it in the item data or the category; if "
+            'you don\'t know it, write it as Unknown>", "..."],\n'
+            '  "whyItWins": "<why it should sell: the problem it solves or the wow factor>",\n'
+            '  "audience": "<who to target — the buyer>",\n'
+            '  "adTypes": ["<ad FORMAT to make: UGC unboxing video, problem→agitate reel, '
+            'before/after, demo, founder story, etc.>", "..."],\n'
+            '  "adAngles": ["<a specific hook/angle to test in the copy>", "..."],\n'
+            '  "biggestUnknown": "<the one thing that could kill it>",\n'
+            '  "nextStep": "<the cheapest way to validate before committing>"\n'
+            "}\n"
+            "NEVER invent a fake metric — every number is grounded or labeled Unknown. The "
+            "score weighs margin headroom, real demand signal, ad-ability, and fulfillment "
+            "sanity, against saturation."
+        )
+        task = ("Analyze this ONE product the operator is WATCHING — they can't dropship it "
+                "themselves yet and want to know how good it can be and how to attack it.\n\n"
+                + contract)
+        return self.analyze(task, {"product": item}, max_tokens=1600, lane="product research")
+
+    def meta_overview(self):
+        """Read-only Meta connection + analytics under the dropship account (mock until
+        keyed). No Claude — instant for the Ads tab."""
+        with _ENV_LOCK, _scoped_meta_env():
+            try:
+                import agency_ads
+                return {
+                    "ok": True,
+                    "connection": agency_ads.connection(),
+                    "accounts": agency_ads.accounts().get("accounts", []),
+                    "analytics": agency_ads.analytics(client="dropship", days=7),
+                }
+            except Exception as e:  # noqa: BLE001
+                return {"ok": True, "connection": {"connected": False},
+                        "detail": f"Meta not available ({e})."}
+
+    def analyze_ads(self, payload=None):
+        """Creative & ads lane — read the store's Meta numbers, draft concepts."""
+        payload = payload or {}
+        analytics = None
+        with _ENV_LOCK, _scoped_meta_env():
+            try:
+                import agency_ads
+                conn = agency_ads.connection()
+                if conn.get("connected") or conn.get("source") == "live":
+                    analytics = agency_ads.analytics(client="dropship", days=7)
+            except Exception:
+                analytics = None
+        task = (payload.get("task")
+                or "Read the store's Meta ad performance, call scale/hold/kill/refresh on "
+                   "what you can see, and draft 2–3 fresh ad concepts per the Creative & Ads "
+                   "output contract in your playbook. If no live ad data is connected, say so "
+                   "and draft concepts from the brief + brand voice instead of inventing "
+                   "numbers.")
+        data = payload.get("data") or ({"metaAnalytics": analytics} if analytics else
+                                       {"metaAnalytics": "not connected (mock)"})
+        return self.analyze(task, data, lane="creative & ads")
+
+    def _store_data(self):
+        data = {}
+        try:
+            import dropship_shopify
+            data["orders"] = dropship_shopify.orders(limit=50)
+            data["inventory"] = dropship_shopify.inventory()
+        except Exception as e:  # noqa: BLE001
+            data["error"] = str(e)
+        return data
+
+    def fulfillment_check(self, payload=None):
+        """Fulfillment & support lane — health read from Shopify, plus a drafted reply
+        when payload['ticket'] is present. Never sends, orders, or refunds."""
+        payload = payload or {}
+        data = self._store_data()
+        ticket = payload.get("ticket")
+        if ticket:
+            task = ("Draft an honest, factual customer support reply to the ticket below, "
+                    "grounded in the order/store data. Never invent a status or ship date. "
+                    "Also flag any fulfillment risks you see. Per the Fulfillment & Support "
+                    "output contract in your playbook.\n\nTICKET:\n" + str(ticket))
+        else:
+            task = ("Read the store's fulfillment health from the data below and surface the "
+                    "risks (unshipped/late orders, stockouts, tracking gaps, refund signal), "
+                    "ranked, each with a recommendation. Per the Fulfillment & Support output "
+                    "contract in your playbook.")
+        return self.analyze(task, data, lane="fulfillment & support")
 
     # --- background loop (box only, FORGE_MARCUS gate) -----------------------
     def run_once(self):
