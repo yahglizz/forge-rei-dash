@@ -7,7 +7,7 @@ across all three businesses.
 
     wholesale  Marcus (lead agent) · Scout (triage) · Atlas (underwriter)
     agency     Dyson (build) · Eco (ads)
-    daycare    Solomon (director) · Nora (family) · Nova (ad ops)
+    daycare    Solomon (director — ops, enrollment, roster/family-comms, ad ops)
     voice      any Retell outbound agent (personas, testable in text)
 
 What it adds vs. what it reuses — additive, nothing rewritten:
@@ -15,7 +15,7 @@ What it adds vs. what it reuses — additive, nothing rewritten:
   • chat()      — routes to each agent's REAL brain:
                     wholesale -> agents_chat (GHL threads, commands, agent_collab)
                     agency    -> agency_agents.chat
-                    daycare   -> NEW here (Solomon/Nora/Nova had briefs but no chat)
+                    daycare   -> NEW here (Solomon had a brief but no chat)
   • send_task() — dispatch work to any agent: persisted + broadcast on the agent bus,
                   so the agent (and the operator) both see it. Agency tasks also flow
                   into agency_agents' existing task store so that UI keeps working.
@@ -127,8 +127,8 @@ def _live_status(agent_id):
 def roster(business=None):
     """The agents for ONE business, with live status. Powers the hub's left rail.
 
-    Scoped by workspace on purpose: in the Daycare workspace you want Solomon, Nora and
-    Nova — not the wholesale team. Passing business=None returns everyone (the bus /
+    Scoped by workspace on purpose: in the Daycare workspace you want Solomon — not the
+    wholesale team. Passing business=None returns everyone (the bus /
     cross-business view still uses that).
 
     Retell voice agents are deliberately NOT here. They're outbound-call personas, not
@@ -190,7 +190,7 @@ def _open_tasks_block(agent_id):
 
 
 def _daycare_chat(agent_id, message, history):
-    """Chat for Solomon / Nora / Nova. These agents produced briefs but had no chat
+    """Chat for the daycare director (Solomon). He produced briefs but had no chat
     surface — this is it. Grounded in the creed + the business brief + their OWN live
     brief and playbook, so the agent you talk to is the same one that runs the loops,
     not a generic assistant wearing its name."""
@@ -273,7 +273,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None):
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Couldn't reach {meta['name']}: {e}", "agent": meta["name"]}
 
-    # Daycare — Solomon / Nora / Nova (chat added here).
+    # Daycare — Solomon (chat added here).
     if business == "daycare":
         return _daycare_chat(agent_id, message, history)
 

@@ -40,27 +40,19 @@ DEPARTMENTS = [
     {"id": "agency", "label": "Agency · ClientForge", "accent": "#8B5CF6",
      "agents": ["dyson", "eco"]},
     {"id": "daycare", "label": "Daycare · A Touch of Blessings", "accent": "#2DD4BF",
-     "agents": ["solomon", "nora", "nova"]},
+     "agents": ["solomon"]},
     {"id": "dropship", "label": "Dropship · FORGE Store", "accent": "#F97316",
-     "agents": ["midas", "hawk", "blaze", "otto"]},
+     "agents": ["midas"]},
 ]
 
-# The four dropship agents live in dropship_director/dropship_agents, not agents_hub's
-# roster, so their cards are defined here. The other eight are read from agents_hub so
-# there is exactly one source of truth for a name/role/blurb.
+# Midas lives in dropship_director, not agents_hub's roster, so his card is defined
+# here. Everyone else is read from agents_hub so there is exactly one source of truth
+# for a name/role/blurb. (Hawk/Blaze/Otto were merged into Midas 2026-07-25.)
 DROPSHIP_AGENTS = {
     "midas": {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "👑",
-              "role": "E-com Director — head of the store",
-              "blurb": "Reads the whole store, ranks what matters, delegates to the crew."},
-    "hawk": {"id": "hawk", "name": "Hawk", "business": "dropship", "emoji": "🦅",
-             "role": "Product Research — hunts winners",
-             "blurb": "Scores product ideas on margin + real demand signal. Proposes only."},
-    "blaze": {"id": "blaze", "name": "Blaze", "business": "dropship", "emoji": "🔥",
-              "role": "Creative & Ads — Meta performance",
-              "blurb": "Reads campaign performance, drafts ad concepts. Never spends."},
-    "otto": {"id": "otto", "name": "Otto", "business": "dropship", "emoji": "📦",
-             "role": "Fulfillment & Support",
-             "blurb": "Order/inventory/tracking health, drafts customer replies."},
+              "role": "E-com Director — the whole store",
+              "blurb": "Product research, ads, fulfillment, and the ranked brief over "
+                       "all three. Proposes only — never spends or ships."},
 }
 
 DEPT_OF = {a: d["id"] for d in DEPARTMENTS for a in d["agents"]}
@@ -95,8 +87,7 @@ def _card(agent_id):
 # background engine (Marcus's screener, Dyson, Eco) are simply absent.
 _ENGINE_ATTR = {
     "scout": "SCOUT", "marcus": "MARCUS", "atlas": "DEAL_PREP",
-    "solomon": "SOLOMON", "nora": "NORA", "nova": "NOVA",
-    "midas": "MIDAS", "hawk": "HAWK", "blaze": "BLAZE", "otto": "OTTO",
+    "solomon": "SOLOMON", "midas": "MIDAS",
 }
 
 
@@ -268,8 +259,8 @@ def _finish(job_id, status, result="", error=""):
 
 
 def _run_dropship(agent_id, title):
-    """Run one of the four dropship agents for real. Hawk/Blaze/Otto take a free-form
-    task through analyze(); Midas's real run is his operating brief."""
+    """Run the dropship director for real. Midas's real run is his operating brief;
+    anything else with an analyze() takes the free-form task through it."""
     eng = _engine(agent_id)
     if eng is None:
         return "", f"{agent_id} has no live engine on this host"
