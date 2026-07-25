@@ -36,6 +36,11 @@ _LOCK = threading.Lock()
 
 PLAYBOOK_REL = "Skills/solomon-playbook.md"
 BRIEF_DIR_REL = "Reports/daycare"          # living operating record written every brief
+# Bus identities Solomon answers to. The role names Nora and Nova used are kept so
+# delegations already on the bus (and anything Solomon addresses to a role in his own
+# brief) still get consumed now that he owns those lanes himself.
+BUS_ROLES = ("solomon", "family-comms", "enrollment", "ads", "growth", "nora", "nova")
+RECENT_BLASTS = 5                          # blast history depth for the follow-up lane
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
 LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_SOLOMON_LEARN_GAP_MIN", "45")) * 60 * 1000
 BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_SOLOMON_BRIEF_EVERY_H", "24")) * 3600 * 1000)
@@ -319,6 +324,36 @@ class SolomonEngine:
         except Exception:
             return False
 
+    # --- bus: consume delegations addressed to any lane Solomon owns ----------
+    def _read_bus_inbox(self, mark_read=True):
+        """Unread messages addressed to Solomon's bus identities, marked read.
+
+        Absorbed from Nora/Nova when the daycare crew collapsed into one director —
+        a delegation posted to family-comms/ads/enrollment still gets picked up.
+        """
+        try:
+            import agent_bus
+        except Exception:
+            return []
+        seen_ids, out = set(), []
+        for role in BUS_ROLES:
+            try:
+                res = agent_bus.inbox(role, unread_only=True)
+            except Exception:
+                continue
+            for m in (res.get("messages") or [])[:10]:
+                mid = m.get("id")
+                if mid and mid not in seen_ids:
+                    seen_ids.add(mid)
+                    out.append(m)
+                if mark_read and mid:
+                    try:
+                        agent_bus.mark_read(mid)
+                    except Exception:
+                        pass
+        out.sort(key=lambda m: -(m.get("ts") or 0))
+        return out[:10]
+
     # --- the operating brief -------------------------------------------------
     def _gather(self, session):
         """Pull the live center picture. Returns (metrics, alerts, err)."""
@@ -331,6 +366,85 @@ class SolomonEngine:
         except Exception as e:  # noqa: BLE001 — brief still works from the context brief
             return {}, [], str(e)
 
+    def _gather_roster(self, session):
+        """Live roster detail for the family-comms lane. Returns (roster, err).
+
+        Same session Solomon already opened for _gather — one auto-admin session for
+        the whole brief instead of the three the old crew opened.
+        """
+        if session is None:
+            return {}, "no session"
+        try:
+            import daycare_supabase
+            children = daycare_supabase.get_children(session).get("children", []) or []
+            classrooms = daycare_supabase.get_classrooms(session).get("classrooms", []) or []
+        except Exception as e:  # noqa: BLE001 — brief still works from the blast log alone
+            return {}, str(e)
+        return {
+            "childrenActive": sum(1 for c in children if c.get("active")),
+            "childrenTotal": len(children),
+            "missingGuardianContact": [
+                {"child": (c.get("first_name", "") + " " + c.get("last_name", "")).strip(),
+                 "classroom": (c.get("classrooms") or {}).get("name")}
+                for c in children
+                if c.get("active") and not (
+                    (c.get("guardian_profile") or {}).get("phone")
+                    or (c.get("guardian_profile") or {}).get("auth_email"))
+            ][:10],
+            "classrooms": [
+                {"name": r.get("name"), "capacity": r.get("capacity"),
+                 "ratio": r.get("ratio_children"), "enrolled": r.get("enrolled")}
+                for r in classrooms if r.get("active", True)
+            ],
+        }, None
+
+    def _gather_blasts(self):
+        """Recent Family Text Blast history — the only grounded source for follow-ups."""
+        try:
+            import daycare_blast
+            blasts = daycare_blast.list_blasts()[:RECENT_BLASTS]
+            optouts = daycare_blast.list_optouts()
+        except Exception:
+            return [], []
+        summarized = []
+        for b in blasts:
+            recips = b.get("recipients") or []
+            summarized.append({
+                "id": b.get("id"), "title": b.get("title"), "audience": b.get("audience"),
+                "status": b.get("status"), "sentAt": b.get("sentAt"),
+                "recipientCount": len(recips),
+                "skippedOptOut": b.get("skippedOptOut", 0),
+                "notSent": [
+                    {"name": r.get("name"), "note": r.get("note")}
+                    for r in recips if r.get("status") not in ("sent", "stub-sent")
+                ][:10],
+            })
+        return summarized, optouts
+
+    def _gather_campaign(self):
+        """Meta campaign health for the ad-ops lane. Returns (data, err)."""
+        try:
+            import daycare_growth
+            ads = daycare_growth.ads_overview()
+        except Exception as e:  # noqa: BLE001 — brief still works from the context brief
+            return {}, str(e)
+        connection = ads.get("connection") or {}
+        return {
+            "connected": bool(connection.get("connected") or connection.get("source") == "live"),
+            "source": connection.get("source"),
+            "accounts": ads.get("accounts") or [],
+            "analytics": ads.get("analytics") or {},
+        }, None
+
+    def _gather_competitor(self, key):
+        """Daycare-scoped competitor read (best-effort — never blocks the brief)."""
+        try:
+            import agency_eco
+            import daycare_context
+            return agency_eco._daycare_competitor(daycare_context.context_block(), key)
+        except Exception as e:  # noqa: BLE001
+            return {"status": "unavailable", "error": str(e)}
+
     def build_brief(self, session=None):
         """Read the whole center + the brief, produce a prioritized operating brief.
 
@@ -342,8 +456,15 @@ class SolomonEngine:
             return {"ok": False, "error": "no anthropic key"}
 
         import daycare_context
-        ctx = daycare_context.context_block()
+        # The enrollment-ad-agent spec rides along with the business brief now that
+        # Solomon owns the ad-ops lane (it used to be injected by Nova).
+        ctx = daycare_context.context_block() + daycare_context.ad_agent_block()
         metrics, alerts, gather_err = self._gather(session)
+        roster, roster_err = self._gather_roster(session)
+        blasts, optouts = self._gather_blasts()
+        campaign, campaign_err = self._gather_campaign()
+        competitor = self._gather_competitor(key)
+        inbox = self._read_bus_inbox()
         behavior = {}
         if session is not None:
             try:
@@ -366,9 +487,13 @@ class SolomonEngine:
             "staffed, and paid. You OWN enrollment. You DELEGATE other work to role "
             "agents (Enrollment, Billing, Family-Comms, Staffing, Compliance). You NEVER "
             "take an outward action — you surface and delegate; the human approves. "
-            "Nora (Roster/Family-Comms) and Nova (Ads) are live role agents under "
-            "you now — hand roster/follow-up work to Family-Comms and ad-strategy "
-            "work to Ads so they actually pick it up. "
+            "You personally OWN two more lanes inside this same brief: the ROSTER + "
+            "FAMILY-COMMS lane (roster gaps, ratio/capacity, who needs a follow-up after "
+            "a Family Text Blast — see your roster-craft skill) and the AD-OPS lane "
+            "(Meta campaign health, competitor read, which live angle needs fresh "
+            "creative — see your ad-ops-craft skill). Never draft the outbound family "
+            "text and never launch, activate, or re-budget a campaign; name who/why and "
+            "what to run, the owner taps to execute. "
             "EVIDENCE DISCIPLINE (outranks everything else): every number or status you "
             "state must come from the real data below or the brief — never from what "
             "sounds plausible. If you cannot reach a fact, say it is unknown and make "
