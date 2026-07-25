@@ -134,7 +134,7 @@ function DaycareEco() {
   </div>;
 }
 
-// ── Nova's ad studio — idea → image → PAUSED live ad ─────────────────────────
+// ── Ad studio — idea → image → PAUSED live ad ───────────────────────────────
 // This is the DAYCARE's ad agent. It used to be branded "Eco" (the AGENCY's ads
 // strategist), which was simply the wrong agent on the wrong business. Nova owns
 // enrollment ads; the label now matches reality.
@@ -253,7 +253,7 @@ function DaycareNova() {
   const generate = async () => {
     setBusy(true); setErr(null);
     try { await window.DcxRequest("/nova/generate", { body: {} }); await refresh(); }
-    catch (e) { setErr((e && e.message) || "Nova couldn't draft ideas."); }
+    catch (e) { setErr((e && e.message) || "Solomon couldn't draft ideas."); }
     finally { setBusy(false); }
   };
   const onImage = async (id, imageUrl) => {
@@ -273,21 +273,21 @@ function DaycareNova() {
 
   return <div className="dc-page">
     <window.DcxPageHead title="Enrollment Ad Studio" eyebrow="GROWTH · NOVA"
-      copy="Nova reads the business brief and the live ad spec, then drafts complete enrollment ads — hook, headline, copy, targeting, budget, and the image prompt. One tap builds the real campaign, PAUSED."
+      copy="Solomon reads the business brief and the live ad spec, then drafts complete enrollment ads — hook, headline, copy, targeting, budget, and the image prompt. One tap builds the real campaign, PAUSED."
       actions={<DcaCtxBadge ctx={ctx} />} />
 
-    {!ctx.loaded && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Business brief not found. Add <code>forge-daycare/skills/daycare-context.md</code> so Nova stays on-message.</div>}
+    {!ctx.loaded && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Business brief not found. Add <code>forge-daycare/skills/daycare-context.md</code> so the ad studio stays on-message.</div>}
     {!st.metaReady && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Meta isn't connected — add <code>META_ACCESS_TOKEN</code> to <code>daycare.env</code> to build campaigns.</div>}
-    {!st.imageReady && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Nova can't generate images herself yet — no <code>HIGGSFIELD_API_KEY</code> in <code>daycare.env</code>. She writes the prompt; generate it in Higgsfield and paste the URL back, or add the key and it becomes one tap.</div>}
+    {!st.imageReady && <div className="dc-form-hint"><window.Icons.Shield size={14} /> The ad studio can't generate images yet — no <code>HIGGSFIELD_API_KEY</code> in <code>daycare.env</code>. It writes the prompt; generate it in Higgsfield and paste the URL back, or add the key and it becomes one tap.</div>}
 
     <div className="dc-hero-actions" style={{ margin: "4px 0 14px" }}>
       <button className="dc-primary" onClick={generate} disabled={busy}>
-        <window.Icons.Bot size={15} /> {busy ? "Nova is drafting…" : "Generate enrollment ads"}
+        <window.Icons.Bot size={15} /> {busy ? "Solomon is drafting…" : "Generate enrollment ads"}
       </button>
     </div>
 
     {err && <window.DcxState error={err} onRetry={generate} />}
-    {!ideas.length && !busy && <div className="dc-all-clear"><window.Icons.Bot size={22} /><div><b>No ad concepts yet</b><span>Tap “Generate enrollment ads” — Nova drafts complete, buildable ads from your brief. They stay here until you build or discard them.</span></div></div>}
+    {!ideas.length && !busy && <div className="dc-all-clear"><window.Icons.Bot size={22} /><div><b>No ad concepts yet</b><span>Tap “Generate enrollment ads” — Solomon drafts complete, buildable ads from your brief. They stay here until you build or discard them.</span></div></div>}
 
     {ideas.map((idea) => <DcaNovaCard key={idea.id} idea={idea}
       onImage={onImage} onBuild={onBuild} onDiscard={onDiscard}
@@ -298,7 +298,7 @@ function DaycareNova() {
 function DaycareGrowth() {
   const [tab, setTab] = useStateDca("ideas");
   return <div className="dc-page">
-    <div className="dc-hero" style={{ marginBottom: 14 }}><div><div className="dc-eyebrow">GROWTH ENGINE</div><h1>Grow enrollment. Run the ads. Watch the socials.</h1><p>The daycare's marketing command center — <b>Nova</b> drafts complete enrollment ads from your business brief and builds them on Meta, PAUSED. Going live, changing budget, and publishing posts stay behind your one-tap approval.</p><div className="dc-hero-actions"><button className={tab === "ideas" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ideas")}><window.Icons.Bot size={15} /> Ad Studio</button><button className={tab === "ads" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ads")}><window.Icons.Dollar size={15} /> Ads</button><button className={tab === "social" ? "dc-primary" : "dc-outline"} onClick={() => setTab("social")}><window.Icons.Bell size={15} /> Social</button></div></div></div>
+    <div className="dc-hero" style={{ marginBottom: 14 }}><div><div className="dc-eyebrow">GROWTH ENGINE</div><h1>Grow enrollment. Run the ads. Watch the socials.</h1><p>The daycare's marketing command center — <b>Solomon</b> drafts complete enrollment ads from your business brief and builds them on Meta, PAUSED. Going live, changing budget, and publishing posts stay behind your one-tap approval.</p><div className="dc-hero-actions"><button className={tab === "ideas" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ideas")}><window.Icons.Bot size={15} /> Ad Studio</button><button className={tab === "ads" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ads")}><window.Icons.Dollar size={15} /> Ads</button><button className={tab === "social" ? "dc-primary" : "dc-outline"} onClick={() => setTab("social")}><window.Icons.Bell size={15} /> Social</button></div></div></div>
     {tab === "ideas" ? <DaycareNova /> : tab === "ads" ? <DaycareAds /> : <DaycareSocial />}
   </div>;
 }

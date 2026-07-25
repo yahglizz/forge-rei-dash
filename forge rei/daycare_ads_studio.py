@@ -1,11 +1,15 @@
-"""daycare_ads_studio.py — Nova's enrollment ad studio: idea → image → live PAUSED ad.
+"""daycare_ads_studio.py — the enrollment ad studio: idea → image → live PAUSED ad.
+
+A TOOL under Solomon (not an agent — no playbook, no learn loop). It reads his playbook
+plus the enrollment-ad-agent spec. Routes keep their /api/daycare/nova/* paths so nothing
+in the UI has to move; Nova the agent was merged into Solomon on 2026-07-25.
 
 The Growth tab used to end at "here are 3 ideas" — good copy you then had to rebuild by
-hand in Meta. This closes the loop: every idea Nova drafts is a COMPLETE ad package, it
+hand in Meta. This closes the loop: every idea it drafts is a COMPLETE ad package, it
 persists so you can come back to it, and one tap builds the real campaign.
 
 The pipeline:
-    1. ideas()       — Nova drafts full packages: hook, headline, primary text, CTA,
+    1. ideas()       — drafts full packages: hook, headline, primary text, CTA,
                        targeting, daily budget, AND a production-ready image prompt
                        (gpt_image_2, per forge-daycare/skills/enrollment-ad-agent.md).
                        Persisted to marcus_state/daycare_ideas.json.
