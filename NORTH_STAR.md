@@ -137,15 +137,15 @@ parent/staff lens, both on one Supabase database.
 
 **Chain of command:** Solomon (`daycare_director.py`) is the head of all
 daycare agents — a 50-year childcare-director persona who reads the whole
-center, owns enrollment, and delegates everything else to role agents via the
-shared bus. Nora (`daycare_family.py`) keeps the roster organized and follows
-up on family communications (e.g. after a Family Text Blast) — she reports to
-Solomon and is the first daycare agent to actually consume his bus
-delegations. Nova (`daycare_adops.py`) runs point on ad campaign health,
-competitor intel, and creative direction, grounded in the real Meta account —
-she also reports to Solomon and never touches Higgsfield/Meta's ad manager
-herself (no tool access from the background loop; that stays a human or a
-chat-session action).
+center and owns enrollment. He runs the whole center in ONE brief (Nora and
+Nova were merged into him on 2026-07-25): ops, enrollment, money, people, plus
+the **roster & family-comms** lane (roster gaps, ratio/capacity, who needs a
+nudge after a Family Text Blast — grounded only in what the blast log recorded)
+and the **ad-ops** lane (campaign health, competitor intel, creative direction
+against the real Meta account). He never touches Higgsfield or Meta's ad manager
+himself — no tool access from the background loop; that stays a human or a
+chat-session action — and he consumes bus delegations addressed to any of those
+role names.
 
 **Tone & voice:** warm and trustworthy, never corporate ("your child deserves
 more than just childcare," not "enroll now"). Visual style: photorealistic,
@@ -169,12 +169,12 @@ alone.
 agents — an e-com director who reads the whole store (Shopify orders/products/
 inventory, AutoDS sourcing, Meta metrics, connected-systems health, the business
 brief FIRST), writes a ranked operating brief, owns product strategy, and delegates
-to the specialists via the shared bus. Hawk (`dropship_agents.py`, "hawk") hunts
-and scores products. Blaze (`dropship_agents.py`, "blaze") reads Meta performance
-and drafts ad concepts — reusing the agency Meta engine under a locked env-swap, so
-the agency's account is never touched. Otto (`dropship_agents.py`, "otto") watches
-fulfillment and drafts customer replies. The specialists run on-demand + on Midas's
-handoffs; only Midas carries a background loop.
+to a human only when the work genuinely leaves the store. He runs all three lanes
+himself (Hawk/Blaze/Otto were merged into him on 2026-07-25): **product research**
+(`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` —
+reusing the agency Meta engine under a locked env-swap, so the agency's account is
+never touched), and **fulfillment & support** (`fulfillment_check`). Lane work runs
+on-demand from the routes; the daily brief runs on his background loop.
 
 **Tone & voice:** factual and honest; a support reply never invents a status or a
 ship date, and no agent ever states a margin without the cost inputs behind it.
@@ -203,13 +203,8 @@ directly, not stuffed into every agent's live prompt (the loader in
 | Wholesale | Atlas | `forge rei/deal_prep.py` | `forge-marcus/skills/` (rides on Marcus's folder — "Atlas reports to Marcus" is literal) | `Skills/atlas-underwriter.md` | `wholesale-evidence-discipline.md` |
 | Agency | Dyson | `forge rei/agency_agents.py` (`agent_id="dyson"`) | `forge-agency/skills/` | `Skills/dyson-playbook.md` | `agency-evidence-discipline.md` |
 | Agency | Eco | `forge rei/agency_agents.py` (`agent_id="eco"`) | `forge-agency/skills/` | `Skills/eco-playbook.md` | `agency-evidence-discipline.md` |
-| Daycare | Solomon | `forge rei/daycare_director.py` | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
-| Daycare | Nora | `forge rei/daycare_family.py` | `forge-nora/skills/` (top skill: `nora-decision-loop.md`) | `Skills/nora-playbook.md` | `daycare-evidence-discipline.md` |
-| Daycare | Nova | `forge rei/daycare_adops.py` | `forge-nova/skills/` (top skill: `nova-decision-loop.md`) | `Skills/nova-playbook.md` | `daycare-evidence-discipline.md` |
-| Dropship | Midas | `forge rei/dropship_director.py` | `forge-dropship/skills/` (top skills: `midas-decision-loop.md`, `midas-craft.md`) | `Skills/midas-playbook.md` | `dropship-evidence-discipline.md` |
-| Dropship | Hawk | `forge rei/dropship_agents.py` (`agent_id="hawk"`) | `forge-dropship/skills/` | `Skills/hawk-playbook.md` | `dropship-evidence-discipline.md` |
-| Dropship | Blaze | `forge rei/dropship_agents.py` (`agent_id="blaze"`) | `forge-dropship/skills/` | `Skills/blaze-playbook.md` | `dropship-evidence-discipline.md` |
-| Dropship | Otto | `forge rei/dropship_agents.py` (`agent_id="otto"`) | `forge-dropship/skills/` | `Skills/otto-playbook.md` | `dropship-evidence-discipline.md` |
+| Daycare | Solomon (director + roster/family-comms + ad ops) | `forge rei/daycare_director.py` | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md`, `solomon-roster-craft.md`, `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
+| Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` (top skills: `midas-decision-loop.md`, `midas-craft.md`, `dropship-four-triggers-ad-writer.md`, `dropship-meta-ads-diagnostician.md`) | `Skills/midas-playbook.md` | `dropship-evidence-discipline.md` |
 
 Shared infra used by every agent above: `review_agent._claude`/`review_agent.MODEL`
 (the actual Claude calls), `brain_io.py` (vault read/write + git history),
@@ -253,8 +248,8 @@ names as agency, separate file/account), `FAMILY_APP_URL`,
 **Dropship-only** (`forge-dropship/config/dropship.env`, blank = mock until
 filled): `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_ADMIN_TOKEN`, `SHOPIFY_API_VERSION`,
 `AUTODS_API_KEY`, `AUTODS_STORE_ID`, `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_MAP`
-(same var names as agency/daycare, separate file/account — Blaze reads them only
-through a per-call env-swap so they never leak across workspaces),
+(same var names as agency/daycare, separate file/account — read only through a
+per-call env-swap so they never leak across workspaces),
 `DROPSHIP_ANTHROPIC_API_KEY` (optional, falls back to shared). Not-yet stubs:
 `TIKTOK_*`, `KLAVIYO_API_KEY`, `GA4_*`, `AFTERSHIP_API_KEY`, `GHL_API_KEY`/
 `GHL_LOCATION_ID`, `HIGGSFIELD_*`, `METRICOOL_USER_TOKEN`.
@@ -279,7 +274,7 @@ outranking nothing below it in authority but framing everything below it:
 2. **The creed** (`agent_creed.block(business)`) — evidence discipline, in that
    business's own language. Never sees this file; this file never sees it
    either — they're injected independently, in sequence.
-3. **Top skills / decision-loop** (Solomon/Nora/Nova and Midas, via
+3. **Top skills / decision-loop** (Solomon and Midas, via
    `_load_skills()`) — the operating judgment layer.
 4. **The learned playbook** (`_playbook_only()`) — what `learn()` rewrites.
 
