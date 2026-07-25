@@ -40,6 +40,12 @@ _LOG_FILES = {
 }
 
 
+# Loops that no longer exist. Their last heartbeat is still in the state file on any
+# box that ran them, and a loop that never beats again goes red forever — so the health
+# card and the watchdog would alarm on an agent we deliberately retired. Dropped on read.
+RETIRED_LOOPS = {"nora", "nova", "hawk", "blaze", "otto"}
+
+
 def _load():
     try:
         d = json.loads(STATE.read_text())
@@ -47,6 +53,12 @@ def _load():
         d = {}
     if not isinstance(d, dict):
         d = {}
+    if d.keys() & RETIRED_LOOPS:
+        d = {k: v for k, v in d.items() if k not in RETIRED_LOOPS}
+        try:
+            _save(d)          # prune once, so the file stops carrying dead loops
+        except Exception:
+            pass
     return d
 
 
