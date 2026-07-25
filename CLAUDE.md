@@ -166,6 +166,15 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 
 ## 5. The agents
 
+**Seven agents, on purpose.** 2026-07-25 audit: the daycare ran a director + two role
+agents that were ~85% the same class re-reading the same tables on separate loops, and
+dropship ran a director + three specialists for a store that isn't live. Nora, Nova, Hawk,
+Blaze and Otto were retired — their skills merged into Solomon's and Midas's top skills +
+playbooks, their data reads became director methods, their routes became lane views onto
+the director's brief. **Before adding an agent, ask whether a section of an existing
+agent's brief does the job.** A new agent is a new playbook to drift, a new loop to run,
+and a new Claude call per cycle.
+
 | Agent | Side | Job | Autonomy |
 |-------|------|-----|----------|
 | **Scout** (`scout_triage.py`) | REI | **FINDS + RANKS + ORGANIZES** every seller reply: scores motivation, buckets (asap/warm/nurture/dead), tags + pipeline, flags hot, weekly missed-leads audit. **Auto-hands call-worthy leads (asap/warm) to Marcus.** | Never texts. Tags/pipeline queued for approval. Self-improves. |
@@ -173,7 +182,7 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 | **Atlas** (`deal_prep.py`) | REI | **UNDERWRITES** every screened-interested seller: extracts facts from the thread, derives offer anchors (open/target/walkaway) from the SELLER'S stated ask, spells out the MAO math + what comps to pull, writes the negotiation call card. Auto-preps every 15 min. | Never contacts anyone. Prep numbers are INTERNAL — never sent to a seller. Reports to Marcus. |
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
-| **Solomon** (`daycare_director.py`) | Daycare | Head of all daycare agents — reads the whole center, produces the ranked operating brief, owns enrollment, delegates the rest via the bus. See §10. | Never texts/invoices/launches ads/writes the DB. Proposes + delegates. Self-improves. |
+| **Solomon** (`daycare_director.py`) | Daycare | **Runs the whole center.** One ranked operating brief: ops, enrollment, money, people, **roster + family follow-ups** (was Nora), **campaign health + competitor read + creative direction** (was Nova). Owns enrollment. See §10. | Never texts/invoices/launches ads/writes the DB. Proposes only. Self-improves. |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
 Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls), `brain_io`
