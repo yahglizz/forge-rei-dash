@@ -13,6 +13,7 @@ const REI_PAGES = {
   // Agents = the unified hub. Command/Screening keys stay mapped (nothing removed) —
   // they're reachable as each agent's Console inside the hub.
   Agents:        () => <window.HubAgentsPage ws="rei" />,
+  Office:        () => <window.PixelOfficePage />,
   Command:       () => <window.MarcusCommand />,
   Screening:     () => <window.ScreeningPage />,
   AgentsLegacy:  () => <window.AgentsPage />,
@@ -34,6 +35,7 @@ const AGENCY_PAGES = {
   ClientView: () => <window.AgencyClientView />,
   Requests:   () => <window.AgencyRequests />,
   Agents:     () => <window.HubAgentsPage ws="agency" />,
+  Office:     () => <window.PixelOfficePage />,
   Build:      () => <window.AgencyBuild />,
   AgencyAgentsLegacy: () => <window.AgencyAgents />,
   Dyson:      () => <window.AgencyDyson />,
@@ -53,6 +55,7 @@ const AGENCY_PAGES = {
 const DAYCARE_PAGES = {
   Dashboard:  () => <window.DaycareDashboard />,
   Agents:     () => <window.HubAgentsPage ws="daycare" />,
+  Office:     () => <window.PixelOfficePage />,
   Director:   () => <window.DaycareDirector />,
   Family:     () => <window.DaycareFamilyAgent />,
   AdOps:      () => <window.DaycareAdOpsAgent />,
@@ -81,6 +84,7 @@ const DAYCARE_PAGES = {
 const DROPSHIP_PAGES = {
   Dashboard:  () => <window.DropshipDashboard />,
   Agents:     () => <window.DropshipAgents />,
+  Office:     () => <window.PixelOfficePage />,
   Products:   () => <window.DropshipProducts />,
   Watch:      () => <window.DropshipWatch />,
   Orders:     () => <window.DropshipOrders />,

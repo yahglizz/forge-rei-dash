@@ -5,7 +5,7 @@
 // pile of per-agent tabs. The old per-agent PAGES are untouched — they're now rendered as
 // each agent's "Console" inside the hub (HUB_CONSOLE), just no longer their own nav item.
 const NAV = [
-  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Leads", "Leads"], ["Conversations", "Conversations"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"], ["Leads", "Leads"], ["Conversations", "Conversations"],
   ["Pipeline", "Deal Pipeline"], ["Contracts", "Contracts"], ["DealCalc", "Deal Calc"], ["Buyers", "Buyers"], ["Blast", "Buyer Blast"], ["Properties", "Properties"],
   ["Outbound", "Outbound"],
   ["Marketing", "Marketing"], ["Tasks", "Tasks"], ["Analytics", "Analytics"],
@@ -14,7 +14,7 @@ const NAV = [
 
 // Forge AI Agency workspace — ClientForge ops + control center
 const AGENCY_NAV = [
-  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Build", "Blueprint Studio"], ["Clients", "Clients"], ["ClientView", "Client View"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"], ["Build", "Blueprint Studio"], ["Clients", "Clients"], ["ClientView", "Client View"],
   ["Requests", "Edit Requests"],
   ["Workflows", "Workflows"], ["Ads", "Meta Ads"], ["Social", "Social"], ["Approvals", "Approvals"],
   ["CallCenter", "Call Center"],
@@ -24,7 +24,7 @@ const AGENCY_NAV = [
 
 // Daycare workspace — center operations, families, staff, enrollment, and billing.
 const DAYCARE_NAV = [
-  ["Dashboard", "Dashboard"], ["Agents", "Agents"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"],
   ["Children", "Children"], ["Attendance", "Attendance"],
   ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Rewards", "Blessing Coins"], ["Classrooms", "Classrooms"],
   ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["ParentLogins", "Parent Logins"], ["Messages", "Messages"],
@@ -37,7 +37,7 @@ const DAYCARE_NAV = [
 
 // FORGE Dropship workspace — Shopify/AutoDS/Meta store run by the Midas agent crew.
 const DROPSHIP_NAV = [
-  ["Dashboard", "Dashboard"], ["Agents", "Agents"],
+  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"],
   ["Products", "Products"], ["Watch", "Product Watch"], ["Orders", "Orders"], ["Inventory", "Inventory"],
   ["Suppliers", "AutoDS · Suppliers"], ["Ads", "Ads & Creative"], ["Customers", "Customers"],
   ["Analytics", "Analytics"], ["Connections", "Connections & MCP"],
