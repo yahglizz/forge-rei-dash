@@ -31,67 +31,27 @@ STATE = HERE / "marcus_state" / "agency_dyson.json"
 _LOCK = threading.Lock()
 
 # --- Anthropic key (mirrors agency_agents._agency_key) -----------------------
-_AGENCY_ENV_CANDIDATES = [
-    HERE.parent / "forge-agency" / "config" / "agency.env",
-    Path.home() / "Desktop" / "forge-agency" / "config" / "agency.env",
-]
-
-
 def _agency_key():
-    """Return (key, source). Agency key wins; falls back to wholesale."""
-    k = os.environ.get("AGENCY_ANTHROPIC_API_KEY")
-    if k:
-        return k, "agency-env"
-    for p in _AGENCY_ENV_CANDIDATES:
-        if p.exists():
-            for line in p.read_text().splitlines():
-                s = line.strip()
-                if s.startswith("ANTHROPIC_API_KEY=") and not s.startswith("#"):
-                    v = s.split("=", 1)[1].strip()
-                    if v and not v.startswith("sk-ant-..."):
-                        return v, "agency"
-    wholesale = review_agent._api_key()
-    if wholesale:
-        return wholesale, "wholesale"
-    return None, None
+    """Return (key, source) — ONE resolver, agency_agents owns it.
 
-
-# --- brain skills (mtime-cached playbook, mirrors agency_agents._load_skills) -
-_SEED_SKILLS_DIRS = [
-    HERE.parent / "forge-agency" / "skills",
-    Path.home() / "Desktop" / "forge-agency" / "skills",
-]
-_SK_CACHE = {}  # agent_id -> (mtime_sig_tuple, text)
-_DYSON_PLAYBOOK_REL = "Skills/dyson-playbook.md"
+    Was a byte-identical third copy; lazy import keeps the module graph acyclic.
+    """
+    try:
+        import agency_agents
+        return agency_agents._agency_key()
+    except Exception:
+        return review_agent._api_key(), "wholesale"
 
 
 def _load_skills():
-    """Load Dyson's playbook: seed + brain vault version, mtime-cached.
-    Returns "" if neither source exists."""
+    """Dyson's playbook (seed + vault, mtime-cached) — ONE loader, in agency_agents.
+    agency_agents.learn() is what writes this playbook; this module only reads it."""
     try:
-        import brain_io
-        parts, sig = [], []
-        srcs = []
-        for d in _SEED_SKILLS_DIRS:
-            p = d / "dyson-playbook.md"
-            if p.is_file():
-                srcs.append(p)
-                break
-        srcs.append(brain_io.VAULT / _DYSON_PLAYBOOK_REL)
-        for p in srcs:
-            if p.is_file():
-                parts.append(p.read_text(errors="ignore"))
-                sig.append(p.stat().st_mtime)
-        sig_key = tuple(sig)
-        cached = _SK_CACHE.get("dyson")
-        if not cached or cached[0] != sig_key:
-            text = "\n\n".join(parts)
-            _SK_CACHE["dyson"] = (sig_key, text)
-            return text
-        return cached[1]
+        import agency_agents
+        return agency_agents._load_skills("dyson")
     except Exception:
-        cached = _SK_CACHE.get("dyson")
-        return cached[1] if cached else ""
+        return ""
+
 
 STATUSES = ["draft", "approved", "revision", "rejected"]
 

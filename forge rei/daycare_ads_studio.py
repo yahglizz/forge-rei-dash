@@ -382,7 +382,7 @@ def create_ad(idea_id):
         }})
         try:
             import agent_bus
-            agent_bus.send("nova", "all", "status",
+            agent_bus.send("solomon", "all", "status",
                            f"Built PAUSED campaign '{idea.get('title')}' "
                            f"(${budget_dollars}/day when you activate it).",
                            {"ideaId": idea_id})

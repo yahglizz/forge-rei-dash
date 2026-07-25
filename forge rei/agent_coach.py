@@ -37,7 +37,7 @@ BUSINESS_OF = {
     "scout": "wholesale", "marcus": "wholesale", "atlas": "wholesale",
     "dyson": "agency", "eco": "agency",
     "solomon": "daycare",
-    "midas": "dropship", "hawk": "dropship", "blaze": "dropship", "otto": "dropship",
+    "midas": "dropship",
 }
 BUSINESSES = {"wholesale", "agency", "daycare", "dropship"}
 
