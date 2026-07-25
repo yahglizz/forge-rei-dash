@@ -38,60 +38,28 @@ AGENCY_ENV_CANDIDATES = [
     Path.home() / "Desktop" / "forge-agency" / "config" / "agency.env",
 ]
 
-SEED_SKILLS_DIRS = [
-    HERE.parent / "forge-agency" / "skills",
-    Path.home() / "Desktop" / "forge-agency" / "skills",
-]
-
-_SK_CACHE = {}  # agent_id -> (mtime_sig, text)
-
 
 def _agency_key():
-    """Return (key, source). Agency env wins; falls back to wholesale key."""
-    k = os.environ.get("AGENCY_ANTHROPIC_API_KEY")
-    if k:
-        return k, "agency-env"
-    for p in AGENCY_ENV_CANDIDATES:
-        if p.exists():
-            for line in p.read_text().splitlines():
-                s = line.strip()
-                if s.startswith("ANTHROPIC_API_KEY=") and not s.startswith("#"):
-                    v = s.split("=", 1)[1].strip()
-                    if v and not v.startswith("sk-ant-..."):
-                        return v, "agency"
-    wholesale = review_agent._api_key()
-    if wholesale:
-        return wholesale, "wholesale"
-    return None, None
+    """Return (key, source) — ONE resolver, agency_agents owns it.
 
-
-# --- brain playbook (mtime-cached, mirrors agency_agents._load_skills) --------
-def _load_eco_skills():
-    """Eco's playbook = seed file + brain-vault version. mtime-cached."""
+    Kept under this name because daycare_director and dropship_director both resolve
+    their key through here. Lazy import keeps the module graph acyclic.
+    """
     try:
-        import brain_io
-        parts, sig = [], []
-        srcs = []
-        for d in SEED_SKILLS_DIRS:
-            p = d / "eco-playbook.md"
-            if p.is_file():
-                srcs.append(p)
-                break
-        srcs.append(brain_io.VAULT / "Skills" / "eco-playbook.md")
-        for p in srcs:
-            if p.is_file():
-                parts.append(p.read_text(errors="ignore"))
-                sig.append(p.stat().st_mtime)
-        sig = tuple(sig)
-        cached = _SK_CACHE.get("eco")
-        if not cached or cached[0] != sig:
-            text = "\n\n".join(parts)
-            _SK_CACHE["eco"] = (sig, text)
-            return text
-        return cached[1]
+        import agency_agents
+        return agency_agents._agency_key()
     except Exception:
-        cached = _SK_CACHE.get("eco")
-        return cached[1] if cached else ""
+        return review_agent._api_key(), "wholesale"
+
+
+def _load_eco_skills():
+    """Eco's playbook (seed + vault, mtime-cached) — ONE loader, in agency_agents.
+    agency_agents.learn() writes this playbook; this module only reads it."""
+    try:
+        import agency_agents
+        return agency_agents._load_skills("eco")
+    except Exception:
+        return ""
 
 
 # --- template fallback (original _ANGLE_LIBRARY logic, unchanged) -------------
