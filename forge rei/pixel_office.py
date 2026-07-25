@@ -163,7 +163,13 @@ def _open_tasks():
 
 def _engine_health(agent_id):
     """(reachable, healthy, detail). reachable=False means we genuinely can't see it —
-    the floor renders that as "unknown", never as idle."""
+    the floor renders that as "unknown", never as idle.
+
+    Dyson and Eco have no background engine at all: their brain is agency_agents.chat,
+    which is always reachable. Only an agent that SHOULD have an engine and doesn't
+    counts as unreachable — otherwise a chat-only agent reads as broken forever."""
+    if agent_id not in _ENGINE_ATTR:
+        return True, True, ""
     eng = _engine(agent_id)
     if eng is None:
         return False, False, ""
@@ -414,18 +420,30 @@ def jobs(business=None, limit=20):
 
 def _selfcheck():
     """Runnable check of the only non-trivial logic here: activity precedence and the
-    job lifecycle. No network, no Claude — a fake chat_fn stands in for the brain."""
+    job lifecycle. No network, no Claude — a fake chat_fn stands in for the brain, and
+    the task/bus stores are redirected to a temp dir so a test run never writes into
+    the operator's live marcus_state."""
+    import tempfile
+    from pathlib import Path as _P
+
     assert set(DEPT_OF) == {a for d in DEPARTMENTS for a in d["agents"]}
     assert len(DEPT_OF) == 12, DEPT_OF
 
     now = 1_000_000
+    # "zzz" is chat-only (no engine attr) -> idle, not unknown.
+    assert _activity("zzz", {}, {}, now)["activity"] == "idle"
     # queued beats idle; reporting beats queued; a live job beats everything.
-    assert _activity("zzz", {}, {}, now)["activity"] == "unknown"
     assert _activity("zzz", {}, {"zzz": 2}, now)["activity"] == "queued"
     assert _activity("zzz", {"zzz": (now - 1000, "hi")}, {"zzz": 2}, now)["activity"] == "reporting"
     # outside the window a stale bus note must NOT read as reporting
     stale = _activity("zzz", {"zzz": (now - REPORTING_WINDOW_MS - 1, "old")}, {}, now)
-    assert stale["activity"] == "unknown", stale
+    assert stale["activity"] == "idle", stale
+
+    tmp = _P(tempfile.mkdtemp(prefix="pixel_office_test_"))
+    import agents_hub
+    import agent_bus
+    agents_hub.TASKS = tmp / "hub_tasks.json"
+    agent_bus.STATE = tmp / "agent_bus.json"
 
     # full lifecycle through the real dispatch path
     out = dispatch("scout", "Test task", chat_fn=lambda a, m: {"reply": "line one\nline two"})
