@@ -1027,6 +1027,23 @@ def api_hub_history(q):
     return {"messages": agents_history.history(agent).get("history") or []}
 
 
+# ── Agent Office — the visual floor (pixel_office.py). Read-only reads of what every
+# agent is doing; the task POST below is what actually puts one to work.
+def api_office_state(q):
+    import pixel_office
+    return pixel_office.state((q.get("business", [None]) or [None])[0])
+
+
+def api_office_job(q):
+    import pixel_office
+    return pixel_office.job((q.get("id", [""]) or [""])[0])
+
+
+def api_office_jobs(q):
+    import pixel_office
+    return pixel_office.jobs((q.get("business", [None]) or [None])[0])
+
+
 # Cross-agent coaching — the live feed powering the Agent Network's Coaching panel.
 # INSIGHTS ONLY (text): broadcasts/asks/answers, never a credential or outward action.
 def api_coach_feed(q):
@@ -2505,6 +2522,9 @@ ROUTES = {
     "/api/hub/tasks": api_hub_tasks,
     "/api/hub/bus": api_hub_bus,
     "/api/hub/history": api_hub_history,
+    "/api/office/state": api_office_state,
+    "/api/office/job": api_office_job,
+    "/api/office/jobs": api_office_jobs,
     "/api/coach/feed": api_coach_feed,
     "/api/scout/summary": api_scout_summary,
     "/api/scout/leads": api_scout_leads,
@@ -2586,6 +2606,7 @@ ROUTES = {
 NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status",
             "/api/cost/status", "/api/spend/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
+            "/api/office/state", "/api/office/job", "/api/office/jobs",
             "/api/coach/feed", "/api/sync/status", "/api/sync/check",
             "/api/ace/callready", "/api/ace/digest",
             "/api/contacts", "/api/conversations", "/api/messages",
@@ -2890,6 +2911,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/chat",
                                    "/api/hub/task",
                                    "/api/hub/task/update",
+                                   "/api/office/task",
                                    "/api/graphify/rebuild",
                                    "/api/coach/broadcast",
                                    "/api/coach/ask",
@@ -3094,6 +3116,22 @@ class Handler(BaseHTTPRequestHandler):
                                               body.get("note", ""))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
+            elif parsed.path == "/api/office/task":
+                # The Agent Office floor: file the task AND actually run that agent's
+                # real brain in the background so the operator watches it happen.
+                # chat_fn is the hub chat bound to THIS GHL sub-account (same pattern as
+                # /api/coach/ask) — pixel_office stays connector-free.
+                import pixel_office
+
+                def _office_chat(_aid, _msg):
+                    out = agents_hub.chat(ghl_get, LOCATION_ID, _aid, _msg,
+                                          history=agents_history.recent_for_context(_aid))
+                    if isinstance(out, dict) and out.get("reply") and not out.get("needsKey"):
+                        agents_history.record(_aid, _msg, out.get("reply"), via="office")
+                    return out
+
+                result = pixel_office.dispatch(body.get("agentId"), body.get("title"),
+                                               body.get("note", ""), chat_fn=_office_chat)
             elif parsed.path == "/api/graphify/rebuild":
                 # Rebuild the knowledge graph now (internal + read-only over the repo/
                 # vault; writes only the graph file). Handy after a big code change.
