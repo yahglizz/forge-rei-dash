@@ -389,6 +389,11 @@ class Screener:
             system += agent_creed.block("wholesale")
         except Exception:
             pass
+        try:
+            import agent_context as _ac
+            system += _ac.wholesale_context()   # the business brief, same as every other side
+        except Exception:
+            pass
         skills = self._load_skills()
         if skills:
             system += ("\n\n=== YOUR SKILLS (screening rubric + critical-thinking + seller-psychology + nurture — apply them) ===\n"

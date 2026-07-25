@@ -442,6 +442,11 @@ class ScoutEngine:
             system += agent_creed.block("wholesale")
         except Exception:
             pass
+        try:
+            import agent_context as _ac
+            system += _ac.wholesale_context()   # the business brief, same as every other side
+        except Exception:
+            pass
         skills = self._load_skills()
         if skills:
             system += ("\n\n=== YOUR PLAYBOOK (learned rubric from the brain — apply it) ===\n"

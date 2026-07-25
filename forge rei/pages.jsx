@@ -764,85 +764,6 @@ function AgentThread({ agent }) {
   );
 }
 
-function AgentsPage() {
-  const Icons = window.Icons;
-  const [sel, setSel] = useStateP(null);
-  const { data, error, loading, refresh } = window.useApi("/api/agents/list", { interval: 30000 });
-  const agents = (data && data.agents) || [];
-  const active = sel ? (agents.find((a) => a.id === sel.id) || sel) : (agents[0] || null);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, height: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.5px" }}>AI Agents</h1>
-          <p className="faint" style={{ fontSize: 13.5, marginTop: 3 }}>
-            {agents.length} agent{agents.length === 1 ? "" : "s"} · talk to any of them directly
-          </p>
-        </div>
-      </div>
-
-      {error && <window.ErrorRow error={error} onRetry={refresh} />}
-
-      <div className="card" style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex" }}>
-        {/* LEFT — agent roster */}
-        <div style={{ width: 320, flexShrink: 0, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)", fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: "var(--text-3)" }}>YOUR AGENTS</div>
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {loading && !data && <window.LoadingRow />}
-            {agents.map((a) => {
-              const on = active && active.id === a.id;
-              return (
-                <div key={a.id} onClick={() => setSel(a)} className="row-item"
-                  style={{ padding: "11px 13px", borderBottom: "1px solid var(--border)", cursor: "pointer",
-                    background: on ? "var(--card-2)" : "transparent", borderLeft: on ? "3px solid var(--blue)" : "3px solid transparent" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, display: "grid", placeItems: "center",
-                    background: avaColor(a.id), color: "#fff" }}>
-                    <Icons.Bot size={19} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</span>
-                      {a.kind === "coordinator"
-                        ? <span className="pill" style={{ background: "rgba(34,197,94,0.12)", color: "var(--green)", fontSize: 9.5, flexShrink: 0 }}>LIVE</span>
-                        : <span className="pill" style={{ background: "var(--card-2)", fontSize: 9.5, flexShrink: 0 }}>VOICE</span>}
-                    </div>
-                    <div className="faint" style={{ fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{a.role}</div>
-                  </div>
-                </div>
-              );
-            })}
-            {!loading && agents.length === 0 && (
-              <div className="empty" style={{ padding: 30 }}><div className="empty-ico"><Icons.Bot size={22} /></div><div style={{ fontWeight: 600, color: "var(--text)", fontSize: 13 }}>No agents yet</div><div style={{ fontSize: 12 }}>Marcus appears here; add a Retell key for voice agents.</div></div>
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT — chat with the selected agent */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {active ? (
-            <React.Fragment>
-              <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ width: 38, height: 38, borderRadius: "50%", display: "grid", placeItems: "center", background: avaColor(active.id), color: "#fff" }}><Icons.Bot size={18} /></div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>{active.name}</div>
-                  <div className="faint" style={{ fontSize: 11.5 }}>{active.role}</div>
-                </div>
-              </div>
-              <AgentThread key={active.id} agent={active} />
-            </React.Fragment>
-          ) : (
-            <div className="empty" style={{ flex: 1 }}>
-              <div className="empty-ico"><Icons.Bot size={26} /></div>
-              <div style={{ fontWeight: 600, color: "var(--text)" }}>Select an agent</div>
-              <div style={{ fontSize: 12 }}>Pick an agent on the left to start chatting.</div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Deal Calc — ARV + Max Allowable Offer. MAO = ARV*% - repairs - assignment fee.
@@ -2143,4 +2064,4 @@ function Placeholder({ title, icon }) {
   );
 }
 
-Object.assign(window, { Leads, ConversationsPage, AgentsPage, DealCalcPage, PipelinePage, TasksPage, OutboundPage, Placeholder });
+Object.assign(window, { Leads, ConversationsPage, DealCalcPage, PipelinePage, TasksPage, OutboundPage, Placeholder });
