@@ -4584,9 +4584,9 @@ def main():
         tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True)
         tsol.start()
         # Midas — the dropship store's head agent (e-com director). Reads the store
-        # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief, delegates to
-        # Hawk/Blaze/Otto. Propose-only; self-improves. The specialists run on-demand
-        # (routes + handoffs), so only the director carries a background loop.
+        # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
+        # product research, ads and fulfillment. Propose-only; self-improves. Lane work
+        # (research / analyze_ads / fulfillment_check) runs on-demand from the routes.
         print(f"   Midas: dropship e-com director · brief every {dropship_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
         tmid = threading.Thread(target=MIDAS.run_forever, daemon=True)
         tmid.start()

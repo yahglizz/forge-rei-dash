@@ -51,26 +51,26 @@ function DropshipAnalytics() {
   </div>;
 }
 
-// ---- Agents crew console (Midas + Hawk / Blaze / Otto) ----
-function DsgAgentCard({ agent, runPath, learnPath, tab, onDone }) {
+// ---- Agents console (Midas — one director, three lanes) ----
+// Hawk / Blaze / Otto were merged into Midas: these cards run HIS lane work. The paths
+// are the old specialist routes, which the connector now aliases onto the director, so
+// nothing had to move. One playbook = one Self-improve button, on Midas himself.
+function DsgLaneCard({ agent, title, blurb, runPath, tab, onDone }) {
   const [busy, setBusy] = useStateDsg("");
   const act = async (path, label) => {
     setBusy(label);
     try { await window.DsRequest(path, { body: {} }); onDone && onDone(); }
     catch (e) { window.alert(e.message); } finally { setBusy(""); }
   };
-  const learn = agent.learn || {};
+  const ready = !agent || agent.aiReady !== false;
   return <div className="card card-pad dc-agent-card">
-    <div className="dc-panel-head"><div><div className="card-title">{agent.name} <span className="faint">· {agent.title}</span></div><div className="faint">{agent.aiReady ? "AI ready" : "no Claude key"}{agent.creedLoaded ? " · creed ✓" : ""}{agent.playbookLoaded ? " · playbook ✓" : ""}</div></div></div>
+    <div className="dc-panel-head"><div><div className="card-title">{title}</div><div className="faint">{blurb}</div></div></div>
     <div className="dc-chip-row">
-      <span className="pill" style={{ color: agent.aiReady ? "#22C55E" : "#F87171", background: (agent.aiReady ? "#22C55E" : "#F87171") + "22" }}>{agent.aiReady ? "ready" : "no key"}</span>
-      {typeof agent.briefCount === "number" && <span className="pill">{agent.briefCount} briefs</span>}
-      {typeof agent.runCount === "number" && <span className="pill">{agent.runCount} runs</span>}
-      {typeof learn.learnCount === "number" && <span className="pill">learned ×{learn.learnCount}</span>}
+      <span className="pill" style={{ color: ready ? "#22C55E" : "#F87171", background: (ready ? "#22C55E" : "#F87171") + "22" }}>{ready ? "ready" : "no key"}</span>
+      <span className="pill">Midas lane</span>
     </div>
     <div className="dc-modal-actions">
       <button className="dc-primary" disabled={!!busy} onClick={() => act(runPath, "run")}>{busy === "run" ? "Running…" : "Run"}</button>
-      <button className="dc-quiet" disabled={!!busy} onClick={() => act(learnPath, "learn")}>{busy === "learn" ? "Learning…" : "Self-improve"}</button>
       {tab && <button className="link" onClick={() => window.GoTo(tab)}>Open tab →</button>}
     </div>
   </div>;
@@ -87,16 +87,16 @@ function DropshipAgents() {
   const refresh = () => { crew.refresh(); brief.refresh(); bus.refresh(); };
   const section = (title, items) => (items && items.length) ? <div className="dc-brief-sec"><b>{title}</b><ul className="dc-notes">{items.map((x, i) => <li key={i}>{typeof x === "string" ? x : (x.title ? (x.title + (x.why ? " — " + x.why : "")) : (x.role ? (x.role + " → " + x.task) : JSON.stringify(x)))}</li>)}</ul></div> : null;
   return <div className="dc-page">
-    <window.DsPageHead title="Agents — the Midas crew" copy="Midas directs; Hawk / Blaze / Otto specialize. Everyone proposes — you approve every outward action." actions={<button className="dc-outline" onClick={refresh}>Refresh</button>} />
+    <window.DsPageHead title="Agents — Midas" copy="One director running product research, ads, and fulfillment. He proposes — you approve every outward action." actions={<button className="dc-outline" onClick={refresh}>Refresh</button>} />
     <window.DsState loading={crew.loading} error={crew.error} onRetry={refresh}>
       <div className="card card-pad dc-panel">
         <div className="dc-panel-head"><div><div className="card-title">Midas · E-com Director</div><div className="faint">{b ? (b.headline || "Latest operating brief") : "No brief yet — run Midas"}</div></div><div className="dc-modal-actions"><button className="dc-primary" onClick={() => window.DsRequest("/director/run", { body: {} }).then(refresh).catch((e) => window.alert(e.message))}>Run brief</button><button className="dc-quiet" onClick={() => window.DsRequest("/director/learn", { body: {} }).then(refresh).catch((e) => window.alert(e.message))}>Self-improve</button></div></div>
-        {b ? <div className="dc-brief">{section("Attention now", b.priorities)}{section("Winners", b.winners)}{section("Money", b.money)}{section("Ops", b.ops)}{section("Delegations", b.delegations)}</div> : <div className="dc-inline-empty">Run Midas to generate a ranked operating brief (reads Shopify / AutoDS / Meta + the brief).</div>}
+        {b ? <div className="dc-brief">{section("Attention now", b.priorities)}{section("Winners", b.winners)}{section("Money", b.money)}{section("Ops", b.ops)}{section("Ads", b.ads)}{section("Delegations", b.delegations)}</div> : <div className="dc-inline-empty">Run Midas to generate a ranked operating brief (reads Shopify / AutoDS / Meta + the brief).</div>}
       </div>
       <div className="dc-crew-grid">
-        {byId.hawk && <DsgAgentCard agent={byId.hawk} runPath="/hawk/run" learnPath="/hawk/learn" tab="Products" onDone={refresh} />}
-        {byId.blaze && <DsgAgentCard agent={byId.blaze} runPath="/blaze/run" learnPath="/blaze/learn" tab="Ads" onDone={refresh} />}
-        {byId.otto && <DsgAgentCard agent={byId.otto} runPath="/otto/run" learnPath="/otto/learn" tab="Customers" onDone={refresh} />}
+        <DsgLaneCard agent={byId.midas} title="Product research" blurb="Scores the watchlist on margin, demand, ad-ability, fulfillment" runPath="/hawk/run" tab="Products" onDone={refresh} />
+        <DsgLaneCard agent={byId.midas} title="Creative & ads" blurb="Reads Meta performance, calls scale/hold/kill, drafts concepts" runPath="/blaze/run" tab="Ads" onDone={refresh} />
+        <DsgLaneCard agent={byId.midas} title="Fulfillment & support" blurb="Unshipped, stockouts, tracking gaps — and drafts replies" runPath="/otto/run" tab="Customers" onDone={refresh} />
       </div>
       <div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Agent comms</div><div className="faint">the shared bus — handoffs + status across FORGE</div></div></div>{busMsgs.length ? <div className="dc-alert-list">{busMsgs.slice(0, 12).map((m, i) => <div key={m.id || i}><span className="dc-severity info" /><div><b>{m.from} → {m.to}</b><small>{m.text}</small></div></div>)}</div> : <div className="dc-inline-empty">No messages yet.</div>}</div>
     </window.DsState>
