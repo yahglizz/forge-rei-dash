@@ -274,6 +274,20 @@ update that skill if you improved the pattern.
 - Agency Call Center (`agency_calls.py` + `agency_callcenter.jsx`): tap-to-log dial tracker — Answered/No-Answer buttons, daily log, editable dial goal, streak (consecutive days ≥ goal; in-progress today never breaks it). `/api/agency/calls{,/log,/undo,/goal}`, state `marcus_state/agency_calls.json`. Internal tally only — no approval gate.
 - Agency Call Sheet (`agency_callsheet.py`, same tab): upload a PDF of biz leads (or paste text) → Claude parses to rows (`review_agent._claude`; regex fallback, pypdf/PyPDF2/pdftotext extraction chain — box has pypdf) → CRM-style table with search + status chips; per-row quick-marks New/Answered/No answer/Call back/Move on, tap-to-dial `tel:` links, inline notes, phone-dedupe on import. Marking answered/no_answer auto-bumps the daily tally. `/api/agency/callsheet{,/import-pdf,/import-text,/status,/note,/delete,/clear-dead}`, state `marcus_state/agency_callsheet.json`.
 - Bus: `/api/bus` · Brain: `/api/brain/{tree,note,search,recent,graph,activity,status}`
+- **Agent Office** (`pixel_office.py` + `pixel_office.jsx`, nav "Agent Office" in all four
+  workspaces): the visual floor — four department rooms, twelve agents as pixel characters,
+  animated from REAL signals only (live job → agent_bus → open hub tasks → engine status;
+  an agent we can't reach reads "unknown", never "idle"). Clicking a character opens its
+  status + live step log + a task box. Sending a task files it via `agents_hub.send_task`
+  AND runs that agent's real brain in a background thread (`agents_hub.chat` for the eight
+  hub agents; `analyze`/`build_brief` for the dropship four), then posts the result on the
+  bus and closes the task. Rule 2 holds — the run is THINKING, never an outward action.
+  Routes `/api/office/{state,job,jobs}` (GET) + `/api/office/task` (POST). Self-check:
+  `python3 pixel_office.py`. Idea borrowed from github.com/pixel-agents-hq/pixel-agents;
+  rebuilt on this stack (their Vite/React-19/Fastify/VS-Code build can't drop into a
+  buildless UMD dashboard) with procedurally drawn characters, so no third-party sprite
+  art ships in this public repo.
+
 - Telegram alerts + tap-to-approve (`telegram_io.py`): pings on hot lead / Marcus reply
   needing approval (warm+ only) / weekly missed sweep / handoffs+agency; inline buttons
   reuse Marcus's gated send + Scout handoff/dismiss. Tap **two-factor auth**: right chat AND
