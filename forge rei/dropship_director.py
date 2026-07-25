@@ -4,12 +4,17 @@ Midas is the head of all dropship agents: an e-commerce operator. He reads the w
 store — Shopify (orders, products, inventory), AutoDS (sourcing), Meta ads, the
 connected-systems health, and the business brief (forge-dropship/skills/
 dropship-context.md, read FIRST) — then produces a prioritized OPERATING BRIEF
-(Attention Now, Winners, Money, Ops, Delegations). He OWNS product strategy and
-DELEGATES the rest to Hawk (research), Blaze (creative/ads), and Otto
-(fulfillment/support) via the shared agent bus.
+(Attention Now, Winners, Money, Ops, Ads, Delegations).
+
+2026-07-25: the crew collapsed into one director. Hawk (product research), Blaze
+(creative/ads) and Otto (fulfillment/support) were merged into Midas — their rubrics
+live on as lane sections of midas-playbook.md, Blaze's two ad frameworks became
+top skills (learn() still can't rewrite them), and their work is now the research() /
+analyze_ads() / fulfillment_check() methods below. Their old routes narrow this brief
+via products_view() / ads_view() / ops_view().
 
 Midas never takes an outward or irreversible action. No ad launch, budget change,
-supplier order, listing publish, or customer message. He proposes + delegates; a
+supplier order, listing publish, or customer message. He proposes; a
 human taps to execute. His ONLY autonomous writes are his own brain playbook
 (learn()) and bus notes — same rule as Solomon.
 
@@ -58,7 +63,7 @@ _SYSTEMS = [
 # Keys that share a name with ANOTHER business's env are NEVER globally injected —
 # they'd leak across workspaces (e.g. the agency reads META_ACCESS_TOKEN straight from
 # os.environ). Dropship reads its own copies of these via dropship_env + a per-call
-# scoped swap (Blaze's Meta), so keeping them file-only preserves isolation. Everything
+# scoped swap (_scoped_meta_env), so keeping them file-only preserves isolation. Everything
 # else in dropship.env is uniquely named (SHOPIFY_*, AUTODS_*, DROPSHIP_*, FORGE_DROPSHIP_*)
 # and safe to expose.
 _SHARED_PREFIXES = ("META_", "GHL_")
@@ -204,6 +209,7 @@ class MidasEngine:
         self.last_error = None
         self.last_brief = None      # last operating brief dict
         self.last_brief_at = None
+        self.last_result = None     # last lane analysis (research / ads / fulfillment)
         self.brief_count = 0
         self.learn_state = {"lastLearnedAt": None, "learnCount": 0, "briefsSinceLearn": 0}
         self._sk_text = ""
@@ -218,6 +224,7 @@ class MidasEngine:
                 self.activity = d.get("activity", []) or []
                 self.last_brief = d.get("lastBrief")
                 self.last_brief_at = d.get("lastBriefAt")
+                self.last_result = d.get("lastResult")
                 self.brief_count = d.get("briefCount", 0) or 0
                 self.learn_state = d.get("learnState", self.learn_state) or self.learn_state
         except Exception:
@@ -230,6 +237,7 @@ class MidasEngine:
                 "activity": self.activity[-120:],
                 "lastBrief": self.last_brief,
                 "lastBriefAt": self.last_brief_at,
+                "lastResult": self.last_result,
                 "briefCount": self.brief_count,
                 "learnState": self.learn_state,
             })
@@ -388,10 +396,10 @@ class MidasEngine:
             "its niche, target margin, price bands, or supplier facts. Build today's "
             "OPERATING BRIEF for the operator: rank ruthlessly, ground every point in the "
             "real data below, and tie everything to growing PROFITABLE revenue while keeping "
-            "the merchant + ad accounts healthy. You OWN product strategy. You DELEGATE the "
-            "rest to Hawk (product research), Blaze (creative/ads), and Otto "
-            "(fulfillment/support) — name one of those as the role so they pick the work up. "
-            "You NEVER take an outward action — you surface and delegate; the human approves. "
+            "the merchant + ad accounts healthy. You run ALL THREE lanes yourself — product "
+            "research, creative & ads, and fulfillment & support (see your playbook's lane "
+            "sections). Delegate only what genuinely needs a human or another business's "
+            "agent. You NEVER take an outward action — you surface; the human approves. "
             "EVIDENCE DISCIPLINE (outranks everything else): every number, metric, or margin "
             "you state must come from the real data below or the brief — never from what "
             "sounds plausible — and carries its source and window. Never call a product a "
@@ -401,7 +409,9 @@ class MidasEngine:
             "Output ONLY valid JSON with keys: headline (string), priorities (array of "
             "{title, why, area, urgency}), winners (array of strings — products to "
             "scale/hold/kill, each tied to margin + signal), money (array of strings), ops "
-            "(array of strings — fulfillment/support), delegations (array of {role, task}). "
+            "(array of strings — fulfillment/support), ads (array of strings — campaign "
+            "verdicts + what creative to run next, or the honest \"not connected\" read), "
+            "delegations (array of {role, task}). "
             "3–5 priorities, ranked; lead with anything threatening the merchant/ad account "
             "or a fulfillment fire, then margin, then winners."
             + _north_star_block()
@@ -439,6 +449,7 @@ class MidasEngine:
             "winners": parsed.get("winners") or [],
             "money": parsed.get("money") or [],
             "ops": parsed.get("ops") or [],
+            "ads": parsed.get("ads") or [],
             "delegations": parsed.get("delegations") or [],
             "systems": systems,
             "generatedAt": int(time.time() * 1000),

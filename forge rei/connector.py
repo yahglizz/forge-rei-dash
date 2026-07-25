@@ -953,11 +953,9 @@ import dropship_io  # noqa: E402 — dropship local store (watchlist + settings 
 import dropship_mcp  # noqa: E402 — MCP client (probe read-only; tool calls operator-gated)
 import dropship_context  # noqa: E402 — dropship business brief (read FIRST by every dropship agent)
 import dropship_director  # noqa: E402 — Midas, the dropship head agent (e-com director)
-import dropship_agents  # noqa: E402 — Hawk / Blaze / Otto specialist crew
+# Hawk / Blaze / Otto were merged into Midas on 2026-07-25 — one director running all
+# three lanes. Their routes narrow his brief; see MidasEngine.{products,ads,ops}_view().
 MIDAS = dropship_director.MidasEngine()
-HAWK = dropship_agents.HawkEngine()
-BLAZE = dropship_agents.BlazeEngine()
-OTTO = dropship_agents.OttoEngine()
 
 import mission_control  # noqa: E402 — cross-business front-door snapshot (read-only)
 import mission_control_agent  # noqa: E402 — Orion, the cross-business Chief-of-Staff agent
@@ -4135,7 +4133,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:  # noqa: BLE001
                 out["shopify"] = {"error": str(e)[:200]}
             try:
-                out["ads"] = BLAZE.meta_overview()
+                out["ads"] = MIDAS.meta_overview()
             except Exception as e:  # noqa: BLE001
                 out["ads"] = {"error": str(e)[:200]}
             return out
@@ -4238,17 +4236,17 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/autods/marketplace": lambda: dropship_autods.marketplace(
                 50, (q.get("q", [""])[0] or "").strip()),
             "/api/dropship/autods/wiring": _autods_wiring,
-            "/api/dropship/ads": lambda: BLAZE.meta_overview(),
+            "/api/dropship/ads": lambda: MIDAS.meta_overview(),
             "/api/dropship/analytics": _analytics,
-            "/api/dropship/agents": lambda: {"ok": True, "agents": [
-                MIDAS.status(), HAWK.status(), BLAZE.status(), OTTO.status()]},
+            "/api/dropship/agents": lambda: {"ok": True, "agents": [MIDAS.status()]},
             "/api/dropship/director/status": lambda: MIDAS.status(),
             "/api/dropship/director/overview": lambda: MIDAS.overview(),
             "/api/dropship/director/brief": lambda: MIDAS.brief(),
             "/api/dropship/director/bus": lambda: agent_bus.recent(30),
-            "/api/dropship/hawk/overview": lambda: HAWK.overview(),
-            "/api/dropship/blaze/overview": lambda: BLAZE.overview(),
-            "/api/dropship/otto/overview": lambda: OTTO.overview(),
+            # Retired specialists — lane views onto the director's brief.
+            "/api/dropship/hawk/overview": lambda: MIDAS.products_view(),
+            "/api/dropship/blaze/overview": lambda: MIDAS.ads_view(),
+            "/api/dropship/otto/overview": lambda: MIDAS.ops_view(),
         }
         handler = handlers.get(path)
         if not handler:
@@ -4337,15 +4335,16 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/dropship/director/learn":
                 result = MIDAS.learn()
             elif path == "/api/dropship/hawk/run":
-                result = HAWK.research(body)
-            elif path == "/api/dropship/hawk/learn":
-                result = HAWK.learn()
+                result = MIDAS.research(body)
+            elif path in ("/api/dropship/hawk/learn", "/api/dropship/blaze/learn",
+                          "/api/dropship/otto/learn"):
+                result = MIDAS.learn()          # one playbook now — all three alias it
             elif path == "/api/dropship/hawk/watch":
                 item = dropship_io.get_item(body.get("id"))
                 if not item:
                     result = {"ok": False, "error": "item not found"}
                 else:
-                    r = HAWK.watch_score(item)
+                    r = MIDAS.watch_score(item)
                     if r.get("ok"):
                         saved = dropship_io.save_analysis(item.get("id"), r.get("result"))
                         result = {"ok": True, "item": saved.get("item"),
@@ -4353,13 +4352,9 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         result = r
             elif path == "/api/dropship/blaze/run":
-                result = BLAZE.analyze_ads(body)
-            elif path == "/api/dropship/blaze/learn":
-                result = BLAZE.learn()
+                result = MIDAS.analyze_ads(body)
             elif path == "/api/dropship/otto/run":
-                result = OTTO.check(body)
-            elif path == "/api/dropship/otto/learn":
-                result = OTTO.learn()
+                result = MIDAS.fulfillment_check(body)
             else:
                 result = {"ok": False, "error": "unhandled"}
             _touch_sync()
