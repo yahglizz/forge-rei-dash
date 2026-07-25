@@ -1,6 +1,6 @@
 """agent_coach.py — cross-agent coaching. INSIGHTS ONLY (plain text), never creds.
 
-The FORGE agents (Scout/Marcus/Atlas · Dyson/Eco · Solomon/Nora/Nova) coach each other
+The FORGE agents (Scout/Marcus/Atlas · Dyson/Eco · Solomon · Midas) coach each other
 across the three businesses: an agent that learns something transferable BROADCASTS the
 lesson; every agent it's addressed to ABSORBS it into the next run of its self-improve
 ``learn()`` loop; and any agent can ASK a peer a direct question.
@@ -36,7 +36,7 @@ import agent_bus
 BUSINESS_OF = {
     "scout": "wholesale", "marcus": "wholesale", "atlas": "wholesale",
     "dyson": "agency", "eco": "agency",
-    "solomon": "daycare", "nora": "daycare", "nova": "daycare",
+    "solomon": "daycare",
     "midas": "dropship", "hawk": "dropship", "blaze": "dropship", "otto": "dropship",
 }
 BUSINESSES = {"wholesale", "agency", "daycare", "dropship"}

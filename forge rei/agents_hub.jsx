@@ -4,8 +4,8 @@
 // Retell voice agents. Right: the selected agent — Chat (talk + assign), Tasks (what
 // you've given them), Console (their full deep page, relocated here from the sidebar).
 //
-// Nothing was deleted to build this: the old per-agent pages (Dyson, Eco, Solomon, Nora,
-// Nova, Command Center) are the SAME components, now rendered inside the Console tab.
+// Nothing was deleted to build this: the old per-agent pages (Dyson, Eco, Solomon,
+// Command Center) are the SAME components, now rendered inside the Console tab.
 //
 // Collision rules (CLAUDE.md §7): unique hook aliases, Hub-prefixed globals, and no
 // computed JSX tags — every dynamic component is resolved to a capitalized const first.
@@ -34,7 +34,7 @@ const HUB_BIZ_COLOR = {
 const HUB_BUSINESS_OF = {
   scout: "wholesale", marcus: "wholesale", atlas: "wholesale",
   dyson: "agency", eco: "agency",
-  solomon: "daycare", nora: "daycare", nova: "daycare",
+  solomon: "daycare",
 };
 
 function HubDot({ ok, title }) {
@@ -358,8 +358,8 @@ function HubAgentsPage({ ws }) {
   const [sel, setSel] = useStateHub(null);
   const [tab, setTab] = useStateHub("chat");
 
-  // The hub is SCOPED to the workspace you're in: the Daycare tab shows Solomon, Nora and
-  // Nova — not the wholesale team, and not the Retell voice agents (those live in the REI
+  // The hub is SCOPED to the workspace you're in: the Daycare tab shows Solomon —
+  // not the wholesale team, and not the Retell voice agents (those live in the REI
   // Outbound tab, where they're actually configured).
   const wsId = ws || localStorage.getItem("forge_ws") || "rei";
   const biz = wsId === "agency" ? "agency" : wsId === "daycare" ? "daycare" : "wholesale";

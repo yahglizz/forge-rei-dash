@@ -1,7 +1,7 @@
 """caveman.py — operator-chat brevity ("caveman") block. Token discipline.
 
 Appended to OPERATOR-FACING CHAT system prompts ONLY: Scout/Atlas/Retell chat
-(agents_chat.py), daycare Solomon/Nora/Nova chat (agents_hub.py), agency
+(agents_chat.py), daycare Solomon chat (agents_hub.py), agency
 Dyson/Eco chat (agency_agents.py), Marcus screening chat (marcus_chat.py). Cuts
 Anthropic OUTPUT tokens on every operator reply.
 
