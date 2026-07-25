@@ -161,6 +161,39 @@ def _strip_fences(raw):
     return raw.strip()
 
 
+# --- the store's OWN Meta creds, for one call (absorbed from Blaze) -----------
+_META_KEYS = ("META_ACCESS_TOKEN", "META_AD_ACCOUNT_MAP")
+_ENV_LOCK = threading.Lock()
+
+
+@contextlib.contextmanager
+def _scoped_meta_env():
+    """Overlay the dropship store's OWN Meta creds onto os.environ for one call, then
+    restore — same trick as daycare_growth._scoped_env so the agency workspace is never
+    disturbed. Always held under _ENV_LOCK by the caller."""
+    creds = {}
+    try:
+        import dropship_env
+        creds = dropship_env.read_env() or {}
+    except Exception:
+        creds = {}
+    saved = {k: os.environ.get(k) for k in _META_KEYS}
+    try:
+        for k in _META_KEYS:
+            value = (creds.get(k) or "").strip()
+            if value:
+                os.environ[k] = value
+            else:
+                os.environ.pop(k, None)
+        yield
+    finally:
+        for k, prev in saved.items():
+            if prev is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = prev
+
+
 class MidasEngine:
     """Midas — the dropship store's e-com-director orchestrator."""
 
@@ -209,7 +242,11 @@ class MidasEngine:
     # --- brain skills (mtime-cached seed + vault) ----------------------------
     # Prompt order: CREED (dropship-evidence-discipline, via agent_creed — never
     # reachable from learn()) → TOP SKILLS below → the learned playbook last.
-    TOP_SKILLS = ("midas-decision-loop.md", "midas-craft.md")
+    # The two ad frameworks were Blaze's hardcoded floors; they're top skills now so
+    # learn() still can't rewrite them (they load via _load_skills, never _playbook_only).
+    TOP_SKILLS = ("midas-decision-loop.md", "midas-craft.md",
+                  "dropship-four-triggers-ad-writer.md",
+                  "dropship-meta-ads-diagnostician.md")
     PLAYBOOK_MD = "midas-playbook.md"
 
     def _load_skills(self):
