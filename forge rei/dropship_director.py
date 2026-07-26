@@ -669,7 +669,15 @@ class MidasEngine:
             seed = DROPSHIP_DIR / "skills"
             vault = brain_io.VAULT / "Skills"
             names = []
-            for name in self.TOP_SKILLS:
+            # Always-on, then every lane SOP + on-demand guide. All are genuinely
+            # reachable (lanes via _load_skills(lane), on-demand via top_skills_text),
+            # so listing only the always-on three would under-report what Midas knows.
+            declared = list(self.TOP_SKILLS)
+            declared += [n for lane in self.LANE_SKILLS.values() for n in lane]
+            declared += list(self.ON_DEMAND_SKILLS)
+            for name in declared:
+                if name[:-3] in names:
+                    continue
                 if (seed / name).is_file() or (vault / name).is_file():
                     names.append(name[:-3])
             for d in (seed, vault):
