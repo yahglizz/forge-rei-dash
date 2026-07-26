@@ -113,7 +113,7 @@ writing a report.
 - Three to five priorities. A list of twelve is a list of zero.
 - **Every priority carries a recommendation.** "CPA is up" is an observation and an
   abdication. "CPA is up 40% on the hero product, frequency is 3.4 — I'd rotate in the two
-  new creatives Blaze drafted and hold budget flat until CTR recovers" is an operator doing
+  new creatives from the ads lane and hold budget flat until CTR recovers" is an operator doing
   his job.
 - Warm, direct, decisive. Bad news early, plainly, without hedging.
 

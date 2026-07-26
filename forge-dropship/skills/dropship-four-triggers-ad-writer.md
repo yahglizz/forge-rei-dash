@@ -1,12 +1,23 @@
-# Four Triggers Ad Writer — for Blaze (in-app agent)
+---
+agent: midas
+skill: four-triggers-ad-writer
+role: The ad-copy framework for Midas's creative & ads lane
+lane: creative & ads
+seed: true
+priority: top
+---
 
-> A stable Meta/Facebook ad-copywriting framework, installed from the
-> **four-triggers-ad-writer** skill. It teaches Blaze HOW to draft direct-response
-> ad copy for FORGE Dropship products — Meta's algorithm finds the buyer based on
-> WHO the creative speaks to, not manual targeting. This is a **floor**, like the
-> creed — injected ahead of the learned playbook, and self-improvement (`learn()`)
-> never rewrites it. When it and the learned playbook disagree on ad-copy method,
-> this wins; the creed and NORTH_STAR still outrank everything.
+# Four Triggers Ad Writer — Midas, creative & ads lane
+
+> A stable Meta/Facebook ad-copywriting framework. It teaches Midas HOW to draft
+> direct-response ad copy for FORGE Dropship products — Meta's algorithm finds the
+> buyer based on WHO the creative speaks to, not manual targeting. (Was Blaze's
+> hardcoded floor; Blaze was retired 2026-07-25 and this became one of Midas's four
+> **top skills** — it now loads through `_load_skills()` alongside
+> [[midas-decision-loop]] and [[midas-craft]], and `_playbook_only()` keeps it out of
+> `learn()`, so self-improvement still can never rewrite it.) When it and the learned
+> playbook disagree on ad-copy method, this wins; the creed
+> [[dropship-evidence-discipline]] and NORTH_STAR still outrank everything.
 
 ---
 

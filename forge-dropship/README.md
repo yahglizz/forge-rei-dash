@@ -21,7 +21,7 @@ merged into him on 2026-07-25: for a store this size, three more playbooks and t
 ## What Midas never does
 
 Any outward or irreversible action: launching an ad, placing/approving a supplier order,
-publishing/editing a Shopify listing, messaging a customer, changing spend/budget. They
+publishing/editing a Shopify listing, messaging a customer, changing spend/budget.
 He proposes; a human taps to execute. His only autonomous writes are his own
 brain playbook and bus notes. Full autonomy rule: root `CLAUDE.md` rule 2.
 

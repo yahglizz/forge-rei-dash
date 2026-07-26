@@ -95,6 +95,70 @@ function DswTrending({ onAdded }) {
   </div>;
 }
 
+// Competitor Ads — what OTHER stores are running right now, out of the Meta Ad Library.
+// Days-running is the headline number on purpose: nobody keeps paying to run a losing
+// ad, so a 60-day-old ad is a proven ad. Manual pull only — each search fires a PAID
+// Apify actor run, so this NEVER auto-polls.
+function DswAdAge(d) {
+  const n = Number(d);
+  if (!n && n !== 0) return "#8B8FA3";
+  if (n >= 60) return "#22C55E";
+  if (n >= 21) return "#F4B860";
+  return "#8B8FA3";
+}
+
+function DswAdCard({ ad, winner }) {
+  const days = ad.daysRunning;
+  const color = DswAdAge(days);
+  const body = (ad.body || "").replace(/\s+/g, " ").trim();
+  return <div className="dsw-trend-item">
+    <div className="dsw-score" style={{ borderColor: color, color }}>{(days === 0 || days) ? days : "–"}<small>days</small></div>
+    <div className="dsw-trend-main">
+      <b>{ad.pageName || "(unknown page)"}{winner ? <span className="dsw-chip" style={{ marginLeft: 8, borderColor: "#22C55E55", color: "#22C55E" }}>proven</span> : null}</b>
+      {ad.title && <small className="faint">{ad.title}</small>}
+      {body && <small className="faint">{body.length > 160 ? body.slice(0, 160) + "…" : body}</small>}
+      <small className="faint">{[ad.cta ? "CTA: " + ad.cta : "", ad.mediaType || "", ad.startDate ? "since " + String(ad.startDate) : ""].filter(Boolean).join(" · ") || "no creative detail returned"}</small>
+    </div>
+    <div className="dsw-trend-actions">
+      {ad.linkUrl && <a className="link" href={ad.linkUrl} target="_blank" rel="noreferrer">Landing ↗</a>}
+      {ad.snapshotUrl && <a className="link" href={ad.snapshotUrl} target="_blank" rel="noreferrer">Ad ↗</a>}
+    </div>
+  </div>;
+}
+
+function DswCompetitorAds() {
+  const [adq, setAdq] = useStateDsw("");
+  const [addata, setAddata] = useStateDsw(null);
+  const [adloading, setAdloading] = useStateDsw(false);
+  const [aderr, setAderr] = useStateDsw("");
+  const search = async () => {
+    if (!adq.trim()) { setAderr("Type a keyword first"); return; }
+    setAdloading(true); setAderr("");
+    try { const r = await window.DsRequest("/adspy/search?min_days=21&q=" + encodeURIComponent(adq.trim())); setAddata(r); }
+    catch (e) { setAderr(e.message); } finally { setAdloading(false); }
+  };
+  const ads = (addata && addata.ads) || [];
+  const wins = (addata && addata.winners) || [];
+  const winIds = {};
+  wins.forEach((a) => { if (a.id) winIds[a.id] = true; });
+  const rest = ads.filter((a) => !(a.id && winIds[a.id]));
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head">
+      <div><div className="card-title">Competitor Ads</div><div className="faint">Live Meta Ad Library pull — who's advertising this and for how long. Long-running = proven. Manual pull only (each search is a paid scrape).</div></div>
+      <div className="dsw-pull-row"><input className="dsw-search" value={adq} onChange={(e) => setAdq(e.target.value)} placeholder="product / keyword" onKeyDown={(e) => { if (e.key === "Enter") search(); }} /><button className="dc-primary" disabled={adloading} onClick={search}>{adloading ? "Searching…" : "Search ads"}</button></div>
+    </div>
+    {aderr && <div className="dc-form-error">{aderr}</div>}
+    {addata && !addata.configured && <div className="dsw-addkey"><b>No ad-spy key yet.</b><span>{addata.detail || "Add APIFY_TOKEN to dropship.env to pull real competitor ads. $0 until then."}</span></div>}
+    {addata && addata.configured && addata.error && <div className="dc-form-error">{addata.error}</div>}
+    {addata && addata.configured && !addata.error ? (ads.length ? <div className="dsw-trend-list">
+      {wins.length ? <small className="faint">Proven — running {addata.minDays || 21}+ days ({wins.length})</small> : null}
+      {wins.map((a, i) => <DswAdCard key={"w" + i} ad={a} winner />)}
+      {rest.length ? <small className="faint">Newer / unproven ({rest.length})</small> : null}
+      {rest.map((a, i) => <DswAdCard key={"r" + i} ad={a} />)}
+    </div> : <div className="dc-inline-empty">No ads returned for that keyword.</div>) : null}
+  </div>;
+}
+
 function DswChips({ label, items, color }) {
   if (!Array.isArray(items) || !items.length) return null;
   return <div className="dsw-chips-row"><small className="faint">{label}</small><div className="dsw-chips">{items.map((t, i) => <span key={i} className="dsw-chip" style={color ? { borderColor: color + "55", color } : null}>{String(t)}</span>)}</div></div>;
@@ -170,6 +234,7 @@ function DropshipWatch() {
     </div>
     {err && <div className="dc-form-error">{err}</div>}
     <DswTrending onAdded={watch.refresh} />
+    <DswCompetitorAds />
     <window.DsState loading={watch.loading} error={watch.error} empty={!items.length} icon="Watch" title="Nothing on watch yet" copy="Pull trending products above, or add one you spotted — then let Midas score it." onRetry={watch.refresh}>
       <div className="dsw-grid">
         {items.map((it) => <DswCard key={it.id} item={it} scoring={scoringId === it.id} onScore={score} onEdit={(i) => { setEditing(i); setOpen(true); }} onDelete={del} />)}

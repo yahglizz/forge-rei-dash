@@ -1,14 +1,27 @@
-# Meta Ads Diagnostician — for Blaze (in-app agent)
+---
+agent: midas
+skill: meta-ads-diagnostician
+role: The 12-slider campaign diagnosis framework for Midas's creative & ads lane
+lane: creative & ads
+seed: true
+priority: top
+---
 
-> A stable Meta/Facebook ad-performance diagnosis framework, installed from the
-> **dropship-meta-ads-diagnostician** skill. It teaches Blaze HOW to read the
-> numbers a FORGE Dropship campaign is already producing and name the single
-> bottleneck capping performance. This is a **floor**, like the creed and the
-> Four Triggers ad-copy framework — injected ahead of the learned playbook, and
-> self-improvement (`learn()`) never rewrites it. When it and the learned
-> playbook disagree on diagnostic method, this wins; the creed and NORTH_STAR
-> still outrank everything. Never invent a metric — use only what the operator
-> gave or what's grounded in real Meta data (creed).
+# Meta Ads Diagnostician — Midas, creative & ads lane
+
+> A stable Meta/Facebook ad-performance diagnosis framework. It teaches Midas HOW
+> to read the numbers a FORGE Dropship campaign is already producing and name the
+> single bottleneck capping performance. (Was Blaze's hardcoded floor; Blaze was
+> retired 2026-07-25 and this became one of Midas's four **top skills** — it now
+> loads through `_load_skills()` alongside [[midas-decision-loop]] and
+> [[midas-craft]], and `_playbook_only()` keeps it out of `learn()`, so
+> self-improvement still can never rewrite it.) When it and the learned playbook
+> disagree on diagnostic method, this wins; the creed
+> [[dropship-evidence-discipline]] and NORTH_STAR still outrank everything. Never
+> invent a metric — use only what the operator gave or what's grounded in real Meta
+> data (creed). The budget/scale moves this diagnosis implies are specified in
+> [[dropship-ad-launch-sop]] — diagnose here, act by those numbers, and the operator
+> taps to execute either way.
 
 ---
 

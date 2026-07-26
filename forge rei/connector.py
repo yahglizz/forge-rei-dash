@@ -4177,6 +4177,43 @@ class Handler(BaseHTTPRequestHandler):
                     "Add PIPIADS_API_KEY (pipispy.com) or AUTODS_API_KEY to pull real "
                     "trending products. Until then this reads mock / add-key."}
 
+        def _adspy_search():
+            """What ads competitors are ACTUALLY running for a keyword, and how long
+            they've been running (longevity = the proxy for 'it converts'). Manual pull
+            only — each call fires a PAID Apify actor run, so the limit is clamped inside
+            dropship_adspy._clamp and nothing here polls on a timer. Read-only."""
+            keyword = (q.get("q", [""])[0] or "").strip()
+            if not keyword:
+                return {"ok": False, "error": "q (keyword) required", "code": "bad_request",
+                        "ads": [], "winners": []}
+            country = (q.get("country", [""])[0] or "").strip()
+            try:
+                limit = int(q.get("limit", ["0"])[0])
+            except Exception:
+                limit = 0
+            try:
+                min_days = max(0, int(q.get("min_days", ["21"])[0]))
+            except Exception:
+                min_days = 21
+            result = dropship_adspy.search(keyword, country=country or None,
+                                           limit=limit or None)
+            result["minDays"] = min_days
+            result["winners"] = dropship_adspy.winners(result.get("ads") or [],
+                                                       min_days=min_days)
+            return result
+
+        def _adspy_advertiser():
+            """Every ad one competitor page is running. Paid actor run, same clamp."""
+            page = (q.get("page", [""])[0] or "").strip()
+            if not page:
+                return {"ok": False, "error": "page required", "code": "bad_request",
+                        "ads": []}
+            try:
+                limit = int(q.get("limit", ["0"])[0])
+            except Exception:
+                limit = 0
+            return dropship_adspy.advertiser(page, limit=limit or None)
+
         def _autods_wiring():
             """What AutoDS is actually wired with — key PRESENCE (never a value) plus the
             endpoint paths currently in use, so a wrong account-tier path is visible
@@ -4230,6 +4267,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/mcp": _mcp_registry,
             "/api/dropship/mcp/probe": _mcp_probe,
             "/api/dropship/pipiads/health": lambda: dropship_pipiads.health(),
+            "/api/dropship/adspy/health": lambda: dropship_adspy.health(),
+            "/api/dropship/adspy/search": _adspy_search,
+            "/api/dropship/adspy/advertiser": _adspy_advertiser,
             "/api/dropship/products": lambda: dropship_shopify.products(),
             "/api/dropship/orders": lambda: dropship_shopify.orders(),
             "/api/dropship/inventory": lambda: dropship_shopify.inventory(),

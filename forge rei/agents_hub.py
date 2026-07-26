@@ -274,6 +274,8 @@ def _director_chat(agent_id, message, history):
         + _creed(business)
         + (ctx or "")
         + live
+        + (("\n\n=== YOUR TOP SKILLS (these OUTRANK the playbook below; when they "
+            "conflict, these win) ===\n" + skills) if skills else "")
         + (("\n\n=== YOUR PLAYBOOK ===\n" + playbook) if playbook else "")
         + _open_tasks_block(agent_id)
     )
