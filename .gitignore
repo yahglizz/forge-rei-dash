@@ -19,6 +19,7 @@ ruvector.db
 agentdb.rvf
 agentdb.rvf.lock
 graphify-out/
+.playwright-cli/
 
 # ── Sibling projects / session artifacts not part of the app ─
 marcus-wholesale-agent/

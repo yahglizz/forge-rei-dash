@@ -229,7 +229,7 @@ def get_workspace(cid):
 
 # ---------------------------------------------------------------------------
 # Client portal access — each client gets a random, revocable token. The
-# operator shares a link (…/portal?c=<clientId>&k=<token>); the client can then
+# operator shares a link (…/portal#c=<clientId>&k=<token>); the client can then
 # submit + track edit requests WITHOUT logging in or contacting the operator.
 # The token is a bearer secret scoped to ONE client: it unlocks only that
 # client's own name + own requests (see agency_portal_io.verify_client). It is
