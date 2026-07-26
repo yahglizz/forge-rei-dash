@@ -290,24 +290,33 @@ class MidasEngine:
                   "dropship-four-triggers-ad-writer.md",
                   "dropship-meta-ads-diagnostician.md")
     PLAYBOOK_MD = "midas-playbook.md"
+    # Skills that reach the prompt through their OWN loader, NOT _load_skills.
+    # Loading them here too would double-spend the tokens and blur the creed boundary.
+    LOADED_ELSEWHERE = ("dropship-evidence-discipline.md",   # agent_creed.block("dropship")
+                        "dropship-context.md")               # dropship_context.context_block()
 
     def _load_skills(self):
-        """The CONSTITUTION: top skills + any other midas-* skill, in priority order.
-        Excludes the learned playbook (see _playbook_only) so the two get separate
-        context budgets and self-improvement can never rewrite the constitution."""
+        """The CONSTITUTION: top skills + every other midas-*/dropship-* skill, in
+        priority order. Excludes the learned playbook (see _playbook_only) so the two
+        get separate context budgets and self-improvement can never rewrite the
+        constitution. Also excludes the two files that load through their OWN path —
+        the creed (agent_creed.block, deliberately invisible to learn()) and the
+        business brief (dropship_context.context_block, injected FIRST) — so neither
+        is double-spent in the prompt."""
         try:
             import brain_io
             seed = DROPSHIP_DIR / "skills"
             vault = brain_io.VAULT / "Skills"
-            skip = set(self.TOP_SKILLS) | {self.PLAYBOOK_MD}
+            skip = set(self.TOP_SKILLS) | {self.PLAYBOOK_MD} | set(self.LOADED_ELSEWHERE)
 
             paths = []
             for name in self.TOP_SKILLS:           # top skills first, seed then vault
                 paths += [seed / name, vault / name]
-            for d in (seed, vault):                # then any other midas-* skill
+            for d in (seed, vault):                # then every other dropship skill
                 if d.is_dir():
-                    paths += sorted(p for p in d.glob("midas-*.md")
-                                    if p.name not in skip)
+                    paths += sorted((p for pat in ("midas-*.md", "dropship-*.md")
+                                     for p in d.glob(pat) if p.name not in skip),
+                                    key=lambda p: p.name)
 
             parts, sig, seen = [], [], set()
             for p in paths:
