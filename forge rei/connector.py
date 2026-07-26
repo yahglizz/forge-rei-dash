@@ -12,6 +12,7 @@ Run:  python3 connector.py   ->   http://localhost:7799
 """
 
 import io
+import ipaddress
 import json
 import os
 import threading
@@ -248,6 +249,24 @@ def ghl_delete(endpoint, body=None, retries=2):
 _CACHE = {}
 _CACHE_TTL = 45  # seconds — softens GHL rate limits under auto-refresh
 _CACHE_MAX = 200  # cap entries so a long-running 24/7 process can't leak memory
+_CACHE_LOCK = threading.Lock()
+_MAX_JSON_BODY_BYTES = 64 * 1024
+
+
+def _client_networks():
+    """Private dashboard access only: loopback or Tailscale by default.
+
+    A firewall is useful but not an application boundary. Keep the dashboard
+    unreachable from public IPs even if a future firewall rule is wrong. Extend
+    the comma-separated allowlist only for another private network.
+    """
+    raw = os.environ.get(
+        "FORGE_ALLOWED_CLIENT_CIDRS", "127.0.0.0/8,::1/128,100.64.0.0/10")
+    return tuple(ipaddress.ip_network(item.strip(), strict=False)
+                 for item in raw.split(",") if item.strip())
+
+
+_ALLOWED_CLIENT_NETWORKS = _client_networks()
 
 # Shared revision for the separate desktop dashboard and mobile app. Both clients
 # read the same connector, so a successful write can invalidate every open view
@@ -2838,9 +2857,10 @@ def handle_move_opportunity(body):
         payload["pipelineId"] = pipeline_id
     res = ghl_put(f"/opportunities/{opp_id}", payload)
     # Bust caches so the next read reflects the move immediately.
-    for k in list(_CACHE.keys()):
-        if k.startswith("/api/pipeline") or k.startswith("/api/dashboard"):
-            _CACHE.pop(k, None)
+    with _CACHE_LOCK:
+        for k in list(_CACHE.keys()):
+            if k.startswith("/api/pipeline") or k.startswith("/api/dashboard"):
+                _CACHE.pop(k, None)
     return {"ok": True, "id": opp_id, "stageId": stage_id, "result": res}
 
 
@@ -2850,8 +2870,10 @@ def handle_marcus_post(path, body):
     if path == "/api/marcus/dismiss":
         return MARCUS.dismiss(body.get("id"))
     if path == "/api/marcus/toggle":
-        return MARCUS.toggle(body.get("enabled"), body.get("autoSend"),
-                             body.get("autoSendNrn"))
+        if body.get("autoSend") or body.get("autoSendNrn"):
+            return {"error": "Automatic seller texting is disabled; approve each draft.",
+                    "code": "approval_required"}
+        return MARCUS.toggle(body.get("enabled"))
     if path == "/api/marcus/poll":  # manual "check now"
         MARCUS.poll_once()
         return MARCUS.status()
@@ -2864,6 +2886,40 @@ def handle_marcus_post(path, body):
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):  # quieter logs
         pass
+
+    def _dashboard_client_allowed(self):
+        try:
+            address = ipaddress.ip_address(self.client_address[0])
+        except (ValueError, TypeError, IndexError):
+            return False
+        return any(address in network for network in _ALLOWED_CLIENT_NETWORKS)
+
+    def _same_origin_post(self):
+        """Reject browser cross-site POSTs; non-browser private CLI calls still work."""
+        origin = self.headers.get("Origin")
+        if not origin:
+            return True
+        parsed = urllib.parse.urlparse(origin)
+        host = (self.headers.get("Host") or "").lower()
+        return parsed.scheme in ("http", "https") and parsed.netloc.lower() == host
+
+    def _read_json_body(self, limit=_MAX_JSON_BODY_BYTES):
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            raise ValueError("invalid request body") from None
+        if length < 0 or length > limit:
+            raise OverflowError("request body is too large")
+        raw = self.rfile.read(length) if length else b""
+        if not raw.strip():
+            return {}
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise ValueError("request body must be valid JSON") from None
+        if not isinstance(body, dict):
+            raise ValueError("request body must be a JSON object")
+        return body
 
     def _client_disconnected(self, exc):
         return isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError))
@@ -2883,6 +2939,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
             for key, value in (headers or {}).items():
                 self.send_header(key, value)
             self.end_headers()
@@ -2893,6 +2950,10 @@ class Handler(BaseHTTPRequestHandler):
             raise
 
     def do_POST(self):
+        if not self._dashboard_client_allowed():
+            return self._send_json({"error": "private dashboard access required"}, 403)
+        if not self._same_origin_post():
+            return self._send_json({"error": "same-origin request required"}, 403)
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path.startswith("/api/daycare/"):
             return self._handle_daycare_post(parsed.path)
@@ -3022,11 +3083,11 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/test-mode")):
             return self._send_json({"error": "unknown endpoint"}, 404)
         try:
-            length = int(self.headers.get("Content-Length", 0) or 0)
-            raw = self.rfile.read(length) if length else b""
-            body = json.loads(raw.decode("utf-8")) if raw.strip() else {}
-        except Exception:
-            body = {}
+            body = self._read_json_body()
+        except OverflowError:
+            return self._send_json({"error": "request body is too large"}, 413)
+        except ValueError as error:
+            return self._send_json({"error": str(error)}, 400)
         try:
             if parsed.path == "/api/send":
                 result = handle_send_post(body)
@@ -3477,8 +3538,9 @@ class Handler(BaseHTTPRequestHandler):
             # opaque "HTTP Error 400" once it bubbles to the operator.
             detail = getattr(e, "_detail", None) or _http_error_detail(e, limit=300)
             return self._send_json({"error": f"GHL {e.code}", "detail": detail}, 502)
-        except Exception as e:  # noqa: BLE001
-            return self._send_json({"error": str(e)}, 500)
+        except Exception:  # noqa: BLE001
+            return self._send_json(
+                {"error": "request failed", "code": "internal_error"}, 500)
 
     def _daycare_session_id(self):
         return daycare_supabase.session_id_from_cookie(self.headers.get("Cookie"))
