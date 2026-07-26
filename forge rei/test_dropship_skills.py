@@ -55,10 +55,15 @@ def main():
 
     eng = dropship_director.MidasEngine()   # connector.py:959 builds the live one the same way
 
-    loaded = eng._load_skills() or ""
+    core = eng._load_skills() or ""                 # the daily brief's budget
+    lanes = {ln: (eng._load_skills(ln) or "")       # core + that lane's deep SOPs
+             for ln in dropship_director.MidasEngine.LANE_SKILLS}
+    chat = dropship_director.top_skills_text() or ""  # operator chat — everything
     playbook = eng._playbook_only() or ""
     creed = agent_creed.block("dropship") or ""
     context = dropship_context.context_block() or ""
+    # "utilized" = reaches a real prompt through ANY path
+    loaded = "\n".join([core, chat] + list(lanes.values()))
 
     assert creed.strip(), "creed block is EMPTY — agent_creed.block('dropship') loaded nothing"
     assert loaded.strip(), "_load_skills() returned nothing"
@@ -93,8 +98,9 @@ def main():
     assert not orphans, (
         "ORPHAN SKILLS — on disk but never loaded into any prompt:\n  "
         + "\n  ".join(orphans)
-        + "\n_load_skills() globs midas-*.md and dropship-*.md; a file matching neither, "
-          "or listed in LOADED_ELSEWHERE without its own loader, is dead weight."
+        + "\nA skill must be declared in MidasEngine.TOP_SKILLS (always on), in one of "
+          "LANE_SKILLS (that lane only), or in ON_DEMAND_SKILLS (operator chat). A file "
+          "in none of them is dead weight that reads like capability."
     )
     assert not misrouted, "MISROUTED SKILLS:\n  " + "\n  ".join(misrouted)
 
@@ -106,18 +112,25 @@ def main():
         if f.is_file():
             assert _marker(f) not in playbook, f"top skill {name} is inside _playbook_only()"
 
-    # --- 4: the brief prompt carries all four layers
-    brief_prompt = "\n".join((context, creed, loaded, playbook))
-    for p in files:
-        assert _marker(p) in brief_prompt, f"{p.name} missing from the assembled brief prompt"
-
-    # --- 5: operator chat path carries the top skills too (they were silently dropped)
-    top = dropship_director.top_skills_text()
-    assert top and top.strip(), "top_skills_text() empty — chat-Midas would run without skills"
+    # --- 4: the brief prompt carries all four layers, and each lane adds its own SOPs
+    brief_prompt = "\n".join((context, creed, core, playbook))
     for name in dropship_director.MidasEngine.TOP_SKILLS:
         f = SKILLS / name
         if f.is_file():
-            assert _marker(f) in top, f"{name} missing from top_skills_text() (chat path)"
+            assert _marker(f) in brief_prompt, f"always-on skill {name} missing from the brief"
+    for ln, txt in lanes.items():
+        for name in dropship_director.MidasEngine.LANE_SKILLS[ln]:
+            f = SKILLS / name
+            if f.is_file():
+                assert _marker(f) in txt, f"{name} missing from lane '{ln}'"
+    assert eng._load_skills("no-such-lane"), "unknown lane must degrade to core, not empty"
+
+    # --- 5: operator chat path carries EVERY skill (they were silently dropped entirely)
+    assert chat.strip(), "top_skills_text() empty — chat-Midas would run without skills"
+    for p in files:
+        if p.name in (CREED, CONTEXT, PLAYBOOK):
+            continue
+        assert _marker(p) in chat, f"{p.name} missing from top_skills_text() (chat path)"
 
     hub = Path(__file__).resolve().parent / "agents_hub.py"
     src = hub.read_text(errors="ignore")
@@ -127,9 +140,13 @@ def main():
     print(f"dropship skills self-check OK — {len(files)} skills, 0 orphans")
     print(f"  creed      {len(creed):>7,} chars  (agent_creed, invisible to learn())")
     print(f"  context    {len(context):>7,} chars  (injected first)")
-    print(f"  top+skills {len(loaded):>7,} chars  (_load_skills)")
     print(f"  playbook   {len(playbook):>7,} chars  (only thing learn() rewrites)")
-    print(f"  brief prompt carries {len(brief_prompt):,} chars of skill")
+    print(f"  core       {len(core):>7,} chars  (_load_skills, always on)")
+    for ln, txt in sorted(lanes.items()):
+        print(f"    lane {ln:<22} {len(txt):>7,} chars")
+    print(f"  chat       {len(chat):>7,} chars  (top_skills_text — every skill)")
+    print(f"  BRIEF prompt {len(brief_prompt):,} chars "
+          f"(~{len(brief_prompt)//4:,} tok) — this one runs unattended on a timer")
     for p in files:
         print(f"    - {p.name}")
 

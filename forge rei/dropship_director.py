@@ -158,15 +158,26 @@ def playbook_text(limit=2000):
     return ("\n\n".join(parts))[:limit]
 
 
-def top_skills_text(limit=40000):
-    """Midas's TOP SKILLS (the constitution MidasEngine._load_skills puts ahead of the
-    playbook) for chat grounding, no live instance. Untruncated by default, same as the
-    brief — a chat-Midas without the ads diagnostician + ad-writer frameworks is a
-    materially weaker agent than the one that writes the brief."""
-    parts = []
+def top_skills_text(limit=120000):
+    """EVERY Midas skill, for operator chat grounding. No live instance needed.
+
+    Chat gets the full set — core + every lane SOP + the on-demand build guides — while
+    the scheduled brief gets only its lane (see MidasEngine._load_skills). The asymmetry
+    is deliberate: the brief runs unattended forever, so its budget is a recurring bill,
+    but an operator question is human-initiated and cache-warm, and the operator can ask
+    about any lane. A chat-Midas missing the ads diagnostician, the ad-writer frameworks
+    or the store-setup guide is a materially weaker agent than the one writing the brief.
+    """
+    parts, seen = [], set()
+    names = (list(MidasEngine.TOP_SKILLS)
+             + [n for lane in MidasEngine.LANE_SKILLS.values() for n in lane]
+             + list(MidasEngine.ON_DEMAND_SKILLS))
     try:
         import brain_io
-        for name in MidasEngine.TOP_SKILLS:
+        for name in names:
+            if name in seen:                 # a skill can serve more than one lane
+                continue
+            seen.add(name)
             for p in (DROPSHIP_DIR / "skills" / name, brain_io.VAULT / "Skills" / name):
                 if p.is_file():
                     parts.append(p.read_text(errors="ignore"))
