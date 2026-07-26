@@ -1,0 +1,415 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - link "ClientForge" [ref=e5] [cursor=pointer]:
+        - /url: "#top"
+      - navigation [ref=e8]:
+        - button "The Agency" [ref=e9] [cursor=pointer]
+        - button "Websites" [ref=e10] [cursor=pointer]
+        - button "Automation" [ref=e11] [cursor=pointer]
+        - button "Ads" [ref=e12] [cursor=pointer]
+        - button "Apps" [ref=e13] [cursor=pointer]
+    - generic:
+      - article [ref=e14]:
+        - generic [ref=e15]: 01 / 05
+        - generic [ref=e16]: ClientForge · AI Agency
+        - heading "We built a city in the clouds." [level=2] [ref=e17]
+        - paragraph [ref=e18]: "Four districts, one job: get your business more customers and take the busywork off your plate."
+        - list [ref=e19]:
+          - listitem [ref=e20]: Websites
+          - listitem [ref=e21]: Automation
+          - listitem [ref=e22]: Ads
+          - listitem [ref=e23]: Apps
+      - article:
+        - generic: 02 / 05
+        - generic: The Build District
+        - heading "Sites built to convert." [level=2]
+        - paragraph: Fast, mobile-first builds with lead capture, booking and CRM wired in from day one — delivered in under a week.
+        - list:
+          - listitem: Lead capture
+          - listitem: Booking
+          - listitem: Live in under 1 week
+      - article:
+        - generic: 03 / 05
+        - generic: The Machine Works
+        - heading "Follow-up that never sleeps." [level=2]
+        - paragraph: SMS and email systems that answer leads in seconds, chase the quiet ones, and hand you only the conversations worth having.
+        - list:
+          - listitem: SMS / email
+          - listitem: Speed to lead
+          - listitem: Workflows
+      - article:
+        - generic: 04 / 05
+        - generic: The Broadcast District
+        - heading "Campaigns run by people who watch the numbers." [level=2]
+        - paragraph: Creative, targeting and retargeting managed weekly against cost per lead — not impressions.
+        - list:
+          - listitem: Meta ads
+          - listitem: Retargeting
+          - listitem: Weekly optimization
+      - article:
+        - generic: 05 / 05
+        - generic: The Workshop
+        - heading "Custom tools you actually own." [level=2]
+        - paragraph: Dashboards, portals and internal apps built around how your business already works.
+        - list:
+          - listitem: Dashboards
+          - listitem: Client portals
+          - listitem: Internal tools
+        - generic [ref=e24]:
+          - link "Book a Strategy Call" [ref=e25] [cursor=pointer]:
+            - /url: "#contact"
+          - link "See pricing" [ref=e26] [cursor=pointer]:
+            - /url: "#pricing"
+    - generic [ref=e27]:
+      - button "The Agency" [ref=e28] [cursor=pointer]
+      - button "Websites" [ref=e30] [cursor=pointer]
+      - button "Automation" [ref=e32] [cursor=pointer]
+      - button "Ads" [ref=e34] [cursor=pointer]
+      - button "Apps" [ref=e36] [cursor=pointer]
+    - generic [ref=e38]: Scroll — the city is working below
+    - generic:
+      - generic:
+        - generic:
+          - generic: T
+          - generic: H
+          - generic: E
+        - generic:
+          - generic: C
+          - generic: L
+          - generic: I
+          - generic: E
+          - generic: "N"
+          - generic: T
+        - generic:
+          - generic: F
+          - generic: O
+          - generic: R
+          - generic: G
+          - generic: E
+      - generic: websites · automation · ads · apps
+  - main [ref=e42]:
+    - generic [ref=e43]:
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - generic [ref=e47]: 02 · Services & Pricing
+          - generic [ref=e50]: Fixed-scope · No surprises
+        - generic [ref=e52]:
+          - heading "Everything your business needs to grow." [level=2] [ref=e53]:
+            - generic [ref=e54]:
+              - generic [ref=e55]: Everything
+              - generic [ref=e57]: your
+              - generic [ref=e59]: business
+              - generic [ref=e61]: needs
+              - generic [ref=e63]: to
+              - generic [ref=e65]: grow.
+          - generic [ref=e67]:
+            - paragraph [ref=e68]: Pick a service below. Every plan is fixed scope, delivered in under 1 week — guaranteed — and built to produce real results. More leads, more customers, more growth.
+            - generic [ref=e69]: Every build delivered in under 1 week — guaranteed
+        - generic [ref=e73]:
+          - button "Websites" [ref=e74] [cursor=pointer]
+          - button "Ad Campaigns" [ref=e82] [cursor=pointer]
+          - button "AI Automation" [ref=e87] [cursor=pointer]
+          - button "Add-Ons" [ref=e94] [cursor=pointer]
+        - generic [ref=e101]:
+          - generic [ref=e108]:
+            - generic [ref=e109]: 01 · Websites
+            - paragraph [ref=e110]: High-converting websites built fast. Mobile-first, lead-capture-ready, and designed to make your business look like the obvious choice.
+          - generic [ref=e112]:
+            - generic [ref=e113]: Best Value · Most Recommended
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - generic [ref=e119]: Complete Brand Setup Package
+                - generic [ref=e120]: $800
+                - generic [ref=e121]: One-time · Delivered in under 1 week, guaranteed
+                - paragraph [ref=e122]: Everything your business needs to look professional from day one — website, logo, flyers, brand colors, and social graphics. No hunting down five different freelancers. We handle it all, start to finish.
+                - generic [ref=e123]:
+                  - button "Get My Brand Package" [ref=e124] [cursor=pointer]
+                  - button "See work first" [ref=e128] [cursor=pointer]
+                - paragraph [ref=e129]: Fixed price · No hidden fees · Revisions included
+              - generic [ref=e130]:
+                - generic [ref=e131]: What's included
+                - list [ref=e132]:
+                  - listitem [ref=e133]:
+                    - generic [ref=e137]: Custom website (up to 3 pages)
+                  - listitem [ref=e138]:
+                    - generic [ref=e142]: Professional logo design
+                  - listitem [ref=e143]:
+                    - generic [ref=e147]: Business flyers (2–3 designs)
+                  - listitem [ref=e148]:
+                    - generic [ref=e152]: Brand color palette & style guide
+                  - listitem [ref=e153]:
+                    - generic [ref=e157]: Social media graphics kit
+                  - listitem [ref=e158]:
+                    - generic [ref=e162]: Delivered in under 1 week
+                - generic [ref=e163]:
+                  - generic [ref=e164]: Fixed $800
+                  - generic [ref=e167]: Revisions included
+                  - generic [ref=e170]: Delivered in under 1 week
+          - group "Plans" [ref=e173]:
+            - generic [ref=e175]:
+              - generic [ref=e177]:
+                - generic [ref=e178]: Starter
+                - generic [ref=e180]: $300
+                - paragraph [ref=e181]: Get found and start collecting leads.
+                - list [ref=e183]:
+                  - listitem [ref=e184]:
+                    - generic [ref=e188]: 1-page high-converting website
+                  - listitem [ref=e189]:
+                    - generic [ref=e193]: Mobile responsive design
+                  - listitem [ref=e194]:
+                    - generic [ref=e198]: Lead capture form
+                  - listitem [ref=e199]:
+                    - generic [ref=e203]: Clean modern UI
+                  - listitem [ref=e204]:
+                    - generic [ref=e208]: Free hosting setup
+                - button [ref=e209] [cursor=pointer]:
+                  - generic: Swipe to get started
+                - button [ref=e213] [cursor=pointer]: See work first — book a 15-min call
+              - generic [ref=e215]:
+                - generic [ref=e216]: Most Popular
+                - generic [ref=e217]: Growth
+                - generic [ref=e219]: $700
+                - paragraph [ref=e220]: Turn the traffic you already get into booked jobs.
+                - generic [ref=e222]: "Everything in Starter, plus:"
+                - list [ref=e225]:
+                  - listitem [ref=e226]:
+                    - generic [ref=e230]: 3–5 page website
+                  - listitem [ref=e231]:
+                    - generic [ref=e235]: CRM integration
+                  - listitem [ref=e236]:
+                    - generic [ref=e240]: Booking / calendar setup
+                  - listitem [ref=e241]:
+                    - generic [ref=e245]: Automated lead follow-up
+                  - listitem [ref=e246]:
+                    - generic [ref=e250]: Google Business + reviews wired in
+                - button "Swipe to start this build" [ref=e251] [cursor=pointer]
+                - button "See work first — book a 15-min call" [ref=e255] [cursor=pointer]
+              - generic [ref=e257]:
+                - generic [ref=e258]: Premium
+                - generic [ref=e260]: $1,400
+                - paragraph [ref=e261]: A site built around your business, not a template.
+                - generic [ref=e263]: "Everything in Growth, plus:"
+                - list [ref=e266]:
+                  - listitem [ref=e267]:
+                    - generic [ref=e271]: Fully custom design — no template
+                  - listitem [ref=e272]:
+                    - generic [ref=e276]: Unlimited pages
+                  - listitem [ref=e277]:
+                    - generic [ref=e281]: Funnel-ready structure
+                  - listitem [ref=e282]:
+                    - generic [ref=e286]: Copywriting included
+                  - listitem [ref=e287]:
+                    - generic [ref=e291]: 30 days of edits after launch
+                - button [ref=e292] [cursor=pointer]:
+                  - generic: Swipe to request a quote
+                - button [ref=e296] [cursor=pointer]: See work first — book a 15-min call
+            - generic [ref=e297]:
+              - generic [ref=e298]:
+                - button "Previous plan" [ref=e299] [cursor=pointer]
+                - button "Next plan" [ref=e302] [cursor=pointer]
+                - generic [ref=e305]: 02 / 03
+              - generic [ref=e306]:
+                - generic [ref=e307]: Tap or swipe
+                - generic [ref=e309]:
+                  - button "Show Starter" [ref=e310] [cursor=pointer]
+                  - button "Show Growth" [ref=e311] [cursor=pointer]
+                  - button "Show Premium" [ref=e312] [cursor=pointer]
+        - generic [ref=e313]:
+          - generic [ref=e314]: All plans include async communication, milestone check-ins, and a clean handoff package.
+          - generic [ref=e315]:
+            - generic [ref=e316]: Fixed pricing
+            - generic [ref=e319]: No retainer lock-in
+            - generic [ref=e322]: Delivered in under 1 week
+      - generic [ref=e326]:
+        - generic [ref=e327]: 03 · Our Work
+        - generic [ref=e330]:
+          - generic [ref=e331]: ▶
+          - heading "Select a Preview" [level=2] [ref=e332]:
+            - generic [ref=e333]:
+              - generic [ref=e334]: Select
+              - generic [ref=e336]: a
+              - generic [ref=e338]: Preview
+          - generic [ref=e340]: Website demos and walkthroughs
+        - generic [ref=e341]:
+          - button "01 Websites" [ref=e342] [cursor=pointer]:
+            - generic [ref=e343]: "01"
+            - text: Websites
+          - button "02 Automations" [ref=e344] [cursor=pointer]:
+            - generic [ref=e345]: "02"
+            - text: Automations
+        - generic [ref=e346]:
+          - generic [ref=e347]: ◆
+          - text: Sites built to turn visitors into booked jobs — each one live in under a week.
+        - generic [ref=e348]:
+          - generic [ref=e349]:
+            - button "Play Barbershop Brand & Booking" [ref=e350] [cursor=pointer]:
+              - generic [ref=e352]: PLAY
+            - generic [ref=e353]:
+              - generic [ref=e354]:
+                - generic [ref=e355]: ✂
+                - text: 2× Online Bookings
+              - generic [ref=e356]: Barbershop Brand & Booking
+          - generic [ref=e357]:
+            - button "Play Childcare Center" [ref=e358] [cursor=pointer]:
+              - generic [ref=e360]: PLAY
+            - generic [ref=e361]:
+              - generic [ref=e362]:
+                - generic [ref=e363]: ☀
+                - text: 3× Inquiry Volume
+              - generic [ref=e364]: Childcare Center
+          - generic [ref=e365]:
+            - button "Play Short-Term Rental" [ref=e366] [cursor=pointer]:
+              - generic [ref=e368]: PLAY
+            - generic [ref=e369]:
+              - generic [ref=e370]:
+                - generic [ref=e371]: ⌂
+                - text: +85% Direct Bookings
+              - generic [ref=e372]: Short-Term Rental
+          - generic [ref=e373]:
+            - application "Forge Quest mini-game. Space or tap to jump." [ref=e375]:
+              - generic [ref=e377]:
+                - generic [ref=e378]: FORGE QUEST
+                - generic [ref=e379]: Ship the client site. Jump the bugs. Collect the leads.
+                - button "▶ PLAY" [ref=e380] [cursor=pointer]
+                - generic [ref=e381]: SPACE / TAP TO JUMP
+            - generic [ref=e382]:
+              - generic [ref=e383]:
+                - generic [ref=e384]: ▣
+                - text: Featured Game Demo
+              - generic [ref=e385]: Bonus Game Preview
+        - generic [ref=e386]:
+          - generic [ref=e387]: Want a build like these for your business?
+          - button "Book a 15-min call" [ref=e388] [cursor=pointer]
+      - generic [ref=e390]:
+        - generic [ref=e391]: 04 · What Clients Say
+        - generic [ref=e394]:
+          - heading "What clients say." [level=2] [ref=e395]:
+            - generic [ref=e396]:
+              - generic [ref=e397]: What
+              - generic [ref=e399]: clients
+              - generic [ref=e401]: say.
+          - paragraph [ref=e404]: Real feedback from businesses we've helped grow. Quotes shared with permission.
+        - generic [ref=e406]:
+          - generic [ref=e407]: 01 / 05
+          - generic: “
+          - generic [ref=e408]:
+            - paragraph [ref=e420]: “ClientForge helped us look more professional online and brought in more leads almost immediately. The site feels like it was built for our business, not a template slapped on top.”
+            - generic [ref=e421]:
+              - generic [ref=e422]:
+                - generic [ref=e423]: MH
+                - generic [ref=e424]:
+                  - generic [ref=e425]: Marcus Hale
+                  - generic [ref=e426]: Owner, Hale Roofing Co.
+              - generic [ref=e427]: +162% leads in 60 days
+          - generic [ref=e428]:
+            - generic [ref=e429]:
+              - button "Show testimonial 1" [ref=e430] [cursor=pointer]
+              - button "Show testimonial 2" [ref=e431] [cursor=pointer]
+              - button "Show testimonial 3" [ref=e432] [cursor=pointer]
+              - button "Show testimonial 4" [ref=e433] [cursor=pointer]
+              - button "Show testimonial 5" [ref=e434] [cursor=pointer]
+            - generic [ref=e435]:
+              - button [ref=e436] [cursor=pointer]
+              - button [ref=e439] [cursor=pointer]
+        - generic [ref=e442]:
+          - generic [ref=e443]:
+            - paragraph [ref=e455]: "\"ClientForge helped us look more professional online and brought in more leads almost immediately.\""
+            - generic [ref=e456]:
+              - generic [ref=e457]: MH
+              - generic [ref=e458]:
+                - generic [ref=e459]: Marcus Hale
+                - generic [ref=e460]: Owner, Hale Roofing Co.
+          - generic [ref=e461]:
+            - paragraph [ref=e473]: "\"The automation saved us hours every week.\""
+            - generic [ref=e474]:
+              - generic [ref=e475]: PR
+              - generic [ref=e476]:
+                - generic [ref=e477]: Priya Ramaswamy
+                - generic [ref=e478]: Director, Luma Med Spa
+          - generic [ref=e479]:
+            - paragraph [ref=e491]: "\"Our new website finally feels like a real business asset.\""
+            - generic [ref=e492]:
+              - generic [ref=e493]: DO
+              - generic [ref=e494]:
+                - generic [ref=e495]: Daniel Okafor
+                - generic [ref=e496]: Founder, BrightPath Childcare
+      - generic [ref=e498]:
+        - generic [ref=e499]: 05 · Contact
+        - generic [ref=e502]:
+          - generic [ref=e503]:
+            - heading "Let's build something that grows your business." [level=2] [ref=e504]:
+              - generic [ref=e505]:
+                - generic [ref=e506]: Let's
+                - generic [ref=e508]: build
+                - generic [ref=e510]: something
+                - generic [ref=e512]: that
+                - generic [ref=e514]: grows
+                - generic [ref=e516]: your
+                - generic [ref=e518]: business.
+            - paragraph [ref=e521]: Tell us what you need and we'll reach out with the best next step — usually a 20-minute call, sometimes a written plan.
+            - generic [ref=e523]:
+              - link "Email yahjair@atouchofblessing.com" [ref=e524] [cursor=pointer]:
+                - /url: mailto:yahjair@atouchofblessing.com
+                - generic [ref=e529]:
+                  - generic [ref=e530]: Email
+                  - generic [ref=e531]: yahjair@atouchofblessing.com
+              - link "Instagram @forgelabsx" [ref=e532] [cursor=pointer]:
+                - /url: https://www.instagram.com/forgelabsx/
+                - generic [ref=e538]:
+                  - generic [ref=e539]: Instagram
+                  - generic [ref=e540]: "@forgelabsx"
+              - generic [ref=e548]:
+                - generic [ref=e549]: Response time
+                - generic [ref=e550]: Usually within 4 hours
+            - generic [ref=e552]:
+              - generic [ref=e553]: What happens next
+              - list [ref=e555]:
+                - listitem [ref=e556]:
+                  - generic [ref=e557]: "1"
+                  - generic [ref=e558]: We read your message within the business day.
+                - listitem [ref=e559]:
+                  - generic [ref=e560]: "2"
+                  - generic [ref=e561]: You get a short reply — a plan, call invite, or question.
+                - listitem [ref=e562]:
+                  - generic [ref=e563]: "3"
+                  - generic [ref=e564]: If it's a fit, we send a fixed-scope quote within 48 hrs.
+          - generic [ref=e568]:
+            - generic [ref=e569]:
+              - generic [ref=e570]: Your name*
+              - textbox "Your name*" [ref=e572]:
+                - /placeholder: Jane Carter
+            - generic [ref=e573]:
+              - generic [ref=e574]: Business name
+              - textbox "Business name" [ref=e576]:
+                - /placeholder: Carter & Co.
+            - generic [ref=e578]:
+              - generic [ref=e579]: Your email*
+              - textbox "Your email*" [ref=e581]:
+                - /placeholder: jane@carter.co
+            - generic [ref=e583]:
+              - generic [ref=e584]: What do you need help with?*
+              - generic [ref=e586]:
+                - button "What do you need help with?* AI Automation Custom App Not sure" [ref=e587] [cursor=pointer]: Website
+                - button "AI Automation" [ref=e588] [cursor=pointer]
+                - button "Custom App" [ref=e589] [cursor=pointer]
+                - button "Not sure" [ref=e590] [cursor=pointer]
+            - generic [ref=e592]:
+              - generic [ref=e593]:
+                - generic [ref=e594]: Message
+                - generic [ref=e595]: what you're trying to grow, fix, or automate
+              - textbox "Message what you're trying to grow, fix, or automate" [ref=e596]:
+                - /placeholder: We get about 40 inbound leads a week and most slip through the cracks. We'd like…
+            - generic [ref=e597]:
+              - paragraph [ref=e598]: We reply to every message. No spam, no sales pressure — just a real human picking up the thread.
+              - button "Start Your Project" [ref=e599] [cursor=pointer]
+        - generic [ref=e604]:
+          - generic [ref=e605]:
+            - generic [ref=e607]: ClientForge
+            - generic [ref=e608]: · AI automations, apps & websites
+          - generic [ref=e609]:
+            - link "@forgelabsx" [ref=e610] [cursor=pointer]:
+              - /url: https://www.instagram.com/forgelabsx/
+            - link "Back to top ↑" [ref=e616] [cursor=pointer]:
+              - /url: "#home"
+            - generic [ref=e617]: © 2026 ClientForge
