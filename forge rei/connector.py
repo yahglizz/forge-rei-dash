@@ -4533,7 +4533,7 @@ class Handler(BaseHTTPRequestHandler):
 # handler is the ONLY surface intended to face the public internet (via Tailscale
 # Funnel on FORGE_PORTAL_PORT). It answers exactly three things:
 #   GET  /            + /portal        → the client portal page (portal.html)
-#   GET  /api/portal/bootstrap         → that client's own name + requests (token)
+#   POST /api/portal/bootstrap         → that client's own name + requests (token)
 #   POST /api/portal/submit            → file a new edit request (token)
 # EVERYTHING else 404s. There is deliberately NO path from this handler to the
 # CRM, the dashboard APIs, secrets, or any other client — a client's token only
@@ -4549,11 +4549,21 @@ class PortalHandler(BaseHTTPRequestHandler):
     def log_message(self, *a):  # keep the portal quiet in the connector log
         pass
 
+    def _same_origin_post(self):
+        origin = self.headers.get("Origin")
+        if not origin:
+            return True
+        parsed = urllib.parse.urlparse(origin)
+        return (parsed.scheme in ("http", "https")
+                and parsed.netloc.lower() == (self.headers.get("Host") or "").lower())
+
     def _json(self, obj, code=200):
         body = json.dumps(obj).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         try:
             self.wfile.write(body)
@@ -4568,6 +4578,8 @@ class PortalHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         try:
             self.wfile.write(data)
@@ -4579,20 +4591,14 @@ class PortalHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if path in ("/", "/portal", "/portal/", "/portal.html"):
             return self._page()
-        if path == "/api/portal/bootstrap":
-            q = urllib.parse.parse_qs(parsed.query)
-            cid = (q.get("c", [None]) or [None])[0]
-            token = (q.get("k", [None]) or [None])[0]
-            try:
-                return self._json(agency_portal_io.bootstrap(cid, token))
-            except Exception as e:  # noqa: BLE001
-                return self._json({"error": str(e)}, 500)
         return self.send_error(404, "Not found")
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path != "/api/portal/submit":
+        if parsed.path not in ("/api/portal/bootstrap", "/api/portal/submit"):
             return self.send_error(404, "Not found")
+        if not self._same_origin_post():
+            return self._json({"error": "same-origin request required"}, 403)
         try:
             length = int(self.headers.get("Content-Length", 0) or 0)
             if length > 64 * 1024:  # a client request body is tiny; cap abuse
@@ -4601,10 +4607,12 @@ class PortalHandler(BaseHTTPRequestHandler):
             body = json.loads(raw or b"{}")
             if not isinstance(body, dict):
                 return self._json({"error": "bad request"}, 400)
+            if parsed.path == "/api/portal/bootstrap":
+                return self._json(agency_portal_io.bootstrap(body.get("c"), body.get("k")))
             return self._json(agency_portal_io.submit(
                 body.get("c"), body.get("k"), body))
-        except Exception as e:  # noqa: BLE001
-            return self._json({"error": str(e)}, 500)
+        except Exception:  # noqa: BLE001
+            return self._json({"error": "portal request failed"}, 500)
 
 
 def _start_portal_server():

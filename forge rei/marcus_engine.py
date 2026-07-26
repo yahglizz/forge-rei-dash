@@ -336,10 +336,10 @@ class MarcusEngine:
         self.location_id = location_id
         self.lock = threading.Lock()
         self.enabled = True
-        self.auto_send = False  # human approval required by default (all classes)
-        # NRN ("not selling / not right now") referral reply is ALSO a proposal by default —
-        # propose→review→execute holds for every outward text (CLAUDE.md §2). Flip on with
-        # the dashboard toggle (or config) if you want the safe canned line to auto-send.
+        # Seller texts always stay review-gated. Autopilot is implemented separately
+        # for its narrow, documented re-engage exception; Marcus never gets a broad
+        # persisted auto-send switch.
+        self.auto_send = False
         self.auto_send_nrn = False
         self.poll_interval = 60
         self.last_poll = None
@@ -373,10 +373,10 @@ class MarcusEngine:
                 c = json.loads(CONFIG_FILE.read_text())
                 if "enabled" in c:
                     self.enabled = bool(c["enabled"])
-                if "auto_send" in c:
-                    self.auto_send = bool(c["auto_send"])
-                if "auto_send_nrn" in c:
-                    self.auto_send_nrn = bool(c["auto_send_nrn"])
+                # Old config files may contain these keys. Ignore them so a legacy
+                # toggle cannot silently restore autonomous seller texting on boot.
+                self.auto_send = False
+                self.auto_send_nrn = False
         except Exception:
             pass
 
@@ -882,23 +882,13 @@ class MarcusEngine:
             self._log("propose", f"{cls}: {full or 'contact'} — \"{body[:60]}\"",
                       {"id": pid})
 
-            # Auto-send if globally enabled, OR if this is the safe canned NRN reply.
-            # Held back outside quiet hours -> stays a pending proposal for morning.
-            # Skipped entirely when the caller owns the send (allow_auto=False) — see the
-            # note on the signature: otherwise this steals the proposal out from under them.
+            # Seller drafts stay in the approval inbox. The only autonomous wholesale
+            # path is the separately-gated autopilot re-engage exception, not Marcus.
             if allow_auto:
                 if test_mode.is_test(c.get("phone")):
                     proposal["autonomous"] = True
                     self._send(pid, reply)
                     self._log("autosend", f"TEST MODE — auto-replied to {full or 'contact'}", {"id": pid})
-                else:
-                    wants_auto = self.auto_send or (cls == "NRN" and source == "canned" and self.auto_send_nrn)
-                    if wants_auto and self._auto_send_allowed():
-                        proposal["autonomous"] = True
-                        self._send(pid, reply)
-                    elif wants_auto:
-                        self._log("deferred", f"Quiet hours — held auto-reply to {full or 'contact'} "
-                                  f"for review", {"id": pid})
             return {"ok": True, "proposalId": pid}
 
     def make_proposal_for(self, conversation_id, contact_id=None, hint=None, seller_said=None):
@@ -1033,10 +1023,11 @@ class MarcusEngine:
         with self.lock:
             if enabled is not None:
                 self.enabled = bool(enabled)
-            if auto_send is not None:
-                self.auto_send = bool(auto_send)
-            if auto_send_nrn is not None:
-                self.auto_send_nrn = bool(auto_send_nrn)
+            if auto_send or auto_send_nrn:
+                return {"error": "Automatic seller texting is disabled; approve each draft.",
+                        "code": "approval_required"}
+            self.auto_send = False
+            self.auto_send_nrn = False
             self._save_config()  # survive restart
             self._log("config", f"enabled={self.enabled} auto_send={self.auto_send} "
                                 f"auto_send_nrn={self.auto_send_nrn}")

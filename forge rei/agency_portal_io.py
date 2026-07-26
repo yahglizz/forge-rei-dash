@@ -123,7 +123,10 @@ def link(cid, base=""):
     if tok.get("error"):
         return tok
     prefix = (base or "").rstrip("/")
-    url = f"{prefix}/portal?c={cid}&k={tok['portalToken']}"
+    # Keep the bearer token out of HTTP requests, server/proxy logs, referrers,
+    # and browser history. portal.html reads this fragment once, clears it, then
+    # submits the token in a same-origin POST body.
+    url = f"{prefix}/portal#c={cid}&k={tok['portalToken']}"
     return {"ok": True, "clientId": cid, "name": tok.get("name") or "",
             "url": url, "portalToken": tok["portalToken"]}
 

@@ -55,16 +55,13 @@ function MarcusConsole() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button className="tab" onClick={pollNow} disabled={busy === "poll"}>{busy === "poll" ? "Checking…" : "Check now"}</button>
           <Switch label="Active" on={!!s.enabled} onClick={() => toggle({ enabled: !s.enabled })} />
-          <Switch label="Auto-send" on={!!s.autoSend} danger onClick={() => toggle({ autoSend: !s.autoSend })} />
         </div>
       </div>
 
-      {s.autoSend && (
-        <div className="card" style={{ padding: 12, borderColor: "var(--orange)", display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ color: "var(--orange)" }}><Icons.Spark size={16} /></span>
-          <span style={{ fontSize: 12.5 }}><b>Auto-send ON</b> — Marcus texts sellers without asking. Turn off to review every reply first.</span>
-        </div>
-      )}
+      <div className="card" style={{ padding: 12, borderColor: "var(--green)", display: "flex", gap: 10, alignItems: "center" }}>
+        <span style={{ color: "var(--green)" }}><Icons.Check size={16} /></span>
+        <span style={{ fontSize: 12.5 }}><b>Approval gate on</b> — every seller text remains a draft until you approve it.</span>
+      </div>
 
       {/* Counters */}
       <div className="kpi-row">

@@ -67,10 +67,11 @@
 <script>
 (function(){
   "use strict";
-  var qs = new URLSearchParams(location.search);
+  var qs = new URLSearchParams(location.hash.slice(1));
   var CID = qs.get("c") || "";
   var TOKEN = qs.get("k") || "";
   var wrap = document.getElementById("wrap");
+  if (location.hash) history.replaceState(null, "", location.pathname);
 
   var STATUS = {
     submitted:   {label:"Submitted",   color:"#4F7CFF"},
@@ -197,7 +198,7 @@
       wrap.innerHTML = '<div class="center"><h1>Link not recognized</h1><p class="lead">This portal link looks incomplete. Please use the exact link your FORGE contact sent you.</p></div>';
       return Promise.resolve();
     }
-    return api("/api/portal/bootstrap?c="+encodeURIComponent(CID)+"&k="+encodeURIComponent(TOKEN))
+    return api("/api/portal/bootstrap", {c: CID, k: TOKEN})
       .then(function(res){
         if(res && res.ok){ STATE = res; render(); }
         else { wrap.innerHTML = '<div class="center"><h1>Link expired</h1><p class="lead">'+esc((res&&res.error)||"This link is no longer valid.")+' Please ask your FORGE contact for a fresh link.</p></div>'; }
