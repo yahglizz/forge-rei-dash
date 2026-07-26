@@ -45,6 +45,10 @@ BRIEF_DIR_REL = "Reports/dropship"         # living operating record written eve
 LEARN_EVERY = int(os.environ.get("FORGE_DROPSHIP_LEARN_EVERY", "8"))
 LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_DROPSHIP_LEARN_GAP_MIN", "45")) * 60 * 1000
 BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_DROPSHIP_BRIEF_EVERY_H", "24")) * 3600 * 1000)
+# Same ceiling story as Solomon: absorbing Hawk/Blaze/Otto added an `ads` lane and made
+# the single-JSON brief longer than 2600 tokens could hold. A truncated brief fails
+# json.loads and throws away the whole call.
+BRIEF_MAX_TOKENS = int(os.environ.get("FORGE_DROPSHIP_BRIEF_TOKENS", "5000"))
 POLL_INTERVAL = 900  # seconds between loop ticks (self-improve + due-brief check)
 
 # Connected systems Midas watches — (env key, display name). Presence only; he
@@ -459,7 +463,7 @@ class MidasEngine:
             + "\n\nProduce the operating brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=2600))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"

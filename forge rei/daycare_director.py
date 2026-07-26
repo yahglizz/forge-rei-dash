@@ -51,6 +51,12 @@ RECENT_BLASTS = 5                          # blast history depth for the follow-
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
 LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_SOLOMON_LEARN_GAP_MIN", "45")) * 60 * 1000
 BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_SOLOMON_BRIEF_EVERY_H", "24")) * 3600 * 1000)
+# The brief is ONE json object covering 9 sections (ops, enrollment, money, people,
+# roster, follow-ups, campaign health, competitor read, creative). Absorbing Nora's and
+# Nova's lanes on 2026-07-25 made it materially longer, and 2600 started truncating it
+# mid-string — a cut-off brief fails json.loads and the whole run is lost after ~2 min
+# of Claude time. Sized with headroom; raise if a section ever comes back clipped.
+BRIEF_MAX_TOKENS = int(os.environ.get("FORGE_SOLOMON_BRIEF_TOKENS", "5000"))
 POLL_INTERVAL = 900  # seconds between loop ticks (self-improve + due-brief check)
 
 # Connected systems Solomon watches — (env key, display name). Presence only; he
@@ -570,7 +576,7 @@ class SolomonEngine:
             + "\n\nProduce the operating brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=2600))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"
