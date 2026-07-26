@@ -286,37 +286,51 @@ class MidasEngine:
     # reachable from learn()) → TOP SKILLS below → the learned playbook last.
     # The two ad frameworks were Blaze's hardcoded floors; they're top skills now so
     # learn() still can't rewrite them (they load via _load_skills, never _playbook_only).
+    # ALWAYS loaded: how Midas reasons + decides. Small and universal.
     TOP_SKILLS = ("midas-decision-loop.md", "midas-craft.md",
-                  "dropship-four-triggers-ad-writer.md",
-                  "dropship-meta-ads-diagnostician.md")
+                  "dropship-account-health.md")   # health outranks the analysis (creed)
+    # Deep SOPs, ~13-15KB each. Loaded ONLY by the lane that consults them: the brief
+    # runs unattended on a timer forever, so carrying all nine every tick is a permanent
+    # ~24k-token/call tax for pages that call never reads. The brief still ranks all three
+    # lanes — the learned playbook's lane sections (always loaded) are what it ranks from.
+    LANE_SKILLS = {
+        "product research":      ("dropship-adspy-method.md",),
+        "creative & ads":        ("dropship-four-triggers-ad-writer.md",
+                                  "dropship-meta-ads-diagnostician.md",
+                                  "dropship-ad-launch-sop.md",
+                                  "dropship-adspy-method.md"),
+        "fulfillment & support": ("dropship-support-macros.md",),
+    }
+    # Reachable to the OPERATOR via top_skills_text() (chat / Telegram) but never worth a
+    # scheduled tick: one-time build guidance, not a recurring decision input.
+    ON_DEMAND_SKILLS = ("dropship-store-setup.md",)
     PLAYBOOK_MD = "midas-playbook.md"
     # Skills that reach the prompt through their OWN loader, NOT _load_skills.
     # Loading them here too would double-spend the tokens and blur the creed boundary.
     LOADED_ELSEWHERE = ("dropship-evidence-discipline.md",   # agent_creed.block("dropship")
                         "dropship-context.md")               # dropship_context.context_block()
 
-    def _load_skills(self):
-        """The CONSTITUTION: top skills + every other midas-*/dropship-* skill, in
-        priority order. Excludes the learned playbook (see _playbook_only) so the two
-        get separate context budgets and self-improvement can never rewrite the
-        constitution. Also excludes the two files that load through their OWN path —
-        the creed (agent_creed.block, deliberately invisible to learn()) and the
-        business brief (dropship_context.context_block, injected FIRST) — so neither
-        is double-spent in the prompt."""
+    def _load_skills(self, lane=""):
+        """The CONSTITUTION: the always-on top skills, plus this lane's deep SOPs.
+
+        Excludes the learned playbook (see _playbook_only) so the two get separate
+        context budgets and self-improvement can never rewrite the constitution. Also
+        excludes the two files that load through their OWN path — the creed
+        (agent_creed.block, deliberately invisible to learn()) and the business brief
+        (dropship_context.context_block, injected FIRST) — so neither is double-spent.
+
+        lane="" (the daily brief) gets the core only. Pass one of LANE_SKILLS' keys to
+        add that lane's SOPs; unknown lane names degrade to core rather than raising.
+        """
         try:
             import brain_io
             seed = DROPSHIP_DIR / "skills"
             vault = brain_io.VAULT / "Skills"
-            skip = set(self.TOP_SKILLS) | {self.PLAYBOOK_MD} | set(self.LOADED_ELSEWHERE)
+            names = list(self.TOP_SKILLS) + list(self.LANE_SKILLS.get(lane, ()))
 
             paths = []
-            for name in self.TOP_SKILLS:           # top skills first, seed then vault
+            for name in names:                     # declared order, seed then vault
                 paths += [seed / name, vault / name]
-            for d in (seed, vault):                # then every other dropship skill
-                if d.is_dir():
-                    paths += sorted((p for pat in ("midas-*.md", "dropship-*.md")
-                                     for p in d.glob(pat) if p.name not in skip),
-                                    key=lambda p: p.name)
 
             parts, sig, seen = [], [], set()
             for p in paths:
@@ -326,8 +340,8 @@ class MidasEngine:
                 seen.add(rp)
                 parts.append(p.read_text(errors="ignore"))
                 sig.append((rp, p.stat().st_mtime))
-            sig = tuple(sig)
-            if self._sk_mtime != sig:
+            sig = (lane,) + tuple(sig)
+            if self._sk_mtime != sig:              # cache keyed by lane + mtimes
                 self._sk_text = "\n\n---\n\n".join(parts)
                 self._sk_mtime = sig
             return self._sk_text
@@ -725,7 +739,7 @@ class MidasEngine:
             ctx = dropship_context.context_block()
         except Exception:
             ctx = ""
-        skills = self._load_skills()
+        skills = self._load_skills(lane)   # core + THIS lane's deep SOPs
         playbook = self._playbook_only()
         system = (
             "You are Midas, the e-commerce director of the FORGE Dropship store. You run "
