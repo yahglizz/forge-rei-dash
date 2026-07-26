@@ -68,7 +68,7 @@ _SEQ = 0
 
 # ── roster ────────────────────────────────────────────────────────────────────
 def _hub_agents():
-    """The eight agents_hub agents keyed by id. {} if the hub can't be imported."""
+    """The agents_hub agents keyed by id. {} if the hub can't be imported."""
     try:
         import agents_hub
         return {a["id"]: a for a in agents_hub.AGENTS}
@@ -258,33 +258,6 @@ def _finish(job_id, status, result="", error=""):
                 return
 
 
-def _run_dropship(agent_id, title):
-    """Run the dropship director for real. Midas's real run is his operating brief;
-    anything else with an analyze() takes the free-form task through it."""
-    eng = _engine(agent_id)
-    if eng is None:
-        return "", f"{agent_id} has no live engine on this host"
-    try:
-        if agent_id == "midas":
-            brief = eng.build_brief()
-            if isinstance(brief, dict) and brief.get("error"):
-                return "", str(brief["error"])[:300]
-            headline = ""
-            if isinstance(brief, dict):
-                headline = brief.get("headline") or brief.get("summary") or ""
-            return (headline or "Operating brief rebuilt — see the Midas console."), ""
-        out = eng.analyze(title)
-        if isinstance(out, dict) and not out.get("ok"):
-            return "", str(out.get("error") or "analysis failed")[:300]
-        res = (out or {}).get("result") if isinstance(out, dict) else out
-        if isinstance(res, dict):
-            return (res.get("headline") or res.get("raw")
-                    or "Analysis complete — see the agent console."), ""
-        return str(res or "Analysis complete."), ""
-    except Exception as e:  # noqa: BLE001
-        return "", str(e)[:300]
-
-
 def _run(job, chat_fn):
     """The worker. Every step is announced BEFORE the work so the floor animates the
     thing that is actually happening, not a canned sequence."""
@@ -294,11 +267,13 @@ def _run(job, chat_fn):
         _step(jid, "walk", "heading to the desk")
         _step(jid, "read", "loading creed, playbook and live data")
 
+        # Every agent — all four businesses — answers the ACTUAL task through its own
+        # brain (agents_hub.chat → the creed + playbook + live data for its business).
+        # Dropship used to be special-cased into "rebuild the brief", which meant Midas
+        # replied with a canned line no matter what you asked him. Now that he's in the
+        # hub roster he goes through the same path as everyone else.
         prompt = title if not note else f"{title}\n\nContext from the operator: {note}"
-        if DEPT_OF.get(aid) == "dropship":
-            _step(jid, "think", "working the task")
-            reply, err = _run_dropship(aid, prompt)
-        elif chat_fn is None:
+        if chat_fn is None:
             reply, err = "", "no brain wired for this agent on this host"
         else:
             _step(jid, "think", "working the task")
@@ -364,7 +339,7 @@ def dispatch(agent_id, title, note="", chat_fn=None):
     task_id = ""
     try:
         import agents_hub
-        # Only the hub agents have a task store; dropship tasks live in the job log.
+        # Every agent on the floor is a hub agent now, so every task gets a store row.
         if agent_id in _hub_agents():
             out = agents_hub.send_task(agent_id, title, note)
             task_id = ((out or {}).get("task") or {}).get("id", "")
@@ -418,7 +393,12 @@ def _selfcheck():
     from pathlib import Path as _P
 
     assert set(DEPT_OF) == {a for d in DEPARTMENTS for a in d["agents"]}
-    assert len(DEPT_OF) == 12, DEPT_OF
+    # 7 after the 2026-07-25 consolidation (Nora/Nova/Hawk/Blaze/Otto retired).
+    assert len(DEPT_OF) == 7, DEPT_OF
+    # Every agent on the floor must be reachable through agents_hub.chat — that's the
+    # one path _run uses, so an agent missing from the hub roster would silently fall
+    # through to "no brain wired" (which is how Midas ended up canned-replying).
+    assert not set(DEPT_OF) - set(_hub_agents()), set(DEPT_OF) - set(_hub_agents())
 
     now = 1_000_000
     # "zzz" is chat-only (no engine attr) -> idle, not unknown.
