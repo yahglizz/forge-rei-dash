@@ -20,12 +20,14 @@ const HUB_CONSOLE = {
   dyson: "AgencyDyson",
   eco: "AgencyEco",
   solomon: "DaycareDirector",
+  midas: "DropshipAgents",
 };
 
 const HUB_BIZ_COLOR = {
   wholesale: "#4F7CFF",
   agency: "#8B5CF6",
   daycare: "#2DD4BF",
+  dropship: "#F59E0B",
   voice: "#F4B860",
 };
 
@@ -35,6 +37,7 @@ const HUB_BUSINESS_OF = {
   scout: "wholesale", marcus: "wholesale", atlas: "wholesale",
   dyson: "agency", eco: "agency",
   solomon: "daycare",
+  midas: "dropship",
 };
 
 function HubDot({ ok, title }) {
