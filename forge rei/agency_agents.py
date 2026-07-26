@@ -200,6 +200,7 @@ def _load_skills(agent_id):
 
 _METHOD_CACHE = {}  # (mtime_sig, text) for the marketing methodology seed
 _ADCOPY_CACHE = {}  # (mtime_sig, text) for the four-triggers ad-copy seed
+_SITEBUILD_CACHE = {}  # (mtime_sig, text) for the site-build methodology seed
 
 
 def _four_triggers_skill():
@@ -252,6 +253,36 @@ def _marketing_methodology():
         return cached[1] if cached else ""
 
 
+def _site_build_methodology():
+    """The site-build floor (agency-site-build-methodology.md) — how Dyson scopes and
+    ships a client site: price against what a customer is worth, one primary action,
+    never invent proof, and treat the inquiry path as the deliverable. Distilled from
+    the ClientForge build, so it carries the failures that cost money there.
+
+    Isolated from _load_skills for the same reason as the creed and the marketing
+    methodology: learn() rewrites whatever _load_skills returns, and a floor that
+    self-improvement can rewrite is not a floor. mtime-cached. Returns "" if absent."""
+    try:
+        p = None
+        for d in SEED_SKILLS_DIRS:
+            cand = d / "agency-site-build-methodology.md"
+            if cand.is_file():
+                p = cand
+                break
+        if not p:
+            return ""
+        sig = p.stat().st_mtime
+        cached = _SITEBUILD_CACHE.get("s")
+        if not cached or cached[0] != sig:
+            text = p.read_text(errors="ignore")
+            _SITEBUILD_CACHE["s"] = (sig, text)
+            return text
+        return cached[1]
+    except Exception:
+        cached = _SITEBUILD_CACHE.get("s")
+        return cached[1] if cached else ""
+
+
 def _skills_block(agent_id):
     """NORTH STAR (the cross-business constitution) + the CREED (agency evidence
     discipline) + the MARKETING METHODOLOGY (Corey-Haines floor) + the learned playbook,
@@ -279,6 +310,14 @@ def _skills_block(agent_id):
         "\n\n=== MARKETING METHODOLOGY (how to market — a stable floor; apply it, the "
         "creed still outranks it) ===\n" + method[:5000] if method else ""
     )
+    sitebuild_block = ""
+    if agent_id == "dyson":
+        sb = _site_build_methodology()
+        if sb:
+            sitebuild_block = (
+                "\n\n=== SITE-BUILD METHODOLOGY (how to scope and ship a client site; a "
+                "stable floor — apply it, the creed still outranks it) ===\n" + sb[:5000]
+            )
     adcopy_block = ""
     if agent_id == "eco":
         adcopy = _four_triggers_skill()
@@ -289,9 +328,9 @@ def _skills_block(agent_id):
             )
     skills = _load_skills(agent_id)
     if skills:
-        return ns + creed + method_block + adcopy_block + (
+        return ns + creed + method_block + sitebuild_block + adcopy_block + (
             "\n\n=== YOUR PLAYBOOK (learned from the brain — apply it) ===\n" + skills[:3000])
-    return ns + creed + method_block + adcopy_block
+    return ns + creed + method_block + sitebuild_block + adcopy_block
 
 
 def _history_block(history, limit=10):
