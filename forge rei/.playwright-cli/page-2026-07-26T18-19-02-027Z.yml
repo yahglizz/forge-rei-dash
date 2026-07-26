@@ -1,0 +1,13 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e11]:
+      - generic [ref=e12]: Mission Control
+      - generic [ref=e13]: Every business, one screen
+    - button "Jump to a business" [ref=e15] [cursor=pointer]
+    - button "Refresh" [ref=e18] [cursor=pointer]
+  - generic [ref=e20]:
+    - generic [ref=e25]:
+      - generic [ref=e26]: ORION
+      - generic [ref=e27]: Reading every business…
+    - button "Generate" [ref=e28] [cursor=pointer]
+  - generic [ref=e29]: Reading the whole operation…
