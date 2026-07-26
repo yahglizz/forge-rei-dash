@@ -2118,8 +2118,13 @@ def _tg_agent_chat(agent_id, message, history):
         # thread after its first exchange — ignore it unless the store is empty.
         # (Audit F3, 2026-07-11.)
         hist = agents_history.recent_for_context(agent_id) or history
-        out = agents_chat.chat(ghl_get, LOCATION_ID, agent_id, message,
-                               history=hist, scout=SCOUT, enable_commands=False)
+        # Solomon (daycare) and Midas (dropship) live in the hub, not agents_chat —
+        # route them to their own grounded director brain.
+        if agent_id in ("solomon", "midas"):
+            out = agents_hub.chat(ghl_get, LOCATION_ID, agent_id, message, history=hist)
+        else:
+            out = agents_chat.chat(ghl_get, LOCATION_ID, agent_id, message,
+                                   history=hist, scout=SCOUT, enable_commands=False)
         reply = (out or {}).get("reply", "") if isinstance(out, dict) else str(out or "")
         agents_history.record(agent_id, message, reply, via="telegram")
         return reply

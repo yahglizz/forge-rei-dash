@@ -672,8 +672,9 @@ _AGENT_HELP = (
     "<b>FORGE REI OS</b> — your crew, from your phone\n"
     "\n🕹 <b>Agents</b> — pick one, then just chat:\n"
     + "\n".join(f"• <code>/{aid}</code> {emo} {blurb}" for aid, emo, blurb in _AGENT_ROSTER)
-    + "\n• <code>/task fix the hero copy</code> — hand the ACTIVE agent a job "
-    "(Dyson/Eco queue it as a planned task; Marcus/Scout/Atlas act on it in chat)\n"
+    + "\nOr just say the name: “<code>solomon, what's the ratio situation</code>”.\n"
+    "• <code>/task fix the hero copy</code> — files a REAL job: lands in that agent's "
+    "inbox + the dashboard board, and they act on it on their next run\n"
     "• <code>/agents</code> — the roster · <code>/menu</code> — quick-tap buttons\n"
     "\n☀️ <b>Daily</b>: <code>/today</code> · <code>/done 3</code> · <code>/hot</code> · "
     "<code>/report</code> · <code>/sweep</code> · <code>/proposals</code>\n"
@@ -708,6 +709,8 @@ _BOT_COMMANDS = [
     ("atlas", "Chat with Atlas (underwriting)"),
     ("dyson", "Chat with Dyson (agency builds)"),
     ("eco", "Chat with Eco (agency ads)"),
+    ("solomon", "Chat with Solomon (daycare director)"),
+    ("midas", "Chat with Midas (dropship director)"),
     ("proposals", "Pending reply approvals"),
     ("clock", "Clock the crew in/out"),
     ("ace", "ACE autonomy mode"),
@@ -896,12 +899,15 @@ def _handle_message(msg, reply_token=None):
         # File it for real: persisted in the hub task store AND broadcast on the agent
         # bus, so the agent picks it up in its own _read_bus_inbox on the next run and
         # it shows on the dashboard board. An assignment is not an action — rule 2 holds.
+        # Agency agents keep their own board via _AGENCY_TASK below; routing them through
+        # the hub too would file the same task twice.
         filed = False
-        try:
-            import agents_hub
-            filed = not (agents_hub.send_task(agent_id, title) or {}).get("error")
-        except Exception as e:  # noqa: BLE001
-            _set_error(e)
+        if agent_id not in _AGENCY_AGENTS:
+            try:
+                import agents_hub
+                filed = not (agents_hub.send_task(agent_id, title) or {}).get("error")
+            except Exception as e:  # noqa: BLE001
+                _set_error(e)
         if agent_id in _AGENCY_AGENTS:
             tfn = _AGENCY_TASK.get("fn")
             if not tfn:
@@ -919,7 +925,10 @@ def _handle_message(msg, reply_token=None):
                 reply_to(f"📋 <b>Queued for {agent_id.title()}</b> — it's on the "
                          f"Agency board.\n{_esc(str(plan)[:1200])}")
             return
-        text = title          # REI agent: treat the task as the chat message below
+        if filed:
+            reply_to(f"📥 <b>Filed for {agent_id.title()}</b> — in their inbox, they "
+                     f"pick it up on the next run.\n<i>{_esc(title)}</i>")
+        text = title          # …and answer it in chat right now too
         low = text.lower()
 
     # Route to the right brain: Dyson/Eco → agency backend, the rest → REI agents_chat.
