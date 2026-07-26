@@ -69,7 +69,9 @@ The discipline is that this order holds even when item 4 or 5 is more interestin
   store, and the ticket volume and dispute rate both fall.
 - **CBO/budget changes reset the learning phase.** Every big edit to a working ad set costs
   you re-optimization. Scale deliberately, in steps, not in panic swings — and never on a
-  6-hour read.
+  6-hour read. **The step sizes, kill gates, and cool-downs are numbers, not vibes:**
+  [[dropship-ad-launch-sop]] holds them (test at 1× break-even CPA/day, no kill under 1×
+  spent, hard kill at 2× with zero purchases, scale +20–30% with a 48–72h cool-down).
 
 ## Reading a store like an operator
 
