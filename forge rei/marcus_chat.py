@@ -30,6 +30,15 @@ _STOP = {
 }
 
 
+def _hub_tasks(agent_id):
+    """Open operator-assigned tasks, injected so Marcus sees a /task you filed."""
+    try:
+        import agents_hub
+        return agents_hub.open_tasks_block(agent_id)
+    except Exception:
+        return ""
+
+
 def _name_of(c):
     return (c.get("fullName") or c.get("contactName") or c.get("name")
             or (c.get("contact") or {}).get("name") or "Unknown seller")
@@ -163,7 +172,8 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
         "Answer now."
     )
     try:
-        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=600)
+        reply = review_agent._claude(
+            key, system + _hub_tasks("marcus") + caveman.block(), user, max_tokens=600)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}"}
     if _depth == 0:

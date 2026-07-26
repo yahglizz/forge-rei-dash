@@ -58,6 +58,17 @@ def roster():
     return {"agents": agents, "hasKey": bool(review_agent._api_key())}
 
 
+def _tasks(agent_id):
+    """Open operator-assigned tasks for this agent, as a prompt block. A task
+    filed from Telegram/the dashboard is an ASSIGNMENT — the agent addresses it
+    in conversation; it still never acts outward on its own (rule 2)."""
+    try:
+        import agents_hub
+        return agents_hub.open_tasks_block(agent_id)
+    except Exception:
+        return ""
+
+
 def _history_block(history, limit=8):
     if not history:
         return ""
@@ -233,7 +244,8 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         )
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
-            reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=600)
+            reply = review_agent._claude(key, system + _tasks(agent_id) + caveman.block(),
+                                         user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Hit an error reaching my brain: {e}"}
         # One consult round: Scout may [ASK MARCUS] mid-answer (agent_collab logs
@@ -273,7 +285,8 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         )
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
-            reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=600)
+            reply = review_agent._claude(key, system + _tasks(agent_id) + caveman.block(),
+                                         user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Hit an error reaching my brain: {e}"}
         try:

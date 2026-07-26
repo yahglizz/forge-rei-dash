@@ -374,6 +374,23 @@ class MidasEngine:
             err = (err + f"; autods: {e}") if err else f"autods: {e}"
         return data, err
 
+    def _read_bus_inbox(self, mark_read=True):
+        """Unread bus messages addressed to Midas (operator tasks + delegations from
+        the other businesses' agents), marked read. Never raises."""
+        out = []
+        try:
+            import agent_bus
+            for m in (agent_bus.inbox("midas", unread_only=True).get("messages") or [])[:10]:
+                out.append(m)
+                if mark_read and m.get("id"):
+                    try:
+                        agent_bus.mark_read(m["id"])
+                    except Exception:  # noqa: BLE001
+                        pass
+        except Exception:  # noqa: BLE001
+            return out
+        return out
+
     def build_brief(self):
         """Read the whole store + the brief, produce a prioritized operating brief.
         Read-only. Never contacts anyone. Delegations are recorded + posted to the
@@ -427,6 +444,11 @@ class MidasEngine:
             "store": live,
             "connectedSystems": [{"name": s["name"], "connected": s["connected"]} for s in systems],
             "offlineChannels": offline,
+            # Work the operator filed for Midas (Telegram /task, the dashboard board,
+            # another agent's delegation). Reading the inbox is how an assignment
+            # actually reaches him — it stays an assignment, never an outward action.
+            "assignedToYou": [{"from": m.get("from"), "text": m.get("text")}
+                              for m in self._read_bus_inbox()],
         }
         user = (
             "TODAY'S LIVE STORE DATA (ground the brief in these — do not invent numbers, "

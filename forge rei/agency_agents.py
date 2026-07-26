@@ -372,6 +372,11 @@ def chat(agent_id, message, history_in=None):
 
     system = (agent["system"] + "\n\n=== LIVE CONTEXT ===\n" + _context(agent_id)
               + _skills_block(agent_id))
+    try:                        # tasks the operator filed from Telegram / the board
+        import agents_hub
+        system += agents_hub.open_tasks_block(agent_id)
+    except Exception:  # noqa: BLE001
+        pass
     if agent_id == "dyson":                 # code/website agent → pull the graphify code-graph
         try:
             import agent_context
