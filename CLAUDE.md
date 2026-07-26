@@ -157,20 +157,41 @@ Solomon additionally carries two **top skills** above his playbook (loaded by
 | **`solomon-decision-loop`** | Frame → Ground → Hypothesize → Decide → **Close**. The exit condition that kills analysis paralysis. |
 | **`solomon-director-craft`** | The 50 years: triage order (safety/ratio → compliance → cash → enrollment), funnel-leak vs. lead-volume, speed-to-lead, vacancy as a spoiled good, retention math, discount last. |
 
-Midas carries four **top skills** above his playbook, loaded the same way
-(`_load_skills()`, isolated from `learn()` via `_playbook_only`) — declared in
-`MidasEngine.TOP_SKILLS` (`dropship_director.py`):
+Midas carries nine skills above his playbook, all isolated from `learn()` via
+`_playbook_only`. Unlike Solomon's flat set, Midas's are **lane-gated** — see below.
+
+**Always on** (`MidasEngine.TOP_SKILLS`, in every prompt including the scheduled brief):
 
 | Top skill | What it enforces |
 |-----------|------------------|
 | **`midas-decision-loop`** | How he reasons — ground every claim, rank falsifiable hypotheses, **close the loop** while the ad account is still spending. |
 | **`midas-craft`** | The operating judgment: triage order (account health → fulfillment → margin → winners → testing), the funnel leaks at the seams not the source, creative IS the targeting, a stockout on a winner is a spoiled good, discount last. |
-| **`dropship-four-triggers-ad-writer`** | Ad copy: Avatar → Problem → Unique Mechanism → Offer, plus the Meta compliance guardrails (no personal-attribute assertions, no fabricated claims). Was Blaze's hardcoded floor. |
-| **`dropship-meta-ads-diagnostician`** | Campaign diagnosis: the 12 sliders with benchmarks, find "the hose bend," combination signatures, one tactical prescription. Was Blaze's hardcoded floor. |
+| **`dropship-account-health`** | Chargeback/refund danger bands, reserve triggers, the Meta restriction runbook, hard-stop categories. Always on because the creed ranks account health above the analysis. |
 
-Five further `dropship-*` operating SOPs live in `forge-dropship/skills/` (ad-spy method,
-ad-launch numbers, store setup + pixel/CAPI, account health, support macros). They are
-**not** picked up by the `midas-*.md` glob — add them to `TOP_SKILLS` to load them.
+**Lane-gated** (`MidasEngine.LANE_SKILLS`, loaded only by the lane that consults them —
+`_load_skills(lane)`, where `lane` is the string `analyze()` already carries):
+
+| Lane | Skills added |
+|------|--------------|
+| `product research` | `dropship-adspy-method` |
+| `creative & ads` | `dropship-four-triggers-ad-writer`, `dropship-meta-ads-diagnostician`, `dropship-ad-launch-sop`, `dropship-adspy-method` |
+| `fulfillment & support` | `dropship-support-macros` |
+
+**On demand** (`ON_DEMAND_SKILLS`): `dropship-store-setup` — one-time build guidance
+(theme, offer/AOV, **pixel + CAPI**), reachable to the operator in chat, never worth a
+scheduled tick.
+
+**Why gated, and don't undo it.** These SOPs are ~13–15KB each. Declaring all nine as
+always-on costs **~24k tokens on every call**; the daily brief runs unattended forever, so
+that is a recurring bill for pages that call never reads. Gated, the brief carries ~12.5k
+and each lane gets exactly its own. **Operator chat is deliberately NOT gated** —
+`top_skills_text()` loads all nine, because a human question is bursty, cache-warm, and
+can be about any lane.
+
+**Enforcement:** `forge rei/test_dropship_skills.py` fails if any skill file is on disk but
+unreachable from every prompt path, if the creed leaks into `_load_skills`, or if a top
+skill lands in `learn()`'s budget. Run it after touching any skill:
+`cd "forge rei" && python3 test_dropship_skills.py` (exit 1 on failure).
 
 **Adding an agent:** give it the creed for its business — `agent_creed.block("<business>")`
 into its system prompt ahead of the playbook — and keep `learn()` pointed at the playbook
