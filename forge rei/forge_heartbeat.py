@@ -66,6 +66,24 @@ def _save(d):
     forge_atomic.atomic_write_json(STATE, d)
 
 
+def retire(loop):
+    """Drop one loop's heartbeat. Call when a loop is deliberately switched OFF.
+
+    A loop that stops beating goes red forever and trips the health card + watchdog —
+    which is exactly right for a crashed loop and exactly wrong for one the operator
+    disabled on purpose (FORGE_DROPSHIP_BRIEF=0, FORGE_TODAY_LOOP=0). Idempotent, and
+    never raises: telemetry must not be able to break boot.
+    """
+    try:
+        with _LOCK:
+            d = _load()
+            if loop in d:
+                d.pop(loop, None)
+                _save(d)
+    except Exception:
+        pass
+
+
 def beat(loop, interval=None, label=None, error=None, stale_mult=2.0):
     """Record one heartbeat for `loop`. Call at the end of every loop iteration.
 

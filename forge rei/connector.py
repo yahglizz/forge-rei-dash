@@ -4592,14 +4592,33 @@ def main():
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work
         # (research / analyze_ads / fulfillment_check) runs on-demand from the routes.
-        print(f"   Midas: dropship e-com director · brief every {dropship_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
-        tmid = threading.Thread(target=MIDAS.run_forever, daemon=True, name="midas")
-        tmid.start()
+        #
+        # The scheduled brief is OFF while the store has nothing wired: with 0 of 7
+        # systems connected a brief is Claude reasoning over empty data, which is the
+        # one thing the creed forbids — and it bills for it daily. Everything on-demand
+        # still works (chat, /task, /api/dropship/director/run, all three lanes).
+        # FORGE_DROPSHIP_BRIEF=1 turns the loop back on the day Shopify connects.
+        if os.environ.get("FORGE_DROPSHIP_BRIEF", "0") != "0":
+            print(f"   Midas: dropship e-com director · brief every {dropship_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
+            tmid = threading.Thread(target=MIDAS.run_forever, daemon=True, name="midas")
+            tmid.start()
+        else:
+            print("   Midas: dropship e-com director · scheduled brief OFF "
+                  "(FORGE_DROPSHIP_BRIEF=1 to enable) · on-demand only")
+            forge_heartbeat.retire("midas")   # off on purpose — don't alarm on it
         # Do Today — rebuild the morning battle plan + email the digest at 9 AM Eastern.
-        print(f"   Do Today: morning battle plan · rebuilds + emails {do_today.RUN_HOUR}:00 {do_today.TZ_NAME}"
-              f" → {DO_TODAY.operator_email or 'NO EMAIL (set GHL_USER_EMAIL)'}")
-        tdt = threading.Thread(target=DO_TODAY.run_forever, daemon=True, name="do_today")
-        tdt.start()
+        # Loop off by operator request (2026-07-26): DoToday makes no Claude call, so
+        # this costs nothing either way — it just stops the unrequested 9 AM email.
+        # view() rebuilds itself when the plan is stale, so /today and /done keep working.
+        if os.environ.get("FORGE_TODAY_LOOP", "0") != "0":
+            print(f"   Do Today: morning battle plan · rebuilds + emails {do_today.RUN_HOUR}:00 {do_today.TZ_NAME}"
+                  f" → {DO_TODAY.operator_email or 'NO EMAIL (set GHL_USER_EMAIL)'}")
+            tdt = threading.Thread(target=DO_TODAY.run_forever, daemon=True, name="do_today")
+            tdt.start()
+        else:
+            print("   Do Today: scheduled rebuild + 9 AM email OFF "
+                  "(FORGE_TODAY_LOOP=1 to enable) · /today still builds on demand")
+            forge_heartbeat.retire("do_today")
         # Contract poller — close the loop when a seller signs the DocuSign envelope.
         if docusign_io.configured():
             print("   Contract poller: watching DocuSign envelopes → mark Closed/Won on signature")
