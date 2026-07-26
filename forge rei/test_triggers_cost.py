@@ -43,12 +43,9 @@ def test_triggers():
 
 
 def test_cost_attribution():
-    before = dict(cost_tracker._who.__globals__)  # noqa: F841  (touch, keep import live)
-
     seen = {}
 
     def grab(name):
-        t = threading.current_thread()
         seen[name] = cost_tracker._who()
 
     for name, want in (("scout", "scout"), ("midas", "midas"),

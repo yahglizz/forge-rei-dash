@@ -652,7 +652,8 @@ _AGENCY_AGENTS = ("dyson", "eco")         # routed to the agency chat/task backe
 # when the name is the FIRST word and is followed by end-of-message, a comma, or a
 # colon — so "I told marcus to call" stays plain chat and hits the active agent.
 _AGENT_TRIGGER = re.compile(
-    r"^(scout|marcus|atlas|dyson|eco|solomon|midas)\s*[,:—-]\s*(.*)$|"
+    r"^(scout|marcus|atlas|dyson|eco|solomon|midas)"
+    r"(?:\s*[,:]\s*|\s+[—–-]\s+)(.*)$|"          # dash must be spaced: not "midas-touch"
     r"^(scout|marcus|atlas|dyson|eco|solomon|midas)$",
     re.I | re.S)
 
