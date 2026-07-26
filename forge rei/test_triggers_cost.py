@@ -62,7 +62,35 @@ def test_cost_attribution():
         assert a in cost_tracker.AGENT_THREADS, f"{a} missing from AGENT_THREADS"
 
 
+def test_retire_paused_loop():
+    """A deliberately-disabled loop must be REMOVED from heartbeats, not left to rot
+    red — a red loop trips the health card and the watchdog."""
+    import json
+    import tempfile
+    from pathlib import Path
+
+    import forge_heartbeat as fh
+    orig = fh.STATE
+    with tempfile.TemporaryDirectory() as td:
+        fh.STATE = Path(td) / "heartbeats.json"
+        try:
+            fh.beat("midas", 900, "Midas director")
+            fh.beat("scout", 180, "Scout triage")
+            assert {r["loop"] for r in fh.snapshot()} == {"midas", "scout"}
+
+            fh.retire("midas")
+            assert {r["loop"] for r in fh.snapshot()} == {"scout"}, "midas still beating"
+            assert "midas" not in json.loads(fh.STATE.read_text()), "midas still on disk"
+
+            fh.retire("midas")          # idempotent
+            fh.retire("never-existed")  # unknown loop must not raise
+            assert {r["loop"] for r in fh.snapshot()} == {"scout"}
+        finally:
+            fh.STATE = orig
+
+
 if __name__ == "__main__":
     test_triggers()
     test_cost_attribution()
-    print("triggers + cost attribution: OK")
+    test_retire_paused_loop()
+    print("triggers + cost attribution + loop retire: OK")

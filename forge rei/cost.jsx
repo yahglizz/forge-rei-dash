@@ -26,6 +26,38 @@ function CtStat({ label, value, sub, color }) {
   );
 }
 
+// Per-agent Claude spend. Attribution is by loop thread name (cost_tracker._who), so
+// "operator" = every call you triggered by hand — chat, a brief button, the UI.
+function CtByAgent({ rows }) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) {
+    return <div className="faint" style={{ fontSize: 12.5 }}>
+      No per-agent data yet — attribution starts from the first Claude call after the
+      2026-07-26 deploy.
+    </div>;
+  }
+  const max = Math.max.apply(null, list.map((r) => r.usd || 0)) || 1;
+  return <div>
+    {list.map((r) => (
+      <div key={r.agent} style={{ padding: "6px 2px", borderBottom: "1px solid var(--card-2)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+          <span style={{ fontWeight: 600, textTransform: "capitalize" }}>{r.agent}</span>
+          <span className="tabnum">
+            {ctUsd(r.usd)}
+            <span className="faint" style={{ fontSize: 11 }}> · ~{ctUsd(r.projMonthUSD)}/mo · {r.calls} calls</span>
+          </span>
+        </div>
+        <div style={{ height: 4, background: "var(--card-2)", borderRadius: 3, marginTop: 4 }}>
+          <div style={{
+            height: 4, borderRadius: 3, background: CT_GREEN,
+            width: Math.max(2, Math.round((r.usd || 0) / max * 100)) + "%",
+          }} />
+        </div>
+      </div>
+    ))}
+  </div>;
+}
+
 function CtTrend({ trend }) {
   const rows = Array.isArray(trend) ? trend : [];
   if (!rows.length) {
@@ -168,6 +200,14 @@ function CostPage() {
       <div className="card card-pad">
         <div className="card-title" style={{ fontSize: 15, marginBottom: 6 }}>Last 14 days (usage $)</div>
         <CtTrend trend={d.trend} />
+      </div>
+
+      {/* Who spent it */}
+      <div className="card card-pad">
+        <div className="card-title" style={{ fontSize: 15, marginBottom: 8 }}>
+          Spend by agent <span className="faint" style={{ fontSize: 11.5, fontWeight: 400 }}>· month to date</span>
+        </div>
+        <CtByAgent rows={mtd.byAgent} />
       </div>
 
       {/* Fixed services + cap */}
