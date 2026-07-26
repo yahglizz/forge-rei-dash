@@ -352,10 +352,11 @@ class MidasEngine:
                 parts.append(p.read_text(errors="ignore"))
                 sig.append((rp, p.stat().st_mtime))
             sig = (lane,) + tuple(sig)
+            text = "\n\n---\n\n".join(parts)
             if self._sk_mtime != sig:              # cache keyed by lane + mtimes
-                self._sk_text = "\n\n---\n\n".join(parts)
+                self._sk_text = text
                 self._sk_mtime = sig
-            return self._sk_text
+            return text
         except Exception:
             return self._sk_text
 
@@ -680,13 +681,6 @@ class MidasEngine:
                     continue
                 if (seed / name).is_file() or (vault / name).is_file():
                     names.append(name[:-3])
-            for d in (seed, vault):
-                if d.is_dir():
-                    for p in sorted(d.glob("midas-*.md")):
-                        if p.name in set(self.TOP_SKILLS) | {self.PLAYBOOK_MD}:
-                            continue
-                        if p.stem not in names:
-                            names.append(p.stem)
             return names
         except Exception:
             return []

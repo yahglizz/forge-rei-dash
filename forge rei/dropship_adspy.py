@@ -22,10 +22,9 @@ COST — read this before touching the knobs. The actor bills PER AD SCRAPED
 (~$0.00075/ad at time of writing) on top of Apify compute. Every call is clamped to
 ``DROPSHIP_ADSPY_MAX_ADS`` in ``_clamp`` — the clamp is the spend ceiling, not a
 suggestion — and the requested count is echoed back in the response so an oversized
-pull is visible. Retries are deliberately ONE, not two: an actor run that got far
-enough to bill and then timed out would be billed AGAIN on retry, so we trade a
-little resilience for not paying twice. The read timeout is correspondingly long
-(a run takes 30-120s).
+pull is visible. Only idempotent GET requests retry once. Paid POST actor runs never
+retry: an actor run that got far enough to bill and then timed out would be billed
+AGAIN on retry. The read timeout is correspondingly long (a run takes 30-120s).
 
 Read-only. This module never launches, edits, orders, or spends ad budget (rule 2).
 Shape mirrors ``dropship_pipiads`` / ``dropship_autods``: urllib only, honest errors,
@@ -44,7 +43,7 @@ import dropship_env
 
 # Long read timeout: an Apify actor run is 30-120s, not a normal API call.
 _TIMEOUT = 180
-# ONE retry on purpose — see the COST note above. A paid run must not be paid twice.
+# One GET retry; paid POST actor runs must not be paid twice.
 _RETRIES = 1
 _API = "https://api.apify.com/v2"
 
@@ -84,7 +83,7 @@ def _clamp(limit) -> int:
         n = int(limit)
     except Exception:
         n = cap
-    return max(1, min(n if n > 0 else cap, cap))
+    return 0 if n == 0 else max(1, min(n if n > 0 else cap, cap))
 
 
 def configured() -> bool:
@@ -99,14 +98,15 @@ def _req(method: str, url: str, payload: dict | None = None):
     headers = {"Authorization": f"Bearer {token}",  # header, not ?token= — never in a URL
                "Content-Type": "application/json", "Accept": "application/json"}
     last_error: Exception | None = None
-    for attempt in range(_RETRIES + 1):
+    retries = _RETRIES if method.upper() == "GET" else 0
+    for attempt in range(retries + 1):
         request = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
             with urllib.request.urlopen(request, timeout=_TIMEOUT) as response:
                 raw = response.read()
                 return json.loads(raw.decode("utf-8")) if raw.strip() else []
         except urllib.error.HTTPError as error:
-            if error.code in (429, 500, 502, 503, 504) and attempt < _RETRIES:
+            if error.code in (429, 500, 502, 503, 504) and attempt < retries:
                 time.sleep(1.5)
                 last_error = error
                 continue
@@ -121,7 +121,7 @@ def _req(method: str, url: str, payload: dict | None = None):
             raise ApifyError(error.code, str(detail), "apify_http_error") from None
         except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
             last_error = error
-            if attempt < _RETRIES:
+            if attempt < retries:
                 time.sleep(1.5)
                 continue
             raise ApifyError(502, "Apify is temporarily unavailable", "upstream_unavailable") from None
@@ -188,7 +188,7 @@ def _days_running(start) -> int | None:
             dt = datetime.datetime.fromtimestamp(float(start), datetime.timezone.utc)
         elif isinstance(start, str):
             s = start.strip().replace("Z", "+00:00")
-            dt = datetime.datetime.fromisoformat(s[:19] if len(s) > 19 and "+" not in s[:19] else s)
+            dt = datetime.datetime.fromisoformat(s)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=datetime.timezone.utc)
     except Exception:
@@ -283,9 +283,13 @@ def search(keyword, *, country=None, limit=None, active_only: bool = True) -> di
     if not kw:
         return {"ok": False, "configured": configured(), "source": "apify:meta-ad-library",
                 "error": "keyword required", "ads": [], "count": 0}
+    n = _clamp(limit)
+    if not n:
+        return {"ok": False, "configured": configured(), "source": "apify:meta-ad-library",
+                "keyword": kw, "error": "limit must be at least 1", "code": "bad_request",
+                "ads": [], "count": 0, "requested": 0}
     if not configured():
         return _mock({"keyword": kw, "count": 0})
-    n = _clamp(limit)
     cc = (country or "").strip().upper() or _country()
     url = "https://www.facebook.com/ads/library/?" + urllib.parse.urlencode({
         "active_status": "active" if active_only else "all", "ad_type": "all",
@@ -304,9 +308,13 @@ def advertiser(page_url_or_id, *, limit=None) -> dict:
     if not ref:
         return {"ok": False, "configured": configured(), "source": "apify:meta-ad-library",
                 "error": "page required", "ads": [], "count": 0}
+    n = _clamp(limit)
+    if not n:
+        return {"ok": False, "configured": configured(), "source": "apify:meta-ad-library",
+                "keyword": ref, "error": "limit must be at least 1", "code": "bad_request",
+                "ads": [], "count": 0, "requested": 0}
     if not configured():
         return _mock({"keyword": ref, "count": 0})
-    n = _clamp(limit)
     cc = _country()
     url = ref if ref.startswith("http") else (
         "https://www.facebook.com/ads/library/?" + urllib.parse.urlencode({
@@ -328,6 +336,9 @@ if __name__ == "__main__":  # self-check — no network, no key, no spend
         assert search("dog brush")["ads"] == []
         assert advertiser("123")["ads"] == []
         assert search("")["ok"] is False, "empty keyword must not reach a paid run"
+        assert _clamp(0) == 0, "zero must not become a paid maximum pull"
+        assert search("dog brush", limit=0)["code"] == "bad_request"
+        assert advertiser("123", limit=0)["code"] == "bad_request"
 
         empty = _normalize({})
         keys = {"id", "pageName", "pageId", "startDate", "daysRunning", "body", "title",
@@ -340,6 +351,10 @@ if __name__ == "__main__":  # self-check — no network, no key, no spend
         then = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=45)
         assert _normalize({"startDate": then.isoformat()})["daysRunning"] == 45
         assert _normalize({"start_date": int(then.timestamp())})["daysRunning"] == 45
+        offset_then = (datetime.datetime.now(datetime.timezone.utc)
+                       - datetime.timedelta(days=45, hours=20)).astimezone(
+                           datetime.timezone(-datetime.timedelta(hours=7)))
+        assert _days_running(offset_then.isoformat()) == 45
         assert _normalize({"startDate": "not-a-date"})["daysRunning"] is None
         n = _normalize({"adArchiveID": 9, "snapshot": {"page_name": "Acme",
                         "body": {"text": "buy"}, "cta_text": "Shop Now",
@@ -354,7 +369,7 @@ if __name__ == "__main__":  # self-check — no network, no key, no spend
         assert winners([], min_days=1) == [] and winners(None) == []
 
         assert _clamp(9999) == _max_ads(), "oversized pull must clamp to the cap"
-        assert _clamp(0) == _max_ads() and _clamp("x") == _max_ads()
+        assert _clamp("x") == _max_ads()
         assert _clamp(3) == 3
     finally:
         dropship_env.get = _orig_get

@@ -134,7 +134,7 @@ function DswCompetitorAds() {
   const search = async () => {
     if (!adq.trim()) { setAderr("Type a keyword first"); return; }
     setAdloading(true); setAderr("");
-    try { const r = await window.DsRequest("/adspy/search?min_days=21&q=" + encodeURIComponent(adq.trim())); setAddata(r); }
+    try { const r = await window.DsRequest("/adspy/search", { body: { q: adq.trim(), min_days: 21 } }); setAddata(r); }
     catch (e) { setAderr(e.message); } finally { setAdloading(false); }
   };
   const ads = (addata && addata.ads) || [];
