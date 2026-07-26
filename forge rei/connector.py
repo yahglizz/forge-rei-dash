@@ -2996,6 +2996,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/request/delete",
                                    "/api/agency/request/status",
                                    "/api/agency/portal/token",
+                                   "/api/portal/bootstrap",
                                    "/api/portal/submit",
                                    "/api/agency/dyson/generate",
                                    "/api/agency/dyson/decision",
@@ -3265,6 +3266,8 @@ class Handler(BaseHTTPRequestHandler):
                         result = agency_portal_io.link(body.get("clientId"), base=PORTAL_BASE)
                 else:
                     result = agency_portal_io.link(body.get("clientId"), base=PORTAL_BASE)
+            elif parsed.path == "/api/portal/bootstrap":
+                result = agency_portal_io.bootstrap(body.get("c"), body.get("k"))
             elif parsed.path == "/api/portal/submit":
                 # PUBLIC client-portal submit — token-scoped to one client.
                 result = agency_portal_io.submit(
@@ -3668,9 +3671,9 @@ class Handler(BaseHTTPRequestHandler):
             family["dismissed"] = daycare_ghl.is_dismissed(family.get("contact_id"))
             # For families the owner can still provision, read the GHL intake note for the
             # bits the form keeps only there — authorized-pickup people + the freeform note —
-            # so "Create login" carries them into the child's pickup_notes / medical_notes.
-            # Bounded to actionable (not-yet-provisioned) families; the note fetch is skipped
-            # for everything already in the roster.
+            # so the explicit "Enroll" action carries them into the child's pickup_notes /
+            # medical_notes. This GET must remain read-only: prefetching an inbox must never
+            # enroll a child or write a ledger entry.
             if (not family["in_roster"] and not family["dismissed"]
                     and family.get("enrolled") and family.get("contact_id")):
                 intake = daycare_ghl.family_intake(DAYCARE_GHL, family["contact_id"])
@@ -3682,30 +3685,7 @@ class Handler(BaseHTTPRequestHandler):
                         + "\n".join("  - " + p for p in people)).strip()
                 if intake.get("notes"):
                     family["medical_notes"] = intake["notes"]
-                # Auto-enroll: every enrolled Contact-Form kid becomes a roster child
-                # the moment it lands — internal + reversible (a deletable row), same
-                # rule-2 class as the HOT-lead auto-tag. The parent LOGIN stays behind
-                # the owner's Create-login button (no guardian is provisioned here).
-                # Idempotent via the contact->child ledger; a failed attempt (e.g. no
-                # DOB on the form) is left for the button. FORGE_DAYCARE_AUTOENROLL=0
-                # reverts to button-only enrollment.
-                child_id = daycare_ghl.form_child_id(family["contact_id"])
-                if not child_id and os.environ.get("FORGE_DAYCARE_AUTOENROLL", "1") != "0":
-                    try:
-                        child_body = self._daycare_family_child_body(session, family)
-                        # Adopt an already-enrolled kid (same name at the family's
-                        # center) instead of inserting a duplicate row.
-                        child_id = daycare_supabase.find_child_id(
-                            session, family.get("location_id"),
-                            child_body["first_name"], child_body["last_name"])
-                        if not child_id:
-                            saved = daycare_supabase.save_child(session, {"child": child_body})
-                            child_id = ((saved or {}).get("child") or {}).get("id") or ""
-                        if child_id:
-                            daycare_ghl.record_form_child(family["contact_id"], child_id)
-                    except Exception:  # noqa: BLE001 — auto-enroll must never break the inbox
-                        child_id = ""
-                family["child_id"] = child_id
+            family["child_id"] = daycare_ghl.form_child_id(family.get("contact_id"))
         return {"ok": True, "families": families,
                 "connected": bool(DAYCARE_GHL.configured),
                 "active_location_id": active}
@@ -4358,11 +4338,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
         try:
-            length = int(self.headers.get("Content-Length", 0) or 0)
-            raw = self.rfile.read(length) if length else b""
-            body = json.loads(raw.decode("utf-8")) if raw.strip() else {}
-        except Exception:
-            body = {}
+            body = self._read_json_body()
+        except OverflowError:
+            return self._send_json(
+                {"ok": False, "error": "request body is too large", "code": "payload_too_large"}, 413)
+        except ValueError as error:
+            return self._send_json(
+                {"ok": False, "error": str(error), "code": "bad_request"}, 400)
         try:
             if path == "/api/dropship/settings/save":
                 result = dropship_io.save_settings(body)
@@ -4460,12 +4442,14 @@ class Handler(BaseHTTPRequestHandler):
                 result = {"ok": False, "error": "unhandled"}
             _touch_sync()
             return self._send_json(result)
-        except Exception as e:  # noqa: BLE001 — never leak tokens/bodies
+        except Exception:  # noqa: BLE001 — never leak tokens/bodies
             return self._send_json(
                 {"ok": False, "error": "Dropship request failed",
-                 "code": "internal_error", "detail": str(e)[:200]}, 500)
+                 "code": "internal_error"}, 500)
 
     def do_GET(self):
+        if not self._dashboard_client_allowed():
+            return self._send_json({"error": "private dashboard access required"}, 403)
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
@@ -4476,30 +4460,35 @@ class Handler(BaseHTTPRequestHandler):
             return self._handle_dropship_get(path, urllib.parse.parse_qs(parsed.query))
 
         if path.startswith("/api/"):
+            if path == "/api/portal/bootstrap":
+                return self._send_json({"error": "use POST for portal bootstrap"}, 405)
             handler = ROUTES.get(path)
             if not handler:
                 return self._send_json({"error": "unknown endpoint"}, 404)
             q = urllib.parse.parse_qs(parsed.query)
             cache_key = self.path
             if path not in NO_CACHE:
-                hit = _CACHE.get(cache_key)
+                with _CACHE_LOCK:
+                    hit = _CACHE.get(cache_key)
                 if hit and (time.time() - hit[0]) < _CACHE_TTL:
                     return self._send_json(hit[1])
             try:
                 result = handler(q)
                 if path not in NO_CACHE:
-                    if len(_CACHE) >= _CACHE_MAX:
-                        oldest = min(_CACHE, key=lambda k: _CACHE[k][0])
-                        _CACHE.pop(oldest, None)
-                    _CACHE[cache_key] = (time.time(), result)
+                    with _CACHE_LOCK:
+                        if len(_CACHE) >= _CACHE_MAX:
+                            oldest = min(_CACHE, key=lambda k: _CACHE[k][0])
+                            _CACHE.pop(oldest, None)
+                        _CACHE[cache_key] = (time.time(), result)
                 return self._send_json(result)
             except urllib.error.HTTPError as e:
                 detail = getattr(e, "_detail", None) or _http_error_detail(e, limit=300)
                 return self._send_json(
                     {"error": f"GHL {e.code}", "detail": detail}, 502
                 )
-            except Exception as e:  # noqa: BLE001
-                return self._send_json({"error": str(e)}, 500)
+            except Exception:  # noqa: BLE001
+                return self._send_json(
+                    {"error": "request failed", "code": "internal_error"}, 500)
 
         # Static files (default to the dashboard).
         if path in ("/", ""):
@@ -4528,6 +4517,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Referrer-Policy", "no-referrer")
+        if path == "/portal.html":
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
             self.wfile.write(data)
