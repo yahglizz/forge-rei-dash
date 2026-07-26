@@ -47,6 +47,7 @@ BUSINESS = {
     "wholesale": {"label": "Wholesale (REI)", "creed": "wholesale"},
     "agency": {"label": "Agency (ClientForge)", "creed": "agency"},
     "daycare": {"label": "Daycare", "creed": "daycare"},
+    "dropship": {"label": "Dropship (FORGE)", "creed": "dropship"},
     "voice": {"label": "Voice (Outbound)", "creed": "wholesale"},
 }
 

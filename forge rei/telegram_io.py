@@ -19,6 +19,7 @@ error dict, run_forever() returns immediately (no busy spin).
 """
 import json
 import os
+import re
 import threading
 import time
 import urllib.error
@@ -642,8 +643,18 @@ _AGENCY_CHAT = {"fn": None}               # fn(agent_id, message, history) -> re
 _AGENCY_TASK = {"fn": None}               # fn(agent_id, title) -> {reply|error}         (Dyson/Eco /task)
 _AGENT_SESS = {}                          # chat_id -> {"agent": str, "history": [...]}  (in-memory)
 _AGENT_ALIASES = {"/scout": "scout", "/marcus": "marcus", "/atlas": "atlas",
-                  "/dyson": "dyson", "/eco": "eco"}
+                  "/dyson": "dyson", "/eco": "eco", "/solomon": "solomon",
+                  "/midas": "midas"}
 _AGENCY_AGENTS = ("dyson", "eco")         # routed to the agency chat/task backend
+
+# Trigger WORDS — the same switch without the slash, so "solomon, what's the ratio
+# situation" or "midas: which product is winning" reaches the right agent. Only fires
+# when the name is the FIRST word and is followed by end-of-message, a comma, or a
+# colon — so "I told marcus to call" stays plain chat and hits the active agent.
+_AGENT_TRIGGER = re.compile(
+    r"^(scout|marcus|atlas|dyson|eco|solomon|midas)\s*[,:—-]\s*(.*)$|"
+    r"^(scout|marcus|atlas|dyson|eco|solomon|midas)$",
+    re.I | re.S)
 
 # The full crew, one line each — /agents and the unified /help both read from this.
 _AGENT_ROSTER = (
@@ -652,6 +663,8 @@ _AGENT_ROSTER = (
     ("atlas", "🏠", "underwriting — deal prep, offer anchors, MAO math"),
     ("dyson", "🛠", "agency builds — client website/code edits (plans, you approve)"),
     ("eco", "📣", "agency ads — Meta strategy + analysis (recommends, you launch)"),
+    ("solomon", "🏛", "daycare director — ops, enrollment, money, roster, ads"),
+    ("midas", "🛒", "dropship director — products, creative + ads, fulfillment"),
 )
 
 # ONE help card. /start, /help, and telegram_ops's /ops entry all land here.
@@ -846,17 +859,28 @@ def _handle_message(msg, reply_token=None):
 
     sess = _AGENT_SESS.setdefault(chat_id, {"agent": "marcus", "history": []})
     # Agent switch via prefix: "/dyson status on the smith site" or just "/atlas".
+    switched = False
     for alias, aid in _AGENT_ALIASES.items():
         if low == alias or low.startswith(alias + " "):
             sess["agent"] = aid
             text = text[len(alias):].strip()
-            if not text:
-                reply_to(f"Now talking to <b>{aid.title()}</b>. What do you need?"
-                         + ("\n<code>/task ...</code> queues a planned job."
-                            if aid in _AGENCY_AGENTS else ""))
-                return
-            low = text.lower()
+            switched = True
             break
+    # Same switch by trigger WORD — "solomon, ratios?" / "midas: what's winning".
+    if not switched:
+        m = _AGENT_TRIGGER.match(text)
+        if m:
+            sess["agent"] = (m.group(1) or m.group(3)).lower()
+            text = (m.group(2) or "").strip()
+            switched = True
+    if switched:
+        aid = sess["agent"]
+        if not text:
+            reply_to(f"Now talking to <b>{aid.title()}</b>. What do you need?"
+                     "\n<code>/task ...</code> files it as a real job — it lands in "
+                     "their inbox and they see it on their next run.")
+            return
+        low = text.lower()
 
     agent_id = sess["agent"]
 
@@ -869,6 +893,15 @@ def _handle_message(msg, reply_token=None):
             reply_to(f"<code>/task what you need done</code> — goes to "
                      f"<b>{agent_id.title()}</b> (active agent).")
             return
+        # File it for real: persisted in the hub task store AND broadcast on the agent
+        # bus, so the agent picks it up in its own _read_bus_inbox on the next run and
+        # it shows on the dashboard board. An assignment is not an action — rule 2 holds.
+        filed = False
+        try:
+            import agents_hub
+            filed = not (agents_hub.send_task(agent_id, title) or {}).get("error")
+        except Exception as e:  # noqa: BLE001
+            _set_error(e)
         if agent_id in _AGENCY_AGENTS:
             tfn = _AGENCY_TASK.get("fn")
             if not tfn:
