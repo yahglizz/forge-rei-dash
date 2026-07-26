@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": ".",
+  "installCommand": "echo 'no install: devDependencies are only needed to compile the JSX, which is done ahead of time and committed to app/build/'",
+  "buildCommand": "echo 'no build: this is a static site served straight from the repo root'",
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/assets/(vid|hero|reels)/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/app/build/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ]
+}

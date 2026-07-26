@@ -1,0 +1,51 @@
+{
+  "skill_name": "client-site-build",
+  "evals": [
+    {
+      "id": 0,
+      "name": "intake-and-scope",
+      "prompt": "my boy runs a mobile detailing business out of houston, does like $150-400 a job, mostly gets work from instagram dms right now. he wants a website. what are we building him and what should i charge",
+      "expected_output": "Intake questions grounded in job value and the one primary action; a recommended hero tier with reasoning (should NOT default to the expensive scroll-world for a $150-400 job); a concrete price with a tier ladder; no invented proof/testimonials.",
+      "files": [],
+      "assertions": [
+        "Asks about (or reasons explicitly from) job value / customer lifetime value before recommending a build",
+        "Identifies ONE primary visitor action (call or book) rather than listing many",
+        "Recommends a simple/static hero and does NOT propose an expensive AI scroll-world for a $150-400 job",
+        "Gives concrete prices with a visible tier ladder (each tier states what the extra money buys)",
+        "Does not invent testimonials, client logos, or performance metrics for a business with no proof yet",
+        "Addresses where inquiries will land / how the client gets contacted"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "build-landing-page",
+      "prompt": "build the landing page for Rivera Roofing (san antonio, storm damage + full roof replacement, wants calls not forms). static site, no bundler. hero, services with pricing, proof, contact. get it working locally.",
+      "expected_output": "Buildless React UMD + Tailwind CDN site; precompiled JSX with a build script (NOT @babel/standalone in the browser); production React with integrity hashes; unique hook aliases per file; a working inquiry path; theme driven by CSS variables.",
+      "files": [],
+      "assertions": [
+        "index.html does NOT load @babel/standalone (no in-browser JSX compiler shipped)",
+        "Uses react.production.min.js and react-dom.production.min.js, not the development builds",
+        "Ships precompiled JS (a build script producing .js, or plain .js) rather than raw JSX transformed at runtime",
+        "CDN script tags carry subresource integrity hashes",
+        "The primary call-to-action is a phone call (tel: link), matching 'wants calls not forms'",
+        "Agent actually served the page and verified it renders (evidence in NOTES.md)",
+        "No fabricated testimonials or invented statistics presented as real client proof"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "ship-and-verify",
+      "prompt": "the dentist site is finished and looks good, contact form is wired to hello@brightsmilesdental.co \u2014 push it live to vercel and make sure everything actually works",
+      "expected_output": "Runs an MX lookup on the contact domain before shipping and flags that it cannot receive mail if there are no MX records; verifies compiled output is in sync; checks payload/production React; confirms the live URL serves the new build with a cache-buster; re-tests the inquiry path against production; does not claim verification it did not perform.",
+      "files": [],
+      "assertions": [
+        "Actually RUNS a DNS MX lookup on brightsmilesdental.co (command output present)",
+        "Correctly reports that the domain has NO MX records and therefore cannot receive mail",
+        "Treats the dead contact address as a blocker to shipping, not a footnote",
+        "Plans to verify the live URL serves the new build after deploy (cache-buster or equivalent)",
+        "Plans to re-test the inquiry path against production, not just locally",
+        "Does not claim to have performed checks it could not actually run in this environment"
+      ]
+    }
+  ]
+}

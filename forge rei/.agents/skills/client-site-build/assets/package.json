@@ -1,0 +1,16 @@
+{
+  "name": "client-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static client site. JSX is precompiled ahead of time so the browser never ships a compiler.",
+  "scripts": {
+    "build": "babel app --out-dir app/build --extensions .jsx --presets @babel/preset-react",
+    "watch": "npm run build -- --watch",
+    "verify": "npm run build -- --out-dir /tmp/site-build-check >/dev/null && diff -r -x README.md app/build /tmp/site-build-check && echo 'IN SYNC: app/build matches the .jsx sources'"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.24.0",
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.24.0"
+  }
+}
