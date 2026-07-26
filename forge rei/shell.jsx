@@ -1,5 +1,5 @@
 // shell.jsx — Sidebar, Header, and small shared helpers
-const { useState: useStateSh, useEffect: useEffectSh } = React;
+const { useState: useStateSh, useEffect: useEffectSh, useRef: useRefSh } = React;
 
 function CountUp({ to, prefix = "", dur = 900 }) {
   const [n, setN] = useStateSh(0);
@@ -84,9 +84,11 @@ function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, sh
   );
 }
 
-function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onHome }) {
+function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onNavigate = () => {}, onHome }) {
   const Icons = window.Icons;
   const [menu, setMenu] = useStateSh(false);
+  const [search, setSearch] = useStateSh("");
+  const searchRef = useRefSh(null);
   const daycare = current.id === "daycare";
   const [daycareCount, setDaycareCount] = useStateSh(0);
   const [daycareSession, setDaycareSession] = useStateSh(null);
@@ -113,11 +115,33 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onH
       window.clearInterval(timer);
     };
   }, [daycare, daycareSession && daycareSession.authenticated]);
+  useEffectSh(() => {
+    const onKeyDown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchRef.current && searchRef.current.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+  const runSearch = () => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return;
+    const hit = (current.nav || []).find(([key, label]) =>
+      key.toLowerCase().includes(needle) || label.toLowerCase().includes(needle));
+    if (hit) {
+      onNavigate(hit[0]);
+      setSearch("");
+    }
+  };
   return (
     <header className="header">
       <div className="search">
         <Icons.Search size={16} />
-        <input placeholder="Search anything..." />
+        <input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && runSearch()}
+          placeholder="Go to a page..." aria-label="Go to a page" />
         <span className="kbd">⌘K</span>
       </div>
 
@@ -138,10 +162,9 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onH
         <div style={{ fontSize: 18, fontWeight: 700, color: daycare ? (current.accent || "var(--green)") : "var(--green)" }} className="tabnum">{daycare ? (daycareSession && daycareSession.authenticated ? daycareCount : "—") : "$0.00"}</div>
       </div>
 
-      <button className="card header-bell" onClick={() => daycare && window.GoTo && window.GoTo("Announcements")} style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 12, position: "relative" }}>
+      {daycare && <button className="card header-bell" onClick={() => onNavigate("Announcements")} title="Open announcements" style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 12 }}>
         <Icons.Bell size={18} />
-        {!daycare && <span style={{ position: "absolute", top: 7, right: 8, background: "var(--red)", color: "#fff", fontSize: 9.5, fontWeight: 700, borderRadius: 999, minWidth: 15, height: 15, display: "grid", placeItems: "center", padding: "0 3px" }}>3</span>}
-      </button>
+      </button>}
 
       <div className="header-profile" style={{ position: "relative" }}>
         <button onClick={() => setMenu((m) => !m)} style={{ display: "flex", alignItems: "center", gap: 10 }}>

@@ -136,7 +136,7 @@ class FakeMarcus:
 
 # Canned Claude bodies keyed by which agent's system prompt shows up.
 def make_claude_router(store):
-    def _fake_claude(key, system, user, max_tokens=1200):
+    def _fake_claude(key, system, user, max_tokens=1200, **_kwargs):
         if system.startswith("You are Scout"):
             return store.get("scout", "[]")
         if system.startswith("You are Marcus"):

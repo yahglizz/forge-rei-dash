@@ -1,6 +1,6 @@
 // agents_hub.jsx — THE Agents tab. One place to operate every agent in the business.
 //
-// Left rail: all 8 agents grouped by business (Wholesale / Agency / Daycare) + any live
+// Left rail: all 7 agents grouped by business (Wholesale / Agency / Daycare / Dropship) + any live
 // Retell voice agents. Right: the selected agent — Chat (talk + assign), Tasks (what
 // you've given them), Console (their full deep page, relocated here from the sidebar).
 //

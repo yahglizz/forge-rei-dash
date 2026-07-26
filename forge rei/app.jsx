@@ -151,7 +151,7 @@ function App() {
         active={active} onNav={setActive} goal={0} onHome={goHome}
         brand={ws.brand} sub={ws.sub} nav={ws.nav} accent={ws.accent} showMarcus={ws.id === "rei"} />
       <div className="main">
-        <window.Header title={titleMap[active]} workspaces={wsList} current={ws} onSwitch={switchWs} onHome={goHome} />
+        <window.Header title={titleMap[active]} workspaces={wsList} current={ws} onSwitch={switchWs} onNavigate={setActive} onHome={goHome} />
         <div className="content">
           <div key={ws.id + ":" + active} className="page-wrap">
             {ws.id === "daycare" ? <window.DaycareWorkspace>{renderPage()}</window.DaycareWorkspace> : renderPage()}

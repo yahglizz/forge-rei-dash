@@ -6,10 +6,10 @@
 // each agent's "Console" inside the hub (HUB_CONSOLE), just no longer their own nav item.
 const NAV = [
   ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"], ["Leads", "Leads"], ["Conversations", "Conversations"],
-  ["Pipeline", "Deal Pipeline"], ["Contracts", "Contracts"], ["DealCalc", "Deal Calc"], ["Buyers", "Buyers"], ["Blast", "Buyer Blast"], ["Properties", "Properties"],
+  ["Pipeline", "Deal Pipeline"], ["Contracts", "Contracts"], ["DealCalc", "Deal Calc"], ["Buyers", "Buyers"], ["Blast", "Buyer Blast"],
   ["Outbound", "Outbound"],
-  ["Marketing", "Marketing"], ["Tasks", "Tasks"], ["Analytics", "Analytics"],
-  ["Brain", "Brain"], ["SystemHealth", "System Health"], ["Costs", "Costs"], ["Settings", "Settings"],
+  ["Tasks", "Tasks"], ["Analytics", "Analytics"],
+  ["Brain", "Brain"], ["SystemHealth", "System Health"], ["Costs", "Costs"],
 ];
 
 // Forge AI Agency workspace — ClientForge ops + control center
@@ -31,7 +31,6 @@ const DAYCARE_NAV = [
   ["Announcements", "Announcements"], ["Blast", "Text Blast"],
   ["Billing", "Billing"], ["Payroll", "Payroll"],
   ["Growth", "Ads & Social"],
-  ["Meals", "Meals & Menus"], ["Calendar", "Calendar"],
   ["Reports", "Reports"], ["Brain", "Brain"], ["Settings", "Settings"],
 ];
 
@@ -79,12 +78,8 @@ const PIPELINE_COLS = [
 
 const WORKFORCE = [
   { name: "Marcus", role: "Acquisitions & Lead Screening", status: "online", perf: 100 },
-  { name: "Sophia", role: "Lead Manager", status: "soon" },
-  { name: "Alex", role: "Dispositions Manager", status: "soon" },
-  { name: "Jordan", role: "Operations Manager", status: "soon" },
-  { name: "Maya", role: "Marketing Manager", status: "soon" },
+  { name: "Scout", role: "Inbound seller triage", status: "online", perf: 100 },
   { name: "Atlas", role: "Deal Underwriter · preps your offer anchors", status: "online", perf: 100 },
-  { name: "Nova", role: "Executive Assistant", status: "soon" },
 ];
 
 const ACTIVITY = [];
