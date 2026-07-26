@@ -6,6 +6,21 @@
 
 This was a read-only audit. No contact, message, pipeline, contract, ad, or database action was executed. Browser testing used a loop-disabled local connector; Daycare was checked only through its sign-in gate.
 
+## Remediation status — 2026-07-26
+
+**Implemented locally and re-verified.** The initially reported P0/P1/P2 findings were repaired in the workspace:
+
+- Dashboard requests are limited to loopback/Tailscale CIDRs by default; browser POSTs require the same origin.
+- Portal credentials moved from URL query strings to a cleared fragment plus POST body. Portal responses are `no-store`/`no-referrer` and the old query bootstrap now returns 405.
+- Generic/dropship POSTs have a 64 KiB JSON-object limit; generic errors are sanitized; cache mutations are locked.
+- Daycare pending-family GET is read-only; Marcus broad auto-send is removed and legacy persisted flags cannot re-enable it.
+- Incomplete controls were hidden or made functional: REI/Daycare placeholder navigation removed, non-Daycare fake bell removed, and Command-K now navigates to a current-workspace page.
+- Agent/product docs and roster copy were reconciled; the full test suite was repaired.
+
+Post-fix verification: Python AST pass, 59 JSX validation passes, **227/227 tests pass**, browser smoke has zero JavaScript errors, and Claude's independent acceptance review returned: **“DONE — no unresolved implementation defect evident from this evidence.”**
+
+Still required before production deployment: use the documented private-network/Tailscale boundary (do not expose port 7799), deploy through the normal validated path, and run a credentialed staging pass for Daycare and vendor integrations before touching live business data.
+
 ## What was tested
 
 - **Static UI:** all 59 desktop/mobile JSX files passed the project's Babel and computed-JSX-tag validator.

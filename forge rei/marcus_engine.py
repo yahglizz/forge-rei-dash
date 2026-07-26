@@ -350,7 +350,7 @@ class MarcusEngine:
         self.seen_contacts = set()   # contactIds we've proposed for → first time = new lead
         self.counts = {"proposed": 0, "sent": 0, "suppressed": 0, "dismissed": 0}
         self.anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or self._key_from_env_file()
-        self._load_config()  # restore enabled/auto_send toggles from last run
+        self._load_config()  # restore only the enabled state; auto-send stays off
         self._load()
 
     # -- persistence ---------------------------------------------------------
@@ -366,8 +366,7 @@ class MarcusEngine:
         return None
 
     def _load_config(self):
-        """Toggle state persists across restarts (systemd Restart=always would
-        otherwise silently revert auto_send to its default on every crash)."""
+        """The enabled state persists across restarts; auto-send remains disabled."""
         try:
             if CONFIG_FILE.exists():
                 c = json.loads(CONFIG_FILE.read_text())

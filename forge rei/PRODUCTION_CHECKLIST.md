@@ -52,7 +52,7 @@ the auth item below is done.
 - [x] Auto-start on boot — systemd `enable`. Verified `enabled`.
 - [x] Auto-restart on crash — `Restart=always`, `RestartSec=3`. Verified.
 - [x] Survives terminal close — it's a service, not a shell job.
-- [x] **Marcus toggle state persists across restart** (`marcus_state/config.json`). (Fixed — previously auto_send silently reverted on every restart.)
+- [x] **Marcus enabled state persists across restart** (`marcus_state/config.json`). Broad seller auto-send is deliberately disabled.
 - [x] **Single-poller guard** via `FORGE_MARCUS=0` so a second instance (your Mac) won't double-text. (Fixed.) **Action: set `FORGE_MARCUS=0` on your Mac.**
 - [x] **API cache is now bounded** (`_CACHE_MAX=200`) — no slow memory leak on a long-running process. (Fixed.)
 - [ ] **Schedulers are NOT armed on the box.** The daily voice-learn (9pm) and weekly review (Mon 8am) are macOS LaunchAgents only. On the box they never fire. **Add systemd timers** (commands in DEPLOY doc).

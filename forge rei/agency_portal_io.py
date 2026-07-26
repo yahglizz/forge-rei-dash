@@ -1,7 +1,7 @@
 """agency_portal_io.py — the CLIENT-FACING edit-request portal (Forge AI Agency).
 
 This is the thin, security-scoped layer that a client's browser talks to. A client
-opens a link the operator shared — …/portal?c=<clientId>&k=<token> — and can:
+opens a link the operator shared — …/portal#c=<clientId>&k=<token> — and can:
 
   • see their own name + their own edit requests (status + history), and
   • submit a new edit request,

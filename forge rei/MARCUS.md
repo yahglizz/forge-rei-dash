@@ -42,7 +42,7 @@ Manual run instead: `./start.sh`.
 
 ## API
 `/api/marcus/status` · `/api/marcus/proposals`
-POST `/api/marcus/approve {id,message?}` · `/dismiss {id}` · `/toggle {enabled?,autoSend?}` · `/poll`
+POST `/api/marcus/approve {id,message?}` · `/dismiss {id}` · `/toggle {enabled?}` · `/poll`
 
 State persists in `marcus_state/*.jsonl` (append logs — no database). `handled.jsonl`
 prevents re-proposing the same message; `proposals.jsonl` survives restart.
