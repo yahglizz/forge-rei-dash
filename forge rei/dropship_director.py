@@ -52,6 +52,7 @@ _SYSTEMS = [
     ("SHOPIFY_ADMIN_TOKEN", "Shopify (store)", True),
     ("AUTODS_API_KEY", "AutoDS (sourcing)", True),
     ("PIPIADS_API_KEY", "PiPiAds (trend spy)", True),
+    ("APIFY_TOKEN", "Meta Ad Library (competitor ad spy)", True),
     ("META_ACCESS_TOKEN", "Meta Ads", True),
     ("KLAVIYO_API_KEY", "Klaviyo (email/SMS)", False),
     ("TIKTOK_ACCESS_TOKEN", "TikTok", False),
