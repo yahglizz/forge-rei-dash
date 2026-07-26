@@ -36,8 +36,8 @@ systemctl restart forge-reios              # graceful restart
 systemctl stop forge-reios                 # stop
 systemctl start forge-reios                # start
 ```
-Toggle state (enabled / auto_send / auto_send_nrn) survives restarts — it's saved
-in `marcus_state/config.json`.
+Marcus's active/pause state survives restarts in `marcus_state/config.json`.
+Seller texts always stay in the approval inbox; the broad Marcus auto-send toggle is disabled.
 
 ---
 
@@ -79,11 +79,6 @@ on a browser hard-reload; backend edits take effect on the restart push.sh runs.
 curl -s -X POST localhost:7799/api/marcus/toggle -H "Content-Type: application/json" -d '{"enabled":false}'
 ```
 
-**Turn full auto-send on/off** (NRN referral auto-send is separate, defaults on):
-```bash
-curl -s -X POST localhost:7799/api/marcus/toggle -H "Content-Type: application/json" -d '{"autoSend":true}'
-```
-
 **Force a poll now:**
 ```bash
 curl -s -X POST localhost:7799/api/marcus/poll
@@ -105,7 +100,7 @@ systemctl restart forge-reios
 | `health` returns `ok:false` | GHL key present? | `grep GHL_API_KEY /opt/forge/marcus-wholesale-agent/config/ghl.env`; re-push from Mac |
 | Sellers texted twice | two pollers running | ensure Mac runs with `FORGE_MARCUS=0`; only the box polls |
 | Replies sound robotic | `marcus/status` → `draftMode` | if `templates`, the Anthropic key isn't loading — check `ghl.env` |
-| Nothing auto-sent at night | expected | quiet hours hold auto-replies as pending; approve in the morning or set `FORGE_QUIET_HOURS=0` |
+| Seller draft waiting | expected | review and approve it in the Marcus inbox; broad auto-send is disabled |
 | Learning/review never runs | `systemctl list-timers \| grep forge` | arm the timers (DEPLOY_DIGITALOCEAN.md §A3) |
 | Box rebooted | `systemctl is-enabled forge-reios` | should be `enabled` (auto-starts); run `tailscale up` is persistent across reboots |
 

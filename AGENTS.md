@@ -2,7 +2,7 @@
 
 *The single, current roster of every AI agent in FORGE REI OS: what each one does,
 where it lives, who it answers to, and exactly how much it's allowed to do on its
-own. One file, all eight agents, three businesses.*
+own. One file, all seven agents, four businesses.*
 
 > **Canonical vs. reference.** The enforced autonomy rules live in `CLAUDE.md` §2,
 > the full agent table in `CLAUDE.md` §5, and the brains/skills/creed/env map in
@@ -58,22 +58,28 @@ Two agents, both plan/recommend only — nothing ships or spends without approva
 
 ## Daycare — A Touch of Blessings Learning Academy
 
-Chain of command: **Solomon** (head / executive director) → **Nora** (roster/
-family comms) + **Nova** (ad ops). All propose/delegate; none writes outward.
+Chain of command: **Solomon** (head / executive director). His roster/family-comms
+and ad-ops lanes are merged into his role. He proposes/delegates; never writes outward.
 
 | Agent | Engine | Job | Autonomy |
 |---|---|---|---|
-| **Solomon** | `daycare_director.py` | Head of all daycare agents — a 50-year childcare-director persona. Reads the whole center, produces the ranked operating brief (Attention Now / Enrollment / Money / People / Delegations), owns enrollment, delegates the rest via the bus. | Never texts/invoices/launches ads/writes the DB. Proposes + delegates. Self-improves. Carries two top skills (decision-loop, director-craft) above his playbook. |
-| **Nora** | `daycare_family.py` | Keeps the roster organized (new enrollments, data gaps, capacity/ratio) + follows up on family comms after a Text Blast. | Never texts/writes records. Proposes only. Reports to Solomon. Self-improves. |
-| **Nova** | `daycare_adops.py` | Campaign health, competitor intel, creative direction for the daycare's Meta ads. | Never launches/spends/generates creative herself. Recommends only. Reports to Solomon. Self-improves. |
+| **Solomon** | `daycare_director.py` | Head of daycare: ranked operating brief (Attention Now / Enrollment / Money / People / Roster / Follow-ups / Campaign health / Creative / Delegations), owns enrollment and combines the former Nora/Nova lanes. | Never texts/invoices/launches ads/writes the DB. Proposes + delegates. Self-improves. |
+
+---
+
+## Dropship — FORGE Dropship
+
+| Agent | Engine | Job | Autonomy |
+|---|---|---|---|
+| **Midas** | `dropship_director.py` | Head e-commerce director: one ranked store brief plus product research, creative/ad analysis, and fulfillment/support lanes. | Never launches/spends/orders/edits listings/messages customers. Proposes only. Self-improves. |
 
 ---
 
 ## How the agents talk to each other
 
 - **Agent bus** (`agent_bus.py`, `/api/bus`) — one shared message bus across all
-  three workspaces. Scout → Marcus handoff is automatic; Solomon delegates to
-  Nora/Nova over it. Surfaced in the Command Center (REI) and Agents → Comms (Agency).
+  four workspaces. Scout → Marcus handoff is automatic; Solomon and Midas post
+  their delegations and operating notes here. Surfaced in the Command Center (REI) and Agents → Comms (Agency).
 - **Coaching network** (`agent_coach.py`) — every agent can **ask a peer** a
   question and **broadcast a transferable insight** (a converting ad angle, a
   screening tell, a retention move) to a peer / business / all. Peer insights fold
@@ -90,7 +96,7 @@ Built top-to-bottom, each layer framing everything below it (see `NORTH_STAR.md`
 2. **The creed** (`agent_creed.block(business)`) — evidence discipline in that
    business's own language. *Ground it, infer it, or name it Unknown.* `learn()`
    can never see or rewrite it.
-3. **Top skills / decision-loop** (Solomon/Nora/Nova) — operating judgment.
+3. **Top skills / decision-loop** (Solomon and Midas) — operating judgment.
 4. **The learned playbook** — what `learn()` rewrites, reloaded each run.
 
 Full brains / skills / creed / playbook file map: `NORTH_STAR.md` §6.

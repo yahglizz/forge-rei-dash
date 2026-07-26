@@ -229,8 +229,8 @@ separate isolated credentials — not accidental duplication, don't "dedupe"):**
 
 **Per-agent dedicated keys (all optional — each falls back up its own chain to
 the shared key above):** `SCOUT_ANTHROPIC_API_KEY`, `MARCUS_ANTHROPIC_API_KEY`,
-`SOLOMON_ANTHROPIC_API_KEY`, `NORA_ANTHROPIC_API_KEY` (falls back to Solomon's,
-then shared), `NOVA_ANTHROPIC_API_KEY` (same).
+`SOLOMON_ANTHROPIC_API_KEY`, and `DROPSHIP_ANTHROPIC_API_KEY` (each falls back
+to the shared key above).
 
 **Wholesale-only:** `RETELL_API_KEY` (outbound voice agents), `PRIMARY_MARKET`/
 `PRIMARY_ZIP`/`PRIMARY_COUNTY` (market context for drafts), `YAHJAIR_PHONE`.
@@ -260,7 +260,6 @@ per-call env-swap so they never leak across workspaces),
 **Runtime knobs (not secret):** `FORGE_HOST`/`FORGE_PORT`, `FORGE_VAULT`,
 `FORGE_MARCUS` (box-only loop gate), `FORGE_QUIET_HOURS`/`FORGE_TZ`/
 `FORGE_QUIET_START`/`FORGE_QUIET_END`, `FORGE_SOLOMON_BRIEF_EVERY_H`,
-`FORGE_NORA_BRIEF_EVERY_H`, `FORGE_NOVA_BRIEF_EVERY_H`,
 `FORGE_DROPSHIP_BRIEF_EVERY_H`, every `*_LEARN_EVERY`/`*_LEARN_GAP_MIN`
 self-improvement cadence pair.
 

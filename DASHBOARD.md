@@ -3,14 +3,15 @@
 *The front door. What this whole thing is, how the pieces fit, and where to look
 next. Start here, then follow the links.*
 
-*Last updated: 2026-07-15.*
+*Last updated: 2026-07-26.*
 
 ---
 
 ## What it is
 
-**One control center for one operator (Yahjair) running three businesses** — a
-real-estate wholesaling operation, an AI agency, and a childcare company — with a
+**One control center for one operator (Yahjair) running four businesses** — a
+real-estate wholesaling operation, an AI agency, a childcare company, and a
+dropship store — with a
 team of AI agents doing the employee-work and a human approving anything that goes
 out the door.
 
@@ -26,13 +27,14 @@ out the door.
 
 ---
 
-## The three workspaces (profile switcher)
+## The four workspaces (profile switcher)
 
 | Workspace | Business | What's in it |
 |---|---|---|
 | **REI** | Wholesale — A Touch of Blessings Home Buyers | Dashboard, Leads, Conversations, Pipeline, Contracts, Agents, Brain, Command Center |
 | **Agency** | ClientForge / Forge Labs | Clients, Edit Requests, Agents, Ads, Social, Approvals, Brain |
-| **Daycare** | A Touch of Blessings Learning Academy | Solomon/Nora/Nova, Children, Billing, Growth (Ads/Social/Ideas), Brain |
+| **Daycare** | A Touch of Blessings Learning Academy | Solomon, Children, Billing, Growth (Ads/Social/Ideas), Brain |
+| **Dropship** | FORGE Dropship | Midas, Products, Orders, Inventory, Suppliers, Ads & Creative, Customers, Analytics, Brain |
 
 ---
 
@@ -47,7 +49,7 @@ picture:
 2. **[`BUSINESSES.md`](BUSINESSES.md)** — the **business bible**. The full "what we
    are and what we're going for" for daycare (addresses, goal, model), wholesale
    (with the beginner-wholesaling primer), and the agency (automations + web + ads).
-3. **[`AGENTS.md`](AGENTS.md)** — the **agent roster**. All eight agents: role,
+3. **[`AGENTS.md`](AGENTS.md)** — the **agent roster**. All seven agents: role,
    engine file, chain of command, and exactly how much each may do on its own.
 4. **[`CLAUDE.md`](CLAUDE.md)** — the **operating manual**. HOW to build: rules,
    the self-improvement loop, the creed doctrine, validate/deploy mechanics, the

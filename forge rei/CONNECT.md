@@ -13,11 +13,12 @@ cd "forge rei dash/forge rei"
 Or: `python3 connector.py` then open <http://localhost:7799>.
 
 The connector **must stay running** — it holds the GHL token server-side
-(never exposed to the browser) and proxies read-only calls to GoHighLevel.
+(never exposed to the browser), serves the dashboard, and performs both reads
+and explicitly operator-approved writes to GoHighLevel.
 
 ## What's wired
 
-| Source of truth | GoHighLevel (location `8GuqpADet7ivY7wXWTpV`) |
+| Source of truth | GoHighLevel wholesale sub-account |
 |---|---|
 | Credentials | `../marcus-wholesale-agent/config/ghl.env` (reused, not duplicated) |
 | API | `services.leadconnectorhq.com` v2021-07-28 |
@@ -34,14 +35,16 @@ The connector **must stay running** — it holds the GHL token server-side
 - **Tasks** — aggregated from contacts (GHL has no global task endpoint, so the
   connector scans recent contacts for tasks).
 
-## API endpoints (read-only)
+## API endpoints
 `/api/health` · `/api/dashboard` · `/api/contacts?limit=&query=` ·
 `/api/conversations?limit=` · `/api/pipeline` · `/api/tasks?scan=`
 
 Responses cache 45s; 429/5xx retried with backoff to stay under GHL rate limits.
 
 ## Notes / limits
-- **Read-only by design.** Nothing writes back to GHL yet.
+- **Writes are operator-gated.** Seller replies, pipeline moves, contracts, and
+  other outward actions require a deliberate dashboard approval. The connector
+  is private-network only (loopback/Tailscale by default); never expose port 7799 publicly.
 - **Appointments** derive from the "Appointment Set" pipeline stage — no GHL
   calendars are configured on this location.
 - **Tasks** require scanning contacts; the dashboard scans 30, the Tasks page 60.

@@ -4,10 +4,10 @@ This folder is the Daycare business's own home, a sibling of the dashboard
 (`forge rei/`), so nothing in here is ever served over HTTP — config, business
 context, and the Supabase schema live here safely.
 
-Unlike Scout/Marcus/Solomon/Nora/Nova, this folder holds no agent engine of
+Unlike Scout/Marcus/Solomon/Midas, this folder holds no agent engine of
 its own — the engines (`daycare_supabase.py`, `daycare_growth.py`,
-`daycare_blast.py`, `daycare_ghl.py`, `daycare_context.py`, plus Solomon/Nora/
-Nova) all live in `forge rei/`. This folder is what they read from: the
+`daycare_blast.py`, `daycare_ghl.py`, `daycare_context.py`, plus Solomon) all
+live in `forge rei/`. This folder is what they read from: the
 business's own credentials, its brief, and the database schema those engines
 talk to.
 
@@ -15,8 +15,6 @@ talk to.
 forge rei dash/
 ├─ forge rei/                 <- the dashboard (web-served; every daycare_*.py engine lives here)
 ├─ forge-solomon/             <- Solomon (daycare head agent) config + seed playbook
-├─ forge-nora/                <- Nora (roster & family follow-up) config + seed playbook
-├─ forge-nova/                <- Nova (ad ops) config + seed playbook
 └─ forge-daycare/             <- THIS folder: business config + brief + Supabase schema
    ├─ config/
    │  └─ daycare.env.example  <- template; copy to daycare.env and edit (git-ignored)
@@ -61,7 +59,7 @@ file.
 
 ## Who reads this folder
 
-Solomon (`daycare_director.py`), Nora (`daycare_family.py`), and Nova
-(`daycare_adops.py`) all read `daycare-context.md` (and Nova also reads
-`enrollment-ad-agent.md`) ahead of their own creed and playbook — see
+Solomon (`daycare_director.py`) reads `daycare-context.md` and
+`enrollment-ad-agent.md` ahead of his creed and playbook; his role includes the
+former roster/family-comms and ad-ops lanes — see
 `NORTH_STAR.md` §6 for the full brains-and-skills map across every business.
