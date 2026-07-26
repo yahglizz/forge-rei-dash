@@ -195,6 +195,16 @@ def _open_tasks_block(agent_id):
             + lines)
 
 
+def open_tasks_block(agent_id):
+    """Public, never-raises version — for the chat prompts that live outside this
+    module (agents_chat, marcus_chat, agency_agents). "" when there's nothing open,
+    so callers concatenate unconditionally."""
+    try:
+        return _open_tasks_block(agent_id)
+    except Exception:
+        return ""
+
+
 # Per-business wiring for the director chat below: (env file named in the "add a key"
 # hint, the business-brief module, the playbook module, who they're talking about).
 _DIRECTOR = {
