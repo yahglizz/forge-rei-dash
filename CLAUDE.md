@@ -133,8 +133,9 @@ ABOVE the learned playbook** — when they disagree, **the creed wins**.
 | **`wholesale-evidence-discipline`** | **Scout, Marcus, Atlas** | `forge-scout/skills/` + `forge-marcus/skills/` | The thread is the only truth — never invent what a seller said, asked, or agreed to; **no agent ever invents a number**, and no price/offer ever goes out by text (Atlas's anchors are internal); Unknowns become the call's missing-info list; reply to sellers only, never to our own outreach. |
 | **`agency-evidence-discipline`** | **Dyson, Eco** | `forge-agency/skills/` | Never invent a client's metric — every CPL/ROAS/spend figure carries its source **and date range**, or is Unknown; mock/unconnected channels are labeled as such in the output; never invent or stretch a client request, timeline, or promised result; diagnose with ranked alternatives, not "it's the creative." |
 | **`daycare-evidence-discipline`** | **Solomon** + role agents (Enrollment, Billing, Family-Comms, Staffing, Compliance) | `forge-solomon/skills/` | Never invent capacity, a start date, a rate, a balance, or a ratio; read the brief FIRST; safety/compliance outranks the analysis; look it up, escalate only the decisions. |
+| **`dropship-evidence-discipline`** | **Midas** (all three lanes) | `forge-dropship/skills/` | Never invent a metric, a margin, a stock status, a supplier price, or a delivery time — every number carries its source **and window**, or is Unknown; margin only from real cost inputs (revenue is not profit); a "winner" needs real sales + ad signal, never a hunch; **account health (merchant + ad account) outranks the analysis**; propose, never launch/spend/order/message. |
 
-**All three share the spine:** *ground it, infer it, or name it **Unknown*** · 3–5 **ranked
+**All four share the spine:** *ground it, infer it, or name it **Unknown*** · 3–5 **ranked
 falsifiable** hypotheses (never anchor on the first story) · **close the loop** — if the
 next lookup wouldn't change the recommendation, decide · **two passes max**, Unknowns never
 block the output · weight care by cost of being wrong · **propose, never act outward.**
@@ -155,6 +156,21 @@ Solomon additionally carries two **top skills** above his playbook (loaded by
 |-----------|------------------|
 | **`solomon-decision-loop`** | Frame → Ground → Hypothesize → Decide → **Close**. The exit condition that kills analysis paralysis. |
 | **`solomon-director-craft`** | The 50 years: triage order (safety/ratio → compliance → cash → enrollment), funnel-leak vs. lead-volume, speed-to-lead, vacancy as a spoiled good, retention math, discount last. |
+
+Midas carries four **top skills** above his playbook, loaded the same way
+(`_load_skills()`, isolated from `learn()` via `_playbook_only`) — declared in
+`MidasEngine.TOP_SKILLS` (`dropship_director.py`):
+
+| Top skill | What it enforces |
+|-----------|------------------|
+| **`midas-decision-loop`** | How he reasons — ground every claim, rank falsifiable hypotheses, **close the loop** while the ad account is still spending. |
+| **`midas-craft`** | The operating judgment: triage order (account health → fulfillment → margin → winners → testing), the funnel leaks at the seams not the source, creative IS the targeting, a stockout on a winner is a spoiled good, discount last. |
+| **`dropship-four-triggers-ad-writer`** | Ad copy: Avatar → Problem → Unique Mechanism → Offer, plus the Meta compliance guardrails (no personal-attribute assertions, no fabricated claims). Was Blaze's hardcoded floor. |
+| **`dropship-meta-ads-diagnostician`** | Campaign diagnosis: the 12 sliders with benchmarks, find "the hose bend," combination signatures, one tactical prescription. Was Blaze's hardcoded floor. |
+
+Five further `dropship-*` operating SOPs live in `forge-dropship/skills/` (ad-spy method,
+ad-launch numbers, store setup + pixel/CAPI, account health, support macros). They are
+**not** picked up by the `midas-*.md` glob — add them to `TOP_SKILLS` to load them.
 
 **Adding an agent:** give it the creed for its business — `agent_creed.block("<business>")`
 into its system prompt ahead of the playbook — and keep `learn()` pointed at the playbook
@@ -458,14 +474,14 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
 
 ---
 
-## 11. Cross-Agent Coaching Network (all 8 agents coach each other, across all three businesses)
+## 11. Cross-Agent Coaching Network (all 7 agents coach each other, across all four businesses)
 
 Every agent is a node in a **coaching network**: they can **ASK peers questions**,
 **LEARN from answers**, and **BROADCAST a transferable insight** (a creative angle that's
 converting, a screening tactic, a pricing-conversation move) to a peer, a business, or
 `"all"`. Peer insights addressed to an agent are **automatically folded into its next
 `learn()` self-improvement cycle** — so a lesson discovered in one business becomes a
-default in another. Coaching flows both ways and across all three businesses.
+default in another. Coaching flows both ways and across all four businesses.
 
 *Example:* Eco (agency ads) sees a carousel angle beating single-image for a client and
 coaches Solomon (who owns the daycare's ads); he adapts it to enrollment ads. Scout's

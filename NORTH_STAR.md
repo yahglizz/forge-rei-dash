@@ -204,7 +204,7 @@ directly, not stuffed into every agent's live prompt (the loader in
 | Agency | Dyson | `forge rei/agency_agents.py` (`agent_id="dyson"`) | `forge-agency/skills/` | `Skills/dyson-playbook.md` | `agency-evidence-discipline.md` |
 | Agency | Eco | `forge rei/agency_agents.py` (`agent_id="eco"`) | `forge-agency/skills/` | `Skills/eco-playbook.md` | `agency-evidence-discipline.md` |
 | Daycare | Solomon (director + roster/family-comms + ad ops) | `forge rei/daycare_director.py` | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md`, `solomon-roster-craft.md`, `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
-| Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` (top skills: `midas-decision-loop.md`, `midas-craft.md`, `dropship-four-triggers-ad-writer.md`, `dropship-meta-ads-diagnostician.md`) | `Skills/midas-playbook.md` | `dropship-evidence-discipline.md` |
+| Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` (top skills: `midas-decision-loop.md`, `midas-craft.md`, `dropship-four-triggers-ad-writer.md`, `dropship-meta-ads-diagnostician.md`) | *(none yet — `Skills/midas-playbook.md` is written by Midas's FIRST `learn()`; until then the seed `forge-dropship/skills/midas-playbook.md` IS the live playbook)* | `dropship-evidence-discipline.md` |
 
 Shared infra used by every agent above: `review_agent._claude`/`review_agent.MODEL`
 (the actual Claude calls), `brain_io.py` (vault read/write + git history),

@@ -40,9 +40,18 @@ forge-dropship/
    ├─ midas-craft.md                    # Midas top skill — e-com operating judgment
    ├─ dropship-four-triggers-ad-writer.md    # Midas top skill — ad-copy framework (was Blaze's)
    ├─ dropship-meta-ads-diagnostician.md     # Midas top skill — the 12 sliders (was Blaze's)
+   ├─ dropship-adspy-method.md          # SOP — competitor ad research (Ad Library + PiPiAds)
+   ├─ dropship-ad-launch-sop.md         # SOP — test/scale/kill numbers for Meta
+   ├─ dropship-store-setup.md           # SOP — Shopify build, CRO, AOV, pixel/CAPI
+   ├─ dropship-account-health.md        # SOP — chargeback/refund bands, ban survival
+   ├─ dropship-support-macros.md        # SOP — approved support language + refund tree
    └─ midas-playbook.md                 # seed operating rubric + the three lane sections
                                         #   (absorbed hawk/blaze/otto-playbook.md)
 ```
+
+The five `dropship-*` SOPs are operating references, not top skills — they load through
+`_load_skills()` only once declared in `MidasEngine.TOP_SKILLS`
+(`forge rei/dropship_director.py`). The glob there picks up `midas-*.md`, not `dropship-*.md`.
 
 Engine: `forge rei/dropship_director.py` (Midas — all lanes). Integration clients:
 `forge rei/dropship_shopify.py`,
