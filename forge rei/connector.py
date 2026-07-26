@@ -4556,7 +4556,7 @@ def main():
         # Scout — read-only triage sweep; auto-feeds Marcus via SCOUT.on_scored.
         print(f"   Scout: lead triage · {'Claude' if SCOUT and review_agent._api_key() else 'rule'}"
               f"-scored · auto-screens call-worthy leads · sweeping every {scout_triage.POLL_INTERVAL}s")
-        ts = threading.Thread(target=SCOUT.run_forever, daemon=True)
+        ts = threading.Thread(target=SCOUT.run_forever, daemon=True, name="scout")
         ts.start()
         # Marcus screening runs on-demand + auto (no poll loop needed — Scout drives it).
         print(f"   Marcus: lead screening · {'Claude' if SCREENER and marcus_screening._marcus_key() else 'no key'}"
@@ -4565,35 +4565,35 @@ def main():
         # FORGE_MARCUS_SMS=1 to bring back the auto-drafting SMS responder.
         if os.environ.get("FORGE_MARCUS_SMS", "0") != "0":
             print(f"   Marcus SMS responder: ON · review-gated · polling every {MARCUS.poll_interval}s")
-            t = threading.Thread(target=MARCUS.run_forever, daemon=True)
+            t = threading.Thread(target=MARCUS.run_forever, daemon=True, name="marcus")
             t.start()
         # Follow-up — Tier 2 cadence: no-response bumps + due check-backs (gated proposals,
         # nothing auto-texts). Slow loop so it never competes with Scout's 180s sweep.
         print(f"   Follow-up: 24/7 cadence · bumps {followup.TIERS_H}h ·"
               f" check-backs up to {followup.MAX_CHECKBACKS}× · every {followup.INTERVAL}s")
-        tf = threading.Thread(target=FOLLOWUP.run_forever, daemon=True)
+        tf = threading.Thread(target=FOLLOWUP.run_forever, daemon=True, name="followup")
         tf.start()
         # Atlas — underwrite every screened-interested seller (15-min sweep).
         print("   Atlas: deal underwriter · auto-preps interested sellers every 15 min")
-        ta = threading.Thread(target=DEAL_PREP.run_forever, daemon=True)
+        ta = threading.Thread(target=DEAL_PREP.run_forever, daemon=True, name="atlas")
         ta.start()
         # Solomon — daycare head agent: one operating brief covering ops, enrollment,
         # money, people, roster/family-comms (was Nora) and ad ops (was Nova). One loop,
         # one Claude call, one auto-admin session.
         print(f"   Solomon: daycare director · operating brief every {daycare_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
-        tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True)
+        tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True, name="solomon")
         tsol.start()
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work
         # (research / analyze_ads / fulfillment_check) runs on-demand from the routes.
         print(f"   Midas: dropship e-com director · brief every {dropship_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
-        tmid = threading.Thread(target=MIDAS.run_forever, daemon=True)
+        tmid = threading.Thread(target=MIDAS.run_forever, daemon=True, name="midas")
         tmid.start()
         # Do Today — rebuild the morning battle plan + email the digest at 9 AM Eastern.
         print(f"   Do Today: morning battle plan · rebuilds + emails {do_today.RUN_HOUR}:00 {do_today.TZ_NAME}"
               f" → {DO_TODAY.operator_email or 'NO EMAIL (set GHL_USER_EMAIL)'}")
-        tdt = threading.Thread(target=DO_TODAY.run_forever, daemon=True)
+        tdt = threading.Thread(target=DO_TODAY.run_forever, daemon=True, name="do_today")
         tdt.start()
         # Contract poller — close the loop when a seller signs the DocuSign envelope.
         if docusign_io.configured():
@@ -4607,12 +4607,12 @@ def main():
             telegram_io.register_commands()   # native "/" menu — best-effort, never blocks boot
         except Exception:
             pass
-        tt = threading.Thread(target=telegram_io.run_forever, daemon=True)
+        tt = threading.Thread(target=telegram_io.run_forever, daemon=True, name="telegram")
         tt.start()
         # Optional dedicated agent bot — talk to the agents in its own DM.
         if telegram_io.agent_bot_configured():
             print("   Telegram agent bot: on — DM it to talk to the whole crew")
-            at = threading.Thread(target=telegram_io.run_agent_bot_forever, daemon=True)
+            at = threading.Thread(target=telegram_io.run_agent_bot_forever, daemon=True, name="telegram")
             at.start()
         # Watchdog — watches every loop's heartbeat; one Telegram+bus alert on silent death.
         print(f"   Watchdog: loop heartbeat monitor · checks every "
@@ -4624,7 +4624,7 @@ def main():
         _bc = daily_brief.config()
         print(f"   Daily brief: {'on' if _bc.get('enabled') else 'off'} · "
               f"{_bc.get('hour')}:00 (box tz offset {_bc.get('tzOffset')}) → Telegram")
-        tb = threading.Thread(target=_brief_scheduler_forever, daemon=True)
+        tb = threading.Thread(target=_brief_scheduler_forever, daemon=True, name="brief")
         tb.start()
         # Graphify builder — rebuild the code+vault knowledge graph natively on the
         # box so it stays fresh (the old graph came from a Mac-only launchd job and
@@ -4633,7 +4633,7 @@ def main():
             import graphify_build
             print(f"   Graphify: rebuilding knowledge graph every "
                   f"{graphify_build.REBUILD_EVERY // 60} min → {graphify_build.GRAPH_PATH}")
-            tgf = threading.Thread(target=graphify_build.run_forever, daemon=True)
+            tgf = threading.Thread(target=graphify_build.run_forever, daemon=True, name="graphify")
             tgf.start()
         except Exception as _e:  # noqa: BLE001
             print(f"   Graphify: builder not started ({_e})")

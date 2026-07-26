@@ -93,6 +93,21 @@ def _day(d, key=None):
 _CACHE_WRITE_MULT = 1.25
 _CACHE_READ_MULT = 0.10
 
+# Per-agent attribution without touching 47 _claude() call sites: every background agent
+# runs on its OWN named thread (connector names them at start), so the thread name IS the
+# agent. Anything else — HTTP handler threads serving a chat/brief button, the main
+# thread — is operator-initiated work and buckets under "operator".
+AGENT_THREADS = {"scout", "marcus", "atlas", "followup", "solomon", "midas",
+                 "dyson", "eco", "do_today", "telegram", "brief", "graphify"}
+
+
+def _who():
+    try:
+        n = threading.current_thread().name
+    except Exception:
+        return "operator"
+    return n if n in AGENT_THREADS else "operator"
+
 
 def record_anthropic(model, input_tokens, output_tokens,
                       cache_write_tokens=0, cache_read_tokens=0):
@@ -105,6 +120,7 @@ def record_anthropic(model, input_tokens, output_tokens,
         pin, pout = _price_for(model)
         usd = (i * pin + o * pout + cw * pin * _CACHE_WRITE_MULT
                + cr * pin * _CACHE_READ_MULT) / 1_000_000.0
+        who = _who()
         with _LOCK:
             d = _load()
             row = _day(d)
@@ -113,6 +129,10 @@ def record_anthropic(model, input_tokens, output_tokens,
             row["claudeCacheWrite"] = int(row.get("claudeCacheWrite") or 0) + cw
             row["claudeCacheRead"] = int(row.get("claudeCacheRead") or 0) + cr
             row["claudeUSD"] = round(float(row.get("claudeUSD") or 0.0) + usd, 6)
+            by = row.setdefault("byAgent", {})
+            b = by.setdefault(who, {"usd": 0.0, "calls": 0})
+            b["usd"] = round(float(b.get("usd") or 0.0) + usd, 6)
+            b["calls"] = int(b.get("calls") or 0) + 1
             _save(_prune(d))
     except Exception:
         pass
@@ -196,9 +216,14 @@ def status():
 
         mtd_in = mtd_out = mtd_sms = mtd_cache_read = mtd_cache_write = 0
         mtd_claude_usd = 0.0
+        by_agent = {}
         for k, row in days.items():
             if not k.startswith(month):
                 continue
+            for who, b in (row.get("byAgent") or {}).items():
+                acc = by_agent.setdefault(who, {"usd": 0.0, "calls": 0})
+                acc["usd"] += float(b.get("usd") or 0.0)
+                acc["calls"] += int(b.get("calls") or 0)
             mtd_in += int(row.get("claudeIn") or 0)
             mtd_out += int(row.get("claudeOut") or 0)
             mtd_sms += int(row.get("sms") or 0)
@@ -235,7 +260,15 @@ def status():
                     "claudeUSD": round(mtd_claude_usd, 4),
                     "claudeCacheWrite": mtd_cache_write, "claudeCacheRead": mtd_cache_read,
                     "sms": mtd_sms, "smsUSD": mtd_sms_usd,
-                    "fixedUSD": fixed_mtd, "totalUSD": mtd_total},
+                    "fixedUSD": fixed_mtd, "totalUSD": mtd_total,
+                    # per-agent Claude spend this month, biggest first; "operator" =
+                    # everything you triggered by hand (chat, brief buttons, UI).
+                    "byAgent": [
+                        {"agent": w, "usd": round(v["usd"], 4),
+                         "calls": v["calls"],
+                         "projMonthUSD": round(v["usd"] / max(1, day_of_month) * dim, 2)}
+                        for w, v in sorted(by_agent.items(),
+                                           key=lambda kv: -kv[1]["usd"])]},
             "fixed": fixed, "fixedMonthlyUSD": fixed_monthly,
             "smsRate": sms_rate, "monthlyCapUSD": cap,
             "capAlert": alert, "capWarn": warn,
