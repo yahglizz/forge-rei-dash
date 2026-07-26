@@ -71,6 +71,10 @@ AGENTS = [
      "role": "Executive Director — the whole center",
      "blurb": "Ops, enrollment, money, people, roster + family follow-ups, and the "
               "enrollment ads. Ranks it all, owns enrollment, never acts outward."},
+    {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "🛒",
+     "role": "E-com Director — the whole store",
+     "blurb": "Product research, creative + ads, fulfillment and support. Ranks the "
+              "store into one brief. Never launches, orders, or messages a customer."},
 ]
 
 _BY_ID = {a["id"]: a for a in AGENTS}
@@ -107,6 +111,7 @@ def _engine(agent_id):
         "marcus": getattr(connector, "MARCUS", None),
         "atlas": getattr(connector, "DEAL_PREP", None),
         "solomon": getattr(connector, "SOLOMON", None),
+        "midas": getattr(connector, "MIDAS", None),
     }.get(agent_id)
 
 
@@ -189,22 +194,34 @@ def _open_tasks_block(agent_id):
             + lines)
 
 
-def _daycare_chat(agent_id, message, history):
-    """Chat for the daycare director (Solomon). He produced briefs but had no chat
-    surface — this is it. Grounded in the creed + the business brief + their OWN live
-    brief and playbook, so the agent you talk to is the same one that runs the loops,
-    not a generic assistant wearing its name."""
+# Per-business wiring for the director chat below: (env file named in the "add a key"
+# hint, the business-brief module, the playbook module, who they're talking about).
+_DIRECTOR = {
+    "daycare": ("daycare.env", "daycare_context", "daycare_director",
+                "A Touch of Blessings Learning Academy"),
+    "dropship": ("dropship.env", "dropship_context", "dropship_director",
+                 "the FORGE Dropship store"),
+}
+
+
+def _director_chat(agent_id, message, history):
+    """Chat for a business's director agent (Solomon · daycare, Midas · dropship).
+    They produced briefs but had no chat surface — this is it. Grounded in the creed +
+    the business brief + their OWN live brief and playbook, so the agent you talk to is
+    the same one that runs the loops, not a generic assistant wearing its name."""
+    meta = _BY_ID[agent_id]
+    business = meta["business"]
+    env_name, ctx_mod, pb_mod, org = _DIRECTOR[business]
+
     key = review_agent._api_key()
     if not key:
         return {"needsKey": True,
-                "reply": "Add an Anthropic key to daycare.env so I can answer."}
-    meta = _BY_ID[agent_id]
+                "reply": f"Add an Anthropic key to {env_name} so I can answer."}
     eng = _engine(agent_id)
 
     ctx = ""
     try:
-        import daycare_context
-        ctx = daycare_context.context_block()   # the business brief — read FIRST
+        ctx = __import__(ctx_mod).context_block()   # the business brief — read FIRST
     except Exception:
         pass
 
@@ -222,22 +239,20 @@ def _daycare_chat(agent_id, message, history):
 
     playbook = ""
     try:
-        if agent_id == "solomon":
-            import daycare_director
-            playbook = daycare_director.playbook_text(1500)
+        playbook = __import__(pb_mod).playbook_text(1500)
     except Exception:
         pass
 
     system = (
-        f"You are {meta['name']}, {meta['role']} for A Touch of Blessings Learning "
-        f"Academy. {meta['blurb']} You are talking directly with the OWNER in the "
+        f"You are {meta['name']}, {meta['role']} for {org}. "
+        f"{meta['blurb']} You are talking directly with the OWNER in the "
         "dashboard — answer like the seasoned operator you are: warm, direct, decisive, "
         "no preamble. Ground every number in the data below; if you cannot reach a fact, "
         "say it is unknown and say how you'd find out. You never take an outward action "
         "(no SMS to a family, no invoice, no ad launch, no database write) — you surface, "
         "recommend, and delegate; the owner taps to execute. If he assigns you work, "
         "confirm what you'll do and what you need from him."
-        + _creed("daycare")
+        + _creed(business)
         + (ctx or "")
         + live
         + (("\n\n=== YOUR PLAYBOOK ===\n" + playbook) if playbook else "")
@@ -273,9 +288,9 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None):
         except Exception as e:  # noqa: BLE001
             return {"reply": f"Couldn't reach {meta['name']}: {e}", "agent": meta["name"]}
 
-    # Daycare — Solomon (chat added here).
-    if business == "daycare":
-        return _daycare_chat(agent_id, message, history)
+    # The business directors — Solomon (daycare) and Midas (dropship).
+    if business in _DIRECTOR:
+        return _director_chat(agent_id, message, history)
 
     # Wholesale + Retell voice — the existing brain (GHL threads, commands, collab).
     import agents_chat
