@@ -326,6 +326,24 @@ update that skill if you improved the pattern.
   per day past the set hour (`FORGE_TZ_OFFSET` zone), heartbeat-monitored under `daily_brief`.
   Mobile control: More → Daily brief / End-of-day recap (toggle, hour, live preview, send-now).
 - Knobs: `FORGE_SCOUT_*` (scout.env), `AGENCY_LEARN_EVERY`, `FORGE_VAULT`, `FORGE_MARCUS`.
+- **Loop switchboard (2026-07-26) — tune spend without a deploy.** Box loop knobs live in
+  `/etc/default/forge-reios` (box-only, holds secrets — `grep` it for a var name, never
+  `cat` it). Edit + `systemctl restart forge-reios`; no push, no code edit.
+
+  | Knob | Default | What it does |
+  |------|---------|--------------|
+  | `FORGE_DROPSHIP_BRIEF` | **0 (off)** | Midas's scheduled brief. Off while the store has 0/7 systems wired — a brief over empty data is fabrication AND a daily bill. On-demand (chat, `/task`, `/api/dropship/director/run`, all 3 lanes) is unaffected. Set `1` when Shopify connects. |
+  | `FORGE_TODAY_LOOP` | **0 (off)** | DoToday's scheduled rebuild + 9 AM email. Paused by operator request. Costs $0 either way (DoToday makes no Claude call); `view()` self-rebuilds so `/today` + `/done` still work. |
+  | `FORGE_SCOUT_INTERVAL` | 180 | Wholesale sweep. The money loop — leave hot. |
+  | `FORGE_SOLOMON_BRIEF_EVERY_H` | 24 | Daycare brief. Raise to 48 if enrollment goes quiet. |
+  | `FORGE_SCOUT_LEARN_EVERY` / `FORGE_ATLAS_LEARN_EVERY` | 25 / 12 | Self-improve cadence — the other real Claude cost. |
+
+  **Switching a loop OFF must call `forge_heartbeat.retire("<loop>")`** in the else branch,
+  or it stops beating, goes red forever, and trips the health card + watchdog. Which agents
+  actually cost money: `daily_brief`, `daily_recap`, `do_today`, `followup` make **zero**
+  Claude calls — pausing them saves nothing. Spend is Scout, Marcus, Atlas, Solomon, Midas,
+  `skill_forge`, `style_agent`, and your chats. Per-agent truth: `/api/cost/status` →
+  `mtd.byAgent`, rendered on the Costs tab ("Spend by agent").
 - HOT-lead auto-pipeline: `FORGE_SCOUT_AUTOPIPE_HOT=1` (default on) — asap leads auto-land in the Wholesaling Pipeline Hot stage each poll (internal + reversible, same rationale as auto-tags).
 - HOT-lead auto-tag: `FORGE_SCOUT_AUTOTAG_HOT=1` (default on). Scout pushes `triage: asap`+`motivated: high` to GHL for every `asap` lead each poll (`_autotag_hot`, runs even with no new leads → backlog covered). Set `=0` to revert to approval-gated tagging.
 
