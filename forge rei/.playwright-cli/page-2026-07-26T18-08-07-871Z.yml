@@ -1,0 +1,91 @@
+- generic [ref=e282]:
+  - complementary [ref=e283]:
+    - button "FORGE DAYCARE" [ref=e939] [cursor=pointer]:
+      - generic [ref=e289]:
+        - generic [ref=e290]: FORGE
+        - generic [ref=e291]: DAYCARE
+    - button "Mission Control" [ref=e292] [cursor=pointer]
+    - navigation [ref=e296]:
+      - button "Dashboard" [ref=e297] [cursor=pointer]
+      - button "Agents" [ref=e304] [cursor=pointer]
+      - button "Agent Office" [ref=e310] [cursor=pointer]
+      - button "Children" [ref=e940] [cursor=pointer]
+      - button "Attendance" [ref=e946] [cursor=pointer]
+      - button "Daily Logs" [ref=e951] [cursor=pointer]
+      - button "Incidents" [ref=e956] [cursor=pointer]
+      - button "Blessing Coins" [ref=e961] [cursor=pointer]
+      - button "Classrooms" [ref=e966] [cursor=pointer]
+      - button "Staff & Schedules" [ref=e970] [cursor=pointer]
+      - button "Enrollment" [ref=e976] [cursor=pointer]
+      - button "Parent Logins" [ref=e981] [cursor=pointer]
+      - button "Messages" [ref=e988] [cursor=pointer]
+      - button "Announcements" [ref=e992] [cursor=pointer]
+      - button "Text Blast" [ref=e997] [cursor=pointer]
+      - button "Billing" [ref=e1003] [cursor=pointer]
+      - button "Payroll" [ref=e1008] [cursor=pointer]
+      - button "Ads & Social" [ref=e1013] [cursor=pointer]
+      - button "Meals & Menus" [ref=e1019] [cursor=pointer]
+      - button "Calendar" [ref=e1023] [cursor=pointer]
+      - button "Reports" [ref=e1028] [cursor=pointer]
+      - button "Brain" [ref=e376] [cursor=pointer]
+      - button "Settings" [ref=e392] [cursor=pointer]
+  - generic [ref=e417]:
+    - banner [ref=e418]:
+      - generic [ref=e419]:
+        - textbox "Search anything..." [ref=e423]
+        - generic [ref=e424]: ⌘K
+      - generic [ref=e429]:
+        - generic [ref=e430]: Center Status
+        - generic [ref=e431]: Secure sign-in required
+      - generic [ref=e433]:
+        - generic [ref=e434]: Children Enrolled
+        - generic [ref=e435]: —
+      - button [ref=e1032] [cursor=pointer]
+      - generic [ref=e440]:
+        - button "Y Yahjair FORGE DAYCARE" [active] [ref=e1033] [cursor=pointer]:
+          - generic [ref=e442]: "Y"
+          - generic [ref=e443]:
+            - generic [ref=e444]: Yahjair
+            - generic [ref=e445]: FORGE DAYCARE
+        - generic [ref=e1062]:
+          - button "Mission Control All businesses overview" [ref=e1063] [cursor=pointer]:
+            - generic [ref=e1067]:
+              - generic [ref=e1068]: Mission Control
+              - generic [ref=e1069]: All businesses overview
+          - generic [ref=e1070]: Workspaces
+          - button "FORGE REI OS Real Estate" [ref=e1071] [cursor=pointer]:
+            - generic [ref=e1076]:
+              - generic [ref=e1077]: FORGE REI OS
+              - generic [ref=e1078]: Real Estate
+          - button "FORGE AI Agency ClientForge" [ref=e1079] [cursor=pointer]:
+            - generic [ref=e1084]:
+              - generic [ref=e1085]: FORGE AI Agency
+              - generic [ref=e1086]: ClientForge
+          - button "FORGE DAYCARE Daycare Operations" [ref=e1087] [cursor=pointer]:
+            - generic [ref=e1092]:
+              - generic [ref=e1093]: FORGE DAYCARE
+              - generic [ref=e1094]: Daycare Operations
+          - button "FORGE DROPSHIP Dropshipping" [ref=e1098] [cursor=pointer]:
+            - generic [ref=e1103]:
+              - generic [ref=e1104]: FORGE DROPSHIP
+              - generic [ref=e1105]: Dropshipping
+    - generic [ref=e1035]:
+      - generic [ref=e1036]:
+        - generic [ref=e1037]: DC
+        - generic [ref=e1039]:
+          - generic [ref=e1040]: SECURE MANAGEMENT ACCESS
+          - heading "Your center. One command view." [level=1] [ref=e1041]: Your center.One command view.
+          - paragraph [ref=e1042]: Live attendance, family records, staff coverage, care reporting, communication, and finances—all backed by the same Supabase data used by your daycare app.
+      - generic [ref=e1043]:
+        - heading "Management sign in" [level=2] [ref=e1048]
+        - paragraph [ref=e1049]: Use the management Login ID and PIN assigned in your daycare app.
+        - generic [ref=e1050]:
+          - generic [ref=e1051]: Login ID
+          - textbox "Login ID" [ref=e1052]:
+            - /placeholder: Your Login ID
+        - generic [ref=e1053]:
+          - generic [ref=e1054]: PIN
+          - textbox "PIN" [ref=e1055]:
+            - /placeholder: ••••
+        - button "Open management workspace" [ref=e1056] [cursor=pointer]
+        - generic [ref=e1057]: Credentials and Supabase tokens are never stored in this browser.

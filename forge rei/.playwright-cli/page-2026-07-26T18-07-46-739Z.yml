@@ -1,0 +1,86 @@
+- generic [ref=e282]:
+  - complementary [ref=e283]:
+    - button "FORGE AI Agency" [ref=e740] [cursor=pointer]:
+      - generic [ref=e289]:
+        - generic [ref=e290]: FORGE
+        - generic [ref=e291]: AI Agency
+    - button "Mission Control" [ref=e292] [cursor=pointer]
+    - navigation [ref=e296]:
+      - button "Dashboard" [ref=e297] [cursor=pointer]
+      - button "Agents" [ref=e304] [cursor=pointer]
+      - button "Agent Office" [ref=e310] [cursor=pointer]
+      - button "Blueprint Studio" [ref=e741] [cursor=pointer]
+      - button "Clients" [ref=e748] [cursor=pointer]
+      - button "Client View" [ref=e755] [cursor=pointer]
+      - button "Edit Requests" [ref=e760] [cursor=pointer]
+      - button "Workflows" [ref=e764] [cursor=pointer]
+      - button "Meta Ads" [ref=e770] [cursor=pointer]
+      - button "Social" [ref=e775] [cursor=pointer]
+      - button "Approvals" [ref=e782] [cursor=pointer]
+      - button "Call Center" [ref=e787] [cursor=pointer]
+      - button "Pipeline" [ref=e794] [cursor=pointer]
+      - button "Projects" [ref=e795] [cursor=pointer]
+      - button "Revenue" [ref=e802] [cursor=pointer]
+      - button "Brain" [ref=e376] [cursor=pointer]
+      - button "Settings" [ref=e392] [cursor=pointer]
+  - generic [ref=e417]:
+    - banner [ref=e418]:
+      - generic [ref=e419]:
+        - textbox "Search anything..." [ref=e423]
+        - generic [ref=e424]: ⌘K
+      - generic [ref=e429]:
+        - generic [ref=e430]: AI Activity
+        - generic [ref=e431]: Live
+      - generic [ref=e433]:
+        - generic [ref=e434]: Revenue (This Month)
+        - generic [ref=e435]: $0.00
+      - button "3" [ref=e436] [cursor=pointer]
+      - button "Y Yahjair FORGE AI Agency" [ref=e809] [cursor=pointer]:
+        - generic [ref=e442]: "Y"
+        - generic [ref=e443]:
+          - generic [ref=e444]: Yahjair
+          - generic [ref=e445]: FORGE AI Agency
+    - generic [ref=e811]:
+      - generic [ref=e812]:
+        - generic [ref=e813]:
+          - heading "Forge AI Agency" [level=1] [ref=e814]
+          - generic [ref=e815]: Command center for ClientForge — websites + AI agents.
+        - button "Add Client" [ref=e816] [cursor=pointer]
+      - generic [ref=e819]:
+        - generic [ref=e820]: Agency GoHighLevel connected · 4JIvZEmkY5EjTsDRnjBN
+        - generic [ref=e823]:
+          - generic [ref=e824]:
+            - generic [ref=e830]: GHL Contacts
+            - generic [ref=e831]: "9"
+          - generic [ref=e832]:
+            - generic [ref=e836]: Conversations
+            - generic [ref=e837]: "5"
+            - generic [ref=e838]: 0 unread
+          - generic [ref=e840]:
+            - generic [ref=e844]: Open Opps
+            - generic [ref=e845]: "0"
+          - generic [ref=e846]:
+            - generic [ref=e850]: GHL Pipeline
+            - generic [ref=e851]: $0
+      - generic [ref=e853]:
+        - generic [ref=e854]:
+          - generic [ref=e860]: Active Clients
+          - generic [ref=e861]: "0"
+          - generic [ref=e862]: 0 total
+        - generic [ref=e864]:
+          - generic [ref=e868]: MRR
+          - generic [ref=e869]: $0
+          - generic [ref=e871]: $0/yr
+        - generic [ref=e873]:
+          - generic [ref=e877]: Pipeline
+          - generic [ref=e878]: "0"
+          - generic [ref=e879]: leads to close
+        - generic [ref=e881]:
+          - generic [ref=e885]: In Production
+          - generic [ref=e886]: "0"
+          - generic [ref=e887]: builds in flight
+      - generic [ref=e889]:
+        - generic [ref=e890]:
+          - generic [ref=e891]: Recent clients
+          - button "View all" [ref=e892] [cursor=pointer]
+        - generic [ref=e893]: No clients yet — add your first from the Clients tab.
