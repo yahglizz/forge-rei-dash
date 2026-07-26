@@ -1,0 +1,58 @@
+- generic [ref=e282]:
+  - complementary [ref=e283]:
+    - button "FORGE REI OS" [ref=e1381] [cursor=pointer]:
+      - generic [ref=e289]:
+        - generic [ref=e290]: FORGE
+        - generic [ref=e291]: REI OS
+    - button "Mission Control" [ref=e292] [cursor=pointer]
+    - navigation [ref=e296]:
+      - button "Dashboard" [ref=e297] [cursor=pointer]
+      - button "Agents" [ref=e304] [cursor=pointer]
+      - button "Agent Office" [ref=e310] [cursor=pointer]
+      - button "Leads" [ref=e1382] [cursor=pointer]
+      - button "Conversations" [ref=e1388] [cursor=pointer]
+      - button "Deal Pipeline" [ref=e1392] [cursor=pointer]
+      - button "Contracts" [ref=e1396] [cursor=pointer]
+      - button "Deal Calc" [ref=e1403] [cursor=pointer]
+      - button "Buyers" [ref=e1408] [cursor=pointer]
+      - button "Buyer Blast" [ref=e1415] [cursor=pointer]
+      - button "Properties" [active] [ref=e1421] [cursor=pointer]
+      - button "Outbound" [ref=e1425] [cursor=pointer]
+      - button "Marketing" [ref=e1430] [cursor=pointer]
+      - button "Tasks" [ref=e1434] [cursor=pointer]
+      - button "Analytics" [ref=e1143] [cursor=pointer]
+      - button "Brain" [ref=e376] [cursor=pointer]
+      - button "System Health" [ref=e1438] [cursor=pointer]
+      - button "Costs" [ref=e1443] [cursor=pointer]
+      - button "Settings" [ref=e392] [cursor=pointer]
+    - generic [ref=e1450]:
+      - generic [ref=e1458]:
+        - generic [ref=e1459]: Marcus AI
+        - generic [ref=e1460]: Acquisitions Manager
+        - generic [ref=e1461]: ONLINE
+      - generic [ref=e1464]: Monthly Goal
+      - generic [ref=e1467]:
+        - generic [ref=e1468]: $0 / $50,000
+        - generic [ref=e1469]: 0%
+  - generic [ref=e417]:
+    - banner [ref=e418]:
+      - generic [ref=e419]:
+        - textbox "Search anything..." [ref=e423]
+        - generic [ref=e424]: ⌘K
+      - generic [ref=e429]:
+        - generic [ref=e430]: AI Activity
+        - generic [ref=e431]: Live
+      - generic [ref=e433]:
+        - generic [ref=e434]: Revenue (This Month)
+        - generic [ref=e435]: $0.00
+      - button "3" [ref=e1154] [cursor=pointer]
+      - button "Y Yahjair FORGE REI OS" [ref=e1470] [cursor=pointer]:
+        - generic [ref=e442]: "Y"
+        - generic [ref=e443]:
+          - generic [ref=e444]: Yahjair
+          - generic [ref=e445]: FORGE REI OS
+    - generic [ref=e1715]:
+      - heading "Properties" [level=1] [ref=e1716]
+      - generic [ref=e1717]:
+        - generic [ref=e1721]: Properties is coming online
+        - generic [ref=e1722]: Marcus is wiring up this module. Connect your data and it'll light up here.

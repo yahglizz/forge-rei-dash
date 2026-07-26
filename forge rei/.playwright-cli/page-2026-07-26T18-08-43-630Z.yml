@@ -1,0 +1,208 @@
+- generic [ref=e282]:
+  - complementary [ref=e283]:
+    - button "FORGE REI OS" [ref=e1381] [cursor=pointer]:
+      - generic [ref=e289]:
+        - generic [ref=e290]: FORGE
+        - generic [ref=e291]: REI OS
+    - button "Mission Control" [ref=e292] [cursor=pointer]
+    - navigation [ref=e296]:
+      - button "Dashboard" [ref=e297] [cursor=pointer]
+      - button "Agents" [ref=e304] [cursor=pointer]
+      - button "Agent Office" [ref=e310] [cursor=pointer]
+      - button "Leads" [ref=e1382] [cursor=pointer]
+      - button "Conversations" [ref=e1388] [cursor=pointer]
+      - button "Deal Pipeline" [ref=e1392] [cursor=pointer]
+      - button "Contracts" [ref=e1396] [cursor=pointer]
+      - button "Deal Calc" [ref=e1403] [cursor=pointer]
+      - button "Buyers" [ref=e1408] [cursor=pointer]
+      - button "Buyer Blast" [ref=e1415] [cursor=pointer]
+      - button "Properties" [ref=e1421] [cursor=pointer]
+      - button "Outbound" [ref=e1425] [cursor=pointer]
+      - button "Marketing" [ref=e1430] [cursor=pointer]
+      - button "Tasks" [ref=e1434] [cursor=pointer]
+      - button "Analytics" [ref=e1143] [cursor=pointer]
+      - button "Brain" [ref=e376] [cursor=pointer]
+      - button "System Health" [ref=e1438] [cursor=pointer]
+      - button "Costs" [ref=e1443] [cursor=pointer]
+      - button "Settings" [ref=e392] [cursor=pointer]
+    - generic [ref=e1450]:
+      - generic [ref=e1458]:
+        - generic [ref=e1459]: Marcus AI
+        - generic [ref=e1460]: Acquisitions Manager
+        - generic [ref=e1461]: ONLINE
+      - generic [ref=e1464]: Monthly Goal
+      - generic [ref=e1467]:
+        - generic [ref=e1468]: $0 / $50,000
+        - generic [ref=e1469]: 0%
+  - generic [ref=e417]:
+    - banner [ref=e418]:
+      - generic [ref=e419]:
+        - textbox "Search anything..." [ref=e423]
+        - generic [ref=e424]: ⌘K
+      - generic [ref=e429]:
+        - generic [ref=e430]: AI Activity
+        - generic [ref=e431]: Live
+      - generic [ref=e433]:
+        - generic [ref=e434]: Revenue (This Month)
+        - generic [ref=e435]: $0.00
+      - button "3" [ref=e1154] [cursor=pointer]
+      - button "Y Yahjair FORGE REI OS" [ref=e1470] [cursor=pointer]:
+        - generic [ref=e442]: "Y"
+        - generic [ref=e443]:
+          - generic [ref=e444]: Yahjair
+          - generic [ref=e445]: FORGE REI OS
+    - generic [ref=e1472]:
+      - generic [ref=e1473]:
+        - generic [ref=e1474]:
+          - generic [ref=e1475]: Mirroring GoHighLevel
+          - generic [ref=e1477]: · Marketing Pipeline + Wholesaling Pipeline
+          - generic "System health — tap for detail" [ref=e1478] [cursor=pointer]: idle
+          - generic "Spend this month — tap for the breakdown" [ref=e1481] [cursor=pointer]:
+            - text: 💸
+            - generic [ref=e1482]: $0.18
+            - text: mtd
+        - button "Refreshed 0s ago" [ref=e1483] [cursor=pointer]
+      - generic [ref=e1484]:
+        - generic [ref=e1486]:
+          - generic [ref=e1492]: Total Leads
+          - generic [ref=e1493]: 6,632
+          - generic [ref=e1494]: live · GoHighLevel
+        - generic [ref=e1497]:
+          - generic [ref=e1501]: Active Conversations
+          - generic [ref=e1502]: "25"
+          - generic [ref=e1503]: 7,354 total
+        - generic [ref=e1506]:
+          - generic [ref=e1510]: Open Opportunities
+          - generic [ref=e1511]: "54"
+          - generic [ref=e1512]: live · GoHighLevel
+        - generic [ref=e1515]:
+          - generic [ref=e1519]: Pipeline Value
+          - generic [ref=e1520]: $26,032
+          - generic [ref=e1522]: live · GoHighLevel
+        - generic [ref=e1525]:
+          - generic [ref=e1530]: Appointments
+          - generic [ref=e1531]: "0"
+          - generic [ref=e1532]: live · GoHighLevel
+        - generic [ref=e1535]:
+          - generic [ref=e1540]: Tasks Due Today
+          - generic [ref=e1541]: "0"
+          - generic [ref=e1542]: 0 open tasks
+      - generic [ref=e1545]:
+        - generic [ref=e1546]: FORGE DEAL DESK
+        - generic [ref=e1547]: See the deal. Move the next action.
+        - generic [ref=e1548]: Your live pipeline, buyer workflow, contract review, and AI operator controls in one place.
+        - button "Open Deal Pipeline" [ref=e1549] [cursor=pointer]
+      - generic [ref=e1550]:
+        - generic [ref=e1551]:
+          - generic [ref=e1552]:
+            - generic [ref=e1556]: Text Back Now · Speed to Lead
+            - generic [ref=e1557]: 2 hot
+            - generic [ref=e1558]: tap a lead → AI drafts the reply → send
+          - button "Open ASAP" [ref=e1559] [cursor=pointer]
+        - generic [ref=e1560]:
+          - generic [ref=e1562] [cursor=pointer]:
+            - generic [ref=e1563]: "78"
+            - generic [ref=e1564]:
+              - generic [ref=e1565]: Ron Gallagher
+              - generic [ref=e1566]: If you have looked at it what's the offer?
+            - generic [ref=e1567]: 30d ago
+            - button "Draft" [ref=e1568]
+            - button "✕" [ref=e1569]
+          - generic [ref=e1571] [cursor=pointer]:
+            - generic [ref=e1572]: "75"
+            - generic [ref=e1573]:
+              - generic [ref=e1574]: Aaron Knowles
+              - generic [ref=e1575]: Yes it's for sell as is
+            - generic [ref=e1576]: 49d ago
+            - button "Draft" [ref=e1577]
+            - button "✕" [ref=e1578]
+      - generic [ref=e1579]:
+        - generic [ref=e1580]:
+          - generic [ref=e1581]:
+            - generic [ref=e1585]: Do Today
+            - generic [ref=e1586]: 0/8 done
+            - generic [ref=e1587]: rebuilds 9:00 AM ET
+          - generic [ref=e1588]:
+            - button "Rebuild + email now" [ref=e1589] [cursor=pointer]
+            - button "↻" [ref=e1590] [cursor=pointer]
+        - generic [ref=e1592]:
+          - generic [ref=e1593] [cursor=pointer]:
+            - generic [ref=e1598]:
+              - generic [ref=e1599]: Text back Aaron Knowles
+              - generic [ref=e1600]: Confirmed selling as-is, no repairs needed
+            - generic [ref=e1601]: TEXT BACK
+          - generic [ref=e1602] [cursor=pointer]:
+            - generic [ref=e1607]:
+              - generic [ref=e1608]: Text back Ron Gallagher
+              - generic [ref=e1609]: Asking for offer, ready to negotiate numbers, engaged
+            - generic [ref=e1610]: TEXT BACK
+          - generic [ref=e1611] [cursor=pointer]:
+            - generic [ref=e1617]:
+              - generic [ref=e1618]: Review & send Marcus's draft to Aaron Knowles
+              - generic [ref=e1619]: U are a bug my name is Sienna & I've told yall a million times this ain't Aaron. I've had this damn number for almost 4 years quit fucking texting me.
+            - generic [ref=e1620]: APPROVE
+          - generic [ref=e1621] [cursor=pointer]:
+            - generic [ref=e1627]:
+              - generic [ref=e1628]: Review & send Marcus's draft to Andy Banks
+              - generic [ref=e1629]: Did I call you? No !!
+            - generic [ref=e1630]: APPROVE
+          - generic [ref=e1631] [cursor=pointer]:
+            - generic [ref=e1637]:
+              - generic [ref=e1638]: Review & send Marcus's draft to Brendee Billings
+              - generic [ref=e1639]: I had a family member die from a heart attack last week, and I have bronchitis right now, so I understand completely. Thanks.
+            - generic [ref=e1640]: APPROVE
+          - generic [ref=e1641] [cursor=pointer]:
+            - generic [ref=e1647]:
+              - generic [ref=e1648]: Review & send Marcus's draft to Charles Lutchey
+              - generic [ref=e1649]: No contracts have been drawn up. 74,900 was the last written till they realized that they could make it a 3 bedroom and add central air. Roof was done in 2014.
+            - generic [ref=e1650]: APPROVE
+          - generic [ref=e1651] [cursor=pointer]:
+            - generic [ref=e1657]:
+              - generic [ref=e1658]: Review & send Marcus's draft to Daniel Flahiff
+              - generic [ref=e1659]: They're asking if you're left-handed. Please reply.
+            - generic [ref=e1660]: APPROVE
+          - generic [ref=e1661] [cursor=pointer]:
+            - generic [ref=e1667]:
+              - generic [ref=e1668]: Review & send Marcus's draft to Jose Escobar
+              - generic [ref=e1669]: All need to be replaced I removed old drywall and all appliances need.to redoing electrical plumbing and heating so
+            - generic [ref=e1670]: APPROVE
+      - generic [ref=e1671]:
+        - generic [ref=e1672]:
+          - generic [ref=e1673]: Pipeline Overview
+          - generic [ref=e1674]:
+            - button "Marketing Pipeline · $0" [ref=e1675] [cursor=pointer]
+            - button "Wholesaling Pipeline · $28,900" [ref=e1676] [cursor=pointer]
+        - generic [ref=e1677]:
+          - generic [ref=e1678]:
+            - generic [ref=e1679]:
+              - generic [ref=e1680]: New Lead
+              - generic [ref=e1681]: "1"
+            - generic [ref=e1682]:
+              - generic [ref=e1683]: Shaheed Colen
+              - generic [ref=e1685]: "+12673196626"
+          - generic [ref=e1686]:
+            - generic [ref=e1687]:
+              - generic [ref=e1688]: Contacted
+              - generic [ref=e1689]: "0"
+            - generic [ref=e1690]: —
+          - generic [ref=e1691]:
+            - generic [ref=e1692]:
+              - generic [ref=e1693]: Qualified
+              - generic [ref=e1694]: "0"
+            - generic [ref=e1695]: —
+          - generic [ref=e1696]:
+            - generic [ref=e1697]:
+              - generic [ref=e1698]: Proposal Sent
+              - generic [ref=e1699]: "0"
+            - generic [ref=e1700]: —
+          - generic [ref=e1701]:
+            - generic [ref=e1702]:
+              - generic [ref=e1703]: Negotiation
+              - generic [ref=e1704]: "0"
+            - generic [ref=e1705]: —
+          - generic [ref=e1706]:
+            - generic [ref=e1707]:
+              - generic [ref=e1708]: Closed
+              - generic [ref=e1709]: "0"
+            - generic [ref=e1710]: —
+      - button "More — Marcus, conversations, workforce, activity" [ref=e1711] [cursor=pointer]

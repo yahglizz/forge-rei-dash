@@ -1,0 +1,157 @@
+- generic [ref=e282]:
+  - complementary [ref=e283]:
+    - button "FORGE DROPSHIP" [ref=e1106] [cursor=pointer]:
+      - generic [ref=e289]:
+        - generic [ref=e290]: FORGE
+        - generic [ref=e291]: DROPSHIP
+    - button "Mission Control" [ref=e292] [cursor=pointer]
+    - navigation [ref=e296]:
+      - button "Dashboard" [ref=e297] [cursor=pointer]
+      - button "Agents" [ref=e304] [cursor=pointer]
+      - button "Agent Office" [ref=e310] [cursor=pointer]
+      - button "Products" [ref=e1107] [cursor=pointer]
+      - button "Product Watch" [ref=e1111] [cursor=pointer]
+      - button "Orders" [ref=e1116] [cursor=pointer]
+      - button "Inventory" [ref=e1121] [cursor=pointer]
+      - button "AutoDS · Suppliers" [ref=e1125] [cursor=pointer]
+      - button "Ads & Creative" [ref=e1132] [cursor=pointer]
+      - button "Customers" [ref=e1137] [cursor=pointer]
+      - button "Analytics" [ref=e1143] [cursor=pointer]
+      - button "Connections & MCP" [ref=e1147] [cursor=pointer]
+      - button "Brain" [ref=e376] [cursor=pointer]
+      - button "Settings" [ref=e392] [cursor=pointer]
+  - generic [ref=e417]:
+    - banner [ref=e418]:
+      - generic [ref=e419]:
+        - textbox "Search anything..." [ref=e423]
+        - generic [ref=e424]: ⌘K
+      - generic [ref=e429]:
+        - generic [ref=e430]: AI Activity
+        - generic [ref=e431]: Live
+      - generic [ref=e433]:
+        - generic [ref=e434]: Revenue (This Month)
+        - generic [ref=e435]: $0.00
+      - button "3" [ref=e1154] [cursor=pointer]
+      - generic [ref=e440]:
+        - button "Y Yahjair FORGE DROPSHIP" [active] [ref=e1156] [cursor=pointer]:
+          - generic [ref=e442]: "Y"
+          - generic [ref=e443]:
+            - generic [ref=e444]: Yahjair
+            - generic [ref=e445]: FORGE DROPSHIP
+        - generic [ref=e1337]:
+          - button "Mission Control All businesses overview" [ref=e1338] [cursor=pointer]:
+            - generic [ref=e1342]:
+              - generic [ref=e1343]: Mission Control
+              - generic [ref=e1344]: All businesses overview
+          - generic [ref=e1345]: Workspaces
+          - button "FORGE REI OS Real Estate" [ref=e1346] [cursor=pointer]:
+            - generic [ref=e1351]:
+              - generic [ref=e1352]: FORGE REI OS
+              - generic [ref=e1353]: Real Estate
+          - button "FORGE AI Agency ClientForge" [ref=e1354] [cursor=pointer]:
+            - generic [ref=e1359]:
+              - generic [ref=e1360]: FORGE AI Agency
+              - generic [ref=e1361]: ClientForge
+          - button "FORGE DAYCARE Daycare Operations" [ref=e1362] [cursor=pointer]:
+            - generic [ref=e1367]:
+              - generic [ref=e1368]: FORGE DAYCARE
+              - generic [ref=e1369]: Daycare Operations
+          - button "FORGE DROPSHIP Dropshipping" [ref=e1370] [cursor=pointer]:
+            - generic [ref=e1375]:
+              - generic [ref=e1376]: FORGE DROPSHIP
+              - generic [ref=e1377]: Dropshipping
+    - generic [ref=e1158]:
+      - generic [ref=e1159]:
+        - generic [ref=e1160]:
+          - generic [ref=e1161]: LIVE STORE · FORGE DROPSHIP
+          - heading "Dropship command center" [level=1] [ref=e1162]
+          - paragraph [ref=e1163]: Grow profitable revenue while the merchant & ad accounts stay healthy. Everything outward stays your one-tap approval.
+          - generic [ref=e1164]:
+            - button "Ask the crew" [ref=e1165] [cursor=pointer]
+            - button "Orders" [ref=e1171] [cursor=pointer]
+        - generic [ref=e1175]:
+          - generic [ref=e1176]: "0"
+          - generic [ref=e1177]: ORDERS PULLED
+      - generic [ref=e1178]:
+        - generic [ref=e1179]:
+          - generic [ref=e1184]: Orders
+          - generic [ref=e1185]: "0"
+          - generic [ref=e1186]: connect Shopify
+        - generic [ref=e1188]:
+          - generic [ref=e1195]: Unfulfilled
+          - generic [ref=e1196]: "0"
+          - generic [ref=e1197]: need shipping
+        - generic [ref=e1199]:
+          - generic [ref=e1203]: Low stock
+          - generic [ref=e1204]: "0"
+          - generic [ref=e1205]: variants ≤5
+        - generic [ref=e1207]:
+          - generic [ref=e1213]: Winners
+          - generic [ref=e1214]: "0"
+          - generic [ref=e1215]: 0 in testing
+        - generic [ref=e1217]:
+          - generic [ref=e1221]: Ideas
+          - generic [ref=e1222]: "0"
+          - generic [ref=e1223]: research watchlist
+        - generic [ref=e1225]:
+          - generic [ref=e1229]: Systems
+          - generic [ref=e1230]: 0/8
+          - generic [ref=e1231]: integrations wired
+      - generic [ref=e1233]:
+        - generic [ref=e1234]:
+          - generic [ref=e1236]:
+            - generic [ref=e1237]: Fast paths
+            - generic [ref=e1238]: Jump into the store
+          - generic [ref=e1239]:
+            - button "Products Ideas + live catalog" [ref=e1240] [cursor=pointer]:
+              - generic [ref=e1244]: Products
+              - generic [ref=e1245]: Ideas + live catalog
+            - button "Orders Fulfillment" [ref=e1246] [cursor=pointer]:
+              - generic [ref=e1251]: Orders
+              - generic [ref=e1252]: Fulfillment
+            - button "Ads & Creative Midas" [ref=e1253] [cursor=pointer]:
+              - generic [ref=e1258]: Ads & Creative
+              - generic [ref=e1259]: Midas
+            - button "Analytics Store + ads" [ref=e1260] [cursor=pointer]:
+              - generic [ref=e1264]: Analytics
+              - generic [ref=e1265]: Store + ads
+        - generic [ref=e1266]:
+          - generic [ref=e1267]:
+            - generic [ref=e1268]:
+              - generic [ref=e1269]: Midas brief
+              - generic [ref=e1270]: No brief yet
+            - button "Open crew" [ref=e1271] [cursor=pointer]
+          - generic [ref=e1278]:
+            - generic [ref=e1279]: No brief yet
+            - generic [ref=e1280]: Run Midas from the Agents tab to get a ranked operating brief.
+      - generic [ref=e1281]:
+        - generic [ref=e1282]:
+          - generic [ref=e1283]:
+            - generic [ref=e1284]: Connected systems
+            - generic [ref=e1285]: Presence only — keys live in dropship.env (never shown)
+          - button "Settings" [ref=e1286] [cursor=pointer]
+        - generic [ref=e1287]:
+          - generic [ref=e1291]:
+            - generic [ref=e1292]: Shopify (store)
+            - generic [ref=e1293]: Add key in dropship.env
+          - generic [ref=e1297]:
+            - generic [ref=e1298]: AutoDS (sourcing)
+            - generic [ref=e1299]: Add key in dropship.env
+          - generic [ref=e1303]:
+            - generic [ref=e1304]: PiPiAds (trend spy)
+            - generic [ref=e1305]: Add key in dropship.env
+          - generic [ref=e1309]:
+            - generic [ref=e1310]: Meta Ad Library (competitor ad spy)
+            - generic [ref=e1311]: Add key in dropship.env
+          - generic [ref=e1315]:
+            - generic [ref=e1316]: Meta Ads
+            - generic [ref=e1317]: Add key in dropship.env
+          - generic [ref=e1321]:
+            - generic [ref=e1322]: Klaviyo (email/SMS)
+            - generic [ref=e1323]: not built yet
+          - generic [ref=e1327]:
+            - generic [ref=e1328]: TikTok
+            - generic [ref=e1329]: not built yet
+          - generic [ref=e1333]:
+            - generic [ref=e1334]: AfterShip (tracking)
+            - generic [ref=e1335]: not built yet
