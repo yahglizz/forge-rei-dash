@@ -299,6 +299,24 @@ update that skill if you improved the pattern.
   (box-only, `FORGE_MARCUS` gate; no public port). Creds in git-ignored
   `forge-telegram/config/telegram.env`. API: `/api/notify/{settings,test}`. Bus tap =
   `agent_bus.register_notifier`. Settings card in the Command Center.
+- **Trigger words + real task dispatch (Telegram).** Say an agent's NAME as the first word
+  followed by `,` `:` or a spaced dash — "solomon, what's the ratio situation" / "midas:
+  which product is winning" — and the message routes to that agent (same as `/solomon`,
+  `/midas`, `/scout`, …; all 7 now have slash commands + a `/` menu slot). A bare name with
+  no separator ("I told marcus to call") stays plain chat, so ordinary sentences don't
+  hijack the session. `/task <what you need>` no longer just chats: it files a REAL job via
+  `agents_hub.send_task` → hub task store + `agent_bus` message to that agent, and the
+  agent SEES it — every chat prompt now injects `agents_hub.open_tasks_block(agent_id)`
+  (`agents_chat._tasks`, `marcus_chat._hub_tasks`, `agency_agents`, `_director_chat`), and
+  Midas reads his bus inbox into the brief (`_read_bus_inbox`, same as Solomon). Filing a
+  task is an ASSIGNMENT, never an outward action — rule 2 unchanged. Self-check:
+  `python3 test_triggers_cost.py`.
+- **Per-agent API cost.** `cost_tracker` buckets every Claude call by
+  `threading.current_thread().name`; `connector` names each loop thread (`scout`, `marcus`,
+  `atlas`, `followup`, `solomon`, `midas`, `do_today`, `telegram`, `brief`, `graphify`), so
+  attribution needed zero changes at the 47 `_claude()` call sites. Anything on an HTTP
+  handler thread (chat, a brief button, the UI) buckets under `operator`.
+  `/api/cost/status` → `mtd.byAgent` = `[{agent, usd, calls, projMonthUSD}]`, biggest first.
 - **New-lead speed ping:** the first time Marcus ever proposes for a contact (tracked in
   `marcus_state/seen_contacts.jsonl`) the Telegram ping leads with **🆕 NEW LEAD — reply fast**
   so a fresh seller entering the funnel stands out from an ongoing thread. Re-engages never flag.
