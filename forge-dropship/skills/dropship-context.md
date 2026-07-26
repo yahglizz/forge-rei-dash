@@ -1,11 +1,10 @@
 # 🛒 FORGE Dropship — Business Context (read this FIRST)
 
 **Read this before doing any work on the dropship side of the dashboard.** This is the
-source of truth for what the business is and what Midas / Hawk / Blaze / Otto are
-optimizing for. It has real, honest gaps today (see "Needs Your Input") — don't fill them
-with invented facts.
+source of truth for what the business is and what **Midas** is optimizing for. It has real,
+honest gaps today (see "OWNER: FILL THIS IN") — don't fill them with invented facts.
 
-*Last updated: 2026-07-15 — keep "Current Status" current, don't let it go stale.*
+*Last updated: 2026-07-26 — keep "Current Status" current, don't let it go stale.*
 
 ---
 
@@ -26,6 +25,8 @@ fees, and ad spend?**
 - **Sourcing / fulfillment:** AutoDS — product sourcing, price/stock monitoring, order
   automation. Supplier costs and stock live here, not in a spreadsheet.
 - **Paid traffic:** Meta (Facebook / Instagram) ads to start. TikTok is a planned add.
+- **Competitor ad research:** Meta Ad Library (via Apify) + PiPiAds — read-only market
+  signal, not a system of record for our own store.
 - **Model:** test products cheaply, kill losers fast, scale the winners. Thin margins —
   so every decision runs on real cost inputs, never vibes.
 
@@ -34,27 +35,47 @@ fees, and ad spend?**
 ## Current Status
 *(this section expires fast — update it, don't trust it blindly)*
 
-- Integrations are live-or-mock depending on whether keys are filled in `dropship.env`
-  (`SHOPIFY_ADMIN_TOKEN`, `AUTODS_API_KEY`, `META_ACCESS_TOKEN`). Check the Products /
-  Orders / Ads tabs for real connection status rather than assuming.
-- No product roster or winner list is documented here yet — the live source is Shopify +
-  the dashboard tabs once connected.
+As of **2026-07-26**, honestly:
+
+- **0 of 7 integrations are keyed.** Shopify (`SHOPIFY_ADMIN_TOKEN`), AutoDS
+  (`AUTODS_API_KEY`), Meta (`META_ACCESS_TOKEN`), PiPiAds (`PIPIADS_API_KEY`), and the ad-spy
+  / MCP sources are all blank in `config/dropship.env`. Every read returns a clean "add key"
+  mock. **A brief built on mock data is fabrication** — say so rather than reasoning over it.
+- **The store is not live.** No products listed, no orders, no ad spend, no winners, no
+  testing pipeline. There is nothing to scale yet.
+- **Midas has never produced a brief.** No `learn()` has run, so there is no vault playbook
+  (`Skills/midas-playbook.md` does not exist yet) — the seed
+  `forge-dropship/skills/midas-playbook.md` IS the live playbook until his first reflection
+  writes the vault copy.
+- **The scheduled brief is OFF by default** — `FORGE_DROPSHIP_BRIEF=0` in
+  `/etc/default/forge-reios`. Deliberate: a daily Claude call over empty data is a daily bill
+  for a fabrication. On-demand runs (chat, `/task`, `/api/dropship/director/run`, all three
+  lanes) still work. Flip to `1` when Shopify connects.
+
+**What this means for every dropship agent run right now:** until the blanks below are
+filled and at least Shopify is keyed, most operating questions resolve to **Unknown**, and
+the highest-value output is naming exactly which input would unblock the most decisions —
+not a brief that reads like the store is running.
 
 ---
 
 ## What's Already Running
 
-- **Midas** reads the whole store and produces a ranked operating brief — nothing outward
-  ships without your approval.
-- **Hawk** scores product ideas and hunts winners against real ad/sales signal.
-- **Blaze** reads Meta ad performance against healthy-range benchmarks and drafts new ad
-  concepts — never spends on its own.
-- **Otto** watches fulfillment (undelivered orders, stockouts, tracking) and drafts
-  customer support replies — never messages a customer or places a supplier order himself.
+**One agent: Midas**, the head e-com director, running three lanes. (Hawk, Blaze and Otto
+were retired 2026-07-25 — their rubrics became Midas's top skills, their data reads became
+his methods, their routes became lane views onto his brief. Do not address them; they do not
+exist.)
+
+| Lane | What Midas does | Autonomy |
+|------|-----------------|----------|
+| **Daily brief** | Reads the whole store (Shopify, AutoDS, Meta, connected-systems health, this brief FIRST) → one ranked operating brief: Attention Now / Winners / Money / Ops / Ads / Delegations. | Read-only. Proposes. Self-improves. |
+| **Product research** (`research`, `watch_score`) | Scores product ideas + the watchlist on margin headroom, demand signal, ad-ability, fulfillment sanity, saturation. Reads competitor ad signal (Meta Ad Library / PiPiAds). | Never sources, lists, or spends. Proposes only. |
+| **Creative & ads** (`meta_overview`, `analyze_ads`) | Reads Meta campaign performance → scale / hold / kill / refresh, plus fresh ad concepts. | Never launches, never changes a budget. Recommends + drafts. |
+| **Fulfillment & support** (`fulfillment_check`) | Order / inventory / tracking health + drafts customer replies. | Never places a supplier order, never messages a customer. Flags + drafts. |
 
 ---
 
-## Standing Job For This Crew
+## Standing Job For Midas
 
 1. **Read metrics against a meaningful window** — not 6 hours of ad data. Every number a
    dropship agent cites carries its source and date range, or is marked Unknown.
@@ -68,26 +89,73 @@ fees, and ad spend?**
 
 ---
 
-## Not This Crew's Job
+## Not Midas's Job
 
 Wholesale lead screening, the AI agency, and daycare operations run on separate tracks —
 see `forge-scout/skills/`, `forge-agency/skills/`, and `forge-daycare/skills/`.
 
 ---
 
-## Needs Your Input To Stay Accurate
+## OWNER: FILL THIS IN
 
-These facts genuinely don't exist anywhere in the codebase yet:
+**These five blanks are the single input that unblocks the whole rubric stack.** Every
+downstream skill tells Midas to judge products, margins, prices, copy, and delivery promises
+against *this file* — so while they're blank, those rubrics have nothing to check against and
+the honest answer to most questions is Unknown. Each one is a minute of typing. Replace the
+`_______` with the real answer and delete the guidance line; Midas mtime-reloads on his next
+run.
 
-- **Niche / brand.** What does the store sell, and to whom (the ICP)? Fill this in once the
-  store's positioning is set.
-- **Target margin + price bands.** What contribution margin are you underwriting to, and
-  what's the typical product price / COGS / shipping? Hawk and Midas need this to judge
-  "profitable."
-- **Current winners + testing pipeline** — the live source is Shopify + the Ads tab; this
-  file should summarize the strategy, not replace the data.
-- **Brand voice** for customer-facing copy (support replies, ad copy). Define one once
-  there's enough real work to generalize from — until then Otto stays factual + neutral.
-- **Supplier / shipping realities** — real AutoDS supplier lead times and the delivery
-  windows you promise on the store. Otto must never quote a delivery time the store and
-  supplier don't support.
+**1. Niche / brand + ICP.** What does the store sell, and to whom?
+
+> Niche: `_______`
+> Brand name / positioning: `_______`
+> ICP (one specific person — age range, situation, what they're trying to solve): `_______`
+
+*Why it matters: the Four-Triggers ad writer opens on the Avatar. Blank = generic copy.*
+
+**2. Target margin + price bands.** What are you underwriting to?
+
+> Target contribution margin per order (after COGS + shipping + fees + ad spend): `_______`
+> Typical retail price band: `_______`
+> Typical landed COGS (product + ship + fees): `_______`
+> Break-even CPA you'll accept: `_______`
+
+*Why it matters: "profitable" is undefined without it, and the diagnostician's AOV ≥ 2×
+COGS rule has no COGS to check against.*
+
+**3. Current winners + testing pipeline.** Summarize the strategy; the live data is Shopify
++ the Ads tab, not this file.
+
+> Current winners (product + why it wins): `_______`
+> Products in test right now: `_______`
+> How many new products you want tested per week: `_______`
+
+**4. Brand voice** for customer-facing copy (support replies, ad copy).
+
+> Voice in one line: `_______`
+> Words/phrases to always use: `_______`
+> Words/phrases to never use: `_______`
+
+*Until this is filled, customer-facing drafts stay factual and neutral — no personality
+invented.*
+
+**5. Supplier / shipping realities.** The delivery windows you can actually keep.
+
+> Real AutoDS supplier processing time: `_______`
+> Real shipping transit time (by region): `_______`
+> Delivery window promised on the store: `_______`
+> Return / refund policy window: `_______`
+
+*Why it matters: a support macro or ad that promises a window the supplier can't hit is how
+chargebacks start. Midas must never quote a delivery time this block doesn't support — if
+it's blank, he says "let me confirm your shipping timeline," never a number.*
+
+---
+
+## Related skills
+
+The creed [[dropship-evidence-discipline]] outranks everything below it. Midas's top skills:
+[[midas-decision-loop]], [[midas-craft]], [[dropship-four-triggers-ad-writer]],
+[[dropship-meta-ads-diagnostician]], plus the operating SOPs
+[[dropship-adspy-method]], [[dropship-ad-launch-sop]], [[dropship-store-setup]],
+[[dropship-account-health]], [[dropship-support-macros]].

@@ -44,16 +44,18 @@ PLAYBOOK_REL = "Skills/midas-playbook.md"
 BRIEF_DIR_REL = "Reports/dropship"         # living operating record written every brief
 POLL_INTERVAL = 900  # seconds between loop ticks (self-improve + due-brief check)
 
-# Connected systems Midas watches — (env key, display name). Presence only; he
-# never reads or emits the secret value, only whether it is wired.
+# Connected systems Midas watches — (env key, display name, client shipped?). Presence
+# only; he never reads or emits the secret value, only whether it is wired. The third
+# flag is False for systems with NO client module in the repo (Klaviyo/TikTok/AfterShip):
+# a key alone can't move data, so lighting them up as "connected" is a phantom read.
 _SYSTEMS = [
-    ("SHOPIFY_ADMIN_TOKEN", "Shopify (store)"),
-    ("AUTODS_API_KEY", "AutoDS (sourcing)"),
-    ("PIPIADS_API_KEY", "PiPiAds (trend spy)"),
-    ("META_ACCESS_TOKEN", "Meta Ads"),
-    ("KLAVIYO_API_KEY", "Klaviyo (email/SMS)"),
-    ("TIKTOK_ACCESS_TOKEN", "TikTok"),
-    ("AFTERSHIP_API_KEY", "AfterShip (tracking)"),
+    ("SHOPIFY_ADMIN_TOKEN", "Shopify (store)", True),
+    ("AUTODS_API_KEY", "AutoDS (sourcing)", True),
+    ("PIPIADS_API_KEY", "PiPiAds (trend spy)", True),
+    ("META_ACCESS_TOKEN", "Meta Ads", True),
+    ("KLAVIYO_API_KEY", "Klaviyo (email/SMS)", False),
+    ("TIKTOK_ACCESS_TOKEN", "TikTok", False),
+    ("AFTERSHIP_API_KEY", "AfterShip (tracking)", False),
 ]
 
 
@@ -84,6 +86,17 @@ def _load_env_file(p):
 
 
 _load_env_file(DROPSHIP_DIR / "config" / "dropship.env")
+
+# Read AFTER the env file is folded in — dropship.env documents all four of these, and
+# reading them at import time above the load made the file copy silently dead. Real env
+# still wins (setdefault), so the os.environ-beats-file contract is unchanged.
+LEARN_EVERY = int(os.environ.get("FORGE_DROPSHIP_LEARN_EVERY", "8"))
+LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_DROPSHIP_LEARN_GAP_MIN", "45")) * 60 * 1000
+BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_DROPSHIP_BRIEF_EVERY_H", "24")) * 3600 * 1000)
+# Same ceiling story as Solomon: absorbing Hawk/Blaze/Otto added an `ads` lane and made
+# the single-JSON brief longer than 2600 tokens could hold. A truncated brief fails
+# json.loads and throws away the whole call.
+BRIEF_MAX_TOKENS = int(os.environ.get("FORGE_DROPSHIP_BRIEF_TOKENS", "5000"))
 
 
 def _midas_key():
@@ -117,11 +130,16 @@ def connected_systems():
     except Exception:
         creds = {}
     out = []
-    for key, name in _SYSTEMS:
+    for key, name, wired in _SYSTEMS:
         val = (os.environ.get(key) or creds.get(key) or "").strip()
         # A template placeholder is not "connected".
-        connected = bool(val) and not val.startswith("sk-ant-...") and "your-store" not in val
-        out.append({"key": key, "name": name, "connected": connected})
+        has_key = bool(val) and not val.startswith("sk-ant-...") and "your-store" not in val
+        out.append({"key": key, "name": name,
+                    # "connected" means data actually flows — key present AND a client
+                    # module exists to use it. keyPresent keeps the operator informed.
+                    "connected": has_key and wired, "keyPresent": has_key, "wired": wired,
+                    "detail": ("key set — no client built yet" if has_key and not wired
+                               else ("not built yet" if not wired else None))})
     return out
 
 
@@ -137,6 +155,23 @@ def playbook_text(limit=2000):
     except Exception:
         pass
     return ("\n\n".join(parts))[:limit]
+
+
+def top_skills_text(limit=40000):
+    """Midas's TOP SKILLS (the constitution MidasEngine._load_skills puts ahead of the
+    playbook) for chat grounding, no live instance. Untruncated by default, same as the
+    brief — a chat-Midas without the ads diagnostician + ad-writer frameworks is a
+    materially weaker agent than the one that writes the brief."""
+    parts = []
+    try:
+        import brain_io
+        for name in MidasEngine.TOP_SKILLS:
+            for p in (DROPSHIP_DIR / "skills" / name, brain_io.VAULT / "Skills" / name):
+                if p.is_file():
+                    parts.append(p.read_text(errors="ignore"))
+    except Exception:
+        pass
+    return ("\n\n---\n\n".join(parts))[:limit]
 
 
 def _north_star_block():
@@ -790,11 +825,23 @@ class MidasEngine:
         with _ENV_LOCK, _scoped_meta_env():
             try:
                 import agency_ads
+                conn = agency_ads.connection()
+                # Unkeyed, agency_ads falls back to the AGENCY's demo accounts (Bloom
+                # Dental, Peak Fitness) with fabricated spend/ROAS. Another business's
+                # fake numbers in a dropship payload breaks evidence discipline — return
+                # the honest not-configured read instead. (agency_ads is untouched; its
+                # own mock still serves the agency workspace.)
+                if not (conn.get("connected") or conn.get("source") == "live"):
+                    return {"ok": True, "connection": conn, "accounts": [],
+                            "analytics": None, "configured": False,
+                            "detail": "Meta not connected — add META_ACCESS_TOKEN + "
+                                      "META_AD_ACCOUNT_MAP to dropship.env."}
                 return {
                     "ok": True,
-                    "connection": agency_ads.connection(),
+                    "connection": conn,
                     "accounts": agency_ads.accounts().get("accounts", []),
                     "analytics": agency_ads.analytics(client="dropship", days=7),
+                    "configured": True,
                 }
             except Exception as e:  # noqa: BLE001
                 return {"ok": True, "connection": {"connected": False},

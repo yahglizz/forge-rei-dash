@@ -248,9 +248,17 @@ def _director_chat(agent_id, message, history):
     except Exception:
         pass
 
-    playbook = ""
+    # Same constitution the brief runs on: TOP SKILLS above the learned playbook. Chat
+    # used to ship the playbook alone, so the agent you talked to was weaker than the one
+    # that wrote the brief. getattr, so a director without top skills (Solomon) is
+    # unchanged. Playbook slice matches the brief's 4000 — 1500 cut it off mid-rubric.
+    skills = playbook = ""
     try:
-        playbook = __import__(pb_mod).playbook_text(1500)
+        mod = __import__(pb_mod)
+        top = getattr(mod, "top_skills_text", None)
+        if top:
+            skills = top()
+        playbook = mod.playbook_text(4000)
     except Exception:
         pass
 
