@@ -133,8 +133,14 @@ def etsy_net(price, landed_cost=0.0, over_10k: bool = False,
         c = float(landed_cost or 0.0)
         ship = float(shipping or 0.0)
     except (TypeError, ValueError):
+        # Same key set as the success branch so the UI renders one shape, not two.
         return {"net": guard.unknown("computed", "price missing"),
-                "verdict": guard.UNKNOWN}
+                "fees": guard.unknown("computed", "price missing"),
+                "feePct": None, "offsiteAds": bool(offsite_ads),
+                "verdict": guard.UNKNOWN,
+                "note": ("Cannot judge an Etsy candidate without a price. Etsy's flat "
+                         "$0.25 processing fee makes cheap items disproportionately "
+                         "expensive — at $3 it is ~24% of the sale.")}
     fees = ETSY_LISTING_FEE
     fees += (p + ship) * ETSY_TRANSACTION_PCT
     fees += p * ETSY_PROCESSING_PCT + ETSY_PROCESSING_FLAT
