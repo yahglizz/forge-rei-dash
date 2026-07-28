@@ -969,6 +969,8 @@ import dropship_shopify  # noqa: E402 — Shopify Admin REST bridge (read-only; 
 import dropship_autods  # noqa: E402 — AutoDS sourcing/orders bridge (read-only; orders gated)
 import dropship_pipiads  # noqa: E402 — PiPiAds trending-products bridge (read-only, add-key)
 import dropship_adspy  # noqa: E402 — Meta Ad Library competitor-ad watcher via Apify (read-only, add-key)
+import dropship_winninghunter  # noqa: E402 — WinningHunter product/ad research (read-only, add-key)
+import etsy_everbee  # noqa: E402 — EverBee Etsy keyword/listing research (read-only, add-key)
 import dropship_io  # noqa: E402 — dropship local store (watchlist + settings + MCP registry)
 import dropship_mcp  # noqa: E402 — MCP client (probe read-only; tool calls operator-gated)
 import dropship_context  # noqa: E402 — dropship business brief (read FIRST by every dropship agent)
@@ -4273,6 +4275,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/mcp/probe": _mcp_probe,
             "/api/dropship/pipiads/health": lambda: dropship_pipiads.health(),
             "/api/dropship/adspy/health": lambda: dropship_adspy.health(),
+            "/api/dropship/winninghunter/health": lambda: dropship_winninghunter.health(),
+            "/api/dropship/everbee/health": lambda: etsy_everbee.health(),
             "/api/dropship/products": lambda: dropship_shopify.products(),
             "/api/dropship/orders": lambda: dropship_shopify.orders(),
             "/api/dropship/inventory": lambda: dropship_shopify.inventory(),
@@ -4328,6 +4332,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/mcp/probe",
             "/api/dropship/mcp/call",
             "/api/dropship/adspy/search", "/api/dropship/adspy/advertiser",
+            "/api/dropship/research/packet",
             "/api/dropship/director/run", "/api/dropship/director/learn",
             "/api/dropship/hawk/run", "/api/dropship/hawk/learn",
             "/api/dropship/hawk/watch",
@@ -4413,6 +4418,22 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         limit = None
                     result = dropship_adspy.advertiser(page, limit=limit)
+            elif path == "/api/dropship/research/packet":
+                # The decision packet: evidence + money math + kill flags + the read.
+                # Read-only research — nothing lists, buys, advertises or messages, so
+                # this needs no approval gate (rule 2 fires when we ACT, not when we look).
+                # Accepts either a raw candidate body or {id} to pull one off the watchlist.
+                cand = body
+                if body.get("id") and not body.get("name"):
+                    item = dropship_io.get_item(body.get("id"))
+                    if item:
+                        cand = {**item, **{k: v for k, v in body.items() if k != "id"}}
+                result = MIDAS.research_packet(cand)
+                if result.get("ok") and body.get("id"):
+                    try:
+                        dropship_io.save_analysis(body.get("id"), result.get("packet"))
+                    except Exception:  # noqa: BLE001
+                        pass
             elif path == "/api/dropship/director/run":
                 result = MIDAS.run_once()
             elif path == "/api/dropship/director/learn":
