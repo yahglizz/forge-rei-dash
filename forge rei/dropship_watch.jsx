@@ -480,6 +480,7 @@ function DropshipWatch() {
   const [editing, setEditing] = useStateDsw(null);
   const [scoringId, setScoringId] = useStateDsw(null);
   const [err, setErr] = useStateDsw("");
+  const [packetSeed, setPacketSeed] = useStateDsw(null);
   const items = Array.isArray(watch.data) ? watch.data : (watch.data && watch.data.items) || [];
   const scored = items.filter((i) => i.score);
   const avg = scored.length ? Math.round(scored.reduce((s, i) => s + Number(i.score || 0), 0) / scored.length) : 0;
@@ -490,10 +491,14 @@ function DropshipWatch() {
     try { await window.DsRequest("/hawk/watch", { body: { id: item.id } }); watch.refresh(); }
     catch (e) { setErr("Midas: " + e.message); } finally { setScoringId(null); }
   };
+  const openPacket = (it) => setPacketSeed({
+    name: it.name || "", channel: "dropship",
+    price: it.price || "", landedCost: it.cost || "", shipDays: it.shipDays || "",
+  });
   const del = async (id) => { if (!window.confirm("Remove this watched product?")) return; try { await window.DsRequest("/watchlist/delete", { body: { id } }); watch.refresh(); } catch (e) { window.alert(e.message); } };
 
   return <div className="dc-page">
-    <window.DsPageHead title="Product Watch" copy="Products on your radar you can't dropship yet. Midas rates each 1–10 with winning numbers, why it should win, and what ads to make." actions={<button className="dc-primary" onClick={() => { setEditing(null); setOpen(true); }}><window.Icons.Plus size={14}/> Add product</button>} />
+    <window.DsPageHead title="Product Watch" copy="Products on your radar you can't dropship yet. Midas rates each 1–10 with winning numbers, why it should win, and what ads to make." actions={<><button className="dc-outline" onClick={() => setPacketSeed({})}><window.Icons.Target size={14}/> Build packet</button><button className="dc-primary" onClick={() => { setEditing(null); setOpen(true); }}><window.Icons.Plus size={14}/> Add product</button></>} />
     <div className="dc-kpi-grid">
       <window.DsKpi label="Watching" value={items.length} sub="on the radar" icon="Watch"/>
       <window.DsKpi label="Scored" value={scored.length} sub={(items.length - scored.length) + " to score"} icon="Target" color="#8B5CF6"/>
@@ -501,14 +506,16 @@ function DropshipWatch() {
       <window.DsKpi label="Top pick" value={top ? (top.score + "/10") : "—"} sub={top ? top.name : "score some products"} icon="Flame" color={DswScoreColor(top && top.score)}/>
     </div>
     {err && <div className="dc-form-error">{err}</div>}
+    <DswHealthStrip />
     <DswTrending onAdded={watch.refresh} />
     <DswCompetitorAds />
     <window.DsState loading={watch.loading} error={watch.error} empty={!items.length} icon="Watch" title="Nothing on watch yet" copy="Pull trending products above, or add one you spotted — then let Midas score it." onRetry={watch.refresh}>
       <div className="dsw-grid">
-        {items.map((it) => <DswCard key={it.id} item={it} scoring={scoringId === it.id} onScore={score} onEdit={(i) => { setEditing(i); setOpen(true); }} onDelete={del} />)}
+        {items.map((it) => <DswCard key={it.id} item={it} scoring={scoringId === it.id} onScore={score} onEdit={(i) => { setEditing(i); setOpen(true); }} onDelete={del} onPacket={openPacket} />)}
       </div>
     </window.DsState>
     {open && <DswAddModal item={editing} onClose={() => setOpen(false)} onSaved={watch.refresh} />}
+    {packetSeed && <DswPacketModal seed={packetSeed} onClose={() => setPacketSeed(null)} />}
   </div>;
 }
 

@@ -269,12 +269,36 @@ def _mcp_seed():
          "seeded": True,
          "note": "Docs/schema search. Runs in your Claude session — the box cannot "
                  "reach a stdio server, so it never shows as 'connected' here."},
+        # Verified 2026-07-28 (design spec §2.2): first-party, OAuth-protected — a
+        # probe returns 401 with a proper .well-known/oauth-protected-resource. ~20
+        # tools spanning TikTok Shop, Meta Ad Library and Shopify store search. The
+        # URL is known, the TOKEN is not: unset WINNINGHUNTER_MCP_TOKEN = inert row,
+        # same as every other seed. Which plan tier unlocks API/MCP access is
+        # UNVERIFIED — their docs never say, and a 403 means exactly that.
+        {**_MCP_FIELDS, "id": "winninghunter", "name": "WinningHunter MCP",
+         "transport": "http",
+         "url": dropship_env.get("WINNINGHUNTER_MCP_URL",
+                                 "https://app.winninghunter.com/mcp").strip(),
+         "authEnv": "WINNINGHUNTER_MCP_TOKEN", "seeded": True,
+         "note": "First-party OAuth MCP (~20 tools: TikTok Shop, Meta Ad Library, "
+                 "Shopify store search). Add WINNINGHUNTER_MCP_TOKEN to dropship.env, "
+                 "then Probe for the real tool list. The REST bridge "
+                 "(WINNINGHUNTER_API_KEY) feeds the decision packet meanwhile."},
+        # AutoDS MCP is verified first-party and FREE on every plan including the
+        # cheapest (OAuth 2.1 + PKCE, AWS Cognito pool us-west-2_oUThI9SjT, 10 tools).
+        # Only worth registering if AutoDS is subscribed to for FULFILLMENT — the
+        # design spec §2.3 rejects their REST API (fee committed before you may read
+        # the docs) and the $14.97/mo Product Finding Hub (rebranded ad-library
+        # scraping, agent-unreachable, no CSV export). Token expires ~1h, so
+        # AUTODS_MCP_TOKEN needs a refresh companion or it silently 401s.
         {**_MCP_FIELDS, "id": "autods", "name": "AutoDS MCP",
-         "transport": "http", "url": dropship_env.get("AUTODS_MCP_URL", "").strip(),
+         "transport": "http",
+         "url": dropship_env.get("AUTODS_MCP_URL", "https://mcp.autods.com/mcp").strip(),
          "authEnv": "AUTODS_MCP_TOKEN", "seeded": True,
-         "note": "Paste the AutoDS MCP URL when you have it, then Probe — the real "
-                 "tool list loads from the server. Sourcing reads work over REST "
-                 "(Suppliers tab) meanwhile."},
+         "note": "First-party, free on every AutoDS plan (OAuth 2.1 + PKCE, 10 tools). "
+                 "Worth connecting only if you subscribe to AutoDS for fulfillment. "
+                 "Add AUTODS_MCP_TOKEN to dropship.env, then Probe — the real tool "
+                 "list loads from the server. Token expires ~1h."},
     ]
 
 
