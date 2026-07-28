@@ -179,7 +179,274 @@ function DswAnalysis({ a }) {
   </div>;
 }
 
-function DswCard({ item, onScore, onEdit, onDelete, scoring }) {
+// ---------------------------------------------------------------------------
+// Decision packet (research_packet.build) — evidence + money math + kill flags.
+// Everything below renders the packet EXACTLY as the creed emits it: a stamped
+// figure never appears without its source, a missing input reads "Unknown"
+// rather than a confident number, and vendor text is rendered as inert data.
+// ---------------------------------------------------------------------------
+
+const DSW_VERDICT_COLOR = {
+  STRONG: "#22C55E", WORKABLE: "#F4B860", HARD: "#F97316", DEAD: "#F87171",
+  OK: "#22C55E", THIN: "#F4B860", Unknown: "#8B8FA3",
+};
+const DSW_SEVERITY_COLOR = { stop: "#F87171", warn: "#F4B860", unknown: "#8B8FA3" };
+
+function DswVerdictColor(v) { return DSW_VERDICT_COLOR[String(v || "")] || "#8B8FA3"; }
+
+// The one stamped-value renderer. `s` is either a bare value or the guard's
+// {value, unknown, source, window, fetchedAt, confidence, display} envelope —
+// a number without its source is not allowed to look like a fact.
+function DswStat({ label, s, prefix, suffix, strong }) {
+  if (s === null || s === undefined || s === "") return null;
+  const obj = typeof s === "object";
+  const unknown = obj ? !!s.unknown : false;
+  const raw = obj ? (s.display !== undefined && s.display !== null ? String(s.display) : String(s.value)) : String(s);
+  const full = obj ? [
+    s.source ? "source: " + s.source : "",
+    s.window ? "window: " + s.window : "",
+    s.confidence ? "confidence: " + s.confidence : "",
+    s.fetchedAt ? "fetched " + s.fetchedAt : "",
+    s.why ? "why: " + s.why : "",
+  ].filter(Boolean).join(" · ") : "";
+  const brief = obj ? [s.source, s.window].filter((x) => x && x !== "Unknown").join(" · ") : "";
+  return <div className="dsw-block" title={full || undefined} style={{ minWidth: 0 }}>
+    {label && <small className="faint">{label}</small>}
+    <div style={{ fontWeight: 700, fontSize: strong ? 20 : 15, color: unknown ? "#8B8FA3" : undefined }}>
+      {unknown ? "Unknown" : ((prefix || "") + raw + (suffix || ""))}
+    </div>
+    {brief && <small className="faint">{brief}</small>}
+  </div>;
+}
+
+// Vendor-written text is {text, untrusted, flagged, label} — never a string, and
+// never an instruction. `flagged` means the field carried text addressed at a
+// reading model; we show it as inert data with a marker, we never obey it.
+function DswText({ v }) {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== "object") return <span>{String(v)}</span>;
+  const t = v.text || "";
+  if (!t) return null;
+  return <span>
+    {v.flagged ? <span title="This vendor field contained text addressed at an AI model. It was treated as inert data and never followed." style={{ color: "#F4B860", marginRight: 6 }}>⚠</span> : null}
+    {t}
+  </span>;
+}
+
+// The money line — the most prominent thing on the packet, because most
+// candidates die on breakeven CVR before a dollar moves. Renders whichever shape
+// the packet actually carries (paid-traffic breakeven vs. Etsy fee net).
+function DswMoneyLine({ money }) {
+  if (!money || typeof money !== "object") return null;
+  const verdict = money.verdict || "Unknown";
+  const color = DswVerdictColor(verdict);
+  const bePct = money.breakevenCvrPct;
+  return <div className="dsw-block" style={{ border: "1px solid " + color + "44", background: color + "12", borderRadius: 12, padding: "12px 14px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span className="dsw-chip" style={{ borderColor: color + "88", color, fontWeight: 700 }}>{verdict}</span>
+      {(bePct !== undefined && bePct !== null)
+        ? <b style={{ fontSize: 20 }}>needs {bePct}% conversion to break even</b>
+        : (verdict === "Unknown" ? <b style={{ fontSize: 17, color: "#8B8FA3" }}>money math can't run — inputs missing</b> : null)}
+    </div>
+    <div className="dsw-chips-row" style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 8 }}>
+      <DswStat label="Gross margin / sale" s={money.margin} prefix="$" strong />
+      <DswStat label="~cost to acquire one order" s={money.cacAtMedianCvr} prefix="$" strong />
+      <DswStat label="Net / sale (after Etsy fees)" s={money.net} prefix="$" strong />
+      <DswStat label="Etsy fees / sale" s={money.fees} prefix="$" />
+      {(money.feePct !== undefined && money.feePct !== null) ? <DswStat label="Fees as % of sale" s={money.feePct + "%"} /> : null}
+      <DswStat label="Cost per click" s={money.cpc} prefix="$" />
+      <DswStat label="Margin needed at median CVR" s={money.marginNeededAtMedian} prefix="$" />
+      <DswStat label="Breakeven CVR" s={money.breakevenCvr} />
+      {(money.salesToRecover100 !== undefined && money.salesToRecover100 !== null) ? <DswStat label="Sales to recover $100 spend" s={money.salesToRecover100} /> : null}
+    </div>
+    {money.note && <p style={{ marginTop: 8 }}>{money.note}</p>}
+  </div>;
+}
+
+function DswKillFlags({ flags }) {
+  if (!Array.isArray(flags) || !flags.length) return null;
+  return <div className="dsw-block">
+    <small className="faint">Kill flags ({flags.length})</small>
+    {flags.map((f, i) => {
+      const sev = String(f.severity || "unknown");
+      const c = DSW_SEVERITY_COLOR[sev] || "#8B8FA3";
+      return <div key={i} style={{ borderLeft: "3px solid " + c, padding: "6px 0 6px 10px", margin: "8px 0", background: sev === "stop" ? c + "12" : "transparent" }}>
+        <b style={{ color: c }}>{sev === "stop" ? "STOP" : sev.toUpperCase()} · {f.flag}</b>
+        <div className="faint">{f.detail}</div>
+      </div>;
+    })}
+  </div>;
+}
+
+function DswUnknowns({ unknowns }) {
+  if (!Array.isArray(unknowns) || !unknowns.length) return null;
+  return <div className="dsw-block dsw-unknown">
+    <small className="faint">Unknowns — nothing here is guessed</small>
+    <ul className="dsw-list">{unknowns.map((u, i) => <li key={i}>{String(u)}</li>)}</ul>
+  </div>;
+}
+
+function DswRead({ read }) {
+  if (!read || typeof read !== "object") return null;
+  const rows = [
+    ["Why it's winning", read.whyWinning], ["Trigger", read.trigger],
+    ["Creative format", read.creativeFormat], ["Hook (first 3s)", read.hook],
+    ["Offer structure", read.offerStructure], ["Saturation", read.saturation],
+  ];
+  const plan = (read.copyPlan && typeof read.copyPlan === "object") ? read.copyPlan : null;
+  return <div className="dsw-analysis">
+    {read.headline && <div className="dsw-headline">{read.headline}</div>}
+    {rows.filter((r) => r[1]).map((r, i) => <div key={i} className="dsw-block"><small className="faint">{r[0]}</small><p>{String(r[1])}</p></div>)}
+    {plan ? <div className="dsw-block" style={{ border: "1px solid #8B5CF655", borderRadius: 12, padding: "10px 12px" }}>
+      <small className="faint">Copy plan</small>
+      {plan.angle && <p><b>Angle:</b> {String(plan.angle)}</p>}
+      {plan.whatToChange && <p><b>What to change:</b> {String(plan.whatToChange)}</p>}
+      {plan.higgsfieldPrompt && <><small className="faint">Higgsfield prompt</small><pre className="dsw-raw">{String(plan.higgsfieldPrompt)}</pre></>}
+    </div> : null}
+    {read.biggestUnknown && <div className="dsw-block dsw-unknown"><small className="faint">Biggest unknown</small><p>{String(read.biggestUnknown)}</p></div>}
+    {read.nextStep && <div className="dsw-block"><small className="faint">Cheapest next step</small><p>{String(read.nextStep)}</p></div>}
+  </div>;
+}
+
+// Generate creative from the packet's copy plan. Generating is NOT launching —
+// an image is an internal, deletable file. Every asset carries its AI disclosure.
+function DswCreativePanel({ packet }) {
+  const [cbusy, setCbusy] = useStateDsw(false);
+  const [cres, setCres] = useStateDsw(null);
+  const [cerr, setCerr] = useStateDsw("");
+  const [ccount, setCcount] = useStateDsw("1");
+  const read = (packet && packet.read) || null;
+  const plan = (read && typeof read.copyPlan === "object") ? read.copyPlan : null;
+  const blocked = !!(packet && packet.blocked);
+  const go = async () => {
+    setCbusy(true); setCerr(""); setCres(null);
+    try {
+      const r = await window.DsRequest("/creative/make", { body: { packet, count: Math.max(1, Math.min(Number(ccount) || 1, 4)) } });
+      setCres(r);
+      if (r && r.ok === false) setCerr(r.error || "Generation refused.");
+    } catch (e) { setCerr(e.message); } finally { setCbusy(false); }
+  };
+  const assets = (cres && cres.assets) || [];
+  const errors = (cres && cres.errors) || [];
+  const disclosure = (cres && cres.disclosure) || (assets[0] && assets[0].disclosure) || "";
+  return <div className="dsw-block" style={{ borderTop: "1px solid #ffffff14", paddingTop: 12, marginTop: 12 }}>
+    <div className="dc-panel-head">
+      <div>
+        <div className="card-title">Creative</div>
+        <div className="faint">Generating is <b>not</b> launching — the result is an internal file. Publishing, boosting or spending against it stays a one-tap approval.</div>
+      </div>
+      <div className="dsw-pull-row">
+        <select className="dsw-search" value={ccount} onChange={(e) => setCcount(e.target.value)} title="How many images (each one costs a generation)">
+          {["1", "2", "3", "4"].map((n) => <option key={n} value={n}>{n} image{n === "1" ? "" : "s"}</option>)}
+        </select>
+        <button className="dc-primary" disabled={cbusy || blocked || !plan} onClick={go}>{cbusy ? "Generating…" : "Generate creative"}</button>
+      </div>
+    </div>
+    {packet && packet.copyRule ? <div className="dsw-addkey"><b>Copy rule</b><span>{packet.copyRule}</span></div> : null}
+    {blocked ? <div className="dc-inline-empty">Candidate is blocked — no generation spend on a dead candidate.</div>
+      : (!plan ? <div className="dc-inline-empty">No copy plan on this packet yet — the Higgsfield prompt comes from the why-it's-winning read.</div> : null)}
+    {cerr && <div className="dc-form-error">{cerr}</div>}
+    {cres && cres.configured === false ? <div className="dsw-addkey"><b>Higgsfield not keyed.</b><span>{cres.detail || "Add HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET to dropship.env."}</span></div> : null}
+    {errors.length ? <div className="dsw-block"><small className="faint">Generation errors</small><ul className="dsw-list">{errors.map((e, i) => <li key={i}>{String(e)}</li>)}</ul></div> : null}
+    {assets.length ? <div className="dsw-block">
+      <div className="dsw-chips" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        {assets.map((a, i) => <div key={i} style={{ maxWidth: 260 }}>
+          <a href={a.url} target="_blank" rel="noreferrer"><img src={a.url} alt={"generated creative " + (i + 1)} style={{ width: "100%", borderRadius: 10, display: "block" }} /></a>
+          <small className="faint" style={{ display: "block", marginTop: 4 }}>{a.disclosure || disclosure}</small>
+        </div>)}
+      </div>
+      {disclosure && <small className="faint" style={{ display: "block", marginTop: 6 }}>{disclosure}</small>}
+      {cres && cres.note && <small className="faint" style={{ display: "block", marginTop: 4 }}>{cres.note}</small>}
+    </div> : null}
+  </div>;
+}
+
+function DswPacket({ packet }) {
+  if (!packet) return null;
+  const cand = packet.candidate || {};
+  return <div className="dsw-analysis">
+    {packet.blocked ? <div className="dc-form-error" style={{ fontSize: 15, fontWeight: 700 }}>
+      BLOCKED — a stop-severity kill flag fired. Do not spend on this candidate.
+    </div> : null}
+    {packet.headline && <div className="dsw-headline">{packet.headline}</div>}
+    <small className="faint"><DswText v={cand.name} /> · channel: {cand.channel || "dropship"}{cand.shipDays ? " · " + cand.shipDays + "d transit" : ""}</small>
+    <DswMoneyLine money={packet.money} />
+    <DswKillFlags flags={packet.killFlags} />
+    <DswUnknowns unknowns={packet.unknowns} />
+    {packet.note && <div className="dsw-block"><small className="faint">Note</small><p>{packet.note}</p></div>}
+    {packet.readError && <div className="dc-form-error">Read unavailable: {String(packet.readError)}</div>}
+    <DswRead read={packet.read} />
+    <DswCreativePanel packet={packet} />
+  </div>;
+}
+
+// One packet surface, two entry points: the "Build packet" button on a watched
+// product (pre-filled), or the manual candidate form from the page head.
+function DswPacketModal({ seed, onClose }) {
+  const [pform, setPform] = useStateDsw({
+    name: (seed && seed.name) || "", channel: (seed && seed.channel) || "dropship",
+    price: (seed && seed.price) || "", landedCost: (seed && seed.landedCost) || "",
+    shipDays: (seed && seed.shipDays) || "",
+  });
+  const [pbusy, setPbusy] = useStateDsw(false);
+  const [perr, setPerr] = useStateDsw("");
+  const [packet, setPacket] = useStateDsw(null);
+  const setP = (k) => (e) => setPform({ ...pform, [k]: e.target.value });
+  const moneyReady = String(pform.price).trim() !== "" && String(pform.landedCost).trim() !== "";
+  const build = async () => {
+    if (!String(pform.name).trim()) { setPerr("Product name required"); return; }
+    setPbusy(true); setPerr(""); setPacket(null);
+    try {
+      const r = await window.DsRequest("/research/packet", {
+        body: {
+          name: String(pform.name).trim(), channel: pform.channel,
+          price: pform.price, landedCost: pform.landedCost, shipDays: pform.shipDays,
+        },
+      });
+      if (r && r.packet) setPacket(r.packet);
+      else setPerr((r && r.error) || "No packet returned.");
+    } catch (e) { setPerr(e.message); } finally { setPbusy(false); }
+  };
+  return <window.DsModal wide title="Decision packet" copy="Evidence + the money math + kill flags, then the read. Nothing here lists, buys, advertises or messages." onClose={onClose}>
+    {perr && <div className="dc-form-error">{perr}</div>}
+    <div className="dc-form-grid">
+      <window.DsField label="Product name"><input autoFocus value={pform.name} onChange={setP("name")} placeholder="what you'd search the ad library for" /></window.DsField>
+      <window.DsField label="Channel"><select value={pform.channel} onChange={setP("channel")}><option value="dropship">dropship (paid traffic)</option><option value="etsy">etsy</option></select></window.DsField>
+      <window.DsField label="Sell price ★"><input value={pform.price} onChange={setP("price")} placeholder="what you'd charge" /></window.DsField>
+      <window.DsField label="Landed cost ★"><input value={pform.landedCost} onChange={setP("landedCost")} placeholder="product + shipping to the door" /></window.DsField>
+      <window.DsField label="Transit days"><input value={pform.shipDays} onChange={setP("shipDays")} placeholder="e.g. 12 — over 30 trips the FTC rule" /></window.DsField>
+    </div>
+    <div className={moneyReady ? "dsw-src-line" : "dsw-addkey"}>
+      {moneyReady
+        ? <span className="dsw-src ok">★ Price and landed cost are set — the breakeven math will run.</span>
+        : <><b>★ Price and landed cost are what make the money math run.</b><span>Leave either blank and the packet returns Unknown by design — it will not guess a margin, a breakeven conversion rate, or a cost per order.</span></>}
+    </div>
+    <div className="dc-modal-actions">
+      <button className="dc-quiet" onClick={onClose}>Close</button>
+      <button className="dc-primary" disabled={pbusy} onClick={build}>{pbusy ? "Building…" : (packet ? "Rebuild packet" : "Build packet")}</button>
+    </div>
+    <DswPacket packet={packet} />
+  </window.DsModal>;
+}
+
+// Presence-only health for the research + creative keys. Never shows a value.
+function DswHealthStrip() {
+  const wh = window.DsUseResource("/winninghunter/health", null, 0);
+  const eb = window.DsUseResource("/everbee/health", null, 0);
+  const cr = window.DsUseResource("/creative/health", null, 0);
+  const rows = [["WinningHunter (ad spy)", wh], ["EverBee (Etsy)", eb], ["Higgsfield (creative)", cr]];
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head"><div><div className="card-title">Research connections</div><div className="faint">Presence only — keys live in dropship.env and never show here. Unkeyed reads Unknown, never a fake number.</div></div></div>
+    <div className="dc-room-strip">{rows.map((row) => {
+      const res = row[1]; const d = res.data || {};
+      const on = !!(d.configured || d.connected || d.ready);
+      const detail = d.detail || (res.error ? res.error.message : "Add key in dropship.env");
+      return <div key={row[0]}><window.DsChannel name={row[0]} connected={on} detail={detail} /></div>;
+    })}</div>
+  </div>;
+}
+
+function DswCard({ item, onScore, onEdit, onDelete, onPacket, scoring }) {
   const [open, setOpen] = useStateDsw(false);
   const a = item.analysis;
   const score = item.score || (a && a.score);
@@ -200,6 +467,7 @@ function DswCard({ item, onScore, onEdit, onDelete, scoring }) {
     </> : <div className="dsw-empty-hint">Not scored yet — hit “Score with Midas” for the 1–10 read, winning numbers, and ad plays.</div>}
     <div className="dc-mini-actions">
       {item.sourceUrl && <a className="link" href={item.sourceUrl} target="_blank" rel="noreferrer">Source ↗</a>}
+      {onPacket && <button className="link" onClick={() => onPacket(item)} title="Evidence + breakeven math + kill flags">Build packet</button>}
       <button className="link" onClick={() => onEdit(item)}>Edit</button>
       <button className="link" onClick={() => onDelete(item.id)}>Delete</button>
     </div>
