@@ -4278,6 +4278,10 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/adspy/health": lambda: dropship_adspy.health(),
             "/api/dropship/winninghunter/health": lambda: dropship_winninghunter.health(),
             "/api/dropship/everbee/health": lambda: etsy_everbee.health(),
+            "/api/dropship/creative/health": lambda: {
+                "ok": True, "configured": dropship_creative.configured(),
+                "source": dropship_creative.SOURCE,
+                "disclosure": dropship_creative.DISCLOSURE},
             "/api/dropship/products": lambda: dropship_shopify.products(),
             "/api/dropship/orders": lambda: dropship_shopify.orders(),
             "/api/dropship/inventory": lambda: dropship_shopify.inventory(),
@@ -4334,6 +4338,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/mcp/call",
             "/api/dropship/adspy/search", "/api/dropship/adspy/advertiser",
             "/api/dropship/research/packet",
+            "/api/dropship/creative/make",
             "/api/dropship/director/run", "/api/dropship/director/learn",
             "/api/dropship/hawk/run", "/api/dropship/hawk/learn",
             "/api/dropship/hawk/watch",
@@ -4435,6 +4440,24 @@ class Handler(BaseHTTPRequestHandler):
                         dropship_io.save_analysis(body.get("id"), result.get("packet"))
                     except Exception:  # noqa: BLE001
                         pass
+            elif path == "/api/dropship/creative/make":
+                # Generate ad creative from a packet's copy plan (or a raw prompt).
+                # GENERATING is internal + reversible — a file, deletable, seen by
+                # nobody outside — the same class as the daycare's creative builds.
+                # LAUNCHING/boosting/spending against it stays a one-tap approval and
+                # has no path from here.
+                pkt = body.get("packet")
+                try:
+                    n = max(1, min(int(body.get("count", 1)), 4))
+                except Exception:  # noqa: BLE001
+                    n = 1
+                if isinstance(pkt, dict):
+                    result = dropship_creative.from_packet(pkt, count=n)
+                elif str(body.get("prompt") or "").strip():
+                    result = dropship_creative.generate(str(body["prompt"]), count=n)
+                else:
+                    result = {"ok": False, "error": "packet or prompt required",
+                              "code": "bad_request", "assets": []}
             elif path == "/api/dropship/director/run":
                 result = MIDAS.run_once()
             elif path == "/api/dropship/director/learn":
