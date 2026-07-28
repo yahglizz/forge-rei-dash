@@ -4278,10 +4278,17 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/adspy/health": lambda: dropship_adspy.health(),
             "/api/dropship/winninghunter/health": lambda: dropship_winninghunter.health(),
             "/api/dropship/everbee/health": lambda: etsy_everbee.health(),
+            # Same {ok, configured, connected, detail, source} shape as the other
+            # health routes so the UI's connection strip reads one contract.
             "/api/dropship/creative/health": lambda: {
-                "ok": True, "configured": dropship_creative.configured(),
+                "ok": True,
+                "configured": dropship_creative.configured(),
+                "connected": dropship_creative.configured(),
                 "source": dropship_creative.SOURCE,
-                "disclosure": dropship_creative.DISCLOSURE},
+                "disclosure": dropship_creative.DISCLOSURE,
+                "detail": (None if dropship_creative.configured() else
+                           "Add HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET to dropship.env "
+                           "(or reuse the existing paste in daycare.env / agency.env).")},
             "/api/dropship/products": lambda: dropship_shopify.products(),
             "/api/dropship/orders": lambda: dropship_shopify.orders(),
             "/api/dropship/inventory": lambda: dropship_shopify.inventory(),

@@ -79,8 +79,19 @@ def _auth_header() -> str:
 
 
 def _auth_prefix() -> str:
+    """Scheme in front of the key, e.g. ``Bearer ``.
+
+    The trailing space is re-added here on purpose. ``dropship_env.read_env()``
+    ``.strip()``s every value, so a space typed at the end of an env line cannot
+    survive the file — writing ``WINNINGHUNTER_AUTH_PREFIX=Bearer`` would otherwise
+    produce the header ``Bearer<key>`` and a guaranteed 401 that looks exactly like
+    a bad key. Set the var to ``none`` for a raw key with no scheme.
+    """
     raw = dropship_env.get("WINNINGHUNTER_AUTH_PREFIX", "Bearer ")
-    return raw if raw else ""
+    if raw.strip().lower() in ("none", "raw", "-"):
+        return ""
+    raw = raw.strip()
+    return (raw + " ") if raw else ""
 
 
 def configured() -> bool:
