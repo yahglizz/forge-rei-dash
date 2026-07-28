@@ -129,10 +129,22 @@ def _http_err(e: urllib.error.HTTPError) -> str:
     except Exception:
         pass
     hint = ""
-    if getattr(e, "code", None) in (401, 403):
+    code = getattr(e, "code", None)
+    low = (detail or "").lower()
+    # Higgsfield answers 403 for BOTH a bad key and an empty balance. Reading the
+    # body first stops "not enough credits" being reported as an auth failure and
+    # sending someone off to re-check keys that were never the problem.
+    if "credit" in low or "insufficient" in low or "balance" in low:
+        hint = (" — the KEY IS FINE; the Higgsfield account is out of credits. "
+                "Top up at higgsfield.ai; no key change needed")
+    elif "nsfw" in low or "moderation" in low or "safety" in low:
+        hint = " — prompt was refused by Higgsfield's content filter; rewrite it"
+    elif "rate" in low and "limit" in low:
+        hint = " — rate limited by Higgsfield; retry shortly"
+    elif code in (401, 403):
         hint = (" — auth rejected; verify the API Key ID + Secret and, if Higgsfield's docs "
                 "name the headers differently, adjust hf-api-key/hf-secret")
-    return f"HTTP {getattr(e, 'code', '?')}{hint}: {detail}"
+    return f"HTTP {code if code is not None else '?'}{hint}: {detail}"
 
 
 def _deep_find(obj, key_hints: tuple, want_url: bool = False):

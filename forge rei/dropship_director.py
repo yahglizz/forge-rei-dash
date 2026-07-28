@@ -52,6 +52,7 @@ _SYSTEMS = [
     ("SHOPIFY_ADMIN_TOKEN", "Shopify (store)", True),
     ("WINNINGHUNTER_API_KEY", "WinningHunter (product + ad research)", True),
     ("EVERBEE_CLIENT_ID", "EverBee (Etsy research)", True),
+    ("HIGGSFIELD_API_KEY", "Higgsfield (ad creative)", True),
     ("AUTODS_API_KEY", "AutoDS (sourcing)", True),
     ("PIPIADS_API_KEY", "PiPiAds (trend spy)", True),
     ("APIFY_TOKEN", "Meta Ad Library (competitor ad spy)", True),
@@ -137,6 +138,17 @@ def connected_systems():
         val = (os.environ.get(key) or creds.get(key) or "").strip()
         # A template placeholder is not "connected".
         has_key = bool(val) and not val.startswith("sk-ant-...") and "your-store" not in val
+        # Higgsfield is ONE shared creative account across daycare/agency/dropship —
+        # higgsfield_io resolves it from any of their env files. Reading dropship.env
+        # alone would report it disconnected while it is in fact generating, so ask
+        # the module. Deliberately narrow: business-identity creds (GHL sub-accounts,
+        # Meta ad accounts, Shopify tokens) stay isolated per folder by design.
+        if not has_key and key == "HIGGSFIELD_API_KEY":
+            try:
+                import higgsfield_io
+                has_key = bool(higgsfield_io.ready())
+            except Exception:  # noqa: BLE001
+                pass
         out.append({"key": key, "name": name,
                     # "connected" means data actually flows — key present AND a client
                     # module exists to use it. keyPresent keeps the operator informed.
