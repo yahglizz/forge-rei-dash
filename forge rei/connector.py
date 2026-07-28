@@ -971,6 +971,7 @@ import dropship_pipiads  # noqa: E402 — PiPiAds trending-products bridge (read
 import dropship_adspy  # noqa: E402 — Meta Ad Library competitor-ad watcher via Apify (read-only, add-key)
 import dropship_winninghunter  # noqa: E402 — WinningHunter product/ad research (read-only, add-key)
 import etsy_everbee  # noqa: E402 — EverBee Etsy keyword/listing research (read-only, add-key)
+import dropship_creative  # noqa: E402 — packet copy plan → Higgsfield image (generate only; launching stays gated)
 import dropship_io  # noqa: E402 — dropship local store (watchlist + settings + MCP registry)
 import dropship_mcp  # noqa: E402 — MCP client (probe read-only; tool calls operator-gated)
 import dropship_context  # noqa: E402 — dropship business brief (read FIRST by every dropship agent)

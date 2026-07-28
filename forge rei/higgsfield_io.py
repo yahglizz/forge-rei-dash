@@ -40,8 +40,10 @@ _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
 _ENV_CANDIDATES = [
     HERE.parent / "forge-daycare" / "config" / "daycare.env",
     HERE.parent / "forge-agency" / "config" / "agency.env",
+    HERE.parent / "forge-dropship" / "config" / "dropship.env",
     Path("/opt/forge/forge-daycare/config/daycare.env"),
     Path("/opt/forge/forge-agency/config/agency.env"),
+    Path("/opt/forge/forge-dropship/config/dropship.env"),
 ]
 
 
