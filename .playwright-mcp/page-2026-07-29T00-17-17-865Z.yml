@@ -1,0 +1,215 @@
+- generic [active] [ref=f90e1]:
+  - generic [ref=f90e2]:
+    - banner [ref=f90e4]:
+      - link "Etsy" [ref=f90e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - navigation [ref=f90e11]:
+        - button [ref=f90e13] [cursor=pointer]
+      - search [ref=f90e22]:
+        - generic [ref=f90e23]: Search for items or shops
+        - generic [ref=f90e25]:
+          - combobox "Search for items or shops" [ref=f90e26]
+          - button "Search" [ref=f90e27] [cursor=pointer]
+      - link "Skip to Content" [ref=f90e31] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=f90e35]:
+        - list [ref=f90e36]:
+          - listitem [ref=f90e37]:
+            - button "Sign in" [ref=f90e38] [cursor=pointer]
+          - listitem [ref=f90e39]:
+            - link "Cart" [ref=f90e41] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=f90e45]:
+      - list [ref=f90e49]:
+        - listitem [ref=f90e50]:
+          - link "Gifts" [ref=f90e51] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=f90e57]:
+          - link "Teacher Essentials" [ref=f90e58] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=f90e59]:
+          - link "Home Favorites" [ref=f90e60] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=f90e61]:
+          - link "Fashion Finds" [ref=f90e62] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=f90e63]:
+          - link "Vintage" [ref=f90e64] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=f90e65]:
+          - link "Wedding Guide" [ref=f90e66] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=f90e67]:
+          - link "Gift Cards" [ref=f90e68] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=f90e69]:
+    - generic [ref=f90e70]:
+      - generic [ref=f90e74]:
+        - generic [ref=f90e75]:
+          - heading [level=2] [ref=f90e76]:
+            - link "Our House Rules" [ref=f90e77] [cursor=pointer]:
+              - /url: /legal?ref=pageheader
+          - paragraph [ref=f90e78]: Get to know Etsy's legal terms and policies
+        - generic [ref=f90e80]:
+          - generic [ref=f90e81]:
+            - generic [ref=f90e82]: Search our policies
+            - textbox "Search our policies" [ref=f90e83]
+          - button "Search" [ref=f90e85]
+      - generic [ref=f90e91]:
+        - generic [ref=f90e92]:
+          - navigation "breadcrumb'" [ref=f90e93]:
+            - generic [ref=f90e94]:
+              - link "Our House Rules" [ref=f90e95] [cursor=pointer]:
+                - /url: /legal?ref=breadcrumb
+              - text: /
+              - 'link "House Rules Menu: %s current page" [ref=f90e96] [cursor=pointer]':
+                - /url: "?ref=breadcrumb"
+                - text: All categories
+          - heading "Listing Image Requirements" [level=1] [ref=f90e97]
+        - article [ref=f90e98]:
+          - paragraph [ref=f90e99]:
+            - text: The Etsy marketplace is built on trust and transparency. That's why we require sellers to use original photos of the actual product buyers will receive, not renderings or stock photos, except in the situations outlined below. By uploading images, you confirm that you have all necessary rights to those photos and are complying with our
+            - link "Intellectual Property Policy" [ref=f90e100] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/ip
+            - text: and the content policies described in our
+            - link "Prohibited Items Policy" [ref=f90e101] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/prohibited/
+            - text: .
+          - heading "Use original photos" [level=2] [ref=f90e102]
+          - paragraph [ref=f90e103]: When creating your listings, you must use your own photos—either photos you took yourself or had someone take for you. These photos should showcase the actual finished product that you made, designed, handpicked, or sourced. By accurately portraying the condition, quality, and quantity of your items, you help build trust with buyers.
+          - heading "Exceptions" [level=2] [ref=f90e104]
+          - paragraph [ref=f90e105]: In certain situations, using original photos of the exact item may not be possible. You can use stock photos in some limited circumstances, where you are offering either personalized/customized items or an item made with a production partner, as discussed below.
+          - heading "Photos of personalized or customized items" [level=3] [ref=f90e106]
+          - paragraph [ref=f90e107]: For personalized or customized items (e.g. custom drawings, monogrammed accessories, or t-shirts featuring a buyer’s custom text), your first image must feature a finished, customized item similar to what buyers will receive. This helps buyers visualize what their custom-made item will look like when completed. It is prohibited to use a photo of the blank product or a mockup with placeholder text (e.g. “Your Text Here”) as the main image.
+          - paragraph [ref=f90e108]: Computer-generated mockups may be used in additional listing images to showcase customization options – just make sure your first image is the real deal. If you would like to use a buyer’s review photo as a listing image, you need permission from the buyer.
+          - heading "Photos of items made with production partners" [level=3] [ref=f90e109]
+          - paragraph [ref=f90e110]: "When working with production partners, the requirements for listing photos vary depending on the item: If you design a unique item (such as a piece of furniture, clothing, or a book) and a production partner manufactures it for you, use a real photo of the physical end product. If you create an original design (such as artwork or a pattern) that a production partner prints onto a base item (like a t-shirt or mug), you may use a stock photo mockup to illustrate the end product buyers will receive. Buyer-personalized items must follow the guidelines in the “Personalized or Customized” section above."
+          - paragraph [ref=f90e111]: Last updated on Jul 9, 2024
+  - contentinfo [ref=f90e113]:
+    - generic [ref=f90e115]:
+      - heading "We're on a mission to keep commerce human." [level=2] [ref=f90e118]
+      - navigation "Footer" [ref=f90e120]:
+        - generic [ref=f90e121]:
+          - generic [ref=f90e122]:
+            - heading "Shop" [level=3] [ref=f90e123]
+            - list [ref=f90e125]:
+              - listitem [ref=f90e126]:
+                - link "Gift cards" [ref=f90e128] [cursor=pointer]:
+                  - /url: https://www.etsy.com/giftcards?ref=ftr
+              - listitem [ref=f90e129]:
+                - link "Etsy Registry" [ref=f90e131] [cursor=pointer]:
+                  - /url: https://www.etsy.com/registry?ref=ftr
+              - listitem [ref=f90e132]:
+                - link "Sitemap" [ref=f90e134] [cursor=pointer]:
+                  - /url: https://www.etsy.com/categories
+              - listitem [ref=f90e135]:
+                - link "Etsy blog" [ref=f90e137] [cursor=pointer]:
+                  - /url: /blog/en/?ref=ftr
+              - listitem [ref=f90e138]:
+                - link "Etsy United Kingdom" [ref=f90e140] [cursor=pointer]:
+                  - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+              - listitem [ref=f90e141]:
+                - link "Etsy Germany" [ref=f90e143] [cursor=pointer]:
+                  - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+              - listitem [ref=f90e144]:
+                - link "Etsy Canada" [ref=f90e146] [cursor=pointer]:
+                  - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+          - generic [ref=f90e147]:
+            - heading "Sell" [level=3] [ref=f90e148]
+            - list [ref=f90e150]:
+              - listitem [ref=f90e151]:
+                - link "Sell on Etsy" [ref=f90e153] [cursor=pointer]:
+                  - /url: https://www.etsy.com/sell?ref=ftr
+              - listitem [ref=f90e154]:
+                - link "Teams" [ref=f90e156] [cursor=pointer]:
+                  - /url: https://community.etsy.com/pages/etsy-teams/
+              - listitem [ref=f90e157]:
+                - link "Forums" [ref=f90e159] [cursor=pointer]:
+                  - /url: https://community.etsy.com/feed/
+              - listitem [ref=f90e160]:
+                - link "Affiliates & Creators" [ref=f90e162] [cursor=pointer]:
+                  - /url: https://www.etsy.com/affiliates?ref=ftr
+          - generic [ref=f90e163]:
+            - heading "About" [level=3] [ref=f90e164]
+            - list [ref=f90e166]:
+              - listitem [ref=f90e167]:
+                - link "Etsy, Inc." [ref=f90e169] [cursor=pointer]:
+                  - /url: https://www.etsy.com/about?ref=ftr
+              - listitem [ref=f90e170]:
+                - link "Policies" [ref=f90e172] [cursor=pointer]:
+                  - /url: https://www.etsy.com/legal?ref=ftr
+              - listitem [ref=f90e173]:
+                - link "Investors" [ref=f90e175] [cursor=pointer]:
+                  - /url: https://investors.etsy.com
+              - listitem [ref=f90e176]:
+                - link "Careers" [ref=f90e178] [cursor=pointer]:
+                  - /url: https://www.etsy.com/careers?ref=ftr
+              - listitem [ref=f90e179]:
+                - link "Press" [ref=f90e181] [cursor=pointer]:
+                  - /url: https://www.etsy.com/press?ref=ftr
+              - listitem [ref=f90e182]:
+                - link "Impact" [ref=f90e184] [cursor=pointer]:
+                  - /url: https://www.etsy.com/impact?ref=ftr
+          - generic [ref=f90e185]:
+            - heading "Help" [level=3] [ref=f90e186]
+            - list [ref=f90e188]:
+              - listitem [ref=f90e189]:
+                - link "Help Center" [ref=f90e191] [cursor=pointer]:
+                  - /url: https://www.etsy.com/help?ref=ftr
+              - listitem [ref=f90e192]:
+                - link "Privacy settings" [ref=f90e194] [cursor=pointer]:
+                  - /url: "#"
+      - list "Download the Etsy App" [ref=f90e198]:
+        - listitem [ref=f90e199]:
+          - link "App Store" [ref=f90e200] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+        - listitem [ref=f90e201]:
+          - link "Google Play" [ref=f90e202] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+      - img "Illustration of two people looking at a framed abstract artwork" [ref=f90e205]
+    - generic [ref=f90e208]:
+      - generic [ref=f90e210]:
+        - link "Update your settings United States English (US) $ (USD)" [ref=f90e211] [cursor=pointer]:
+          - /url: https://www.etsy.com/your/account/locale_preferences?from_page=https%3A%2F%2Fwww.etsy.com%2Flegal%2Fpolicy%2Flisting-image-requirements%2F253962679005
+          - generic [ref=f90e227]: United States
+        - generic [ref=f90e229]:
+          - link [ref=f90e230] [cursor=pointer]:
+            - /url: /social-tracking?network=instagram
+          - link [ref=f90e235] [cursor=pointer]:
+            - /url: /social-tracking?network=facebook
+          - link [ref=f90e239] [cursor=pointer]:
+            - /url: /social-tracking?network=pinterest
+          - link [ref=f90e243] [cursor=pointer]:
+            - /url: /social-tracking?network=youtube
+      - generic [ref=f90e248]:
+        - generic [ref=f90e249]: © 2026 Etsy, Inc.
+        - generic [ref=f90e250]:
+          - generic [ref=f90e251]:
+            - link "Terms of Use" [ref=f90e253] [cursor=pointer]:
+              - /url: /legal/terms-of-use?ref=ftr
+            - link "Privacy" [ref=f90e255] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=ftr
+          - generic [ref=f90e256]:
+            - link "Interest-based ads" [ref=f90e258] [cursor=pointer]:
+              - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+            - link "Local Shops" [ref=f90e260] [cursor=pointer]:
+              - /url: /search/shops
+            - button "Regions" [ref=f90e262] [cursor=pointer]
+    - generic [ref=f90e268]:
+      - paragraph [ref=f90e269]: How Etsy uses cookies
+      - paragraph [ref=f90e270]:
+        - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+        - link "Privacy Policy" [ref=f90e271] [cursor=pointer]:
+          - /url: /legal/privacy/
+        - text: ","
+        - link "Cookies Policy" [ref=f90e272] [cursor=pointer]:
+          - /url: /legal/cookies/
+        - text: ", and"
+        - link "Terms of Use" [ref=f90e273] [cursor=pointer]:
+          - /url: /legal/terms-of-use/
+        - text: . Manage your preferences
+        - link "here" [ref=f90e274] [cursor=pointer]:
+          - /url: "#"
+        - text: .
+      - button "Ok" [ref=f90e276] [cursor=pointer]: Okay
+      - paragraph
