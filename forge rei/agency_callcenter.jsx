@@ -53,6 +53,10 @@ const CC_SHEET_CSS = `
   border-bottom:1px solid rgba(255,255,255,.2);border-right:1px solid rgba(255,255,255,.09)}
 .cc-sheet td{padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.07);
   border-right:1px solid rgba(255,255,255,.07);vertical-align:middle}
+.cc-sheet{min-width:940px}
+.cc-sheet td:nth-child(2){min-width:165px}
+.cc-sheet td:nth-child(3),.cc-sheet td:nth-child(5),.cc-sheet td:nth-child(6){white-space:nowrap}
+.cc-sheet td:nth-child(4){max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cc-sheet tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
 .cc-sheet tbody tr:hover{background:rgba(93,124,255,.11)}
 .cc-sheet tbody tr.cc-hot{background:rgba(255,212,121,.07)}
