@@ -355,6 +355,35 @@ def is_loopback(client_ip: str | None) -> bool:
     return client_ip in {"127.0.0.1", "::1"}
 
 
+# Headers that ONLY a reverse proxy adds. Tailscale Serve (`tailscale serve
+# --https=443 http://127.0.0.1:PORT`) fronts every tailnet client, so they all
+# reach us as peer 127.0.0.1 — `is_loopback` alone cannot tell the SSH-tunnel
+# owner apart from an arbitrary tailnet device. A DIRECT tunnel request carries
+# none of these; a Serve request always carries at least X-Forwarded-*. We use
+# their ABSENCE as the owner signal for the passwordless shortcuts (auto-admin,
+# test-login). This does NOT relax `request_is_secure` — Serve https stays valid
+# transport; it only stops a proxied client from being treated as the owner.
+_PROXY_HEADERS = (
+    "X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host",
+    "Forwarded", "Tailscale-User-Login", "Tailscale-User-Name",
+)
+
+
+def _is_proxied(headers: Any) -> bool:
+    try:
+        return any(str(headers.get(h, "")).strip() for h in _PROXY_HEADERS)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def is_owner_loopback(headers: Any, client_ip: str | None) -> bool:
+    """True only for a DIRECT SSH-tunnel request: real loopback peer AND no
+    reverse-proxy headers. A Tailscale Serve visitor is loopback-by-peer but
+    proxied, so this returns False for them — closing the passwordless daycare
+    admin bypass while leaving the owner's tunnel workflow untouched."""
+    return is_loopback(client_ip) and not _is_proxied(headers)
+
+
 def request_is_secure(headers: Any, client_ip: str | None = None, *, is_tls: bool = False) -> bool:
     # allow_http is honored ONLY for loopback (the SSH-tunnelled owner on the box).
     # A tailnet/public client can never bypass HTTPS via this flag.
