@@ -21,10 +21,11 @@ function CcStat({ label, value }) {
 }
 
 const CC_STATUS_LABEL = {
-  new: "New", answered: "Answered", no_answer: "No answer",
-  callback: "Call back", dead: "Move on",
+  new: "To call", answered: "Called", interested: "Interested",
+  no_answer: "No answer", callback: "Call back", dead: "Said no",
 };
 const CC_STATUS_STYLE = {
+  interested: { color: "#ffd479", background: "rgba(255,212,121,.16)" },
   answered: { color: "#81c995", background: "rgba(129,201,149,.12)" },
   callback: { color: "#f6c979", background: "rgba(244,184,96,.12)" },
   no_answer: { color: "#8ab4f8", background: "rgba(138,180,248,.12)" },
@@ -32,9 +33,54 @@ const CC_STATUS_STYLE = {
   new: { opacity: 0.7, background: "rgba(255,255,255,.06)" },
 };
 const CC_FILTERS = [
-  ["all", "All"], ["new", "New"], ["answered", "Answered"],
-  ["no_answer", "No answer"], ["callback", "Call back"], ["dead", "Move on"],
+  ["all", "All"], ["new", "To call"], ["interested", "⭐ Interested"],
+  ["answered", "Called"], ["no_answer", "No answer"],
+  ["callback", "Call back"], ["dead", "Said no"],
 ];
+
+// What they said they want. MUST match agency_io.SERVICES exactly — the client
+// book drops anything not on that list.
+const CC_SERVICES = ["Website", "Automations", "AI Receptionist", "AI Chatbot",
+                     "Ads Management", "SEO", "CRM Setup", "Hosting"];
+
+// Spreadsheet chrome. One <style> tag, scoped to .cc-sheet — buildless-safe.
+const CC_SHEET_CSS = `
+.cc-wrap{border:1px solid rgba(255,255,255,.16);border-radius:8px;overflow:auto;max-height:72vh}
+.cc-sheet{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+.cc-sheet th{position:sticky;top:0;z-index:3;background:var(--card-2,#1b1f27);
+  font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:rgba(255,255,255,.55);text-align:left;padding:7px 10px;white-space:nowrap;
+  border-bottom:1px solid rgba(255,255,255,.2);border-right:1px solid rgba(255,255,255,.09)}
+.cc-sheet td{padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.07);
+  border-right:1px solid rgba(255,255,255,.07);vertical-align:middle}
+.cc-sheet tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+.cc-sheet tbody tr:hover{background:rgba(93,124,255,.11)}
+.cc-sheet tbody tr.cc-hot{background:rgba(255,212,121,.07)}
+.cc-sheet tbody tr.cc-hot:hover{background:rgba(255,212,121,.14)}
+.cc-sheet .cc-rn{width:34px;text-align:center;color:rgba(255,255,255,.35);
+  font-size:11px;background:var(--card-2,#1b1f27);position:sticky;left:0;z-index:2}
+.cc-sheet th.cc-rn{z-index:4}
+.cc-sheet .cc-cell{width:100%;background:transparent;border:none;color:inherit;
+  font:inherit;padding:2px 0;outline:none}
+.cc-sheet .cc-cell:focus{background:rgba(255,255,255,.07);border-radius:3px;padding:2px 4px}
+.cc-btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);
+  border-radius:5px;padding:2px 7px;font-size:11.5px;line-height:1.6;color:inherit}
+.cc-btn:hover:not(:disabled){background:rgba(255,255,255,.13)}
+.cc-btn.cc-yes{border-color:rgba(255,212,121,.5);background:rgba(255,212,121,.14);color:#ffd479;font-weight:600}
+.cc-btn.cc-yes:hover:not(:disabled){background:rgba(255,212,121,.26)}
+.cc-tab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);
+  border-radius:7px 7px 0 0;border-bottom:none;padding:6px 13px;font-size:12px;color:inherit}
+.cc-tab.on{background:rgba(93,124,255,.2);border-color:rgba(93,124,255,.5);font-weight:600}
+.cc-modal-back{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:900;
+  display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow:auto}
+.cc-modal{width:100%;max-width:560px;background:var(--card,#161a22);
+  border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:20px}
+.cc-modal label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:rgba(255,255,255,.55);margin-bottom:4px}
+.cc-modal input,.cc-modal textarea{width:100%;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.13);border-radius:6px;color:inherit;
+  padding:7px 9px;font-size:13px;font-family:inherit}
+`;
 
 function CcStatusPill({ status }) {
   return (
@@ -44,16 +90,17 @@ function CcStatusPill({ status }) {
   );
 }
 
-function CcRow({ lead, busy, onMark, onNote, onDelete }) {
+function CcRow({ n, lead, busy, onMark, onNote, onDelete, onInterested }) {
+  const cur = busy ? "default" : "pointer";
+  const head = lead.name || lead.company || "(no name)";
+  const sub = [lead.company && lead.company !== head ? lead.company : "", lead.location]
+    .filter(Boolean).join(" · ");
   return (
-    <tr>
+    <tr className={lead.status === "interested" ? "cc-hot" : ""}>
+      <td className="cc-rn">{n}</td>
       <td>
-        <div style={{ fontWeight: 600 }}>{lead.name || lead.company || "(no name)"}</div>
-        {(() => {
-          const head = lead.name || lead.company || "";
-          const sub = [lead.company !== head ? lead.company : "", lead.location].filter(Boolean).join(" · ");
-          return sub ? <div className="faint" style={{ fontSize: 11.5 }}>{sub}</div> : null;
-        })()}
+        <div style={{ fontWeight: 600 }}>{head}</div>
+        {sub && <div className="faint" style={{ fontSize: 11 }}>{sub}</div>}
       </td>
       <td>
         {lead.phone ? (
@@ -61,28 +108,131 @@ function CcRow({ lead, busy, onMark, onNote, onDelete }) {
             {lead.phone}
           </a>
         ) : <span className="faint">—</span>}
-        {lead.last_called && <div className="faint" style={{ fontSize: 11 }}>last: {lead.last_called}</div>}
       </td>
-      <td>{lead.email || <span className="faint">—</span>}</td>
+      <td className="faint" style={{ fontSize: 11.5 }}>{lead.email || "—"}</td>
       <td><CcStatusPill status={lead.status} /></td>
-      <td>
-        <input
-          defaultValue={lead.note}
-          onBlur={(e) => onNote(lead.id, e.target.value)}
-          placeholder="note…"
-          style={{ width: 140, fontSize: 12, background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,.12)", color: "inherit" }}
-        />
+      <td className="faint mono" style={{ fontSize: 11 }}>{lead.last_called || "—"}</td>
+      <td style={{ minWidth: 150 }}>
+        <input className="cc-cell" defaultValue={lead.note} placeholder="note…"
+          onBlur={(e) => e.target.value !== (lead.note || "") && onNote(lead.id, e.target.value)} />
       </td>
       <td>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button title="Answered" disabled={busy} onClick={() => onMark(lead.id, "answered")} style={{ cursor: busy ? "default" : "pointer" }}>✅</button>
-          <button title="No answer" disabled={busy} onClick={() => onMark(lead.id, "no_answer")} style={{ cursor: busy ? "default" : "pointer" }}>📵</button>
-          <button title="Call back later" disabled={busy} onClick={() => onMark(lead.id, "callback")} style={{ cursor: busy ? "default" : "pointer" }}>⏰</button>
-          <button title="Move on" disabled={busy} onClick={() => onMark(lead.id, "dead")} style={{ cursor: busy ? "default" : "pointer" }}>⛔</button>
-          <button title="Remove" className="faint" disabled={busy} onClick={() => onDelete(lead.id)} style={{ background: "none", border: "none", cursor: busy ? "default" : "pointer" }}>×</button>
+        <div style={{ display: "flex", gap: 4, whiteSpace: "nowrap" }}>
+          <button className="cc-btn cc-yes" title="Interested — capture their info and push to Pipeline"
+            disabled={busy} onClick={() => onInterested(lead)} style={{ cursor: cur }}>⭐ Interested</button>
+          <button className="cc-btn" title="Called — talked to them" disabled={busy}
+            onClick={() => onMark(lead.id, "answered")} style={{ cursor: cur }}>✅ Called</button>
+          <button className="cc-btn" title="No answer" disabled={busy}
+            onClick={() => onMark(lead.id, "no_answer")} style={{ cursor: cur }}>📵</button>
+          <button className="cc-btn" title="Call back later" disabled={busy}
+            onClick={() => onMark(lead.id, "callback")} style={{ cursor: cur }}>⏰</button>
+          <button className="cc-btn" title="Said no" disabled={busy}
+            onClick={() => onMark(lead.id, "dead")} style={{ cursor: cur }}>⛔ No</button>
+          <button className="cc-btn faint" title="Remove from sheet" disabled={busy}
+            onClick={() => onDelete(lead.id)} style={{ cursor: cur }}>×</button>
         </div>
+        {lead.client_id && (
+          <div style={{ fontSize: 10.5, color: "#ffd479", marginTop: 2 }}>
+            → in Pipeline {lead.escalated ? "(" + lead.escalated + ")" : ""}
+          </div>
+        )}
       </td>
     </tr>
+  );
+}
+
+// Interested → capture what they told you, push a Pipeline lead into the client book.
+// Internal + reversible: it creates a client row with status "lead". Nothing is sent.
+function CcEscalate({ lead, busy, onCancel, onSave }) {
+  const [f, setF] = useStateCc({
+    name: lead.name || lead.company || "",
+    business: lead.company || lead.name || "",
+    phone: lead.phone || "",
+    email: lead.email || "",
+    site: lead.website || "",
+    mrr: "",
+    next_step: "",
+    notes: "",
+    services: [],
+  });
+  const set = (k, v) => setF((p) => Object.assign({}, p, { [k]: v }));
+  const toggle = (s) => setF((p) => Object.assign({}, p, {
+    services: p.services.indexOf(s) < 0 ? p.services.concat([s]) : p.services.filter((x) => x !== s),
+  }));
+  const row = { display: "flex", gap: 10, marginBottom: 10 };
+
+  return (
+    <div className="cc-modal-back" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
+      <div className="cc-modal">
+        <div style={{ fontSize: 17, fontWeight: 700 }}>⭐ Interested — {lead.company || lead.name}</div>
+        <div className="faint" style={{ fontSize: 12, margin: "4px 0 16px" }}>
+          Goes to the Pipeline as a lead. Nothing gets sent to them.
+        </div>
+
+        <div style={row}>
+          <div style={{ flex: 1 }}>
+            <label>Who you talked to *</label>
+            <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Owner / manager name" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label>Business</label>
+            <input value={f.business} onChange={(e) => set("business", e.target.value)} />
+          </div>
+        </div>
+
+        <div style={row}>
+          <div style={{ flex: 1 }}>
+            <label>Phone</label>
+            <input value={f.phone} onChange={(e) => set("phone", e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label>Email</label>
+            <input value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="for the invite" />
+          </div>
+        </div>
+
+        <div style={row}>
+          <div style={{ flex: 2 }}>
+            <label>Their current site</label>
+            <input value={f.site} onChange={(e) => set("site", e.target.value)} placeholder="none / url" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label>Est. $/mo</label>
+            <input type="number" min="0" value={f.mrr} onChange={(e) => set("mrr", e.target.value)} placeholder="300" />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <label>What they want</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {CC_SERVICES.map((s) => (
+              <button key={s} type="button" className={"cc-btn" + (f.services.indexOf(s) >= 0 ? " cc-yes" : "")}
+                onClick={() => toggle(s)} style={{ cursor: "pointer" }}>{s}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <label>Next step</label>
+          <input value={f.next_step} onChange={(e) => set("next_step", e.target.value)}
+            placeholder="Zoom Thu 10am — showing the mockup" />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label>What they said</label>
+          <textarea value={f.notes} onChange={(e) => set("notes", e.target.value)} rows={3}
+            placeholder="No way to book a tour on the site. Been meaning to fix it for a year." />
+        </div>
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button className="cc-btn faint" disabled={busy} onClick={onCancel} style={{ cursor: "pointer", padding: "7px 14px" }}>Cancel</button>
+          <button className="cc-btn cc-yes" disabled={busy || !f.name.trim()} onClick={() => onSave(f)}
+            style={{ cursor: busy || !f.name.trim() ? "default" : "pointer", padding: "7px 14px" }}>
+            {busy ? "Saving…" : "Save → Pipeline"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
