@@ -28,19 +28,26 @@ by a self-improving AI agent with a human (Yahjair) approving anything outward:
 **Category:** done-for-you AI marketing/web execution for local & small businesses.
 **[REFINE]** confirm the category line you want to own publicly.
 
-## Ideal Customer Profile (ICP)  **[REFINE — biggest gap]**
+## Ideal Customer Profile (ICP)
 
-No ICP is documented anywhere in the repo yet. Draft below; replace with the real one once
-you've closed a few clients.
+**Full spec: `forge-agency/skills/agency-icp.md`** — that file is canonical (territory
+order, niche ranking, disqualifiers, buying-signal scoring, Clay build). Summary:
 
-- **Who:** [REFINE — e.g. local service businesses (med spas, gyms, home services, clinics)
-  that run Meta ads and have a website but no in-house marketer.]
-- **Company size:** [REFINE — solo owner to ~20 staff?]
-- **The pain:** wasted ad spend, a website that doesn't convert, no time/skill to fix it,
-  burned by a previous agency that over-promised.
-- **What they say:** [REFINE — capture real quotes from sales calls / DMs.]
-- **Trigger to buy:** [REFINE — ad costs climbing, a launch, a slow season, a competitor
-  pulling ahead.]
+- **Who:** owner-operated local service businesses where one reachable person decides
+  everything. **Hard filter: if we can't get the owner/manager/shot-caller on the phone,
+  it isn't a lead.** No corporate, no franchise-controlled locations.
+- **Company size:** 1–30 staff, 1–5 locations.
+- **Territory:** clear-and-advance, one metro at a time. **Philadelphia metro is active.**
+- **Niche order:** **daycare/childcare first** (the operator owns one — peer credibility
+  plus a real built site + enrollment funnel to show), then home services, then med spa /
+  dental / chiro / PT, then gyms, auto, food.
+- **The pain:** no site or a stale template, no way for a customer to book, missed calls
+  all day, and ad money landing on a page that doesn't convert.
+- **Trigger to buy:** they're already spending on ads or lead services and can feel the
+  leak; or they're visibly busy (25+ reviews, 4.5★+) with a web presence that doesn't
+  match. **Reviews + active ads + bad site is the highest-value lead we have.**
+- **Acquisition channel:** outbound cold call off a Clay-built list →
+  `forge-agency/skills/agency-cold-call-playbook.md`.
 
 ## Positioning
 
@@ -60,12 +67,25 @@ you've closed a few clients.
 4. **Never claims something is live that isn't.**
 5. [REFINE — speed-to-first-result? price? niche expertise? add your real edge.]
 
-## Offer(s)  **[REFINE — pricing not documented anywhere in the repo]**
+## Offer(s)
 
-- Engagement model / packages / pricing are **undocumented** — do NOT let a skill invent
-  them. Fill this in once real: e.g. setup + monthly retainer, per-project, performance.
-- Primary CTA: [REFINE — book a call / DM "FORGE" / audit lead magnet?]
-- Risk-reversal: [REFINE — guarantee, first-week, cancel-anytime?]
+**Land cheap on trust, expand after.** Full ladder + rules:
+`forge-agency/skills/agency-cold-call-playbook.md` §1.
+
+| Rung | What | Price |
+|---|---|---|
+| 1 | Website — live, mobile, real booking/inquiry form wired to their CRM | **$0–1,000** (the door, not the revenue) |
+| 2 | **Care plan** — hosting, edits, form/CRM monitoring, monthly report | **$200–500/mo** ← this is the business |
+| 3 | Automations — missed-call text-back, speed-to-lead, review requests, AI receptionist | project + monthly bump |
+| 4 | Ads management (Eco) | management fee + their spend; never sold cold |
+| 5 | Apps / custom builds | scoped; comes from existing clients asking |
+
+- **Primary CTA:** book a 15-minute Zoom. The **mockup is the close** and it's revealed
+  live on that call — never emailed, never described on the phone.
+- **No price is ever quoted on a cold call.** Same discipline as wholesale's no-price-by-
+  text rule: the number happens where we can show the work.
+- **Risk-reversal:** month-to-month, cancel anytime. Never discount the monthly to save a
+  deal — discount the build (already near zero).
 
 ## Voice & Tone
 

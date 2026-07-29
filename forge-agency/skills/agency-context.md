@@ -91,19 +91,41 @@ Wholesale lead screening and daycare operations run on separate tracks — see
 
 ---
 
+## How Clients Come In — cold call from a Clay-built list
+
+*(added 2026-07-29)*
+
+Client acquisition is **outbound cold calling** off lead lists built in Clay.
+Two files own it — read them before doing any prospecting, list, or script work:
+
+- **`agency-icp.md`** — who we call: territory order (clear one metro, then
+  advance; **Philly is active**), niche ranking (**daycare/childcare first**),
+  qualify/disqualify (**owner-reachable only, no corporate/franchise**), the
+  buying-signal score, and the Clay column build.
+- **`agency-cold-call-playbook.md`** — the offer ladder + pricing, the call
+  goal (**book a 15-min Zoom, reveal the mockup there**), scripts, objections,
+  post-call flow, and the compliance rules.
+
+**Offer ladder in one line:** website is the door at **$0–1,000**; the business
+is the **$200–500/mo care plan**; automations, ads, and apps expand from there.
+**No price is ever quoted on the cold call** — same discipline as wholesale.
+
+Leads land in the dashboard's **Agency → Call Sheet** (paste the Clay export;
+`agency_callsheet.import_text` parses it and dedupes on phone). Dialing is
+manual, tracked by the Call Center's daily goal + streak.
+
+Neither file is loaded into Dyson's or Eco's prompts — prospecting isn't their
+job, and keeping it out keeps their per-call token cost flat.
+
+---
+
 ## Needs Your Input To Stay Accurate
 
-This section is intentionally longer than its wholesale/daycare siblings —
-these facts genuinely don't exist anywhere in the codebase yet, not just in
-this file:
-
-- **A client list / ICP.** No file anywhere documents who ClientForge's
-  actual or target clients are (industry, size, typical engagement). Add one
-  here once real clients are onboarded.
 - **Current client count and roster** — the dashboard's Clients tab is the
   live source once populated; this file should summarize it, not replace it.
-- **Pricing/engagement model** — how a client engagement is scoped and
-  priced isn't documented anywhere in this repo.
+- **Real cold-call conversion numbers.** The dials → conversations → Zooms →
+  clients figures in the playbook are **planning assumptions, not measured
+  results**. Replace them after the first ~200 dials.
 - **Brand voice for client-facing communication** — Dyson/Eco's playbooks
   cover *how they reason*, not a defined tone for anything client-facing
   (proposals, ad copy written on a client's behalf). Define one once the
