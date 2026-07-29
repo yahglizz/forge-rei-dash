@@ -3320,7 +3320,8 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/callsheet/escalate":
                 result = agency_callsheet.escalate(body.get("id"), body.get("info") or {})
             elif parsed.path == "/api/agency/callsheet/note":
-                result = agency_callsheet.set_note(body.get("id"), body.get("note"))
+                result = agency_callsheet.set_note(body.get("id"), body.get("note"),
+                                                   body.get("field") or "note")
             elif parsed.path == "/api/agency/callsheet/delete":
                 result = agency_callsheet.delete_lead(body.get("id"))
             elif parsed.path == "/api/agency/callsheet/clear-dead":

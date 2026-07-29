@@ -420,6 +420,13 @@ if __name__ == "__main__":
     assert n["ok"], n
     assert list_leads()["leads"][0]["note"] == "call after 5pm"
 
+    # inline pain-point edit rides the same route via `field`
+    assert set_note(lid, " no online ordering ", "pain")["ok"]
+    assert list_leads()["leads"][0]["pain"] == "no online ordering"
+    set_note(lid, "hack", "status")          # unknown field falls back to note…
+    assert list_leads()["leads"][0]["note"] == "hack"          # …never writes status
+    assert list_leads()["leads"][0]["status"] == "answered"
+
     # --- escalate: interested → agency client book (Pipeline "lead" column) ---
     import agency_io
     saved_clients = []
@@ -449,6 +456,13 @@ if __name__ == "__main__":
     assert escalate(lid, {"name": "   "})["ok"] is False  # name required
 
     lid2 = r["leads"][1]["id"]
+
+    # dead line: stamps the row, deliberately NOT a dial
+    before = len(calls)
+    set_status(lid2, "bad_number")
+    assert len(calls) == before, calls
+    assert [l for l in list_leads()["leads"] if l["id"] == lid2][0]["last_called"]
+
     set_status(lid2, "dead")
     cleared = clear_dead()
     assert cleared["removed"] == 1, cleared
