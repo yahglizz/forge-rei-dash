@@ -48,6 +48,10 @@ order, niche ranking, disqualifiers, buying-signal scoring, Clay build). Summary
   match. **Reviews + active ads + bad site is the highest-value lead we have.**
 - **Acquisition channel:** outbound cold call off a Clay-built list →
   `forge-agency/skills/agency-cold-call-playbook.md`.
+- **Every lead carries a pain point** — one specific, observable sentence about what's
+  broken in their web presence, and it's what the call opens on (`agency-icp.md` §5).
+  Ground it in what we actually observed or leave it empty — **never invent one**; it
+  gets said out loud to a real owner.
 
 ## Positioning
 

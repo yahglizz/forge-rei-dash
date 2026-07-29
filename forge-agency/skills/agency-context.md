@@ -110,6 +110,16 @@ Two files own it — read them before doing any prospecting, list, or script wor
 is the **$200–500/mo care plan**; automations, ads, and apps expand from there.
 **No price is ever quoted on the cold call** — same discipline as wholesale.
 
+**Every lead carries a PAIN POINT or it doesn't get called** (`agency-icp.md` §5).
+One specific, observable sentence about what's broken in *that* business's web
+presence — the sentence the call opens on. Anything writing pain points (a Clay
+AI column, an agent, Claude) is bound by the creed: **ground it in something we
+actually observed — the GBP record, the live page, the Ad Library, the review
+count — or leave it empty. Never invent one.** An invented pain gets said out
+loud to a real owner; empty costs one lead, wrong costs the relationship. It's a
+first-class field on every Call Sheet row and rides into the Pipeline note when a
+lead is marked Interested.
+
 Leads land in the dashboard's **Agency → Call Sheet** (paste the Clay export;
 `agency_callsheet.import_text` parses it and dedupes on phone). Dialing is
 manual, tracked by the Call Center's daily goal + streak.

@@ -3569,7 +3569,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             return daycare_supabase.BRIDGE.require_session(sid), None
         except daycare_supabase.DaycareError as first_error:
-            auto = daycare_supabase.BRIDGE.autoadmin_session(self._daycare_client_ip())
+            auto = daycare_supabase.BRIDGE.autoadmin_session(
+                self._daycare_client_ip(), self.headers)
             if auto is None:
                 raise first_error
             session = daycare_supabase.BRIDGE.require_session(auto.sid)

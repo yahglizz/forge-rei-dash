@@ -82,13 +82,18 @@ Bracketed = fill in. Do not read it word for word; hit the beats.
 *Why it works: "I run a daycare here" is not a claim she has to take on faith,
 and it makes this a peer call instead of a vendor call. It's also true.*
 
-**The reason (the specific thing):**
+**The reason (the pain point, said out loud):**
 > "So when I built out our own site and our enrollment system — the thing where
 > a parent lands on the page and books a tour without anybody calling them back —
 > a couple other centers asked me to do theirs. I pulled yours up and
-> [the specific, true thing: *there's no way for a parent to book a tour on it* /
-> *it doesn't come up right on a phone* / *you don't have a site at all, just the
-> Facebook page*]. Is that on purpose, or just never got to it?"
+> **[read the pain point cell, in your own words]**. Is that on purpose, or just
+> never got to it?"
+
+*The pain point goes in verbatim in substance: "there's no way for a parent to
+book a tour on it" / "it doesn't come up right on a phone" / "you don't have a
+site at all, just the Facebook page" / "you're running ads right now but they
+land on a page with no form." Say the one you can see. Never soften it into
+"your site could use some work" — vague is what every other caller says.*
 
 *Then shut up. The pause does the work.*
 
@@ -155,6 +160,15 @@ Same skeleton, swap the peer line for the local + specific line:
 next day — a callback converts several times better than a fresh number.
 
 **Dead:** mark it, note why in one line. The "why" is how we fix Clay's filters.
+
+**Dead line (disconnected/wrong number):** mark it `DEAD`. It is deliberately
+**not** counted as a dial — a disconnected number is a list-quality problem, not
+a call you could have run better. If dead lines pile up, the fix is in Clay, not
+on the phone.
+
+**Pain point was wrong:** fix the cell before you move on, and note what the real
+one was. Repeated misses mean the Clay `pain_point` prompt is reaching past its
+evidence — tighten it (`agency-icp.md` §5), don't just live with it.
 
 **Won a client:** they go in the dashboard's **Clients** tab. From then on Dyson
 handles edits and Eco handles ads — this playbook is done with them.

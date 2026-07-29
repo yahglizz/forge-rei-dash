@@ -703,18 +703,24 @@ class SupabaseBridge:
                 return self.login(login_id, pin)
         raise DaycareError(403, "That test profile is unavailable", "test_profile_unavailable")
 
-    def autoadmin_session(self, client_ip: str | None) -> Session | None:
-        """Transparently supply an admin session for a loopback request.
+    def autoadmin_session(self, client_ip: str | None, headers: Any = None) -> Session | None:
+        """Transparently supply an admin session for the SSH-tunnel owner.
 
-        Enabled only when ``FORGE_DAYCARE_AUTOADMIN`` is set AND the caller is on
-        the loopback interface (the owner's SSH tunnel on the box). Reuses a single
-        cached admin session across requests; re-mints it if it has expired. Returns
-        ``None`` (never raises) when auto-admin does not apply or minting fails, so
-        callers fall back to the normal 401 login path.
+        Enabled only when ``FORGE_DAYCARE_AUTOADMIN`` is set AND the caller is the
+        DIRECT loopback owner. ``headers`` is the request headers for HTTP callers;
+        if present and carrying reverse-proxy markers (Tailscale Serve fronts the
+        box on 127.0.0.1, making every tailnet client look loopback), we refuse —
+        only a direct tunnel request has no forwarding headers. In-process callers
+        (the director's scheduled brief) pass ``headers=None`` and keep the raw
+        loopback check. Reuses one cached admin session; re-mints on expiry. Returns
+        ``None`` (never raises) when auto-admin does not apply, so callers fall back
+        to the normal 401 login path.
         """
         global _AUTOADMIN_SID
         if not self.config.autoadmin or not is_loopback(client_ip):
             return None
+        if headers is not None and _is_proxied(headers):
+            return None  # arrived via Tailscale Serve, not the SSH tunnel
         creds = next(
             ((login_id, pin) for role, login_id, pin in self.config.test_profiles
              if role == "admin"),
@@ -799,15 +805,20 @@ class SupabaseBridge:
         with _SESSION_LOCK:
             _SESSIONS.pop(sid, None)
 
-    def auth_status(self, sid: str | None) -> dict[str, Any]:
+    def auth_status(self, sid: str | None, owner: bool = False) -> dict[str, Any]:
+        # Test-mode + the profile list are only advertised to the direct tunnel
+        # owner. Passwordless test-login is now owner-loopback-only, so exposing
+        # the exact role strings to a Serve/tailnet caller only hands a would-be
+        # attacker the payload — hide it unless ``owner``.
+        show_test = self.config.test_mode and owner
         base = {
             "ok": True,
             "configured": self.config.configured,
             "live": self.config.live,
             "writesEnabled": self.config.writes_enabled,
-            "testMode": self.config.test_mode,
+            "testMode": show_test,
             "testProfiles": [role for role, _login_id, _pin in self.config.test_profiles]
-                if self.config.test_mode else [],
+                if show_test else [],
             "familyAppUrl": self.config.family_app_url,
             "authenticated": False,
         }
