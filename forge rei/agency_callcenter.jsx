@@ -245,6 +245,7 @@ function CcCallSheet({ refreshTally }) {
   const [filter, setFilter] = useStateCc("all");
   const [paste, setPaste] = useStateCc(null); // null=closed, string=textarea value
   const [sheetBusy, setSheetBusy] = useStateCc(false);
+  const [escLead, setEscLead] = useStateCc(null); // lead being escalated, or null
 
   async function uploadPdf(file) {
     if (!file) return;
@@ -290,6 +291,23 @@ function CcCallSheet({ refreshTally }) {
     setSheetBusy(false);
   }
 
+  async function escalate(info) {
+    if (!escLead) return;
+    setSheetBusy(true);
+    try {
+      const res = await window.apiPost("/api/agency/callsheet/escalate", { id: escLead.id, info });
+      if (res && res.ok === false) window.alert(res.detail || "Couldn't save that lead.");
+      else {
+        setEscLead(null);
+        refreshTally();
+      }
+      sheet.refresh();
+    } catch (e) {
+      window.alert("Save failed: " + (e.message || e));
+    }
+    setSheetBusy(false);
+  }
+
   async function saveNote(id, note) {
     setSheetBusy(true);
     try {
@@ -313,7 +331,7 @@ function CcCallSheet({ refreshTally }) {
   }
 
   async function clearDead() {
-    if (!window.confirm("Remove all 'move on' businesses from the sheet?")) return;
+    if (!window.confirm("Remove every 'said no' business from the sheet?")) return;
     setSheetBusy(true);
     try {
       await window.apiPost("/api/agency/callsheet/clear-dead", {});
@@ -333,6 +351,10 @@ function CcCallSheet({ refreshTally }) {
 
   return (
     <div className="card card-pad">
+      <style>{CC_SHEET_CSS}</style>
+      {escLead && (
+        <CcEscalate lead={escLead} busy={sheetBusy} onCancel={() => setEscLead(null)} onSave={escalate} />
+      )}
       <input id="cc-pdf-input" type="file" accept="application/pdf" style={{ display: "none" }}
         onChange={(e) => uploadPdf(e.target.files[0])} />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
@@ -349,7 +371,7 @@ function CcCallSheet({ refreshTally }) {
           </button>
           {counts.dead > 0 && (
             <button className="faint" disabled={sheetBusy} onClick={clearDead} style={{ fontSize: 12.5, background: "none", cursor: sheetBusy ? "default" : "pointer" }}>
-              🧹 Clear move-ons
+              🧹 Clear said-no
             </button>
           )}
         </div>
@@ -377,46 +399,48 @@ function CcCallSheet({ refreshTally }) {
         </div>
       ) : (
         <React.Fragment>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search business, phone…"
-              style={{ fontSize: 12.5, flex: "1 1 200px", minWidth: 160 }}
-            />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search business, phone…"
+            style={{ fontSize: 12.5, width: "100%", marginBottom: 10 }}
+          />
+
+          <div style={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "flex-end" }}>
             {CC_FILTERS.map(([key, label]) => (
               <button
                 key={key}
+                className={"cc-tab" + (filter === key ? " on" : "")}
                 onClick={() => setFilter(key)}
-                style={{
-                  fontSize: 11.5, padding: "4px 10px", borderRadius: 99, cursor: "pointer",
-                  background: filter === key ? "rgba(255,255,255,.14)" : "rgba(255,255,255,.05)",
-                  border: "1px solid rgba(255,255,255,.1)",
-                }}
+                style={{ cursor: "pointer" }}
               >
-                {label} {counts[key] !== undefined ? "(" + (key === "all" ? counts.total || 0 : counts[key] || 0) + ")" : ""}
+                {label} <span className="faint">{key === "all" ? counts.total || 0 : counts[key] || 0}</span>
               </button>
             ))}
           </div>
 
           {filtered.length === 0 ? (
-            <div className="faint" style={{ fontSize: 12.5 }}>No businesses match.</div>
+            <div className="faint" style={{ fontSize: 12.5, padding: "14px 2px" }}>No businesses match.</div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table className="lead-table">
+            <div className="cc-wrap">
+              <table className="cc-sheet">
                 <thead>
                   <tr>
+                    <th className="cc-rn"></th>
                     <th>Business</th>
                     <th>Phone</th>
                     <th>Email</th>
                     <th>Status</th>
+                    <th>Last call</th>
                     <th>Note</th>
-                    <th></th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((lead) => (
-                    <CcRow key={lead.id} lead={lead} busy={sheetBusy} onMark={mark} onNote={saveNote} onDelete={removeLead} />
+                  {filtered.map((lead, i) => (
+                    <CcRow key={lead.id} n={i + 1} lead={lead} busy={sheetBusy}
+                      onMark={mark} onNote={saveNote} onDelete={removeLead}
+                      onInterested={setEscLead} />
                   ))}
                 </tbody>
               </table>
