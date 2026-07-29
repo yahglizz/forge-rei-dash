@@ -1,0 +1,123 @@
+- generic [active] [ref=f81e1]:
+  - dialog "cookie consent" [ref=f81e2]:
+    - generic [ref=f81e3]: By browsing Etsy you agree to our use of cookies.
+    - button "dismiss cookie message" [ref=f81e5] [cursor=pointer]: x
+  - generic [ref=f81e8]:
+    - link "Skip to content" [ref=f81e9] [cursor=pointer]:
+      - /url: "#content"
+    - generic [ref=f81e10]:
+      - link [ref=f81e13] [cursor=pointer]:
+        - /url: /hc
+        - generic [ref=f81e14]:
+          - img "Etsy" [ref=f81e15]
+          - paragraph [ref=f81e16]: Help Center
+      - search [ref=f81e18]:
+        - generic [ref=f81e19]:
+          - searchbox "Type your question" [ref=f81e20]
+          - button "Search" [ref=f81e21] [cursor=pointer]
+      - link [ref=f81e28] [cursor=pointer]:
+        - /url: https://www.etsy.com/sso-forced/zendesk?return_to=https://help.etsy.com/hc/en-us/search?query=shop%20set-up%20fee
+        - button "Sign in" [ref=f81e29]
+  - main [ref=f81e30]:
+    - generic [ref=f81e31]:
+      - list [ref=f81e35]:
+        - listitem "Help home" [ref=f81e36]:
+          - link "Help home" [ref=f81e37] [cursor=pointer]:
+            - /url: /hc/en-us
+      - generic [ref=f81e41]:
+        - heading "See all 256 articles" [level=1] [ref=f81e42]
+        - list [ref=f81e43]:
+          - listitem [ref=f81e44]:
+            - link [ref=f81e45] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwjo43fHGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJSaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNTY3MjgwOC1Ib3ctdG8tT3Blbi1hbi1FdHN5LVNob3AGOwhUOg5zZWFyY2hfaWRJIik3YzdhYzI4Mi03ZjY0LTQ2ZWItYTBhOS1kNTdhZDE4YzE3OWIGOwhGOglyYW5raQY6C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIhRzaG9wIHNldC11cCBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aQIAAQ%3D%3D--0bf33083d4994f3de53051eb31eca393d06bb511
+              - text: Etsy Help
+              - heading "How to Open an Etsy Shop" [level=2] [ref=f81e46]
+          - listitem [ref=f81e47]:
+            - link [ref=f81e48] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwhzDGTHGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJaaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNDM3MjQ2Ny1Ib3ctdG8tU2V0LVVwLVlvdXItU2hvcC1Qb2xpY2llcwY7CFQ6DnNlYXJjaF9pZEkiKTdjN2FjMjgyLTdmNjQtNDZlYi1hMGE5LWQ1N2FkMThjMTc5YgY7CEY6CXJhbmtpBzoLbG9jYWxlSSIKZW4tdXMGOwhUOgpxdWVyeUkiFHNob3Agc2V0LXVwIGZlZQY7CFQ6EnJlc3VsdHNfY291bnRpAgAB--8e9448b18201f15765a36eb4d3902aafa0e75771
+              - text: Etsy Help
+              - heading "How to Set Up Your Shop Policies" [level=2] [ref=f81e49]
+          - listitem [ref=f81e50]:
+            - link [ref=f81e51] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwiMVWLHGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJpaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNDI2MDEwOC1Ib3ctdG8tU2V0LVVwLVNhbGVzLWFuZC1EaXNjb3VudHMtZm9yLVlvdXItU2hvcAY7CFQ6DnNlYXJjaF9pZEkiKTdjN2FjMjgyLTdmNjQtNDZlYi1hMGE5LWQ1N2FkMThjMTc5YgY7CEY6CXJhbmtpCDoLbG9jYWxlSSIKZW4tdXMGOwhUOgpxdWVyeUkiFHNob3Agc2V0LXVwIGZlZQY7CFQ6EnJlc3VsdHNfY291bnRpAgAB--f4432466590e360f67b8c941ce837f2c897bc52d
+              - text: Etsy Help
+              - heading "How to Set Up Sales and Discounts for Your Shop" [level=2] [ref=f81e52]
+          - listitem [ref=f81e53]:
+            - link [ref=f81e54] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwirvmXHGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJpaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNDQ4MzYyNy1XaGF0LWFyZS10aGUtRmVlcy1hbmQtVGF4ZXMtZm9yLVNlbGxpbmctb24tRXRzeQY7CFQ6DnNlYXJjaF9pZEkiKTdjN2FjMjgyLTdmNjQtNDZlYi1hMGE5LWQ1N2FkMThjMTc5YgY7CEY6CXJhbmtpCToLbG9jYWxlSSIKZW4tdXMGOwhUOgpxdWVyeUkiFHNob3Agc2V0LXVwIGZlZQY7CFQ6EnJlc3VsdHNfY291bnRpAgAB--06b921ce2c390cf080c41c15bb8a3c5cc21b1bac
+              - text: Etsy Help
+              - heading "What are the Fees and Taxes for Selling on Etsy?" [level=2] [ref=f81e55]
+          - listitem [ref=f81e56]:
+            - link [ref=f81e57] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwh5%2BeXTUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJlaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDAzNzM0OTc1My1Ib3ctdG8tU2V0LVVwLVlvdXItU2hvcC1mb3ItSG9saWRheS1TdWNjZXNzBjsIVDoOc2VhcmNoX2lkSSIpN2M3YWMyODItN2Y2NC00NmViLWEwYTktZDU3YWQxOGMxNzliBjsIRjoJcmFua2kKOgtsb2NhbGVJIgplbi11cwY7CFQ6CnF1ZXJ5SSIUc2hvcCBzZXQtdXAgZmVlBjsIVDoScmVzdWx0c19jb3VudGkCAAE%3D--ae54497eff0f5e1d7c53c1547709f2318f9d6965
+              - text: Etsy Help
+              - heading "How to Set Up Your Shop for Holiday Success" [level=2] [ref=f81e58]
+          - listitem [ref=f81e59]:
+            - link [ref=f81e60] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwinOLHRUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJVaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDAwMDMzODA4Ny1XaGF0LXMtdGhlLUxpbmstZm9yLU15LVNob3AGOwhUOg5zZWFyY2hfaWRJIik3YzdhYzI4Mi03ZjY0LTQ2ZWItYTBhOS1kNTdhZDE4YzE3OWIGOwhGOglyYW5raQs6C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIhRzaG9wIHNldC11cCBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aQIAAQ%3D%3D--7e71bf85fe89c2bdace44a127e9bde3bd9c0c3f7
+              - text: Etsy Help
+              - heading "What’s the Link for My Shop?" [level=2] [ref=f81e61]
+          - listitem [ref=f81e62]:
+            - link [ref=f81e63] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwirNLHRUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJWaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDAwMDMzNzA2Ny1QcmljaW5nLWFuZC1GZWVzLWZvci1QYXR0ZXJuBjsIVDoOc2VhcmNoX2lkSSIpN2M3YWMyODItN2Y2NC00NmViLWEwYTktZDU3YWQxOGMxNzliBjsIRjoJcmFua2kMOgtsb2NhbGVJIgplbi11cwY7CFQ6CnF1ZXJ5SSIUc2hvcCBzZXQtdXAgZmVlBjsIVDoScmVzdWx0c19jb3VudGkCAAE%3D--a5310e8d59a6dc4b6a564b487458ec0b458914c7
+              - text: Etsy Help
+              - heading "Pricing and Fees for Pattern" [level=2] [ref=f81e64]
+          - listitem [ref=f81e65]:
+            - link [ref=f81e66] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwgXjV3HGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJbaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxMzk0NjY0Ny1Ib3ctdG8tU2V0LVVwLUNhbGN1bGF0ZWQtU2hpcHBpbmcGOwhUOg5zZWFyY2hfaWRJIik3YzdhYzI4Mi03ZjY0LTQ2ZWItYTBhOS1kNTdhZDE4YzE3OWIGOwhGOglyYW5raQ06C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIhRzaG9wIHNldC11cCBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aQIAAQ%3D%3D--21a8ee5bca8da17a4c8b0a4c280512b2b0ea00cf
+              - text: Etsy Help
+              - heading "How to Set Up Calculated Shipping" [level=2] [ref=f81e67]
+          - listitem [ref=f81e68]:
+            - link [ref=f81e69] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwim48%2FTUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJJaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDAzNTkwMjM3NC1FdHN5LUZlZS1CYXNpY3MGOwhUOg5zZWFyY2hfaWRJIik3YzdhYzI4Mi03ZjY0LTQ2ZWItYTBhOS1kNTdhZDE4YzE3OWIGOwhGOglyYW5raQ46C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIhRzaG9wIHNldC11cCBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aQIAAQ%3D%3D--f22f92364c6d65871e98a836d04a367fc793884a
+              - text: Etsy Help
+              - heading "Etsy Fee Basics" [level=2] [ref=f81e70]
+          - listitem [ref=f81e71]:
+            - link [ref=f81e72] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwgKE1s%2FXQE6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJgaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzE1MDAwMDY1MTk1NjItV2h5LUNhbi10LUktT3Blbi1hLVNob3AtaW4tTXktQ291bnRyeQY7CFQ6DnNlYXJjaF9pZEkiKTdjN2FjMjgyLTdmNjQtNDZlYi1hMGE5LWQ1N2FkMThjMTc5YgY7CEY6CXJhbmtpDzoLbG9jYWxlSSIKZW4tdXMGOwhUOgpxdWVyeUkiFHNob3Agc2V0LXVwIGZlZQY7CFQ6EnJlc3VsdHNfY291bnRpAgAB--e56fbb58b04ab885a71e77dfebde451922ccb0f9
+              - text: Etsy Help
+              - heading "Why Can't I Open a Shop in My Country?" [level=2] [ref=f81e73]
+        - navigation "Pagination" [ref=f81e75]:
+          - list [ref=f81e76]:
+            - listitem [ref=f81e77]:
+              - generic [ref=f81e78]: "1"
+            - listitem [ref=f81e79]:
+              - link "2" [ref=f81e80] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=2&query=shop+set-up+fee#results
+            - listitem [ref=f81e81]:
+              - link "3" [ref=f81e82] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=3&query=shop+set-up+fee#results
+            - listitem [ref=f81e83]:
+              - link "4" [ref=f81e84] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=4&query=shop+set-up+fee#results
+            - listitem [ref=f81e85]:
+              - link "5" [ref=f81e86] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=5&query=shop+set-up+fee#results
+            - listitem [ref=f81e87]:
+              - link "6" [ref=f81e88] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=6&query=shop+set-up+fee#results
+            - listitem [ref=f81e89]:
+              - link "›" [ref=f81e90] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=2&query=shop+set-up+fee#results
+            - listitem [ref=f81e91]:
+              - link "»" [ref=f81e92] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=26&query=shop+set-up+fee#results
+  - contentinfo [ref=f81e94]:
+    - heading "Footer" [level=2] [ref=f81e95]
+    - generic [ref=f81e96]:
+      - generic [ref=f81e97]:
+        - link [ref=f81e98] [cursor=pointer]:
+          - /url: https://www.etsy.com/?ref=hcfooter
+          - img "Etsy" [ref=f81e99]
+        - text: Keep Commerce Human
+      - generic [ref=f81e101]:
+        - generic [ref=f81e103]:
+          - link "© 2026 Etsy, Inc." [ref=f81e105] [cursor=pointer]:
+            - /url: "#"
+          - link "Terms of Use" [ref=f81e107] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/?ref=enhc
+          - link "Privacy" [ref=f81e109] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/privacy/?ref=enhc
+          - link "Interest-based ads" [ref=f81e111] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/policy/cookies-tracking-technologies/44797645975?ref=enhc
+        - button "English (United States)" [ref=f81e116] [cursor=pointer]

@@ -1,0 +1,202 @@
+- generic [active] [ref=f87e1]:
+  - dialog "cookie consent" [ref=f87e2]:
+    - generic [ref=f87e3]: By browsing Etsy you agree to our use of cookies.
+    - button "dismiss cookie message" [ref=f87e5] [cursor=pointer]: x
+  - generic [ref=f87e8]:
+    - link "Skip to content" [ref=f87e9] [cursor=pointer]:
+      - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#content
+    - generic [ref=f87e10]:
+      - link [ref=f87e13] [cursor=pointer]:
+        - /url: https://help.etsy.com/hc?segment=selling
+        - generic [ref=f87e14]:
+          - img "Etsy" [ref=f87e15]
+          - paragraph [ref=f87e16]: Help Center
+      - search [ref=f87e18]:
+        - generic [ref=f87e19]:
+          - searchbox "Type your question" [ref=f87e20]
+          - button "Search" [ref=f87e21] [cursor=pointer]
+      - link [ref=f87e28] [cursor=pointer]:
+        - /url: https://www.etsy.com/sso-forced/zendesk?return_to=https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling
+        - button "Sign in" [ref=f87e29]
+  - main [ref=f87e30]:
+    - tablist [ref=f87e34]:
+      - tab "Shopping on Etsy" [ref=f87e35] [cursor=pointer]
+      - tab "Selling with Etsy" [selected] [ref=f87e36] [cursor=pointer]
+    - generic [ref=f87e37]:
+      - list [ref=f87e41]:
+        - listitem "Help home" [ref=f87e42]:
+          - link "Help home" [ref=f87e43] [cursor=pointer]:
+            - /url: https://help.etsy.com/hc/en-us?segment=selling
+        - listitem "Finances" [ref=f87e44]:
+          - link "Finances" [ref=f87e45] [cursor=pointer]:
+            - /url: https://help.etsy.com/hc/en-us/sections/360003451113-Finances?segment=selling
+        - listitem "Fees & Billing" [ref=f87e46]:
+          - link "Fees & Billing" [ref=f87e47] [cursor=pointer]:
+            - /url: https://help.etsy.com/hc/en-us/sections/360000066248-Fees-Billing?segment=selling
+      - generic [ref=f87e49]:
+        - list [ref=f87e51]:
+          - listitem [ref=f87e52]
+        - generic [ref=f87e54]:
+          - article [ref=f87e55]:
+            - heading "Etsy Fee Basics" [level=1] [ref=f87e57]
+            - generic [ref=f87e59]:
+              - paragraph [ref=f87e60]: When you sell on Etsy, there are a few fees related to listing and selling an item.
+              - paragraph [ref=f87e61]: "The fees most sellers will need to know are:"
+              - list [ref=f87e62]:
+                - listitem [ref=f87e63]:
+                  - link "Listing fees" [ref=f87e64] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#h_7304ad2b-b372-4889-93cf-482bffa6cf1b
+                - listitem [ref=f87e65]:
+                  - link "Transaction fees" [ref=f87e66] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#h_f1fa1f59-0513-4ad8-9c7b-25543be34eff
+                - listitem [ref=f87e67]:
+                  - link "Payment processing fees" [ref=f87e69] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#h_ac38ddad-c7ec-4103-92a4-7709b3a9d73f
+              - paragraph [ref=f87e70]:
+                - generic [ref=f87e71]:
+                  - text: If you use Etsy tools such as
+                  - link "Etsy Ads" [ref=f87e72] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/360033701174?segment=selling
+                  - text: or
+                  - link "Offsite Ads" [ref=f87e73] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/360000338367?segment=selling
+                  - text: ", or if you purchase shipping labels on Etsy, there are additional fees associated with those services."
+                - link "Learn more about fees and taxes for selling on Etsy." [ref=f87e74] [cursor=pointer]:
+                  - /url: https://help.etsy.com/hc/en-us/articles/115014483627-What-are-the-Fees-and-Taxes-for-Selling-on-Etsy-?segment=selling#listing
+              - paragraph [ref=f87e75]:
+                - generic [ref=f87e76]:
+                  - text: To view your
+                  - link "Payment account" [ref=f87e77] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/115015747228?segment=selling
+                  - text: ", which includes fees and taxes you incurred from selling on Etsy:"
+              - list [ref=f87e78]:
+                - listitem [ref=f87e79]:
+                  - text: Sign in and choose
+                  - strong [ref=f87e80]: Shop Manager
+                  - text: on Etsy.com, or choose
+                  - strong [ref=f87e81]: More
+                  - text: on the Etsy Seller app.
+                - listitem [ref=f87e82]:
+                  - text: Select
+                  - strong [ref=f87e83]: Finances.
+                - listitem [ref=f87e84]:
+                  - text: Choose
+                  - link [ref=f87e85] [cursor=pointer]:
+                    - /url: https://www.etsy.com/your/account/payments
+                    - strong [ref=f87e86]: Payment account
+                  - text: .
+              - paragraph [ref=f87e87]:
+                - generic [ref=f87e88]:
+                  - text: If you have an
+                  - link [ref=f87e89] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/115015747228?segment=selling#h_288f3de0-6225-4f9a-bf45-af4364210440
+                    - strong [ref=f87e90]: Amount due
+                  - text: ", you can select"
+                - strong [ref=f87e91]: Pay now
+                - text: ", or use auto-billing if you’re in the US."
+              - heading [level=2] [ref=f87e92]:
+                - strong [ref=f87e93]: Listing Fees
+              - paragraph [ref=f87e94]:
+                - text: When you add a product to your Etsy shop, we call this a
+                - link "listing" [ref=f87e95] [cursor=pointer]:
+                  - /url: https://help.etsy.com/hc/articles/115015628707?segment=selling
+                - text: . Listing fees are the fees you pay to list products for sale on Etsy. You’ll be charged a listing fee for each individual listing you post.
+              - paragraph [ref=f87e96]: The listing fee is a flat rate charge of $0.20 USD per listing. This fee is charged regardless of whether or not the item listed sells. The fee is automatically added to your payment account when you publish an item.
+              - paragraph [ref=f87e97]:
+                - generic [ref=f87e98]:
+                  - text: Other types of listing fees include
+                  - link "auto-renew sold" [ref=f87e99] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#h_4db30fc0-377b-41ac-ac30-74ee90296994
+                  - text: ","
+                  - link "multi-quantity" [ref=f87e100] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#h_a67f1991-1a8a-4e5f-8770-7844b06f7fe1
+                  - text: ", and"
+                  - link "custom listing" [ref=f87e101] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#h_5e7b4dbb-14d8-484f-97f3-9499eaf12950
+                  - text: fees.
+              - heading [level=3] [ref=f87e102]:
+                - strong [ref=f87e103]: Auto-renew sold fees
+              - paragraph [ref=f87e104]: Auto-renewed listings automatically repost a listing if it’s purchased from your shop, saving you the time of manually reposting products. If you setup a listing to auto-renew and it’s purchased, you’ll be charged the standard $0.20 USD listing fee.
+              - heading [level=3] [ref=f87e105]:
+                - strong [ref=f87e106]: Multi-quantity listing fees
+              - paragraph [ref=f87e107]: If you have variations of an item for sale in a single listing and a customer purchases more than one variation, you’ll also be charged the standard $0.20 USD listing fee for each additional item purchased from the listing. The additional charges won’t post until a multi-quantity purchase has been made.
+              - paragraph [ref=f87e108]: For example, if you had more than one item in stock for a particular listing, and a customer purchases two different variations of that item, your payment account would reflect the original $0.20 USD listing fee plus an additional $0.20 USD for the additional item purchased.
+              - paragraph [ref=f87e109]:
+                - generic [ref=f87e110]:
+                  - link "Learn more about multi-quantity listing fees" [ref=f87e111] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/360000344908?segment=selling
+                  - text: .
+              - heading [level=3] [ref=f87e112]:
+                - strong [ref=f87e113]: Custom listing fees
+              - paragraph [ref=f87e114]:
+                - generic [ref=f87e115]:
+                  - link "Custom listings" [ref=f87e116] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/115015663107?segment=selling
+                  - text: are useful when you want to post a particular product for a private sale to a particular buyer. Custom listing fees cost the $0.20 USD standard fee.
+              - heading [level=2] [ref=f87e117]:
+                - strong [ref=f87e118]: Transaction fees
+              - paragraph [ref=f87e119]: Transaction fees are the fees Etsy collects when a customer makes a purchase from your shop. Unlike listing fees, transaction fees are only collected on listings that sell.
+              - paragraph [ref=f87e120]: "Transaction fee basics:"
+              - list [ref=f87e121]:
+                - listitem [ref=f87e122]: Etsy charges 6.5% of the total order amount in your designated listing currency.
+                - listitem [ref=f87e123]: This fee applies to the total cost of the item, along with shipping and gift wrap (if you charge your customers for those). You will see the charges itemized separately on your Payment account.
+                - listitem [ref=f87e124]:
+                  - generic [ref=f87e125]: The transaction fee amount posts automatically to your Payment account.
+              - heading [level=2] [ref=f87e126]:
+                - strong [ref=f87e127]: Payment processing fees
+              - paragraph [ref=f87e128]:
+                - generic [ref=f87e129]:
+                  - link "Payment processing fees" [ref=f87e130] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/115015628847?segment=selling
+                  - text: are a set rate plus a percent of the total sale price of the item. This rate and percent vary by country. The fees are taken from the item’s total sale price, including its shipping fees, and any applicable sales tax.
+              - paragraph [ref=f87e131]: Payment processing fees are charged on each transaction that uses Etsy Payments. These processing fees appear in your payment account and are deducted prior to deposit. They are in addition to Etsy's transaction fees.
+              - paragraph [ref=f87e132]:
+                - link "Learn more about payment processing fees" [ref=f87e133] [cursor=pointer]:
+                  - /url: https://help.etsy.com/hc/articles/115015628847?segment=selling
+                - text: .
+            - generic [ref=f87e134]:
+              - text: Did this resolve the issue?
+              - radiogroup [ref=f87e135]:
+                - radio "✓Yes" [ref=f87e136] [cursor=pointer]
+                - radio "✕No" [ref=f87e137] [cursor=pointer]
+            - generic [ref=f87e138]:
+              - heading "Related articles" [level=3] [ref=f87e139]
+              - list [ref=f87e140]:
+                - listitem [ref=f87e141]:
+                  - link "What are Payment Processing Fees for Selling on Etsy?" [ref=f87e142] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/related/click?data=BAh7CjobZGVzdGluYXRpb25fYXJ0aWNsZV9pZGwrCC84d8caADoYcmVmZXJyZXJfYXJ0aWNsZV9pZGwrCKbjz9NTADoLbG9jYWxlSSIKZW4tdXMGOgZFVDoIdXJsSSJZL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNTYyODg0Ny1XaGF0LWFyZS1QYXltZW50LVByb2Nlc3NpbmctRmVlcy1mb3ItU2VsbGluZy1vbi1FdHN5BjsIVDoJcmFua2kG--1791f92eece8a70134b57be9d2854c4f01fd2236&segment=selling
+                - listitem [ref=f87e143]:
+                  - link "How to Open an Etsy Shop" [ref=f87e144] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/related/click?data=BAh7CjobZGVzdGluYXRpb25fYXJ0aWNsZV9pZGwrCOjjd8caADoYcmVmZXJyZXJfYXJ0aWNsZV9pZGwrCKbjz9NTADoLbG9jYWxlSSIKZW4tdXMGOgZFVDoIdXJsSSI9L2hjL2VuLXVzL2FydGljbGVzLzExNTAxNTY3MjgwOC1Ib3ctdG8tT3Blbi1hbi1FdHN5LVNob3AGOwhUOglyYW5raQc%3D--8f8d7d8b0dcd6868320f78cd4d127dc056493da2&segment=selling
+                - listitem [ref=f87e145]:
+                  - link "Fees and Listing Multiple Quantities" [ref=f87e146] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/related/click?data=BAh7CjobZGVzdGluYXRpb25fYXJ0aWNsZV9pZGwrCExTsdFTADoYcmVmZXJyZXJfYXJ0aWNsZV9pZGwrCKbjz9NTADoLbG9jYWxlSSIKZW4tdXMGOgZFVDoIdXJsSSJJL2hjL2VuLXVzL2FydGljbGVzLzM2MDAwMDM0NDkwOC1GZWVzLWFuZC1MaXN0aW5nLU11bHRpcGxlLVF1YW50aXRpZXMGOwhUOglyYW5raQg%3D--bfb8910ea78b19b7334ac61bf68da89a5023759f&segment=selling
+                - listitem [ref=f87e147]:
+                  - link "What Can I Sell on Etsy?" [ref=f87e148] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/related/click?data=BAh7CjobZGVzdGluYXRpb25fYXJ0aWNsZV9pZGwrCOb9G9NTADoYcmVmZXJyZXJfYXJ0aWNsZV9pZGwrCKbjz9NTADoLbG9jYWxlSSIKZW4tdXMGOgZFVDoIdXJsSSI8L2hjL2VuLXVzL2FydGljbGVzLzM2MDAyNDExMjYxNC1XaGF0LUNhbi1JLVNlbGwtb24tRXRzeQY7CFQ6CXJhbmtpCQ%3D%3D--dff8824dbe720974c08befdc3f25663ae9a6da27&segment=selling
+                - listitem [ref=f87e149]:
+                  - link "What is Etsy's Purchase Protection for Sellers?" [ref=f87e150] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/en-us/related/click?data=BAh7CjobZGVzdGluYXRpb25fYXJ0aWNsZV9pZGwrCJcJexZSBToYcmVmZXJyZXJfYXJ0aWNsZV9pZGwrCKbjz9NTADoLbG9jYWxlSSIKZW4tdXMGOgZFVDoIdXJsSSJUL2hjL2VuLXVzL2FydGljbGVzLzU4NTAxMjI2MTkyODctV2hhdC1pcy1FdHN5LXMtUHVyY2hhc2UtUHJvdGVjdGlvbi1mb3ItU2VsbGVycwY7CFQ6CXJhbmtpCg%3D%3D--3c64056f3f95f5c6537b63276562031c3a8265a2&segment=selling
+          - generic [ref=f87e151]:
+            - heading "Still have questions?" [level=3] [ref=f87e152]
+            - link "Contact support" [ref=f87e153] [cursor=pointer]:
+              - /url: https://www.etsy.com/help/contact?ref=enhc
+  - contentinfo [ref=f87e155]:
+    - heading "Footer" [level=2] [ref=f87e156]
+    - generic [ref=f87e157]:
+      - generic [ref=f87e158]:
+        - link [ref=f87e159] [cursor=pointer]:
+          - /url: https://www.etsy.com/?ref=hcfooter
+          - img "Etsy" [ref=f87e160]
+        - text: Keep Commerce Human
+      - generic [ref=f87e162]:
+        - generic [ref=f87e164]:
+          - link "© 2026 Etsy, Inc." [ref=f87e166] [cursor=pointer]:
+            - /url: https://help.etsy.com/hc/en-us/articles/360035902374-Etsy-Fee-Basics?segment=selling#
+          - link "Terms of Use" [ref=f87e168] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/?ref=enhc
+          - link "Privacy" [ref=f87e170] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/privacy/?ref=enhc
+          - link "Interest-based ads" [ref=f87e172] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/policy/cookies-tracking-technologies/44797645975?ref=enhc
+        - button "English (United States)" [ref=f87e177] [cursor=pointer]
