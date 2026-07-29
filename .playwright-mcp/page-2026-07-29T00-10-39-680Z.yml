@@ -1,0 +1,498 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e4]:
+      - link "Etsy" [ref=e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - navigation [ref=e11]:
+        - button [ref=e13] [cursor=pointer]
+      - search [ref=e22]:
+        - generic [ref=e23]: Search for items or shops
+        - generic [ref=e25]:
+          - combobox "Search for items or shops" [ref=e26]
+          - button "Search" [ref=e27] [cursor=pointer]
+      - link "Skip to Content" [ref=e31] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=e35]:
+        - list [ref=e36]:
+          - listitem [ref=e37]:
+            - button "Sign in" [ref=e38] [cursor=pointer]
+          - listitem [ref=e39]:
+            - link "Cart" [ref=e41] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=e45]:
+      - list [ref=e49]:
+        - listitem [ref=e50]:
+          - link "Gifts" [ref=e51] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=e57]:
+          - link "Teacher Essentials" [ref=e58] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=e59]:
+          - link "Home Favorites" [ref=e60] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=e61]:
+          - link "Fashion Finds" [ref=e62] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=e63]:
+          - link "Vintage" [ref=e64] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=e65]:
+          - link "Wedding Guide" [ref=e66] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=e67]:
+          - link "Gift Cards" [ref=e68] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=e69]:
+    - generic [ref=e70]:
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - heading [level=2] [ref=e76]:
+            - link "Our House Rules" [ref=e77] [cursor=pointer]:
+              - /url: /legal?ref=pageheader
+          - paragraph [ref=e78]: Get to know Etsy's legal terms and policies
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - generic [ref=e82]: Search our policies
+            - textbox "Search our policies" [ref=e83]
+          - button "Search" [ref=e85]
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - navigation "breadcrumb'" [ref=e93]:
+            - generic [ref=e94]:
+              - link "Our House Rules" [ref=e95] [cursor=pointer]:
+                - /url: /legal?ref=breadcrumb
+              - text: /
+              - 'link "House Rules Menu: %s current page" [ref=e96] [cursor=pointer]':
+                - /url: "?ref=breadcrumb"
+                - text: All categories
+          - heading "Fees & Payments Policy" [level=1] [ref=e97]
+        - paragraph [ref=e99]: Sellers may be charged for using some of Etsy’s services. This Fees & Payments Policy explains your fees and taxes and how to pay them.
+        - article [ref=e100]:
+          - paragraph [ref=e101]:
+            - text: This policy is a part of our
+            - link "Terms of Use" [ref=e102] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms
+            - text: . By opening an Etsy shop, you’re agreeing to this policy and our Terms of Use.
+          - list [ref=e103]:
+            - listitem [ref=e104]:
+              - link "Types of Fees" [ref=e105] [cursor=pointer]:
+                - /url: "#fee-types"
+            - listitem [ref=e106]:
+              - link "Off-Platform Transactions" [ref=e107] [cursor=pointer]:
+                - /url: "#opt"
+            - listitem [ref=e108]:
+              - link "Paying Your Etsy Fees" [ref=e109] [cursor=pointer]:
+                - /url: "#fee"
+            - listitem [ref=e110]:
+              - link "Etsy Payments" [ref=e111] [cursor=pointer]:
+                - /url: "#etsy-payments"
+            - listitem [ref=e112]:
+              - link "Taxes" [ref=e113] [cursor=pointer]:
+                - /url: "#taxes"
+            - listitem [ref=e114]:
+              - link "Other Governmental Fees, Charges and Levies" [ref=e115] [cursor=pointer]:
+                - /url: "#other"
+            - listitem [ref=e116]:
+              - link "Marketplace Reporting of Seller Information" [ref=e117] [cursor=pointer]:
+                - /url: "#marketplace-reporting"
+            - listitem [ref=e118]:
+              - link "Etsy Gift Cards, Etsy Credits, and Etsy Coupons" [ref=e119] [cursor=pointer]:
+                - /url: "#gift-cards"
+          - heading "1. Types of Fees" [level=2] [ref=e120]
+          - paragraph [ref=e121]: Sellers may be required to pay the following types of fees. Please note that all fees are listed exclusive of any value-added tax (VAT) or similar taxes that may apply. See the Taxes section below for further details. It's important to note that all service fees, including prepaid fees, are non-refundable.
+          - heading "Set-Up Fee" [level=3] [ref=e122]
+          - paragraph [ref=e123]: To open your Etsy shop, you may be required to pay a one-time set-up fee. Please note that if applicable, the set-up fee will be displayed and charged as part of the shop set-up process. During onboarding and upon your confirmation of this charge, we will initiate a pending transaction on your card. This transaction will be processed after onboarding is complete, your shop is open, and you are able to receive orders on Etsy. By providing your card information and approving the set-up fee, you authorize us to charge your designated payment method. The one-time set-up fee is non-refundable once paid. We reserve the right to adjust or change the set-up fee at our discretion. In certain circumstances or promotional periods, the set-up fee may be waived at our sole discretion. The set-up fee is listed exclusive of any taxes that may apply and depending on the location of your bank account, you may incur additional charges for taxes on this fee at a later time, in accordance with local regulations. Any taxes, where applicable will be reflected in your payment account and deducted from sales. See the Taxes section and the Currency Conversion section below for more details on the set-up fee.
+          - heading "Listing Fees" [level=3] [ref=e124]
+          - paragraph [ref=e125]:
+            - text: You will be charged a listing fee of $0.20 USD for each item that you list for sale on Etsy.com or Etsy's mobile apps. For items already listed on your Etsy shop, there are no additional listing fees to list items on your Pattern site. Listings that you only make available on your Pattern site do not incur a listing fee. You will only be charged a listing fee for creating or renewing a listing on Etsy; there is no fee for editing a listing. You will be charged a listing fee whether or not the listed item sells, unless you create a
+            - link "private listing" [ref=e126] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115015663107
+            - text: ", in which case you will only be charged the listing fee when the private listing is sold. Etsy.com listings expire after four months. Pattern-only listings do not expire. If you list multiple quantities of the same item, the initial listing fee will be $0.20, and the listing will be automatically renewed at $0.20 after each of the items sells. You can read more about fees for multiple listings in"
+            - link "this Help article" [ref=e127] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000344908
+            - text: . Listing fees are reflected in your payment account and deducted at the time the listing is published or renewed.
+          - table [ref=e128]:
+            - rowgroup [ref=e129]:
+              - row [ref=e130]:
+                - cell [ref=e131]:
+                  - strong [ref=e132]: Auto-renew.
+                  - text: Etsy’s automatic renewals feature will automatically renew your listings at the end of the four-month listing period, unless you choose to not use automatic renewals for a particular listing or for your shop. You will be charged the listing fee of $0.20 for each of these listings until you cancel automatic renewals. You can see automatic listing status in your Listings Manager, and may cancel automatic renewals at any time by selecting “Manual” instead of “Automatic” in the “Renewal Options” in the Listings Manager. Once you cancel, you will only be charged for the current listing period.
+          - heading "Transaction Fees" [level=3] [ref=e133]
+          - paragraph [ref=e134]: When you make a sale through Etsy.com, you will be charged a transaction fee of 6.5% of the price you display for each listing plus the amount you charge for shipping and gift wrapping. If you are an Etsy Payments user and you list your items in a currency other than your payment account currency, see the Currency Conversion section below for more details on the transaction fee. If you sell from the US, the transaction fee will not apply to sales tax. If you sell from anywhere other than the US, the transaction fee will apply to the listing price (which should include any applicable taxes that you as a seller are responsible for), shipping price, and gift wrapping fee. If you offer optional personalization for an additional fee, the additional fee for personalization is added to the listing price you display and the total display price is subject to the same transaction fees described in this Section. See the Taxes section below for more information about whether you are required to include applicable taxes in your listing prices. Transaction fees are deducted from your current balance as each sale occurs, and are reflected in your payment account.
+          - heading "Advertising and Promotional Fees" [level=3] [ref=e135]
+          - paragraph [ref=e136]:
+            - text: Etsy offers multiple services to help you advertise your listings and promote your shop, including Etsy Ads and Offsite Ads. If you use Etsy Ads, you select your daily maximum budget, as set forth in more detail below. For Offsite Ads, fees are only charged if Etsy's advertising your listing directly results in a sale, as set forth in more detail below. For more information, please see the
+            - link "Advertising & Marketing Policy" [ref=e137] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/legal/advertising/
+            - text: .
+          - paragraph [ref=e138]:
+            - strong [ref=e139]: Etsy Ads Fees
+          - paragraph [ref=e140]:
+            - text: If you purchase paid advertising on Etsy through the Advertising Dashboard in Shop Manager, you can set a budget to limit the amount you're willing to pay for Etsy Ads to promote your listings or shops on Etsy. Your daily maximum budget can be set at or above a predetermined minimum set by Etsy, and you will not be charged more than your maximum budget on a daily basis. All bids are made in United States dollars (USD). Etsy Ads fees may be charged on a recurring basis and are deducted from your current balance and reflected in your payment account. For more information, please see the
+            - link "Advertising & Marketing Policy" [ref=e141] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/legal/advertising/
+            - text: .
+          - paragraph [ref=e142]:
+            - strong [ref=e143]: Offsite Ads Fees
+          - paragraph [ref=e144]: Etsy purchases offsite advertising from a network of participating partners, such as social networks and search engines. If such advertising includes your listing, a buyer clicks on it, and then places any orders from your shop within 30 days of that click, you will be charged an advertising fee on these orders (which we’ll refer to collectively as “Attributed Orders” and individually as an “Attributed Order”); provided, however, if within that 30 days a buyer’s last click before placing the order from your shop is an Etsy Ad then only the Etsy Ads fee will apply.
+          - paragraph [ref=e145]: "The Offsite Ads fee you are charged for Attributed Orders depends on your shop’s sales over the prior 365 days, as follows:"
+          - list [ref=e146]:
+            - listitem [ref=e147]:
+              - paragraph [ref=e148]: The standard fee you will pay is 15% on Attributed Orders, unless the 12% fee applies as described below.
+            - listitem [ref=e149]:
+              - paragraph [ref=e150]: If your shop has made less than $10,000 USD in sales over the prior 365 days (going back to February 20, 2019 and later), as calculated on the first day of the month, you will pay a fee of 15% (as described in the section below) on Attributed Orders, unless you opt out of participation in Offsite Ads for the duration your shop is under the $10,000 USD threshold. The 15% fee and opt-out apply until or unless you at any time meet the $10,000 USD threshold.
+            - listitem [ref=e151]:
+              - paragraph [ref=e152]: If at any time your shop has made sales of $10,000 USD or more over the prior 365 days (going back to February 20, 2019 and later), as calculated on the first day of the month, you will subsequently pay a fee of 12% (as described in the section below) on Attributed Orders, as of the beginning of the program if you immediately qualify, and otherwise on the first day of the month following qualification. If you subsequently fall below the $10,000 USD threshold at a later date, you will still only be charged a 12% advertising fee for the lifetime of your shop. If you opted out of participation in Offsite Ads prior to meeting the $10,000 USD threshold, you will be required to participate and will be charged a 12% advertising fee on Attributed Orders for the lifetime of your shop upon reaching the $10,000 USD threshold. The prior opt out while under the $10,000 USD threshold will no longer apply (even if you subsequently fall below the $10,000 USD threshold at a later date) to the extent permitted by law.
+            - listitem [ref=e153]: Beginning a month after initial calculations when the program starts, Etsy will perform subsequent calculations on the first day of each calendar month and will give you notice if you have crossed the $10,000 USD threshold.
+          - paragraph [ref=e154]:
+            - text: For the purpose of calculating this $10,000 USD threshold, sales are calculated by multiplying item price by quantity (minus any discounts or formally cancelled orders), but excluding Pattern orders, In Person Payment orders, Etsy fees, or separately charged shipping, taxes, or gift wrap. For sellers with shop currencies other than USD, the $10,000 USD threshold is calculated with the currency exchange rates used by Etsy at the time that the relevant sales were processed. Exchange rates used are variable and are provided by a third party financial services company. For information on how the $10,000 USD threshold is calculated, please see the next section and the
+            - link "Advertising & Marketing Policy" [ref=e155] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/legal/advertising/
+            - text: .
+          - paragraph [ref=e156]:
+            - strong [ref=e157]: "How Offsite Ads fees are calculated:"
+          - paragraph [ref=e158]: Offsite Ads fees apply to Attributed Orders and are charged as a percentage of the total order amount, which comprises the price you display for each listing plus the amount you charge for shipping and gift wrapping and in some jurisdictions, taxes, as set forth below. The applicable percentage charge, either 12% or 15%, is determined as described above.
+          - paragraph [ref=e159]: If you are an Etsy Payments user and you list your items in a currency other than your payment account currency, see the Currency Conversion section below for more details on Offsite Ads fees. If you sell from the US, Offsite Ads fees will not apply to sales tax. If you sell from anywhere other than the US, Offsite Ads fees will apply to any applicable taxes that are included in your listing prices. If you offer optional personalization for an additional fee, the additional fee for personalization is added to the listing price you display and the total display price is subject to the same Offsite Ads fees described in this Section. There is no limit to the number of Offsite Ads fees you may be charged on Attributed Orders, but the total Offsite Ads fee you’ll pay on a single Attributed Order will not exceed $100 USD. Offsite Ads Fees are deducted from your current balance and are reflected in your payment account.
+          - heading "Subscription Fees" [level=3] [ref=e160]
+          - paragraph [ref=e161]: Etsy sellers in good standing may opt-in to Etsy Plus, a subscription package offering an expanded set of tools for growing brands. The fee for an Etsy Plus subscription is $10 USD per month. Etsy Plus subscription fees are deducted from your current balance each month and reflected in your payment account. Where applicable, Etsy may charge local taxes (e.g. sales taxes or VAT/GST) on your monthly subscription fee.
+          - table [ref=e162]:
+            - rowgroup [ref=e163]:
+              - row [ref=e164]:
+                - cell [ref=e165]:
+                  - strong [ref=e166]: Auto-renew.
+                  - text: Subscription fees will be added to your payment account on the same day every month in your domestic currency. For example, if you sign up on March 5, your subscriptions fees will be added on April 5, May 5, and so on. When you sign up at the end of the month, your subscription fees will be charged to your payment account on the last day of the month. For example, if you sign up on May 31, your subscription fees will be added on June 30 because that is the last day of the month. You can cancel your Etsy Plus subscription anytime by visiting the Your Subscription section of your Shop Manager’s Settings. You will have access to your Etsy Plus subscription until the end of that subscription cycle, and your final day of access will be identified in the Your Subscription dashboard. After your Etsy Plus subscription has ended, your shop will return to Etsy Standard, and you will no longer have a subscription fee added to your payment account. To learn more about Etsy subscriptions,
+                  - link "click here" [ref=e167] [cursor=pointer]:
+                    - /url: https://help.etsy.com/hc/articles/360001597587
+                  - text: .
+          - paragraph [ref=e168]: "While you are subscribed to Etsy Plus, you are provided with the following credits each subscription cycle:"
+          - list [ref=e169]:
+            - listitem [ref=e170]:
+              - paragraph [ref=e171]: 15 listing credits, which are visible as $3 in listings credit in your payment account
+            - listitem [ref=e172]: $5 USD in Etsy Ads credits, which are visible in your payment account and on your advertising management page
+          - paragraph [ref=e173]: You must use the credits during the subscription cycle, otherwise they expire. Credits will not roll over month to month. They will be reset and replenished at the beginning of each subscription cycle.
+          - heading "In-Person Selling Fees" [level=3] [ref=e174]
+          - paragraph [ref=e175]:
+            - text: You can use the
+            - link "Square reader" [ref=e176] [cursor=pointer]:
+              - /url: https://squareup.com/reader
+            - text: to process payments for in-person sales. You have the option to sync your Etsy listings with Square. If you choose to sync your listings with Square, listings with multiple quantities will be charged the same $0.20 renewal fee as listings with multiple quantities on Etsy. Non-synced listings will be charged a $0.20 transaction fee, which will appear on your payment account as a “Square manual” fee. In-person selling fees are deducted from your current balance and reflected in your payment account. For more information about in-person selling fees, please see
+            - link "this Help article" [ref=e177] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115014483627-What-are-the-Fees-and-Taxes-for-Selling-on-Etsy-?segment=selling
+            - text: .
+          - paragraph [ref=e178]:
+            - text: In-person sales processed with the Square reader will not be subject to Etsy’s 6.5% transaction fee or any Etsy payment processing fees, but will be subject to
+            - link "Square’s Payment Processing Fees" [ref=e179] [cursor=pointer]:
+              - /url: https://squareup.com/help/us/en/article/5068-what-are-square-s-fees
+            - text: .
+          - heading "Payment Processing Fees" [level=3] [ref=e180]
+          - paragraph [ref=e181]:
+            - strong [ref=e182]: Online Sales
+            - text: . Eligible Etsy shops may use Etsy Payments to accept certain payments through Etsy (
+            - link "learn more about Etsy Payments below" [ref=e183] [cursor=pointer]:
+              - /url: "#etsy-payments"
+            - text: ). Payment processing fees are charged for each transaction made through Etsy Payments. Payment processing fees vary based on the location of your bank account. In certain markets, a fixed deposit fee may be charged for the disbursement of seller funds that are under certain designated thresholds. See the
+            - link "Etsy Payments Policy" [ref=e184] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/etsy-payments
+            - text: to find payment processing fees and where applicable, deposit fees, by country. The payment processing fee is assessed on the total amount of the sale, including tax and shipping. Payment processing fees are deducted from the sale amount in your payment account. Deposit fees are deducted from your Available Funds and reflected in your payment account at the time of your scheduled deposit.
+          - heading "Instant Transfer Fees" [level=3] [ref=e185]
+          - paragraph [ref=e186]:
+            - text: Eligible U.S sellers may use instant transfer to make transfers from their Etsy Payment account directly to their bank account. Please note that if applicable, an instant transfer fee will be charged and displayed as part of the transfer process. Instant transfer is available 24/7, including on weekends and public holidays, and funds typically settle within 30 minutes. You can learn more about instant transfer in
+            - link "this Help Article" [ref=e187] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360046998234/01K7J6AHJNC3NR8WEA7QMXT87H?segment=selling#h_01K7J6828G5CNVVYAZ2G7BQHHP
+            - text: .
+          - heading "Shipping Fees" [level=3] [ref=e188]
+          - paragraph [ref=e189]: Etsy offers sellers in certain locations the ability to purchase shipping labels to fulfill their orders. The cost of the shipping label will depend on the shipping carrier, and the origin, destination, weight, and dimensions of the package. If you add signature confirmation or insurance, those fees will be added to the total cost of the label at the point of purchase. Sellers who purchase shipping labels may also purchase parcel insurance through licensed insurance carriers. U.S. Sellers who purchase USPS shipping return labels will be charged after delivery of the returned package. You must accept Etsy Payments or PayPal as payment methods to purchase shipping labels through Etsy. Shipping fees and any adjustments are reflected in your payment account and deducted from your current balance.
+          - paragraph [ref=e190]:
+            - text: For more information, please see the
+            - link "Shipping Policy" [ref=e191] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/shipping
+            - text: .
+          - heading "Regulatory Operating Fees" [level=3] [ref=e192]
+          - paragraph [ref=e193]:
+            - text: Sellers in certain countries will be charged a Regulatory Operating fee on each transaction. A Regulatory Operating fee is a fixed percentage of the price you display for each listing plus the amount you charge for shipping (including gift wrapping and personalization, if applicable) and is charged, where applicable, in addition to other fees described in this Policy. Regulatory Operating fees may vary per country and are charged as a result of the increased cost of operating in the relevant country, for example, as a result of additional costs of compliance with applicable regulation(s). You can find the countries in which Regulatory Operating fees apply as well as the specific percentage fees for each country in
+            - link "this help article" [ref=e194] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/1500011073202?segment=selling
+            - text: .
+          - heading "Pattern Fees" [level=3] [ref=e195]
+          - paragraph [ref=e196]: You can try our Pattern tool to create a personalized website for free for 30 days. After the 30-day free trial, you’ll be charged a monthly subscription fee of $15.00 USD. Where applicable, Etsy may charge local taxes (e.g., sales taxes or VAT/GST) on your monthly subscription fee. Your first month’s fee will be pro-rated, and you will be charged the full subscription fee for each subsequent month you use Pattern. If you purchase a domain name through our partner Tucows, Inc., you will also be charged a fee to register the domain name and for any related services you purchase from Tucows.
+          - table [ref=e197]:
+            - rowgroup [ref=e198]:
+              - row [ref=e199]:
+                - cell [ref=e200]:
+                  - strong [ref=e201]: Auto-renew.
+                  - text: Your subscription fee will automatically renew on the first of the month at 12:01am Eastern Time. You can turn your subscription off at any time by clicking "cancel Pattern" from the Pattern settings on your dashboard or from your payment account. If you switch off the service after your subscription renews on the first of the month, you'll still be responsible for paying the full subscription fee for that month.
+          - paragraph [ref=e202]:
+            - text: All Pattern fees are reflected in your payment account and deducted from your current balance. For more information, please see the
+            - link "Pattern Policy" [ref=e203] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/pattern
+            - text: .
+          - heading "Currency Conversion" [level=3] [ref=e204]
+          - paragraph [ref=e205]: With the exception of the set-up fee, transaction fee, Offsite Ads fees, the Payment Processing fee, Regulatory Operating fees, and deposit fees, Etsy converts fees from USD to your payment account currency at the market rate at the time the fee is reflected in your payment account. All fees appear in your payment account in your domestic currency. However, Etsy Payments users located in Bulgaria, Croatia, Czech Republic, Hungary, Poland, and Romania will have all fees deducted from their payment account in their designated payment account currency, the Euro.
+          - paragraph [ref=e206]: "Transaction fees, Offsite Ads fees, Regulatory Operating fees: If you list your items in a currency other than that of your payment account, the transaction fee and, where applicable, the Offsite Ads fee and Regulatory Operating fee will be converted to your payment account currency at the market rate and reflected in your payment account. Set-up fee: The set-up fee is charged to your card in the local currency of your bank and converted at the market rate at that time. If you onboard using Payoneer, the fee will be charged in USD."
+          - paragraph [ref=e207]:
+            - text: To avoid incurring foreign exchange charges on your sales, Etsy recommends you list your items in the same currency as your payment account currency. Buyers see the items in the currency of their choosing. As an Etsy Payments user, if you decide to list in a currency other than that of your payment account, you will be charged a 2.5% currency conversion fee on the sale amount to send funds to your payment account. Learn more about currency conversion
+            - link "here" [ref=e208] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000344668?segment=selling
+            - text: . Currency conversion is handled automatically by our payment processing service and further described in our
+            - link "Etsy Payments Policy" [ref=e209] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/etsy-payments
+            - text: .
+          - heading [level=2] [ref=e210]:
+            - text: "2."
+            - link "Off-Platform Transactions" [ref=e211] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/off-platform-transactions/1254654515806
+          - paragraph [ref=e212]: Buy and sell items safely and securely on Etsy. Off-platform transactions are not protected by Etsy’s secure payment platform or policies, and offers to buy or sell outside Etsy are a potential fraud risk for buyers and sellers. Therefore, any action to move a transaction off the Etsy platform is strictly prohibited by Etsy. This includes, for example, encouraging buyers to purchase an item in your Etsy shop through another venue or directing buyers to another venue via a QR code. A transaction initiated on Etsy may not be completed off of Etsy. The price stated in each listing description must be an accurate representation of the sale. Sellers may not alter the item's price after a sale for the purpose of avoiding Etsy transaction fees, misrepresent the item’s location, or use another user's account without permission.
+          - heading "3. Paying your Etsy Fees" [level=2] [ref=e213]
+          - paragraph [ref=e214]:
+            - text: Etsy will automatically deduct all fees owed from your payment account, with the exception of the set-up fee which is charged to your card when you complete onboarding.. Provided you have sufficient funds in your payment account no further payment action is required. If your payment account does not contain sufficient funds you are responsible for paying any fees owed in full within 15 days of the date of your monthly statement, or the account will be considered past due, and Etsy may charge your card on file or take other actions to collect funds as laid out in the Recoupment section of
+            - link "Etsy's Payments Policy" [ref=e215] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/etsy-payments/#recoupment
+            - text: . If you make a sale while you have an outstanding balance the net sale amount will be applied to your outstanding balance. You may pay your outstanding balance manually by credit card, debit card, or PayPal. US sellers may also enroll in AutoBilling, Etsy's automatic outstanding fee payment option.
+          - paragraph [ref=e216]:
+            - text: Your statement is available in your payment account at the beginning of each month, and will detail all sales and fees activity from the preceding month. You can learn more about paying your outstanding balance in
+            - link "this Help article" [ref=e217] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115015747228
+            - text: .
+          - paragraph [ref=e218]: Etsy may suspend your selling privileges at any time pending payment of your outstanding balance.
+          - heading "AutoBilling" [level=3] [ref=e219]
+          - paragraph [ref=e220]: By enrolling in Etsy’s automatic payment plan ("AutoBilling"), any outstanding fees not covered by the funds in your payment account will be charged to the credit card you have on file on the first of the month or when your current balance is greater than or equal to your fee threshold. To use the plan, you agree to the following terms.
+          - paragraph [ref=e221]: A. You authorize Etsy to keep your payment card information on file and to charge the card on file on the first day of each calendar month for the previous month’s outstanding charges and at any time the balance of fees reaches the designated fee threshold for your account. Upon enrollment, Etsy will charge your current balance to the card on file.
+          - paragraph [ref=e222]: B. When your card account is debited, Etsy will send you an email with the amount charged. You can also review this information by accessing your account on Etsy.
+          - paragraph [ref=e223]: C. If your card account on file with us is closed, the account number is changed, or a charge is rejected by your card issuer, you must update your card information or add a new card number in your Etsy account. If your charge is refused by the issuer for any reason, your Etsy account may be suspended or terminated, and you are still required to pay your outstanding balance by some other means. Your authorization applies to any successor or replacement card you or your card issuer provides.
+          - paragraph [ref=e224]: D. You may cancel AutoBilling and change to manual payment by updating your payment settings in your Etsy account. Etsy requires a reasonable period of time to act after we receive your notice. This means that an additional automatic payment may be made to your card account while we are processing your request.
+          - paragraph [ref=e225]: E. Suspended or terminated members remain obligated to pay Etsy for all unpaid fees.
+          - paragraph [ref=e226]:
+            - text: For more information on AutoBilling, please see
+            - link "this Help article" [ref=e227] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000343248
+            - text: .
+          - heading "4. Etsy Payments" [level=2] [ref=e228]
+          - paragraph [ref=e229]:
+            - text: Etsy Payments enables sellers to accept various forms of payment in their local currencies while using Etsy’s services. Sellers registered for Etsy Payments accept payment from buyers by major credit or debit cards accepted by Etsy, Etsy Gift Cards, Etsy Credits and Etsy Coupons (subject to applicable limitations, see
+            - link "Etsy Gift Cards, Credits & Coupons Policy" [ref=e230] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/legal/gift-cards/
+            - text: ), by certain bank transfer services, through PayPal (where available), Apple Pay, Google Pay, and through Klarna (where available).
+          - paragraph [ref=e231]:
+            - text: You can register for Etsy Payments by clicking
+            - link "here" [ref=e232] [cursor=pointer]:
+              - /url: https://www.etsy.com/payments
+            - text: . Sellers using Etsy Payments are also subject to the
+            - link "Etsy Payments Policy" [ref=e233] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/etsy-payments
+            - text: .
+          - heading "5. Taxes" [level=2] [ref=e234]
+          - paragraph [ref=e235]: Aside from the limited circumstances set out below, you are responsible for collecting and paying any taxes associated with using and making sales through Etsy’s services, including any fines, penalties and/or interest assessed directly or indirectly on such taxes (even if retroactive).
+          - paragraph [ref=e236]: For purposes of these Terms, please note that while some countries may refer to VAT using other terms, e.g., Goods and Services Tax ("GST") or Harmonized Sales Tax ("HST"), we'll just refer to VAT, GST, HST and any local sales taxes collectively as "VAT" unless the context requires otherwise.
+          - heading "A. Listing your items on Etsy" [level=3] [ref=e237]
+          - paragraph [ref=e238]:
+            - text: To comply with applicable US tax laws, Etsy will calculate, collect and remit sales tax on your behalf for orders shipped to customers residing in US locations. Click
+            - link "here" [ref=e239] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-gb/articles/360000343968?segment=selling
+            - text: to learn more about where Etsy collects sales tax on your behalf from US buyers.
+          - paragraph [ref=e240]:
+            - text: If you sell on Etsy and reside in Canada, you need to include applicable taxes in your listing prices, except in cases where local tax legislation requires Etsy to collect the taxes on your behalf. As different jurisdictions in Canada at both a federal and provincial level apply different collection requirements for online marketplaces (e.g., GST/HST and provincial sales taxes) in Canada), Etsy may apply taxes to sales on a tax-excluded basis using the appropriate factors so that the taxes you include in your prices are not taxed again. For an example of how this works in Canada, please see
+            - link "this Help article" [ref=e241] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-us/articles/6633345416215-What-Does-Etsy-Remit-to-Canadian-Tax-Authorities-?segment=selling
+            - text: .
+          - paragraph [ref=e242]: If you sell on Etsy and reside outside of the US or Canada, you may need to include applicable taxes in your listing prices.
+          - paragraph [ref=e243]:
+            - text: You can learn more about how taxes are displayed and communicated to buyers in different jurisdictions in this
+            - link "Help article" [ref=e244] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/seller-handbook/article/changes-to-how-included-tax-is/43920518590
+            - text: .
+          - paragraph [ref=e245]: Where Etsy is required to collect sales tax/VAT on your behalf, Etsy will use the category you assigned to each listing to calculate, collect, and remit the applicable taxes. You are solely responsible for ensuring that all of your listings are properly categorized, and you agree to indemnify Etsy for any losses it incurs in connection with any miscategorization of your listings by you.
+          - paragraph [ref=e246]: Please remember that Etsy's fees do not include any withholding taxes that might apply in your home country. You are required to pay Etsy the full amount of our fees and may not deduct any applicable withholding taxes from that amount.
+          - paragraph [ref=e247]: In certain jurisdictions, where required to comply with applicable laws, Etsy may withhold taxes from payments made to you or on your sales made through Etsy.com.
+          - paragraph [ref=e248]:
+            - text: Etsy will automatically refund withheld tax on orders that are canceled or refunded within the same calendar month as the original transaction, provided such cancellation or refund does not violate this policy, Etsy's
+            - link "Terms of Use" [ref=e249] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms-of-use
+            - text: ", or the"
+            - link "Etsy Payments Policy" [ref=e250] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/etsy-payments/
+            - text: . To the extent a transaction is refunded or canceled in a different calendar month than the original transaction, you will need to contact
+            - link "Etsy Support" [ref=e251] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-us/articles/115013375488-How-to-Contact-Etsy-Support?segment=shopping
+            - text: to determine if such transaction is eligible for a refund of the applicable withholding tax or if you will need to contact the local taxing authority for refund.
+          - heading "B. Taxes on Seller Services" [level=3] [ref=e252]
+          - heading "US Sales Tax on Etsy Fees" [level=4] [ref=e253]
+          - paragraph [ref=e254]:
+            - text: Where applicable, sales tax will be applied to certain fees charged by Etsy. To learn more about how sales tax works, see
+            - link "this help article" [ref=e255] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/35267490737431
+            - text: . Etsy reserves the right to charge sales tax based on the tax information provided by you, and may adjust these tax rates if your tax information is incorrect or invalid. You are solely responsible for keeping your location information accurate and current. If your location changes, please update your location information on Etsy as soon as possible.
+          - heading "VAT on Seller Fees" [level=4] [ref=e256]
+          - paragraph [ref=e257]:
+            - text: Depending on your business status and location, Etsy may be required to apply VAT on seller fees charged each month and remit it to the relevant tax authority. VAT is collected on all Etsy fees for sellers located in countries where VAT should be applied. Note that fees listed in this policy are exclusive of VAT. To learn more about how VAT works on Etsy, see
+            - link "this Help article" [ref=e258] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-gb/articles/360040584433?segment=selling
+            - text: .
+          - heading "C. Taxes We Collect and Remit from Buyers" [level=3] [ref=e259]
+          - heading "United States Sales Tax" [level=4] [ref=e260]
+          - paragraph [ref=e261]: In most US states, as applicable, Etsy will collect the sales tax amount from the buyer and pay this to the relevant tax authority. If the sale was made through Etsy Payments, the sales tax amount will appear in your payment account and is deducted from your current balance.
+          - paragraph [ref=e262]:
+            - text: For items shipped to certain states, including but not limited to Washington state (or, for digital items, those purchased with a Washington state billing address), Etsy will use the category you assigned to each listing to calculate, collect, and remit the applicable sales tax based on the buyer's location in the US. For a full list of these states, please
+            - link "see here" [ref=e263] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000343968
+            - text: .
+          - paragraph [ref=e264]:
+            - strong [ref=e265]: Taxes Collected and Remitted from buyers outside the US
+          - paragraph [ref=e266]:
+            - text: "Collection of VAT on Physical Goods: Read about Other Taxes we Collect and Remit from buyers in Canada"
+            - link "here" [ref=e267] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-us/articles/6633345416215-What-Does-Etsy-Remit-to-Canadian-Tax-Authorities-?segment=selling
+            - text: and for other countries outside the US and Canada
+            - link "here" [ref=e268] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-us/articles/360000337247?segment=selling#uk
+            - text: .
+          - heading "Digital VAT Fees" [level=4] [ref=e269]
+          - paragraph [ref=e270]:
+            - text: Under local laws in certain countries, Etsy is required to collect and remit VAT to the relevant tax authorities when you sell a digital item delivered via automatic download to the buyer. See
+            - link "this Help article" [ref=e271] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-us/articles/115015587567
+            - text: for further details. Etsy will automatically display the increased amount charged to the buyer of the digital item to collect the correct amount of VAT, and we will remit it to the tax authorities. If the sales were made through Etsy Payments, Etsy will collect the VAT amount from the buyer and pay the VAT to the relevant tax authority, and you will not have to take any further action. If the sale was not made through Etsy Payments, you will receive the additional amount paid by the buyer for the VAT, and you will need to pay this amount to Etsy. The VAT amount paid by the buyer will appear on your payment account and will be deducted from your current balance.
+          - heading "6. Other Governmental Fees, Charges and Levies" [level=2] [ref=e272]
+          - paragraph [ref=e273]: Certain jurisdictions may require Etsy to collect other fees, charges or levies (e.g., environmental fees) from buyers and to remit those amounts to the relevant governmental authorities. Where Etsy is required by law to collect such amounts, they will be charged to buyers at checkout.
+          - heading "7. Marketplace Reporting of Seller Information" [level=2] [ref=e274]
+          - paragraph [ref=e275]: Where legally required, Etsy will report your personal details and details of your transactions to relevant governmental authorities.
+          - paragraph [ref=e276]:
+            - text: For US sellers, Etsy will issue 1099-K forms to certain sellers to comply with IRS and applicable state requirements. You may opt in at any time to receive your 1099-K form electronically. You can learn more in this
+            - link "Help article" [ref=e277] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-us/articles/360000336447
+            - text: .
+          - paragraph [ref=e278]: Etsy will not disclose any personal information to any third parties unless legally required to do so.
+          - heading "8. Etsy Gift Cards, Etsy Credits & Etsy Coupons" [level=2] [ref=e279]
+          - paragraph [ref=e280]:
+            - text: If you are registered to use Etsy Payments, you may accept payment by Etsy Gift Cards, Etsy Credits, and Etsy Coupons. Etsy Gift Cards, Etsy Credits, and Etsy Coupons are subject to the
+            - link "Etsy Gift Cards, Credits & Coupons Policy" [ref=e281] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/gift-cards
+            - text: . Etsy also charges the Etsy Payments payment processing fee described above on Etsy Gift Card, Etsy Credit, and Etsy Coupon transactions.
+          - paragraph [ref=e282]: Last updated on Feb 13, 2026
+  - contentinfo [ref=e284]:
+    - generic [ref=e286]:
+      - heading "We're on a mission to keep commerce human." [level=2] [ref=e289]
+      - navigation "Footer" [ref=e291]:
+        - generic [ref=e292]:
+          - generic [ref=e293]:
+            - heading "Shop" [level=3] [ref=e294]
+            - list [ref=e296]:
+              - listitem [ref=e297]:
+                - link "Gift cards" [ref=e299] [cursor=pointer]:
+                  - /url: https://www.etsy.com/giftcards?ref=ftr
+              - listitem [ref=e300]:
+                - link "Etsy Registry" [ref=e302] [cursor=pointer]:
+                  - /url: https://www.etsy.com/registry?ref=ftr
+              - listitem [ref=e303]:
+                - link "Sitemap" [ref=e305] [cursor=pointer]:
+                  - /url: https://www.etsy.com/categories
+              - listitem [ref=e306]:
+                - link "Etsy blog" [ref=e308] [cursor=pointer]:
+                  - /url: /blog/en/?ref=ftr
+              - listitem [ref=e309]:
+                - link "Etsy United Kingdom" [ref=e311] [cursor=pointer]:
+                  - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+              - listitem [ref=e312]:
+                - link "Etsy Germany" [ref=e314] [cursor=pointer]:
+                  - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+              - listitem [ref=e315]:
+                - link "Etsy Canada" [ref=e317] [cursor=pointer]:
+                  - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+          - generic [ref=e318]:
+            - heading "Sell" [level=3] [ref=e319]
+            - list [ref=e321]:
+              - listitem [ref=e322]:
+                - link "Sell on Etsy" [ref=e324] [cursor=pointer]:
+                  - /url: https://www.etsy.com/sell?ref=ftr
+              - listitem [ref=e325]:
+                - link "Teams" [ref=e327] [cursor=pointer]:
+                  - /url: https://community.etsy.com/pages/etsy-teams/
+              - listitem [ref=e328]:
+                - link "Forums" [ref=e330] [cursor=pointer]:
+                  - /url: https://community.etsy.com/feed/
+              - listitem [ref=e331]:
+                - link "Affiliates & Creators" [ref=e333] [cursor=pointer]:
+                  - /url: https://www.etsy.com/affiliates?ref=ftr
+          - generic [ref=e334]:
+            - heading "About" [level=3] [ref=e335]
+            - list [ref=e337]:
+              - listitem [ref=e338]:
+                - link "Etsy, Inc." [ref=e340] [cursor=pointer]:
+                  - /url: https://www.etsy.com/about?ref=ftr
+              - listitem [ref=e341]:
+                - link "Policies" [ref=e343] [cursor=pointer]:
+                  - /url: https://www.etsy.com/legal?ref=ftr
+              - listitem [ref=e344]:
+                - link "Investors" [ref=e346] [cursor=pointer]:
+                  - /url: https://investors.etsy.com
+              - listitem [ref=e347]:
+                - link "Careers" [ref=e349] [cursor=pointer]:
+                  - /url: https://www.etsy.com/careers?ref=ftr
+              - listitem [ref=e350]:
+                - link "Press" [ref=e352] [cursor=pointer]:
+                  - /url: https://www.etsy.com/press?ref=ftr
+              - listitem [ref=e353]:
+                - link "Impact" [ref=e355] [cursor=pointer]:
+                  - /url: https://www.etsy.com/impact?ref=ftr
+          - generic [ref=e356]:
+            - heading "Help" [level=3] [ref=e357]
+            - list [ref=e359]:
+              - listitem [ref=e360]:
+                - link "Help Center" [ref=e362] [cursor=pointer]:
+                  - /url: https://www.etsy.com/help?ref=ftr
+              - listitem [ref=e363]:
+                - link "Privacy settings" [ref=e365] [cursor=pointer]:
+                  - /url: "#"
+      - list "Download the Etsy App" [ref=e369]:
+        - listitem [ref=e370]:
+          - link "App Store" [ref=e371] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+        - listitem [ref=e372]:
+          - link "Google Play" [ref=e373] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+      - img "Illustration of two people looking at a framed abstract artwork" [ref=e376]
+    - generic [ref=e379]:
+      - generic [ref=e381]:
+        - link "Update your settings United States English (US) $ (USD)" [ref=e382] [cursor=pointer]:
+          - /url: https://www.etsy.com/your/account/locale_preferences?from_page=https%3A%2F%2Fwww.etsy.com%2Flegal%2Ffees%2F
+          - generic [ref=e398]: United States
+        - generic [ref=e400]:
+          - link [ref=e401] [cursor=pointer]:
+            - /url: /social-tracking?network=instagram
+          - link [ref=e406] [cursor=pointer]:
+            - /url: /social-tracking?network=facebook
+          - link [ref=e410] [cursor=pointer]:
+            - /url: /social-tracking?network=pinterest
+          - link [ref=e414] [cursor=pointer]:
+            - /url: /social-tracking?network=youtube
+      - generic [ref=e419]:
+        - generic [ref=e420]: © 2026 Etsy, Inc.
+        - generic [ref=e421]:
+          - generic [ref=e422]:
+            - link "Terms of Use" [ref=e424] [cursor=pointer]:
+              - /url: /legal/terms-of-use?ref=ftr
+            - link "Privacy" [ref=e426] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=ftr
+          - generic [ref=e427]:
+            - link "Interest-based ads" [ref=e429] [cursor=pointer]:
+              - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+            - link "Local Shops" [ref=e431] [cursor=pointer]:
+              - /url: /search/shops
+            - button "Regions" [ref=e433] [cursor=pointer]
+    - generic [ref=e439]:
+      - paragraph [ref=e440]: How Etsy uses cookies
+      - paragraph [ref=e441]:
+        - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+        - link "Privacy Policy" [ref=e442] [cursor=pointer]:
+          - /url: /legal/privacy/
+        - text: ","
+        - link "Cookies Policy" [ref=e443] [cursor=pointer]:
+          - /url: /legal/cookies/
+        - text: ", and"
+        - link "Terms of Use" [ref=e444] [cursor=pointer]:
+          - /url: /legal/terms-of-use/
+        - text: . Manage your preferences
+        - link "here" [ref=e445] [cursor=pointer]:
+          - /url: "#"
+        - text: .
+      - button "Ok" [ref=e447] [cursor=pointer]: Okay
+      - paragraph
