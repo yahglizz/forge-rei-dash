@@ -3019,6 +3019,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/callsheet/import-pdf",
                                    "/api/agency/callsheet/import-text",
                                    "/api/agency/callsheet/status",
+                                   "/api/agency/callsheet/escalate",
                                    "/api/agency/callsheet/note",
                                    "/api/agency/callsheet/delete",
                                    "/api/agency/callsheet/clear-dead",
@@ -3316,6 +3317,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = agency_callsheet.import_text(body.get("text") or "")
             elif parsed.path == "/api/agency/callsheet/status":
                 result = agency_callsheet.set_status(body.get("id"), body.get("status"))
+            elif parsed.path == "/api/agency/callsheet/escalate":
+                result = agency_callsheet.escalate(body.get("id"), body.get("info") or {})
             elif parsed.path == "/api/agency/callsheet/note":
                 result = agency_callsheet.set_note(body.get("id"), body.get("note"))
             elif parsed.path == "/api/agency/callsheet/delete":

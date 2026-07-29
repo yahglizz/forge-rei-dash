@@ -399,6 +399,34 @@ if __name__ == "__main__":
     assert n["ok"], n
     assert list_leads()["leads"][0]["note"] == "call after 5pm"
 
+    # --- escalate: interested → agency client book (Pipeline "lead" column) ---
+    import agency_io
+    saved_clients = []
+
+    def _fake_save(c):
+        saved_clients.append(c)
+        return {"ok": True, "client": dict(c, id=c.get("id") or "c_test1")}
+
+    agency_io.save_client = _fake_save  # monkeypatch
+
+    esc = escalate(lid, {"name": "Regina", "business": "Bright Start Daycare",
+                          "mrr": 300, "services": ["Website"],
+                          "next_step": "Zoom Thu 10am", "notes": "site has no tour form"})
+    assert esc["ok"], esc
+    assert saved_clients[0]["status"] == "lead", saved_clients
+    assert "Phone: " in saved_clients[0]["notes"], saved_clients[0]["notes"]
+    assert "Zoom Thu 10am" in saved_clients[0]["notes"], saved_clients[0]["notes"]
+    lead = [l for l in esc["leads"] if l["id"] == lid][0]
+    assert lead["status"] == "interested" and lead["client_id"] == "c_test1", lead
+    assert calls == ["answered", "answered"], calls  # interested counts as a dial
+
+    # re-escalating updates the SAME client, never creates a second one
+    escalate(lid, {"name": "Regina", "mrr": 400})
+    assert saved_clients[1].get("id") == "c_test1", saved_clients[1]
+
+    assert escalate("nope", {"name": "x"})["ok"] is False
+    assert escalate(lid, {"name": "   "})["ok"] is False  # name required
+
     lid2 = r["leads"][1]["id"]
     set_status(lid2, "dead")
     cleared = clear_dead()
