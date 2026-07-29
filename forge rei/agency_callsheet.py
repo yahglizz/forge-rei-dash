@@ -104,10 +104,18 @@ def _leads_from_ai(text):
         return None
     system = (
         "Extract business leads from raw text. Output ONLY a JSON array of "
-        "objects with keys name, company, phone, email, website, location "
-        "(empty string when unknown). No commentary, no markdown fences."
+        "objects with keys name, company, phone, email, website, location, pain "
+        "(empty string when unknown). No commentary, no markdown fences.\n"
+        "`pain` is the ONE specific, concrete problem with this business's web "
+        "presence that the caller opens with — carry it over verbatim if the "
+        "source already states one (a pain/pain_point/pitch/angle/notes column). "
+        "If the source does NOT state one, you may only write a pain that the row "
+        "itself proves — e.g. the website field says none/no website -> 'No website "
+        "at all, just a Facebook page'. NEVER invent or guess a pain: leave it "
+        "empty. An empty pain is correct; a made-up one gets said out loud on a "
+        "real call."
     )
-    reply = review_agent._claude(key, system, text[:12000], max_tokens=3000)
+    reply = review_agent._claude(key, system, text[:12000], max_tokens=4000)
     start = reply.index("[")
     end = reply.rindex("]")
     rows = json.loads(reply[start:end + 1])
@@ -116,7 +124,7 @@ def _leads_from_ai(text):
         if not isinstance(row, dict):
             continue
         lead = {k: str(row.get(k, "") or "").strip() for k in
-                 ("name", "company", "phone", "email", "website", "location")}
+                 ("name", "company", "phone", "email", "website", "location", "pain")}
         if lead["name"] or lead["phone"]:
             out.append(lead)
     return out
