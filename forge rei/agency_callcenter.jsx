@@ -23,6 +23,7 @@ function CcStat({ label, value }) {
 const CC_STATUS_LABEL = {
   new: "To call", answered: "Called", interested: "Interested",
   no_answer: "No answer", callback: "Call back", dead: "Said no",
+  bad_number: "Dead line",
 };
 const CC_STATUS_STYLE = {
   interested: { color: "#ffd479", background: "rgba(255,212,121,.16)" },
@@ -30,12 +31,23 @@ const CC_STATUS_STYLE = {
   callback: { color: "#f6c979", background: "rgba(244,184,96,.12)" },
   no_answer: { color: "#8ab4f8", background: "rgba(138,180,248,.12)" },
   dead: { color: "#f28b82", background: "rgba(242,139,130,.12)" },
+  bad_number: { color: "#9aa0a6", background: "rgba(154,160,166,.14)" },
   new: { opacity: 0.7, background: "rgba(255,255,255,.06)" },
 };
 const CC_FILTERS = [
   ["all", "All"], ["new", "To call"], ["interested", "⭐ Interested"],
   ["answered", "Called"], ["no_answer", "No answer"],
-  ["callback", "Call back"], ["dead", "Said no"],
+  ["callback", "Call back"], ["dead", "Said no"], ["bad_number", "Dead line"],
+];
+
+// The dial bar. Order = how often you press it. Uniform blocks so the hand
+// learns the position and stops reading the labels.
+const CC_DIAL_KEYS = [
+  { status: "answered", label: "CALLED", tone: "ok" },
+  { status: "no_answer", label: "NO ANS", tone: "" },
+  { status: "bad_number", label: "DEAD", tone: "dim" },
+  { status: "callback", label: "CB", tone: "" },
+  { status: "dead", label: "NO", tone: "bad" },
 ];
 
 // What they said they want. MUST match agency_io.SERVICES exactly — the client
@@ -53,10 +65,12 @@ const CC_SHEET_CSS = `
   border-bottom:1px solid rgba(255,255,255,.2);border-right:1px solid rgba(255,255,255,.09)}
 .cc-sheet td{padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.07);
   border-right:1px solid rgba(255,255,255,.07);vertical-align:middle}
-.cc-sheet{min-width:940px}
+.cc-sheet{min-width:1130px}
 .cc-sheet td:nth-child(2){min-width:165px}
-.cc-sheet td:nth-child(3),.cc-sheet td:nth-child(5),.cc-sheet td:nth-child(6){white-space:nowrap}
-.cc-sheet td:nth-child(4){max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-sheet td:nth-child(3),.cc-sheet td:nth-child(5){white-space:nowrap}
+.cc-sheet td:nth-child(4){max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc-sheet td:nth-child(6){min-width:230px}
+.cc-sheet td:nth-child(7){min-width:140px}
 .cc-sheet tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
 .cc-sheet tbody tr:hover{background:rgba(93,124,255,.11)}
 .cc-sheet tbody tr.cc-hot{background:rgba(255,212,121,.07)}
@@ -72,6 +86,27 @@ const CC_SHEET_CSS = `
 .cc-btn:hover:not(:disabled){background:rgba(255,255,255,.13)}
 .cc-btn.cc-yes{border-color:rgba(255,212,121,.5);background:rgba(255,212,121,.14);color:#ffd479;font-weight:600}
 .cc-btn.cc-yes:hover:not(:disabled){background:rgba(255,212,121,.26)}
+/* dial bar — uniform blocks, muscle-memory positions, one tap per outcome */
+.cc-dial{display:flex;gap:3px;white-space:nowrap}
+.cc-dial button{min-width:52px;padding:7px 8px;border-radius:6px;font-size:10.5px;
+  font-weight:700;letter-spacing:.06em;line-height:1;color:inherit;
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06)}
+.cc-dial button:hover:not(:disabled){background:rgba(255,255,255,.17)}
+.cc-dial button:active:not(:disabled){transform:translateY(1px)}
+.cc-dial button:disabled{opacity:.45}
+.cc-dial .d-win{min-width:74px;border-color:rgba(255,212,121,.55);
+  background:rgba(255,212,121,.16);color:#ffd479}
+.cc-dial .d-win:hover:not(:disabled){background:rgba(255,212,121,.3)}
+.cc-dial .d-ok{border-color:rgba(129,201,149,.42);background:rgba(129,201,149,.13);color:#a5dbb5}
+.cc-dial .d-ok:hover:not(:disabled){background:rgba(129,201,149,.26)}
+.cc-dial .d-bad{border-color:rgba(242,139,130,.4);background:rgba(242,139,130,.12);color:#f0a9a3}
+.cc-dial .d-bad:hover:not(:disabled){background:rgba(242,139,130,.24)}
+.cc-dial .d-dim{color:rgba(255,255,255,.45)}
+.cc-dial .d-x{min-width:26px;padding:7px 4px;color:rgba(255,255,255,.35);
+  border-color:transparent;background:transparent}
+.cc-dial .d-x:hover:not(:disabled){background:rgba(255,255,255,.1)}
+.cc-pain{color:#ffcf8a}
+.cc-pain::placeholder{color:rgba(255,255,255,.25);font-style:italic}
 .cc-tab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);
   border-radius:7px 7px 0 0;border-bottom:none;padding:6px 13px;font-size:12px;color:inherit}
 .cc-tab.on{background:rgba(93,124,255,.2);border-color:rgba(93,124,255,.5);font-weight:600}
@@ -112,31 +147,34 @@ function CcRow({ n, lead, busy, onMark, onNote, onDelete, onInterested }) {
             {lead.phone}
           </a>
         ) : <span className="faint">—</span>}
+        {lead.last_called && <div className="faint mono" style={{ fontSize: 10 }}>{lead.last_called}</div>}
       </td>
       <td className="faint" style={{ fontSize: 11.5 }}>{lead.email || "—"}</td>
       <td><CcStatusPill status={lead.status} /></td>
-      <td className="faint mono" style={{ fontSize: 11 }}>{lead.last_called || "—"}</td>
-      <td style={{ minWidth: 150 }}>
+      <td>
+        <input className="cc-cell cc-pain" defaultValue={lead.pain}
+          placeholder="what's broken for them?"
+          title="The one specific thing you open the call with"
+          onBlur={(e) => e.target.value !== (lead.pain || "") && onNote(lead.id, e.target.value, "pain")} />
+      </td>
+      <td>
         <input className="cc-cell" defaultValue={lead.note} placeholder="note…"
           onBlur={(e) => e.target.value !== (lead.note || "") && onNote(lead.id, e.target.value)} />
       </td>
       <td>
-        <div style={{ display: "flex", gap: 4, whiteSpace: "nowrap" }}>
-          <button className="cc-btn cc-yes" title="Interested — capture their info and push to Pipeline"
-            disabled={busy} onClick={() => onInterested(lead)} style={{ cursor: cur }}>⭐ Interested</button>
-          <button className="cc-btn" title="Called — talked to them" disabled={busy}
-            onClick={() => onMark(lead.id, "answered")} style={{ cursor: cur }}>✅ Called</button>
-          <button className="cc-btn" title="No answer" disabled={busy}
-            onClick={() => onMark(lead.id, "no_answer")} style={{ cursor: cur }}>📵</button>
-          <button className="cc-btn" title="Call back later" disabled={busy}
-            onClick={() => onMark(lead.id, "callback")} style={{ cursor: cur }}>⏰</button>
-          <button className="cc-btn" title="Said no" disabled={busy}
-            onClick={() => onMark(lead.id, "dead")} style={{ cursor: cur }}>⛔ No</button>
-          <button className="cc-btn faint" title="Remove from sheet" disabled={busy}
+        <div className="cc-dial">
+          <button className="d-win" title="Interested — capture their info, push to Pipeline"
+            disabled={busy} onClick={() => onInterested(lead)} style={{ cursor: cur }}>★ YES</button>
+          {CC_DIAL_KEYS.map((k) => (
+            <button key={k.status} className={k.tone ? "d-" + k.tone : ""}
+              title={CC_STATUS_LABEL[k.status]} disabled={busy}
+              onClick={() => onMark(lead.id, k.status)} style={{ cursor: cur }}>{k.label}</button>
+          ))}
+          <button className="d-x" title="Remove from sheet" disabled={busy}
             onClick={() => onDelete(lead.id)} style={{ cursor: cur }}>×</button>
         </div>
         {lead.client_id && (
-          <div style={{ fontSize: 10.5, color: "#ffd479", marginTop: 2 }}>
+          <div style={{ fontSize: 10.5, color: "#ffd479", marginTop: 3 }}>
             → in Pipeline {lead.escalated ? "(" + lead.escalated + ")" : ""}
           </div>
         )}
@@ -435,7 +473,7 @@ function CcCallSheet({ refreshTally }) {
                     <th>Phone</th>
                     <th>Email</th>
                     <th>Status</th>
-                    <th>Last call</th>
+                    <th>Pain point</th>
                     <th>Note</th>
                     <th>Actions</th>
                   </tr>
