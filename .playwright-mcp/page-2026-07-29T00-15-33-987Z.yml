@@ -1,0 +1,587 @@
+- generic [active] [ref=f76e1]:
+  - generic [ref=f76e2]:
+    - banner [ref=f76e4]:
+      - link "Etsy" [ref=f76e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - navigation [ref=f76e11]:
+        - button [ref=f76e13] [cursor=pointer]
+      - search [ref=f76e22]:
+        - generic [ref=f76e23]: Search for items or shops
+        - generic [ref=f76e25]:
+          - combobox "Search for items or shops" [ref=f76e26]
+          - button "Search" [ref=f76e27] [cursor=pointer]
+      - link "Skip to Content" [ref=f76e31] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=f76e35]:
+        - list [ref=f76e36]:
+          - listitem [ref=f76e37]:
+            - button "Sign in" [ref=f76e38] [cursor=pointer]
+          - listitem [ref=f76e39]:
+            - link "Cart" [ref=f76e41] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=f76e45]:
+      - list [ref=f76e49]:
+        - listitem [ref=f76e50]:
+          - link "Gifts" [ref=f76e51] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=f76e57]:
+          - link "Teacher Essentials" [ref=f76e58] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=f76e59]:
+          - link "Home Favorites" [ref=f76e60] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=f76e61]:
+          - link "Fashion Finds" [ref=f76e62] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=f76e63]:
+          - link "Vintage" [ref=f76e64] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=f76e65]:
+          - link "Wedding Guide" [ref=f76e66] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=f76e67]:
+          - link "Gift Cards" [ref=f76e68] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=f76e69]:
+    - generic [ref=f76e70]:
+      - generic [ref=f76e74]:
+        - generic [ref=f76e75]:
+          - heading [level=2] [ref=f76e76]:
+            - link "Our House Rules" [ref=f76e77] [cursor=pointer]:
+              - /url: /legal?ref=pageheader
+          - paragraph [ref=f76e78]: Get to know Etsy's legal terms and policies
+        - generic [ref=f76e80]:
+          - generic [ref=f76e81]:
+            - generic [ref=f76e82]: Search our policies
+            - textbox "Search our policies" [ref=f76e83]
+          - button "Search" [ref=f76e85]
+      - generic [ref=f76e91]:
+        - generic [ref=f76e92]:
+          - navigation "breadcrumb'" [ref=f76e93]:
+            - generic [ref=f76e94]:
+              - link "Our House Rules" [ref=f76e95] [cursor=pointer]:
+                - /url: /legal?ref=breadcrumb
+              - text: /
+              - 'link "House Rules Menu: %s current page" [ref=f76e96] [cursor=pointer]':
+                - /url: "?ref=breadcrumb"
+                - text: All categories
+          - heading "Seller Policy - effective through July 8, 2026" [level=1] [ref=f76e97]
+        - paragraph [ref=f76e99]: Etsy is a marketplace where you can sell the items you've made, designed, and handpicked, or sourced, directly to buyers around the world. We want to make sure that you and your buyers have a positive experience on Etsy. Please read on to find out more about your rights, as well as what is expected of you, as a seller.
+        - article [ref=f76e100]:
+          - paragraph [ref=f76e101]:
+            - text: This policy is effective through and until July 8, 2026. Click
+            - link "here" [ref=f76e102] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/sellers/
+            - text: to view the version of this policy that takes effect on July 9, 2026.
+          - paragraph [ref=f76e103]:
+            - text: This policy is a part of our
+            - link "Terms of Use" [ref=f76e104] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms
+            - text: . By opening an Etsy shop, you’re agreeing to this policy and our Terms of Use
+          - list [ref=f76e105]:
+            - listitem [ref=f76e106]:
+              - paragraph [ref=f76e107]:
+                - link "Selling Basics" [ref=f76e108] [cursor=pointer]:
+                  - /url: "#selling"
+                - text: a. What can be sold on Etsy b. What can't be sold on Etsy c. Managing your Etsy shop d. Seller Standards e. Selling Fees
+            - listitem [ref=f76e109]:
+              - paragraph [ref=f76e110]:
+                - link "Being a Member of the Etsy Community" [ref=f76e111] [cursor=pointer]:
+                  - /url: "#community"
+                - text: a. Creating and Uploading Content b. Privacy and Protecting Personal Information c. Communication Standards i. Messages ii. Forums/Teams iii. Communicating Cancellations
+            - listitem [ref=f76e112]:
+              - link "Feedback, Cases, and Your Success" [ref=f76e113] [cursor=pointer]:
+                - /url: "#success"
+              - text: a. Reviews b. Etsy’s Case System c. Etsy's Purchase Protection Program for Sellers d. Your Seller Account and Etsy’s Terms
+          - heading "1. Selling Basics" [level=2] [ref=f76e114]
+          - paragraph [ref=f76e115]: Keeping in mind these basic requirements will set you up for success on Etsy.
+          - paragraph [ref=f76e116]:
+            - strong [ref=f76e117]: a. What can be sold on Etsy
+          - paragraph [ref=f76e118]: Etsy is a unique marketplace. Buyers come here to purchase items that they might not find anywhere else, or to spark their own creativity. As such, everything listed for sale on Etsy must be made, designed, handpicked, or sourced by a seller.
+          - paragraph [ref=f76e119]:
+            - text: To learn about what items are allowed on Etsy, review Read about Etsy’s Creativity Standards
+            - link "here" [ref=f76e120] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/creativity
+            - text: .
+          - paragraph [ref=f76e121]: "If you sell on Etsy, you need to provide the following information for each of your items:"
+          - list [ref=f76e122]:
+            - listitem [ref=f76e123]: An accurate representation of how the item was made, by whom, and where it is being shipped from.
+            - listitem [ref=f76e124]:
+              - text: An accurate description of any
+              - link "shop members" [ref=f76e125] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/en-us/articles/360000336867-Roles-for-Shop-Members?segment=selling
+              - text: who are involved in making your items or running your business in the
+              - link "About section" [ref=f76e126] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/en-us/articles/115015628487-How-to-Edit-Your-Shop-s-About-Section?segment=selling
+              - text: of your shop.
+            - listitem [ref=f76e127]:
+              - text: If you work with a production partner, you must disclose that production partner in your relevant listings. Read more about
+              - link "working with production partners" [ref=f76e128] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/en-us/articles/360000336547-Working-with-Production-Partners-on-Etsy?segment=selling
+              - text: .
+            - listitem [ref=f76e129]:
+              - text: Your own photographs or video content —not stock photos, artistic renderings, or photos used by other sellers or sites. Read more about
+              - link "listing image requirements" [ref=f76e130] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/listing-image-requirements/253962679005
+              - text: ", including limited exceptions for custom items and items made with production partner assistance."
+            - listitem [ref=f76e131]:
+              - text: If an item is created through the use of artificial intelligence, you must disclose this in your relevant listings. Read more about our stance on AI creations
+              - link "here" [ref=f76e132] [cursor=pointer]:
+                - /url: https://www.etsy.com/seller-handbook/article/1275449912004
+              - text: .
+          - paragraph [ref=f76e133]:
+            - text: For information on how to list personalized items, please see
+            - link "this Help article" [ref=f76e134] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000344528
+            - text: .
+          - paragraph [ref=f76e135]:
+            - text: We encourage you to be transparent about how your craft and party supplies were made and where your materials come from. You can disclose whether your items have social or environmental attributes, such as
+            - link "organic" [ref=f76e136] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/organic-materials/242696248617
+            - text: or
+            - link "recycled" [ref=f76e137] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/recycled-content/239326729662
+            - text: . You can also select the
+            - link "location of manufacture" [ref=f76e138] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000345008
+            - text: . Learn more
+            - link "here" [ref=f76e139] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000343608
+            - text: .
+          - paragraph [ref=f76e140]:
+            - strong [ref=f76e141]: b. What Can't be Sold on Etsy
+          - paragraph [ref=f76e142]:
+            - text: Even if they otherwise meet our marketplace criteria,
+            - link "prohibited items" [ref=f76e143] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/prohibited
+            - text: ","
+            - link "services" [ref=f76e144] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/services/242665313101
+            - text: ", and"
+            - link "items that violate our intellectual property policies" [ref=f76e145] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/ip
+            - text: are not allowed to be sold on Etsy.
+          - paragraph [ref=f76e146]:
+            - text: All listings must offer an item for sale (which includes digitally delivered items, and can also include reserved listings for custom items). You may not create an Etsy listing for the purpose of sharing a referral code, posting a want ad,
+            - link "crowdfunding" [ref=f76e147] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/donating-shop-proceeds-to-charity/239327254340
+            - text: ", or similar activity that does not offer a physical or digital item for sale. Etsy sellers also may not offer gift cards for their shops. Gift cards used on Etsy may only be purchased from Etsy directly. Read more about our"
+            - link "Etsy Gift Cards, Credits & Coupons Policy" [ref=f76e148] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/gift-cards/?ref=list#shop-cards
+            - text: .
+          - paragraph [ref=f76e149]:
+            - text: Dropshipping and reselling are not allowed on Etsy, except in the specific cases outlined in
+            - link "this Help article" [ref=f76e150] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/23948763872151
+            - text: ", such as craft supplies."
+          - paragraph [ref=f76e151]:
+            - text: Etsy may remove any listings that violate our policies. We use a combination of automated systems, manual monitoring and flags from members and third parties to help us identify items that may violate our policies. Note that listing fees are non-refundable. Etsy may also suspend or terminate your account for any violations and you'll still have to pay any outstanding fees on your Etsy statement. You can find more information in our
+            - link "Fees & Payments Policy" [ref=f76e152] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/fees/
+            - text: .
+          - paragraph [ref=f76e153]:
+            - text: Please see
+            - link "this Help article" [ref=f76e154] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/donating-shop-proceeds-to-charity/239327254340
+            - text: for information about donating any portion of your sales to charity.
+          - paragraph [ref=f76e155]:
+            - strong [ref=f76e156]: c. Managing your Etsy Shop
+          - paragraph [ref=f76e157]: Your shop represents you and your business to the Etsy community. It’s important that you, your items and your shop are honestly and accurately represented.
+          - paragraph [ref=f76e158]: "By selling on Etsy, you agree that you will:"
+          - list [ref=f76e159]:
+            - listitem [ref=f76e160]:
+              - text: Provide honest, accurate information to Etsy and in your
+              - link "About section" [ref=f76e161] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/articles/115015628487
+              - text: .
+            - listitem [ref=f76e162]:
+              - text: Honor your
+              - link "Shop Policies" [ref=f76e163] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/articles/115014372467
+              - text: .
+            - listitem [ref=f76e164]:
+              - text: Ensure your shop content, such as any text, photos or videos used to represent yourself, your shop or your listings, abide by Etsy’s policies, including our
+              - link "Discrimination and Hateful Content Policy" [ref=f76e165] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/discrimination-and-hateful-content/123551108902
+              - text: .
+            - listitem [ref=f76e166]:
+              - text: Accurately represent your items, including any details you provide about country of origin, provenance, attributes, components or materials, in
+              - link "listings" [ref=f76e167] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/articles/115015628707
+              - text: and listing photos.
+            - listitem [ref=f76e168]:
+              - text: Respect the
+              - link "intellectual property" [ref=f76e169] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/ip
+              - text: of others. If you feel someone has violated your intellectual property rights,
+              - link "you can report it to Etsy" [ref=f76e170] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/en-us/articles/360000344448-How-to-File-a-Notice-of-Intellectual-Property-Infringement
+              - text: .
+            - listitem [ref=f76e171]:
+              - text: Not facilitate
+              - link "off-platform transactions" [ref=f76e172] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/off-platform-transactions/1254654515806
+              - text: .
+            - listitem [ref=f76e173]: Not create duplicate shops or take any other action (such as manipulating clicks, carts or sales) for the purpose of shilling, manipulating search or circumventing Etsy's policies.
+            - listitem [ref=f76e174]: Not coordinate pricing with other sellers.
+          - paragraph [ref=f76e175]:
+            - strong [ref=f76e176]: d. Seller Standards
+            - text: By listing a product for sale on Etsy you understand and agree that you are responsible for complying with all applicable laws and regulations for the products you list for sale, including any required labels and warnings. Etsy assumes no responsibility for the accuracy, labeling, or content of your listings or any information you provide, either directly or through Etsy to shipping carriers or customs authorities.
+          - paragraph [ref=f76e177]: Meeting Service Level Standards
+          - paragraph [ref=f76e178]:
+            - text: As a seller, you must provide great customer service and maintain trust with your buyers. These requirements are called our Seller Service Level Standards. Etsy may reach out to you if your shop fails to meet Etsy's Seller Service Level Standards. Read more
+            - link "here" [ref=f76e179] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000345068
+            - text: .
+          - paragraph [ref=f76e180]: "By selling on Etsy, you agree to:"
+          - list [ref=f76e181]:
+            - listitem [ref=f76e182]:
+              - text: Honor your shipping and processing times. Sellers are obligated to ship an item or otherwise complete a transaction with a buyer in a prompt manner, unless there is an exceptional circumstance. Please be aware that legal requirements for shipping times vary by country. Read more in our
+              - link "Shipping Policy" [ref=f76e183] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/shipping/?ref=list
+              - text: .
+            - listitem [ref=f76e184]: Respond to Messages in a timely manner.
+            - listitem [ref=f76e185]: Honor the commitments you make in your shop policies.
+            - listitem [ref=f76e186]: Resolve disagreements or order issues directly with the buyer. In the unlikely event that you can’t reach a resolution, Etsy can help through our case system.
+            - listitem [ref=f76e187]:
+              - text: If you are unable to complete an order, you must notify the buyer and cancel the order. Read about how to cancel an order in this
+              - link "Help" [ref=f76e188] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/en-us/articles/115015521728-How-to-Cancel-an-Order?segment=shopping
+              - text: article.
+            - listitem [ref=f76e189]:
+              - text: Be honest in your pricing and promotions. Sales, discounts, and price comparisons must reflect real, accurate pricing and comply with the laws where you sell. Promotions should not mislead buyers about the value or timing of a deal. Learn more in our guidance on truthful advertising, sales and discounts
+              - link "here" [ref=f76e190] [cursor=pointer]:
+                - /url: https://www.etsy.com/seller-handbook/article/1450964704111
+              - text: .
+          - paragraph [ref=f76e191]:
+            - strong [ref=f76e192]: e. Selling Fees
+          - paragraph [ref=f76e193]:
+            - text: Sellers may be charged for using some of Etsy’s services. There are fees associated with listing, selling, advertising, and certain other Etsy products and features. You can find information on fees in the
+            - link "Fees and Payments Policy" [ref=f76e194] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/legal/fees
+            - text: .
+          - heading "2. Being a Member of the Etsy Community" [level=2] [ref=f76e195]
+          - paragraph [ref=f76e196]: At Etsy, everyone is expected to treat fellow members of the Etsy community with respect. As a seller, you have additional responsibilities to safeguard personal information and communicate promptly with buyers in order to provide a great customer experience.
+          - paragraph [ref=f76e197]:
+            - strong [ref=f76e198]: a. Creating and Uploading Content
+          - paragraph [ref=f76e199]: "As a member of Etsy, you have the opportunity to create and upload a variety of content, like listings, Messages, text, photos, and videos. In order to keep our community safe and respectful, you agree that you will not upload content that:"
+          - list [ref=f76e200]:
+            - listitem [ref=f76e201]:
+              - text: Contains hateful or derogatory language or imagery, or any content that is subject to our
+              - link "Discrimination and Hateful Content Policy" [ref=f76e202] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/discrimination-and-hateful-content/123551108902
+              - text: ;
+            - listitem [ref=f76e203]:
+              - text: Contains threats, harassment,
+              - link "extortion" [ref=f76e204] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/extortion/239966959186
+              - text: ", or violates our rules about interference;"
+            - listitem [ref=f76e205]: Violates someone else’s intellectual property rights;
+            - listitem [ref=f76e206]: Is false, deceptive, or misleading;
+            - listitem [ref=f76e207]: Contains unsolicited advertising or promotions, requests for donations, or spam;
+            - listitem [ref=f76e208]: Contains private information, whether it is your own, or someone else’s;
+            - listitem [ref=f76e209]:
+              - text: Encourages or facilitates an
+              - link "off-platform transaction" [ref=f76e210] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/off-platform-transactions/1254654515806
+              - text: ;
+            - listitem [ref=f76e211]: Contains prohibited medical drug claims;
+            - listitem [ref=f76e212]: Sexualizes minors under the age of 18;
+            - listitem [ref=f76e213]:
+              - text: Violates any of the rules described in our
+              - link "Prohibited Items Policy" [ref=f76e214] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/prohibited/
+              - text: .
+          - paragraph [ref=f76e215]: Members may not use Etsy services such as Messages, Favorites, or Collections to make inappropriate use of otherwise compliant content, whether overtly or through contextualization. This includes, for example, the aggregation of content with the intent of sexualizing minors.
+          - paragraph [ref=f76e216]: Some content on Etsy is subject to additional requirements. Please see below for more details.
+          - paragraph [ref=f76e217]:
+            - text: Read more about how Etsy search works, what factors impact search ranking, and how you can help optimize your listings and shop
+            - link "here" [ref=f76e218] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/search-advertisement-ranking-disclosures/899478564529
+            - text: and in The
+            - link "Ultimate Guide to Etsy Search" [ref=f76e219] [cursor=pointer]:
+              - /url: https://www.etsy.com/seller-handbook/article/the-ultimate-guide-to-etsy-search/366469415790
+            - text: .
+          - paragraph [ref=f76e220]:
+            - strong [ref=f76e221]: b. Privacy and Protecting Personal Information
+          - paragraph [ref=f76e222]:
+            - text: You are responsible for protecting members’ personal information you receive or process, and you must comply with all relevant legal requirements. This includes applicable data protection and privacy laws that govern the ways in which you can use Etsy user information. These laws may require that you post and comply with your own privacy policy, which must be accessible to Etsy users with whom you interact. Your privacy policy must be compatible with this policy and Etsy’s
+            - link "Terms of Use" [ref=f76e223] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms-of-use
+            - text: ", and Etsy's"
+            - link "Privacy Policy" [ref=f76e224] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/privacy/?ref=list
+            - text: .
+          - paragraph [ref=f76e225]:
+            - text: In particular, when you sell using our Services (subject to this Policy) or use Etsy’s API (also subject to the
+            - link "Etsy API Terms of Use" [ref=f76e226] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/api
+            - text: ), you may receive and determine what to do with certain personal information, such as when communicating with users and entering into transactions with buyers. This means you process personal information (for example, buyer name, email address, and shipping address) and, to the extent you do so, under EU law, you are an independent controller of data relating to other users that you may have obtained through the Services. For more information on the General Data Protection Regulation, see more resources at https://gdpr-info.eu and http://gdprandyou.ie. As a data controller (that is someone who decides what personal data is collected and the purpose you’ll use the data for) to the extent that you process user personal information outside of the Services, you may be required under applicable data protection and privacy laws to honor requests received from such users for data access, portability, correction, deletion, and objections to processing. Also, if you disclose personal information without the buyer’s proper consent, you are responsible for that unauthorized disclosure. This includes, for example, disclosures you make or unintentional data breaches. For example, you may receive a buyer’s email address or other information as a result of entering into a transaction with that buyer. This information may only be used for Etsy-related communications or for Etsy-facilitated transactions. You may not use this information for unsolicited commercial messages or unauthorized transactions. Without the buyer’s consent, and subject to other applicable Etsy policies and laws, you may not add any Etsy member to your email or physical mailing list, use that buyer’s identity for marketing, or obtain or retain any payment information. Please bear in mind that you're responsible for knowing the standard of consent required in any given instance. If Etsy and you are found to be joint data controllers of personal information, and if Etsy is sued, fined, or otherwise incurs expenses because of something that you did in your capacity as a joint data controller of buyer personal information, you agree to indemnify, defend and hold Etsy (and its employees, agents, consultants, subsidiaries, partners, affiliates, and licensors) harmless against any claims, costs, losses, damages, liabilities, judgements and expenses (including reasonable attorney fees) in connection with your processing of buyer personal information.
+          - paragraph [ref=f76e227]:
+            - text: For more information, please see our
+            - link "Privacy Policy" [ref=f76e228] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/privacy
+            - text: .
+          - paragraph [ref=f76e229]:
+            - strong [ref=f76e230]: c. Communication Standards
+          - paragraph [ref=f76e231]: i. Messages
+          - paragraph [ref=f76e232]: With Etsy's "Messages", you have the ability to communicate directly with your buyers or other Etsy members. Messages are a great way for buyers to ask you questions about an item or an order.
+          - paragraph [ref=f76e233]: "Messages may not be used for the following activities:"
+          - list [ref=f76e234]:
+            - listitem [ref=f76e235]: Sending unsolicited advertising or promotions, requests for donations, or spam;
+            - listitem [ref=f76e236]:
+              - text: Harassing or abusing another member or violating our
+              - link "Discrimination and Hateful Content Policy" [ref=f76e237] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/discrimination-and-hateful-content/123551108902
+              - text: ;
+            - listitem [ref=f76e238]: Contacting someone after they have explicitly asked you not to; or
+            - listitem [ref=f76e239]: Interfering with a transaction or the business of another member.
+            - listitem [ref=f76e240]:
+              - text: Exchanging personal contact, financial or other information for the purposes of making an
+              - link "off-platform transaction" [ref=f76e241] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/off-platform-transactions/1254654515806
+              - text: ", including phone number, address, email, social media handles, external URLs, instructions for money transfer, QR codes, etc."
+          - paragraph [ref=f76e242]:
+            - strong [ref=f76e243]: Interference
+          - paragraph [ref=f76e244]: "Interference occurs when a member intentionally interferes with another member’s shop in order to drive away their business. Interference is strictly prohibited on Etsy. Examples of interference include:"
+          - list [ref=f76e245]:
+            - listitem [ref=f76e246]: Contacting another member via Messages to warn them away from a particular member, shop, or item;
+            - listitem [ref=f76e247]: Posting in public areas to demonstrate or discuss a dispute with another member;
+            - listitem [ref=f76e248]: Purchasing from a seller for the sole purpose of leaving a negative review;
+            - listitem [ref=f76e249]: Maliciously clicking on a competitor's ads in order to drain that member's advertising budget, also known as "click fraud."
+            - listitem [ref=f76e250]: Creating or using an independent buyer account to maliciously upvote another shop’s negative reviews in order to position those reviews more prominently.
+          - paragraph [ref=f76e251]:
+            - strong [ref=f76e252]: Harassment and Discrimination
+          - paragraph [ref=f76e253]:
+            - text: Any use of Messages to harass other members is strictly prohibited. Similarly, Messages may not be used to support or glorify hatred or otherwise violate our
+            - link "Discrimination and Hateful Content Policy" [ref=f76e254] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/discrimination-and-hateful-content/123551108902
+            - text: . If you receive a Message that violates this policy, please let us know right away.
+          - paragraph [ref=f76e255]: ii. Forums and Teams
+          - paragraph [ref=f76e256]:
+            - text: Forums and Teams are public spaces provided by Etsy where sellers can connect, but there are communication standards that must be followed. More information can be found in the Etsy
+            - link "Community Policy" [ref=f76e257] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/legal/community/#:~:text=To%20make%20sure%20that%20the,public%20areas%20of%20the%20site
+            - text: . Access to Forums and Teams is subject to compliance with Etsy policies and applicable enforcement actions.
+          - paragraph [ref=f76e258]: iii. Communicating Cancellations
+          - paragraph [ref=f76e259]:
+            - text: If you are unable to complete a transaction, you must notify the buyer via Messages and cancel the transaction. If the buyer already submitted payment, you must issue a full refund. You are encouraged to keep proof of any refunds in the event a dispute arises. All cancellations are subject to our
+            - link "Cancellation Policy" [ref=f76e260] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/cancellation-policy/253925018785?ref=list
+            - text: .
+          - paragraph [ref=f76e261]: European Union Right of Withdrawal
+          - paragraph [ref=f76e262]:
+            - text: Buyers in the European Union (EU), and in parallel buyers in the UK, may be entitled to a 14-day “right of withdrawal” after receiving an item, during which they may return an item for any or no reason. The details of this right vary by EU member state or in the UK. The right of withdrawal may not apply to certain items like custom items or perishable goods. Rights with respect to digital items vary by EU member state or in the UK. Read more about the EU and UK Right of Withdrawal in this
+            - link "Help" [ref=f76e263] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/selling-to-eu-buyers/239965962014#:~:text=Right%20to%20return%20items%20(Right,the%20seller%20within%2014%20days.&text=If%20you%20sell%20to%20the,a%20minimum%20of%2014%20days
+            - text: article.
+          - paragraph [ref=f76e264]: Please be aware that in addition to this policy, each country has its own laws surrounding shipping, cancellations, returns, and exchanges. Please familiarize yourself with the laws of your own country and those of your buyers’ countries.
+          - paragraph [ref=f76e265]: Sellers may still cancel an order and work toward a resolution with a buyer as they see fit for policies applied to their shops, such as the digital items policy.
+          - heading "3. Feedback, Cases and Your Success" [level=2] [ref=f76e266]
+          - paragraph [ref=f76e267]:
+            - strong [ref=f76e268]: a. Reviews
+          - paragraph [ref=f76e269]:
+            - text: Reviews are a great way for you to build a reputation on Etsy. Buyers can leave a
+            - link "review" [ref=f76e270] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115013197687
+            - text: ", including a one to five star rating and a photograph or video of their purchase, within 100 days from the earlier date of their item being delivered (where the shipping carrier’s delivery record is available) or their item’s max estimated delivery date. If an estimated delivery date is not available, the review window opens after the order’s"
+            - link "processing time" [ref=f76e271] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115015588087
+            - text: and shipping time have elapsed. Buyers of digital items can leave a review for 100 days from the first time they download the item or within 12 months of purchase (whichever happens first). Buyers can
+            - link "edit" [ref=f76e272] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115015521588
+            - text: their review, including the photograph or video, any number of times during that 100 day period.
+          - paragraph [ref=f76e273]: On the rare occasion you receive an unfavorable review, you can reach out to the buyer or leave a response.
+          - paragraph [ref=f76e274]: "In addition to our rules for Creating and Uploading Content in Section 2a, reviews and your response to reviews may not:"
+          - list [ref=f76e275]:
+            - listitem [ref=f76e276]:
+              - text: Contain graphic,
+              - link "mature" [ref=f76e277] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/listing-mature-content-correctly/242665462117
+              - text: ", or obscene language or imagery, or any content that is subject to our"
+              - link "nudity and sexual content policy" [ref=f76e278] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/prohibited/?ref=list#Q7
+              - text: ;
+            - listitem [ref=f76e279]: Be about things outside the seller’s control, such as a shipping carrier, Etsy or a third party;
+            - listitem [ref=f76e280]:
+              - text: Include
+              - link "shilling" [ref=f76e281] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/shilling/243317364583
+              - text: or otherwise falsely inflate a shop’s review score; or
+            - listitem [ref=f76e282]: Undermine the integrity of the Reviews system.
+          - paragraph [ref=f76e283]:
+            - strong [ref=f76e284]: b. Etsy’s Case System
+          - paragraph [ref=f76e285]:
+            - text: The Case system is how a buyer notifies Etsy of an order issue or dispute that they’re unable to resolve with a seller, in order for Etsy to help them reach a resolution.
+            - strong [ref=f76e286]: Buyers must contact sellers directly via the Help with Order link and attempt to resolve any outstanding issues before opening a case on Etsy
+            - text: . For this reason, it is important that you fill out your shop policies and regularly respond to Messages from your buyers. Once a buyer contacts you to notify you of a problem with an order, you will have 48 hours to resolve the issue. If the issue is unresolved in this time frame, a case may be opened by the buyer. Once a case has been opened, Etsy will assist in the resolution of the case between the buyer and seller. This may include, but is not limited to, automatically closing the case and issuing a refund to the buyer (to the original form of payment or in the form of Etsy credit), or reviewing the case further to help the buyer and seller resolve it as quickly as possible.
+          - paragraph [ref=f76e287]: Etsy reserves the right to resolve an order issue before the 48-hour window for circumstances including, but not limited to, seller inactivity, harassment, refusal of service, manipulation, and undermining the integrity of the case system.
+          - paragraph [ref=f76e288]:
+            - text: Buyers may file a case for items that never arrive, arrive late or, arrive damaged, or do not match the listing description as part of Etsy’s Purchase Protection Program (for more information on case eligibility, click
+            - link "here" [ref=f76e289] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/cases-policy/243306189901
+            - text: . Etsy may request your assistance in resolving a case opened against your shop. By using Etsy’s case system, you understand that Etsy may use your personal information for the purpose of resolving disputes with other members. For more information on our privacy policy,
+            - link "click here" [ref=f76e290] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/privacy
+            - text: .
+          - paragraph [ref=f76e291]:
+            - strong [ref=f76e292]: c. Etsy's Purchase Protection Program for Sellers
+          - paragraph [ref=f76e293]:
+            - text: For certain cases, sellers are protected by Etsy's Purchase Protection Program. If the case falls outside of Etsy's
+            - link "Purchase Protection Program for Sellers" [ref=f76e294] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/seller-protection-policy/34509585385?ref=list
+            - text: ", unless otherwise required by law, you will be required to refund the order, including original shipping and return shipping. Etsy reserves the right to issue a refund to the buyer (to the original form of payment or in the form of Etsy credit) and recoup funds from your account, including your payment account reserve, if payment was made via Etsy Payments."
+          - paragraph [ref=f76e295]:
+            - strong [ref=f76e296]: d. Your Seller Account and Etsy’s Terms
+          - paragraph [ref=f76e297]:
+            - text: In order to keep Etsy safe and improve our Services, we may take actions that limit the visibility of your shop, listings or ads, or that impact your payment account. In the event a shop sees unusual order activity, you do not meet our minimum customer service standards or we otherwise believe that your actions or shop may result in buyer disputes, chargebacks, increased risk of fraud, counterfeiting, or other claims, Etsy may take actions such as limiting visibility of your account or listings, placing restrictions or reserves on your payments account, or suspending your Etsy account, in accordance with our
+            - link "Terms of Use" [ref=f76e298] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms-of-use
+            - text: ", including this Policy and our"
+            - link "Etsy Payments Policy" [ref=f76e299] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/etsy-payments/?ref=list
+            - text: . When appropriate and permitted by law, Etsy will communicate information to the affected seller about the issue.
+          - paragraph [ref=f76e300]:
+            - text: In the event a shop sees an unusual spike in orders, particularly in a high demand category, a shop may see an increase or decrease in its search ranking. Often, if a shop sees an increase in fulfilled orders and good reviews, this may result in higher visibility and search rank. However, sometimes a rapid increase in orders can reduce visibility. Read more about how Etsy search works, and what factors impact search ranking, and how you can help optimize your listings and shop
+            - link "here" [ref=f76e301] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/search-advertisement-ranking-disclosures/899478564529
+            - text: and in
+            - link "The Ultimate Guide to Etsy Search" [ref=f76e302] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/seller-handbook/article/the-ultimate-guide-to-etsy-search/366469415790
+            - text: .
+          - paragraph [ref=f76e303]: In addition, we may limit the visibility of listings or ads in the interest of keeping Etsy safe, and improving our Services. For example, listings or ads may have decreased visibility because they include terms that represent a prohibited item or based on third party policies. These listings or ads may also be restricted from appearing in one or more features of the Services. While these listings or ads may have limited visibility, they are still discoverable in search.
+          - paragraph [ref=f76e304]: Etsy may make changes to onboarding or authentication processes for sellers at our sole discretion. Completion of these processes may be required for seller account activation or continued access and usage.
+          - paragraph [ref=f76e305]:
+            - text: If Etsy has reason to believe you, Your Content, or your use of the Services violate our Terms, including this Seller Policy, we may deactivate Your Content to some or all users, or suspend or terminate your account (and any accounts Etsy determines are related to your account) and your access to the Services. Sellers in the European Union can see more information
+            - link "here" [ref=f76e306] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-gb/articles/360051541413?segment=selling
+            - text: . Generally, Etsy will notify you that Your Content or account has been suspended or terminated, unless you’ve repeatedly violated our Terms or we have legal or regulatory reasons preventing us from notifying you.
+          - paragraph [ref=f76e307]: Last updated on Jun 9, 2026
+  - contentinfo [ref=f76e309]:
+    - generic [ref=f76e311]:
+      - heading "We're on a mission to keep commerce human." [level=2] [ref=f76e314]
+      - navigation "Footer" [ref=f76e316]:
+        - generic [ref=f76e317]:
+          - generic [ref=f76e318]:
+            - heading "Shop" [level=3] [ref=f76e319]
+            - list [ref=f76e321]:
+              - listitem [ref=f76e322]:
+                - link "Gift cards" [ref=f76e324] [cursor=pointer]:
+                  - /url: https://www.etsy.com/giftcards?ref=ftr
+              - listitem [ref=f76e325]:
+                - link "Etsy Registry" [ref=f76e327] [cursor=pointer]:
+                  - /url: https://www.etsy.com/registry?ref=ftr
+              - listitem [ref=f76e328]:
+                - link "Sitemap" [ref=f76e330] [cursor=pointer]:
+                  - /url: https://www.etsy.com/categories
+              - listitem [ref=f76e331]:
+                - link "Etsy blog" [ref=f76e333] [cursor=pointer]:
+                  - /url: /blog/en/?ref=ftr
+              - listitem [ref=f76e334]:
+                - link "Etsy United Kingdom" [ref=f76e336] [cursor=pointer]:
+                  - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+              - listitem [ref=f76e337]:
+                - link "Etsy Germany" [ref=f76e339] [cursor=pointer]:
+                  - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+              - listitem [ref=f76e340]:
+                - link "Etsy Canada" [ref=f76e342] [cursor=pointer]:
+                  - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+          - generic [ref=f76e343]:
+            - heading "Sell" [level=3] [ref=f76e344]
+            - list [ref=f76e346]:
+              - listitem [ref=f76e347]:
+                - link "Sell on Etsy" [ref=f76e349] [cursor=pointer]:
+                  - /url: https://www.etsy.com/sell?ref=ftr
+              - listitem [ref=f76e350]:
+                - link "Teams" [ref=f76e352] [cursor=pointer]:
+                  - /url: https://community.etsy.com/pages/etsy-teams/
+              - listitem [ref=f76e353]:
+                - link "Forums" [ref=f76e355] [cursor=pointer]:
+                  - /url: https://community.etsy.com/feed/
+              - listitem [ref=f76e356]:
+                - link "Affiliates & Creators" [ref=f76e358] [cursor=pointer]:
+                  - /url: https://www.etsy.com/affiliates?ref=ftr
+          - generic [ref=f76e359]:
+            - heading "About" [level=3] [ref=f76e360]
+            - list [ref=f76e362]:
+              - listitem [ref=f76e363]:
+                - link "Etsy, Inc." [ref=f76e365] [cursor=pointer]:
+                  - /url: https://www.etsy.com/about?ref=ftr
+              - listitem [ref=f76e366]:
+                - link "Policies" [ref=f76e368] [cursor=pointer]:
+                  - /url: https://www.etsy.com/legal?ref=ftr
+              - listitem [ref=f76e369]:
+                - link "Investors" [ref=f76e371] [cursor=pointer]:
+                  - /url: https://investors.etsy.com
+              - listitem [ref=f76e372]:
+                - link "Careers" [ref=f76e374] [cursor=pointer]:
+                  - /url: https://www.etsy.com/careers?ref=ftr
+              - listitem [ref=f76e375]:
+                - link "Press" [ref=f76e377] [cursor=pointer]:
+                  - /url: https://www.etsy.com/press?ref=ftr
+              - listitem [ref=f76e378]:
+                - link "Impact" [ref=f76e380] [cursor=pointer]:
+                  - /url: https://www.etsy.com/impact?ref=ftr
+          - generic [ref=f76e381]:
+            - heading "Help" [level=3] [ref=f76e382]
+            - list [ref=f76e384]:
+              - listitem [ref=f76e385]:
+                - link "Help Center" [ref=f76e387] [cursor=pointer]:
+                  - /url: https://www.etsy.com/help?ref=ftr
+              - listitem [ref=f76e388]:
+                - link "Privacy settings" [ref=f76e390] [cursor=pointer]:
+                  - /url: "#"
+      - list "Download the Etsy App" [ref=f76e394]:
+        - listitem [ref=f76e395]:
+          - link "App Store" [ref=f76e396] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+        - listitem [ref=f76e397]:
+          - link "Google Play" [ref=f76e398] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+      - img "Illustration of two people looking at a framed abstract artwork" [ref=f76e401]
+    - generic [ref=f76e404]:
+      - generic [ref=f76e406]:
+        - link "Update your settings United States English (US) $ (USD)" [ref=f76e407] [cursor=pointer]:
+          - /url: https://www.etsy.com/your/account/locale_preferences?from_page=https%3A%2F%2Fwww.etsy.com%2Flegal%2Fpolicy%2Fseller-policy-effective-through-july-8%2F1489086421092
+          - generic [ref=f76e423]: United States
+        - generic [ref=f76e425]:
+          - link [ref=f76e426] [cursor=pointer]:
+            - /url: /social-tracking?network=instagram
+          - link [ref=f76e431] [cursor=pointer]:
+            - /url: /social-tracking?network=facebook
+          - link [ref=f76e435] [cursor=pointer]:
+            - /url: /social-tracking?network=pinterest
+          - link [ref=f76e439] [cursor=pointer]:
+            - /url: /social-tracking?network=youtube
+      - generic [ref=f76e444]:
+        - generic [ref=f76e445]: © 2026 Etsy, Inc.
+        - generic [ref=f76e446]:
+          - generic [ref=f76e447]:
+            - link "Terms of Use" [ref=f76e449] [cursor=pointer]:
+              - /url: /legal/terms-of-use?ref=ftr
+            - link "Privacy" [ref=f76e451] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=ftr
+          - generic [ref=f76e452]:
+            - link "Interest-based ads" [ref=f76e454] [cursor=pointer]:
+              - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+            - link "Local Shops" [ref=f76e456] [cursor=pointer]:
+              - /url: /search/shops
+            - button "Regions" [ref=f76e458] [cursor=pointer]
+    - generic [ref=f76e464]:
+      - paragraph [ref=f76e465]: How Etsy uses cookies
+      - paragraph [ref=f76e466]:
+        - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+        - link "Privacy Policy" [ref=f76e467] [cursor=pointer]:
+          - /url: /legal/privacy/
+        - text: ","
+        - link "Cookies Policy" [ref=f76e468] [cursor=pointer]:
+          - /url: /legal/cookies/
+        - text: ", and"
+        - link "Terms of Use" [ref=f76e469] [cursor=pointer]:
+          - /url: /legal/terms-of-use/
+        - text: . Manage your preferences
+        - link "here" [ref=f76e470] [cursor=pointer]:
+          - /url: "#"
+        - text: .
+      - button "Ok" [ref=f76e472] [cursor=pointer]: Okay
+      - paragraph
