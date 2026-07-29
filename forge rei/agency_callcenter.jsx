@@ -207,9 +207,15 @@ function CcEscalate({ lead, busy, onCancel, onSave }) {
     <div className="cc-modal-back" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
       <div className="cc-modal">
         <div style={{ fontSize: 17, fontWeight: 700 }}>⭐ Interested — {lead.company || lead.name}</div>
-        <div className="faint" style={{ fontSize: 12, margin: "4px 0 16px" }}>
+        <div className="faint" style={{ fontSize: 12, margin: "4px 0 12px" }}>
           Goes to the Pipeline as a lead. Nothing gets sent to them.
         </div>
+        {lead.pain && (
+          <div style={{ fontSize: 12, marginBottom: 14, padding: "7px 10px", borderRadius: 6,
+            background: "rgba(255,212,121,.1)", border: "1px solid rgba(255,212,121,.28)", color: "#ffcf8a" }}>
+            <b>Their pain:</b> {lead.pain}
+          </div>
+        )}
 
         <div style={row}>
           <div style={{ flex: 1 }}>
@@ -350,10 +356,10 @@ function CcCallSheet({ refreshTally }) {
     setSheetBusy(false);
   }
 
-  async function saveNote(id, note) {
+  async function saveNote(id, note, field) {
     setSheetBusy(true);
     try {
-      await window.apiPost("/api/agency/callsheet/note", { id, note });
+      await window.apiPost("/api/agency/callsheet/note", { id, note, field: field || "note" });
       sheet.refresh();
     } catch (e) {
       window.alert("Note save failed: " + (e.message || e));
