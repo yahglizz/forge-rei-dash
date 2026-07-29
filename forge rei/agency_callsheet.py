@@ -21,7 +21,11 @@ HERE = Path(__file__).resolve().parent
 STATE = HERE / "marcus_state" / "agency_callsheet.json"
 _LOCK = threading.Lock()
 
-STATUSES = ("new", "answered", "interested", "no_answer", "callback", "dead")
+STATUSES = ("new", "answered", "interested", "no_answer", "callback", "dead",
+            "bad_number")
+
+# Fields the operator can edit inline in the sheet grid.
+EDITABLE = {"note": 300, "pain": 200}
 
 MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
 _PDF_RE = re.compile(r"^data:application/pdf;base64,(.+)$", re.S)
@@ -77,6 +81,7 @@ def _add_leads(d, incoming):
             "email": lead.get("email", ""),
             "website": lead.get("website", ""),
             "location": lead.get("location", ""),
+            "pain": str(lead.get("pain", "") or "")[:200],
             "status": "new",
             "note": "",
             "added": now,
@@ -150,7 +155,7 @@ def _leads_from_regex(text):
         if not name and not phone:
             continue
         out.append({"name": name, "company": "", "phone": phone, "email": email,
-                     "website": website, "location": ""})
+                     "website": website, "location": "", "pain": ""})
     return out
 
 
@@ -243,8 +248,11 @@ def set_status(lead_id, status):
         for lead in d["leads"]:
             if lead["id"] == lead_id:
                 lead["status"] = status
-                if status in ("answered", "interested", "no_answer", "callback"):
+                if status in ("answered", "interested", "no_answer", "callback",
+                              "bad_number"):
                     lead["last_called"] = datetime.now().strftime("%m/%d %H:%M")
+                # bad_number stays out of the tally on purpose: a disconnected
+                # line is a list-quality problem, not a dial you can improve on.
                 if status in ("answered", "interested"):
                     tally_outcome = "answered"
                 elif status == "no_answer":
@@ -262,13 +270,15 @@ def set_status(lead_id, status):
     return list_leads()
 
 
-def set_note(lead_id, note):
-    note = str(note or "").strip()[:300]
+def set_note(lead_id, note, field="note"):
+    """Inline cell edit. field defaults to "note" so the original call shape still works."""
+    field = field if field in EDITABLE else "note"
+    value = str(note or "").strip()[:EDITABLE[field]]
     with _LOCK:
         d = _load()
         for lead in d["leads"]:
             if lead["id"] == lead_id:
-                lead["note"] = note
+                lead[field] = value
                 _save(d)
                 return {"ok": True}
     return {"ok": False, "detail": "Lead not found."}
@@ -287,6 +297,9 @@ def _escalate_notes(lead, info):
     loc = str(lead.get("location") or "").strip()
     if loc:
         lines.append(f"Location: {loc}")
+    pain = str(info.get("pain") or lead.get("pain") or "").strip()
+    if pain:
+        lines.append(f"Pain point: {pain}")
     nxt = str(info.get("next_step") or "").strip()
     if nxt:
         lines.append(f"Next step: {nxt}")
