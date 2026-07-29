@@ -1,0 +1,111 @@
+- generic [active] [ref=f95e1]:
+  - dialog "cookie consent" [ref=f95e2]:
+    - generic [ref=f95e3]: By browsing Etsy you agree to our use of cookies.
+    - button "dismiss cookie message" [ref=f95e5] [cursor=pointer]: x
+  - generic [ref=f95e8]:
+    - link "Skip to content" [ref=f95e9] [cursor=pointer]:
+      - /url: "#content"
+    - generic [ref=f95e10]:
+      - link [ref=f95e13] [cursor=pointer]:
+        - /url: /hc
+        - generic [ref=f95e14]:
+          - img "Etsy" [ref=f95e15]
+          - paragraph [ref=f95e16]: Help Center
+      - search [ref=f95e18]:
+        - generic [ref=f95e19]:
+          - searchbox "Type your question" [ref=f95e20]
+          - button "Search" [ref=f95e21] [cursor=pointer]
+      - link [ref=f95e28] [cursor=pointer]:
+        - /url: https://www.etsy.com/sso-forced/zendesk?return_to=https://help.etsy.com/hc/en-us/search?query=regulatory+operating+fee
+        - button "Sign in" [ref=f95e29]
+  - main [ref=f95e30]:
+    - generic [ref=f95e31]:
+      - list [ref=f95e35]:
+        - listitem "Help home" [ref=f95e36]:
+          - link "Help home" [ref=f95e37] [cursor=pointer]:
+            - /url: /hc/en-us
+      - generic [ref=f95e41]:
+        - heading "See all 15 articles" [level=1] [ref=f95e42]
+        - list [ref=f95e43]:
+          - listitem [ref=f95e44]:
+            - link [ref=f95e45] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwiyjqA%2FXQE6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJdaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzE1MDAwMTEwNzMyMDItV2hhdC1pcy1hLVJlZ3VsYXRvcnktT3BlcmF0aW5nLUZlZQY7CFQ6DnNlYXJjaF9pZEkiKTdiZWE1YzdmLWNiYzItNDViYy1hNjdlLTJiNTgwNWJiOTAyYgY7CEY6CXJhbmtpBjoLbG9jYWxlSSIKZW4tdXMGOwhUOgpxdWVyeUkiHXJlZ3VsYXRvcnkgb3BlcmF0aW5nIGZlZQY7CFQ6EnJlc3VsdHNfY291bnRpFA%3D%3D--cb07d75ae0b31b9e043857ec5668f6c22c43daa5
+              - text: Etsy Help
+              - heading "What is a Regulatory Operating Fee?" [level=2] [ref=f95e46]
+          - listitem [ref=f95e47]:
+            - link [ref=f95e48] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwirvmXHGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJpaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNDQ4MzYyNy1XaGF0LWFyZS10aGUtRmVlcy1hbmQtVGF4ZXMtZm9yLVNlbGxpbmctb24tRXRzeQY7CFQ6DnNlYXJjaF9pZEkiKTdiZWE1YzdmLWNiYzItNDViYy1hNjdlLTJiNTgwNWJiOTAyYgY7CEY6CXJhbmtpBzoLbG9jYWxlSSIKZW4tdXMGOwhUOgpxdWVyeUkiHXJlZ3VsYXRvcnkgb3BlcmF0aW5nIGZlZQY7CFQ6EnJlc3VsdHNfY291bnRpFA%3D%3D--5a9337b1bbe2f42bd4d8b214f7b9952703921c27
+              - text: Etsy Help
+              - heading "What are the Fees and Taxes for Selling on Etsy?" [level=2] [ref=f95e49]
+          - listitem [ref=f95e50]:
+            - link [ref=f95e51] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwicBnnHGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJcaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNTc0NzIyOC1Ib3ctdG8tTWFuYWdlLVlvdXItUGF5bWVudC1BY2NvdW50BjsIVDoOc2VhcmNoX2lkSSIpN2JlYTVjN2YtY2JjMi00NWJjLWE2N2UtMmI1ODA1YmI5MDJiBjsIRjoJcmFua2kIOgtsb2NhbGVJIgplbi11cwY7CFQ6CnF1ZXJ5SSIdcmVndWxhdG9yeSBvcGVyYXRpbmcgZmVlBjsIVDoScmVzdWx0c19jb3VudGkU--f05f9732fad3f8c45df4b1dac8197126f4cd8de9
+              - text: Etsy Help
+              - heading "How to Manage Your Payment Account" [level=2] [ref=f95e52]
+          - listitem [ref=f95e53]:
+            - link [ref=f95e54] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwilhb7UUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJwaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDA1MTU0MTQxMy1FdXJvcGVhbi1Vbmlvbi1QbGF0Zm9ybS10by1CdXNpbmVzcy1SZWd1bGF0aW9uLW9uLUV0c3kGOwhUOg5zZWFyY2hfaWRJIik3YmVhNWM3Zi1jYmMyLTQ1YmMtYTY3ZS0yYjU4MDViYjkwMmIGOwhGOglyYW5raQk6C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIh1yZWd1bGF0b3J5IG9wZXJhdGluZyBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aRQ%3D--10bd3e7fe83fd6e96687672b5fdff9c3e47916dd
+              - text: Etsy Help
+              - heading "European Union Platform-to-Business Regulation on Etsy" [level=2] [ref=f95e55]
+          - listitem [ref=f95e56]:
+            - link [ref=f95e57] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwhfNbHRUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJhaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDAwMDMzNzI0Ny1DdXN0b20tRmVlcy1hbmQtUGh5c2ljYWwtVkFULUNvbGxlY3Rpb24GOwhUOg5zZWFyY2hfaWRJIik3YmVhNWM3Zi1jYmMyLTQ1YmMtYTY3ZS0yYjU4MDViYjkwMmIGOwhGOglyYW5raQo6C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIh1yZWd1bGF0b3J5IG9wZXJhdGluZyBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aRQ%3D--472ccc102859a4cc54aa0b4b9043dc5251bb0280
+              - text: Etsy Help
+              - heading "Custom Fees and Physical VAT Collection" [level=2] [ref=f95e58]
+          - listitem [ref=f95e59]:
+            - link [ref=f95e60] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwgXjcXPDSY6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJraHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzQxODQwNzYyMjYwNzU5LUhvdy10by1Db21wbHktd2l0aC1VUy1DUFNDLWVGaWxpbmctUmVxdWlyZW1lbnRzBjsIVDoOc2VhcmNoX2lkSSIpN2JlYTVjN2YtY2JjMi00NWJjLWE2N2UtMmI1ODA1YmI5MDJiBjsIRjoJcmFua2kLOgtsb2NhbGVJIgplbi11cwY7CFQ6CnF1ZXJ5SSIdcmVndWxhdG9yeSBvcGVyYXRpbmcgZmVlBjsIVDoScmVzdWx0c19jb3VudGkU--0fcd27ff19d4574898df82665f2e532b701ccd09
+              - text: Etsy Help
+              - heading "How to Comply with US CPSC eFiling Requirements" [level=2] [ref=f95e61]
+          - listitem [ref=f95e62]:
+            - link [ref=f95e63] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwjfbMzRUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJPaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDAwMjEyMDkyNy1XaGF0LWlzLUV0c3ktUGF5bWVudHMGOwhUOg5zZWFyY2hfaWRJIik3YmVhNWM3Zi1jYmMyLTQ1YmMtYTY3ZS0yYjU4MDViYjkwMmIGOwhGOglyYW5raQw6C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIh1yZWd1bGF0b3J5IG9wZXJhdGluZyBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aRQ%3D--6058bb2fde59104c117bc484e94471945bc0ef0d
+              - text: Etsy Help
+              - heading "What is Etsy Payments?" [level=2] [ref=f95e64]
+          - listitem [ref=f95e65]:
+            - link [ref=f95e66] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwim%2FBvTUwA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJbaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzM2MDAyNDExMjI5NC1Ib3ctRG8tSS1QYXktTXktRXRzeS1TaG9wLUJhbGFuY2UGOwhUOg5zZWFyY2hfaWRJIik3YmVhNWM3Zi1jYmMyLTQ1YmMtYTY3ZS0yYjU4MDViYjkwMmIGOwhGOglyYW5raQ06C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIh1yZWd1bGF0b3J5IG9wZXJhdGluZyBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aRQ%3D--7f5a3e8b8cf63e8ed864ce2c166970733d381530
+              - text: Etsy Help
+              - heading "How Do I Pay My Etsy Shop Balance?" [level=2] [ref=f95e67]
+          - listitem [ref=f95e68]:
+            - link [ref=f95e69] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwgXmwNXLxA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSIBfGh0dHBzOi8vaGVscC5ldHN5LmNvbS9oYy9lbi11cy9hcnRpY2xlcy8xNzc5NTUwOTM2MTQzMS1XaGF0LUluZm9ybWF0aW9uLURvZXMtRXRzeS1SZXBvcnQtZm9yLVNlbGxlcnMtaW4tdGhlLUVVLVVLLWFuZC1DYW5hZGEGOwhUOg5zZWFyY2hfaWRJIik3YmVhNWM3Zi1jYmMyLTQ1YmMtYTY3ZS0yYjU4MDViYjkwMmIGOwhGOglyYW5raQ46C2xvY2FsZUkiCmVuLXVzBjsIVDoKcXVlcnlJIh1yZWd1bGF0b3J5IG9wZXJhdGluZyBmZWUGOwhUOhJyZXN1bHRzX2NvdW50aRQ%3D--053185ee5619f599c1a2f55ca195f394133af2cd
+              - text: Etsy Help
+              - heading "What Information Does Etsy Report for Sellers in the EU, UK, and Canada?" [level=2] [ref=f95e70]
+          - listitem [ref=f95e71]:
+            - link [ref=f95e72] [cursor=pointer]:
+              - /url: /hc/en-us/search/click?data=BAh7DjoHaWRsKwgTlnbHGgA6D2FjY291bnRfaWRpA1zEHjoJdHlwZUkiDGFydGljbGUGOgZFVDoIdXJsSSJOaHR0cHM6Ly9oZWxwLmV0c3kuY29tL2hjL2VuLXVzL2FydGljbGVzLzExNTAxNTU4NzM0Ny1Ib3ctdG8tQ2FuY2VsLWEtU2FsZQY7CFQ6DnNlYXJjaF9pZEkiKTdiZWE1YzdmLWNiYzItNDViYy1hNjdlLTJiNTgwNWJiOTAyYgY7CEY6CXJhbmtpDzoLbG9jYWxlSSIKZW4tdXMGOwhUOgpxdWVyeUkiHXJlZ3VsYXRvcnkgb3BlcmF0aW5nIGZlZQY7CFQ6EnJlc3VsdHNfY291bnRpFA%3D%3D--dacea971bb4fb8400dcdc808388145127a58a3c6
+              - text: Etsy Help
+              - heading "How to Cancel a Sale" [level=2] [ref=f95e73]
+        - navigation "Pagination" [ref=f95e75]:
+          - list [ref=f95e76]:
+            - listitem [ref=f95e77]:
+              - generic [ref=f95e78]: "1"
+            - listitem [ref=f95e79]:
+              - link "2" [ref=f95e80] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=2&query=regulatory+operating+fee#results
+            - listitem [ref=f95e81]:
+              - link "›" [ref=f95e82] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=2&query=regulatory+operating+fee#results
+            - listitem [ref=f95e83]:
+              - link "»" [ref=f95e84] [cursor=pointer]:
+                - /url: /hc/en-us/search?page=2&query=regulatory+operating+fee#results
+  - contentinfo [ref=f95e86]:
+    - heading "Footer" [level=2] [ref=f95e87]
+    - generic [ref=f95e88]:
+      - generic [ref=f95e89]:
+        - link [ref=f95e90] [cursor=pointer]:
+          - /url: https://www.etsy.com/?ref=hcfooter
+          - img "Etsy" [ref=f95e91]
+        - text: Keep Commerce Human
+      - generic [ref=f95e93]:
+        - generic [ref=f95e95]:
+          - link "© 2026 Etsy, Inc." [ref=f95e97] [cursor=pointer]:
+            - /url: "#"
+          - link "Terms of Use" [ref=f95e99] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/?ref=enhc
+          - link "Privacy" [ref=f95e101] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/privacy/?ref=enhc
+          - link "Interest-based ads" [ref=f95e103] [cursor=pointer]:
+            - /url: https://www.etsy.com/legal/policy/cookies-tracking-technologies/44797645975?ref=enhc
+        - button "English (United States)" [ref=f95e108] [cursor=pointer]
