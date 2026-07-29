@@ -1,0 +1,210 @@
+- generic [active] [ref=f17e1]:
+  - generic [ref=f17e2]:
+    - banner [ref=f17e4]:
+      - link "Etsy" [ref=f17e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - navigation [ref=f17e11]:
+        - button [ref=f17e13] [cursor=pointer]
+      - search [ref=f17e22]:
+        - generic [ref=f17e23]: Search for items or shops
+        - generic [ref=f17e25]:
+          - combobox "Search for items or shops" [ref=f17e26]
+          - button "Search" [ref=f17e27] [cursor=pointer]
+      - link "Skip to Content" [ref=f17e31] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=f17e35]:
+        - list [ref=f17e36]:
+          - listitem [ref=f17e37]:
+            - button "Sign in" [ref=f17e38] [cursor=pointer]
+          - listitem [ref=f17e39]:
+            - link "Cart" [ref=f17e41] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=f17e45]:
+      - list [ref=f17e49]:
+        - listitem [ref=f17e50]:
+          - link "Gifts" [ref=f17e51] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=f17e57]:
+          - link "Teacher Essentials" [ref=f17e58] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=f17e59]:
+          - link "Home Favorites" [ref=f17e60] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=f17e61]:
+          - link "Fashion Finds" [ref=f17e62] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=f17e63]:
+          - link "Vintage" [ref=f17e64] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=f17e65]:
+          - link "Wedding Guide" [ref=f17e66] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=f17e67]:
+          - link "Gift Cards" [ref=f17e68] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=f17e69]:
+    - generic [ref=f17e70]:
+      - generic [ref=f17e71]:
+        - generic [ref=f17e73]:
+          - button "Close alert" [ref=f17e74]
+          - generic [ref=f17e79]: The article you are looking for is no longer available.
+        - generic [ref=f17e80]:
+          - heading "Our House Rules" [level=1] [ref=f17e81]
+          - paragraph [ref=f17e82]: Get to know Etsy's legal terms and policies
+        - generic [ref=f17e85]:
+          - generic [ref=f17e86]:
+            - generic [ref=f17e87]: Search our policies
+            - textbox "Search our policies" [ref=f17e88]
+          - button "Search" [ref=f17e90]
+      - generic [ref=f17e95]:
+        - heading [level=2] [ref=f17e97]:
+          - link "Terms of Use" [ref=f17e98] [cursor=pointer]:
+            - /url: /legal/terms-of-use
+        - heading [level=2] [ref=f17e100]:
+          - link "Privacy Policy" [ref=f17e101] [cursor=pointer]:
+            - /url: /legal/privacy
+      - generic [ref=f17e102]:
+        - heading "Policies for our community" [level=3] [ref=f17e103]
+        - generic [ref=f17e104]:
+          - link [ref=f17e105] [cursor=pointer]:
+            - /url: /legal/section/buyers
+            - generic [ref=f17e106]:
+              - heading "Buyers" [level=2] [ref=f17e142]
+              - paragraph [ref=f17e143]: Shopping, communicating with sellers, ordering and more
+          - link [ref=f17e144] [cursor=pointer]:
+            - /url: /legal/section/sellers
+            - generic [ref=f17e145]:
+              - heading "Sellers" [level=2] [ref=f17e176]
+              - paragraph [ref=f17e177]: What you can sell, your responsibilities and details on fees
+          - link [ref=f17e178] [cursor=pointer]:
+            - /url: /legal/section/third-party
+            - generic [ref=f17e179]:
+              - heading "Third parties" [level=2] [ref=f17e195]
+              - paragraph [ref=f17e196]: IP holders, API developers, affiliates and anyone requesting information
+  - contentinfo [ref=f17e198]:
+    - generic [ref=f17e200]:
+      - heading "We're on a mission to keep commerce human." [level=2] [ref=f17e203]
+      - navigation "Footer" [ref=f17e205]:
+        - generic [ref=f17e206]:
+          - generic [ref=f17e207]:
+            - heading "Shop" [level=3] [ref=f17e208]
+            - list [ref=f17e210]:
+              - listitem [ref=f17e211]:
+                - link "Gift cards" [ref=f17e213] [cursor=pointer]:
+                  - /url: https://www.etsy.com/giftcards?ref=ftr
+              - listitem [ref=f17e214]:
+                - link "Etsy Registry" [ref=f17e216] [cursor=pointer]:
+                  - /url: https://www.etsy.com/registry?ref=ftr
+              - listitem [ref=f17e217]:
+                - link "Sitemap" [ref=f17e219] [cursor=pointer]:
+                  - /url: https://www.etsy.com/categories
+              - listitem [ref=f17e220]:
+                - link "Etsy blog" [ref=f17e222] [cursor=pointer]:
+                  - /url: /blog/en/?ref=ftr
+              - listitem [ref=f17e223]:
+                - link "Etsy United Kingdom" [ref=f17e225] [cursor=pointer]:
+                  - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+              - listitem [ref=f17e226]:
+                - link "Etsy Germany" [ref=f17e228] [cursor=pointer]:
+                  - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+              - listitem [ref=f17e229]:
+                - link "Etsy Canada" [ref=f17e231] [cursor=pointer]:
+                  - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+          - generic [ref=f17e232]:
+            - heading "Sell" [level=3] [ref=f17e233]
+            - list [ref=f17e235]:
+              - listitem [ref=f17e236]:
+                - link "Sell on Etsy" [ref=f17e238] [cursor=pointer]:
+                  - /url: https://www.etsy.com/sell?ref=ftr
+              - listitem [ref=f17e239]:
+                - link "Teams" [ref=f17e241] [cursor=pointer]:
+                  - /url: https://community.etsy.com/pages/etsy-teams/
+              - listitem [ref=f17e242]:
+                - link "Forums" [ref=f17e244] [cursor=pointer]:
+                  - /url: https://community.etsy.com/feed/
+              - listitem [ref=f17e245]:
+                - link "Affiliates & Creators" [ref=f17e247] [cursor=pointer]:
+                  - /url: https://www.etsy.com/affiliates?ref=ftr
+          - generic [ref=f17e248]:
+            - heading "About" [level=3] [ref=f17e249]
+            - list [ref=f17e251]:
+              - listitem [ref=f17e252]:
+                - link "Etsy, Inc." [ref=f17e254] [cursor=pointer]:
+                  - /url: https://www.etsy.com/about?ref=ftr
+              - listitem [ref=f17e255]:
+                - link "Policies" [ref=f17e257] [cursor=pointer]:
+                  - /url: https://www.etsy.com/legal?ref=ftr
+              - listitem [ref=f17e258]:
+                - link "Investors" [ref=f17e260] [cursor=pointer]:
+                  - /url: https://investors.etsy.com
+              - listitem [ref=f17e261]:
+                - link "Careers" [ref=f17e263] [cursor=pointer]:
+                  - /url: https://www.etsy.com/careers?ref=ftr
+              - listitem [ref=f17e264]:
+                - link "Press" [ref=f17e266] [cursor=pointer]:
+                  - /url: https://www.etsy.com/press?ref=ftr
+              - listitem [ref=f17e267]:
+                - link "Impact" [ref=f17e269] [cursor=pointer]:
+                  - /url: https://www.etsy.com/impact?ref=ftr
+          - generic [ref=f17e270]:
+            - heading "Help" [level=3] [ref=f17e271]
+            - list [ref=f17e273]:
+              - listitem [ref=f17e274]:
+                - link "Help Center" [ref=f17e276] [cursor=pointer]:
+                  - /url: https://www.etsy.com/help?ref=ftr
+              - listitem [ref=f17e277]:
+                - link "Privacy settings" [ref=f17e279] [cursor=pointer]:
+                  - /url: "#"
+      - list "Download the Etsy App" [ref=f17e283]:
+        - listitem [ref=f17e284]:
+          - link "App Store" [ref=f17e285] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+        - listitem [ref=f17e286]:
+          - link "Google Play" [ref=f17e287] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+      - img "Illustration of two people looking at a framed abstract artwork" [ref=f17e290]
+    - generic [ref=f17e293]:
+      - generic [ref=f17e295]:
+        - button "Update your settings United States English (US) $ (USD)" [ref=f17e296] [cursor=pointer]:
+          - generic [ref=f17e312]: United States
+        - generic [ref=f17e314]:
+          - link [ref=f17e315] [cursor=pointer]:
+            - /url: /social-tracking?network=instagram
+          - link [ref=f17e320] [cursor=pointer]:
+            - /url: /social-tracking?network=facebook
+          - link [ref=f17e324] [cursor=pointer]:
+            - /url: /social-tracking?network=pinterest
+          - link [ref=f17e328] [cursor=pointer]:
+            - /url: /social-tracking?network=youtube
+      - generic [ref=f17e333]:
+        - generic [ref=f17e334]: © 2026 Etsy, Inc.
+        - generic [ref=f17e335]:
+          - generic [ref=f17e336]:
+            - link "Terms of Use" [ref=f17e338] [cursor=pointer]:
+              - /url: /legal/terms-of-use?ref=ftr
+            - link "Privacy" [ref=f17e340] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=ftr
+          - generic [ref=f17e341]:
+            - link "Interest-based ads" [ref=f17e343] [cursor=pointer]:
+              - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+            - link "Local Shops" [ref=f17e345] [cursor=pointer]:
+              - /url: /search/shops
+            - button "Regions" [ref=f17e347] [cursor=pointer]
+    - generic [ref=f17e353]:
+      - paragraph [ref=f17e354]: How Etsy uses cookies
+      - paragraph [ref=f17e355]:
+        - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+        - link "Privacy Policy" [ref=f17e356] [cursor=pointer]:
+          - /url: /legal/privacy/
+        - text: ","
+        - link "Cookies Policy" [ref=f17e357] [cursor=pointer]:
+          - /url: /legal/cookies/
+        - text: ", and"
+        - link "Terms of Use" [ref=f17e358] [cursor=pointer]:
+          - /url: /legal/terms-of-use/
+        - text: . Manage your preferences
+        - link "here" [ref=f17e359] [cursor=pointer]:
+          - /url: "#"
+        - text: .
+      - button "Ok" [ref=f17e361] [cursor=pointer]: Okay
+      - paragraph

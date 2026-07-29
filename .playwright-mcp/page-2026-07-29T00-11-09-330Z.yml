@@ -1,0 +1,338 @@
+- generic [active] [ref=f25e1]:
+  - generic [ref=f25e2]:
+    - banner [ref=f25e4]:
+      - link "Etsy" [ref=f25e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - navigation [ref=f25e11]:
+        - button [ref=f25e13] [cursor=pointer]
+      - search [ref=f25e22]:
+        - generic [ref=f25e23]: Search for items or shops
+        - generic [ref=f25e25]:
+          - combobox "Search for items or shops" [ref=f25e26]
+          - button "Search" [ref=f25e27] [cursor=pointer]
+      - link "Skip to Content" [ref=f25e31] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=f25e35]:
+        - list [ref=f25e36]:
+          - listitem [ref=f25e37]:
+            - button "Sign in" [ref=f25e38] [cursor=pointer]
+          - listitem [ref=f25e39]:
+            - link "Cart" [ref=f25e41] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=f25e45]:
+      - list [ref=f25e49]:
+        - listitem [ref=f25e50]:
+          - link "Gifts" [ref=f25e51] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=f25e57]:
+          - link "Teacher Essentials" [ref=f25e58] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=f25e59]:
+          - link "Home Favorites" [ref=f25e60] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=f25e61]:
+          - link "Fashion Finds" [ref=f25e62] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=f25e63]:
+          - link "Vintage" [ref=f25e64] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=f25e65]:
+          - link "Wedding Guide" [ref=f25e66] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=f25e67]:
+          - link "Gift Cards" [ref=f25e68] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=f25e69]:
+    - generic [ref=f25e70]:
+      - generic [ref=f25e74]:
+        - generic [ref=f25e75]:
+          - heading [level=2] [ref=f25e76]:
+            - link "Our House Rules" [ref=f25e77] [cursor=pointer]:
+              - /url: /legal?ref=pageheader
+          - paragraph [ref=f25e78]: Get to know Etsy's legal terms and policies
+        - generic [ref=f25e80]:
+          - generic [ref=f25e81]:
+            - generic [ref=f25e82]: Search our policies
+            - textbox "Search our policies" [ref=f25e83]
+          - button "Search" [ref=f25e85]
+      - generic [ref=f25e94]:
+        - navigation "breadcrumb'" [ref=f25e95]:
+          - generic [ref=f25e96]:
+            - link "Our House Rules" [ref=f25e97] [cursor=pointer]:
+              - /url: /legal?ref=breadcrumb
+            - text: /
+            - 'link "House Rules Menu: Sellers current page" [ref=f25e98] [cursor=pointer]':
+              - /url: /legal/sellers?ref=breadcrumb
+              - text: Sellers
+        - heading "Sellers" [level=1] [ref=f25e99]
+      - generic [ref=f25e132]:
+        - generic [ref=f25e133]:
+          - heading [level=3] [ref=f25e134]:
+            - link "Seller Policy" [ref=f25e135] [cursor=pointer]:
+              - /url: /legal/sellers/?ref=list
+          - paragraph [ref=f25e136]: Your rights and obligations as an Etsy seller
+        - generic [ref=f25e137]:
+          - heading [level=3] [ref=f25e139]:
+            - link "United States Regional Privacy Policy" [ref=f25e140] [cursor=pointer]:
+              - /url: /legal/policy/united-states-regional-privacy-policy/1146293244010?ref=list
+          - heading [level=3] [ref=f25e142]:
+            - link "Listing Mature Content Correctly" [ref=f25e143] [cursor=pointer]:
+              - /url: /legal/policy/listing-mature-content-correctly/242665462117?ref=list
+          - heading [level=3] [ref=f25e145]:
+            - link "Listing Image Requirements" [ref=f25e146] [cursor=pointer]:
+              - /url: /legal/policy/listing-image-requirements/253962679005?ref=list
+          - generic [ref=f25e147]:
+            - heading [level=3] [ref=f25e148]:
+              - link "Community Policy" [ref=f25e149] [cursor=pointer]:
+                - /url: /legal/community/?ref=list
+            - paragraph [ref=f25e150]: Requirements for participating in community spaces
+          - heading [level=3] [ref=f25e152]:
+            - link "Privacy Policy" [ref=f25e153] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=list
+          - generic [ref=f25e154]:
+            - heading [level=3] [ref=f25e155]:
+              - link "Purchase Protection Program for Sellers" [ref=f25e156] [cursor=pointer]:
+                - /url: /legal/policy/purchase-protection-program-for-sellers/34509585385?ref=list
+            - paragraph [ref=f25e157]: Requirements for Purchase Protection program eligibility
+          - heading [level=3] [ref=f25e159]:
+            - link "Etsy Insider - Closed Beta - Policy for Sellers" [ref=f25e160] [cursor=pointer]:
+              - /url: /legal/policy/etsy-insider-closed-beta-policy-for/1300971077676?ref=list
+          - heading [level=3] [ref=f25e162]:
+            - link "Etsy Up Gift Card 2025 Giveaway" [ref=f25e163] [cursor=pointer]:
+              - /url: /legal/policy/etsy-up-gift-card-2025-giveaway/1396686278282?ref=list
+          - generic [ref=f25e164]:
+            - heading [level=3] [ref=f25e165]:
+              - link "Etsy's Creativity Standards" [ref=f25e166] [cursor=pointer]:
+                - /url: /legal/creativity/?ref=list
+            - paragraph [ref=f25e167]: What may be sold on Etsy
+          - heading [level=3] [ref=f25e169]:
+            - link "Etsy’s Share & Save Terms (\"Program Terms\")" [ref=f25e170] [cursor=pointer]:
+              - /url: /legal/policy/etsys-share-save-terms-program-terms/1162874007996?ref=list
+          - generic [ref=f25e171]:
+            - heading [level=3] [ref=f25e172]:
+              - link "Lifesaving & Personal Protective Equipment - Effective Starting July 21, 2025" [ref=f25e173] [cursor=pointer]:
+                - /url: /legal/policy/lifesaving-personal-protective-equipment/1384310636345?ref=list
+            - paragraph [ref=f25e174]: Items designed to save lives or to minimize exposure to occupational and/or workplace hazards
+          - heading [level=3] [ref=f25e176]:
+            - link "Medical Claims" [ref=f25e177] [cursor=pointer]:
+              - /url: /legal/policy/medical-claims/239976157654?ref=list
+          - heading [level=3] [ref=f25e179]:
+            - link "Content Moderation at Etsy" [ref=f25e180] [cursor=pointer]:
+              - /url: /legal/policy/content-moderation-at-etsy/1232687465431?ref=list
+          - generic [ref=f25e181]:
+            - heading [level=3] [ref=f25e182]:
+              - link "Adult Nudity and Sexual Content" [ref=f25e183] [cursor=pointer]:
+                - /url: /legal/policy/adult-nudity-and-sexual-content/1269612959532?ref=list
+            - paragraph [ref=f25e184]: Content containing nudity and adult content that is prohibited, restricted, or allowed in our marketplace
+          - heading [level=3] [ref=f25e186]:
+            - link "Endangered, Threatened, or At-Risk Wildlife Products – Effective Until August 11, 2026" [ref=f25e187] [cursor=pointer]:
+              - /url: /legal/policy/endangered-threatened-or-at-risk/239374829600?ref=list
+          - generic [ref=f25e188]:
+            - heading [level=3] [ref=f25e189]:
+              - link "Harassment Policy" [ref=f25e190] [cursor=pointer]:
+                - /url: /legal/policy/harassment-policy/1395642333448?ref=list
+            - paragraph [ref=f25e191]: Behavior we prohibit on Etsy
+          - generic [ref=f25e192]:
+            - heading [level=3] [ref=f25e193]:
+              - link "Sell on Etsy App Policy (Effective from December 1, 2022)" [ref=f25e194] [cursor=pointer]:
+                - /url: /legal/sell-on-etsy/?ref=list
+            - paragraph [ref=f25e195]: Managing your Etsy shop through the Sell on Etsy mobile app
+          - generic [ref=f25e196]:
+            - heading [level=3] [ref=f25e197]:
+              - link "Etsy Payments Policy" [ref=f25e198] [cursor=pointer]:
+                - /url: /legal/etsy-payments/?ref=list
+            - paragraph [ref=f25e199]: Our agreement with you about your use of our payments services.
+          - heading [level=3] [ref=f25e201]:
+            - link "Children and Baby Products Policy" [ref=f25e202] [cursor=pointer]:
+              - /url: /legal/policy/children-and-baby-products-policy/239344787532?ref=list
+          - generic [ref=f25e203]:
+            - heading [level=3] [ref=f25e204]:
+              - link "Pattern Policy" [ref=f25e205] [cursor=pointer]:
+                - /url: /legal/pattern/?ref=list
+            - paragraph [ref=f25e206]: Your rights and responsibilities when using Pattern by Etsy
+          - generic [ref=f25e207]:
+            - heading [level=3] [ref=f25e208]:
+              - link "Advertising & Marketing Policy" [ref=f25e209] [cursor=pointer]:
+                - /url: /legal/advertising/?ref=list
+            - paragraph [ref=f25e210]: Terms for Etsy sellers who take advantage of our advertising or marketing services
+          - generic [ref=f25e211]:
+            - heading [level=3] [ref=f25e212]:
+              - link "Discrimination and Hateful Content Policy" [ref=f25e213] [cursor=pointer]:
+                - /url: /legal/policy/discrimination-and-hateful-content/123551108902?ref=list
+            - paragraph [ref=f25e214]: Behavior we prohibit on Etsy
+          - generic [ref=f25e215]:
+            - heading [level=3] [ref=f25e216]:
+              - link "Fees & Payments Policy" [ref=f25e217] [cursor=pointer]:
+                - /url: /legal/fees/?ref=list
+            - paragraph [ref=f25e218]: Seller fees, taxes, and how to pay them
+          - generic [ref=f25e219]:
+            - heading [level=3] [ref=f25e220]:
+              - link "Intellectual Property Policy" [ref=f25e221] [cursor=pointer]:
+                - /url: /legal/ip/?ref=list
+            - paragraph [ref=f25e222]: Intellectual property and issues with infringement
+          - generic [ref=f25e223]:
+            - heading [level=3] [ref=f25e224]:
+              - link "Sanctions Policy" [ref=f25e225] [cursor=pointer]:
+                - /url: /legal/policy/sanctions-policy/122383404929?ref=list
+            - paragraph [ref=f25e226]: Your responsibilities regarding sanctions and trade restrictions
+          - heading [level=3] [ref=f25e228]:
+            - link "Animal Products Policy – Effective Starting August 11, 2026" [ref=f25e229] [cursor=pointer]:
+              - /url: /legal/policy/animal-products-policy-effective/1476192396849?ref=list
+          - generic [ref=f25e230]:
+            - heading [level=3] [ref=f25e231]:
+              - link "Prohibited Items Policy – Effective Starting August 11, 2026" [ref=f25e232] [cursor=pointer]:
+                - /url: /legal/policy/prohibited-items-policy-effective/1475031537022?ref=list
+            - paragraph [ref=f25e233]: Items that are prohibited or restricted in our marketplace
+          - generic [ref=f25e234]:
+            - heading [level=3] [ref=f25e235]:
+              - link "Prohibited Items Policy – Effective Until August 11, 2026" [ref=f25e236] [cursor=pointer]:
+                - /url: /legal/prohibited/?ref=list
+            - paragraph [ref=f25e237]: Items that are prohibited or restricted in our marketplace
+          - generic [ref=f25e238]:
+            - heading [level=3] [ref=f25e239]:
+              - link "Seller Referrals Policy" [ref=f25e240] [cursor=pointer]:
+                - /url: /legal/referrals-sellers/?ref=list
+            - paragraph [ref=f25e241]: Earning credits by referring your friends to sell on Etsy
+          - generic [ref=f25e242]:
+            - heading [level=3] [ref=f25e243]:
+              - link "Off-Platform Transactions" [ref=f25e244] [cursor=pointer]:
+                - /url: /legal/policy/off-platform-transactions/1254654515806?ref=list
+            - paragraph [ref=f25e245]: Buy and sell items safely and securely on Etsy.
+          - generic [ref=f25e246]:
+            - heading [level=3] [ref=f25e247]:
+              - link "Seller Policy - effective through July 8, 2026" [ref=f25e248] [cursor=pointer]:
+                - /url: /legal/policy/seller-policy-effective-through-july-8/1489086421092?ref=list
+            - paragraph [ref=f25e249]: Your rights and obligations as an Etsy seller
+          - generic [ref=f25e250]:
+            - heading [level=3] [ref=f25e251]:
+              - link "Shipping Policy" [ref=f25e252] [cursor=pointer]:
+                - /url: /legal/shipping/?ref=list
+            - paragraph [ref=f25e253]: Understanding your shipping obligations and your rights and responsibilities when using Etsy's shipping labels services
+    - generic [ref=f25e255]:
+      - generic [ref=f25e257]:
+        - heading "We're on a mission to keep commerce human." [level=2] [ref=f25e260]
+        - navigation "Footer" [ref=f25e262]:
+          - generic [ref=f25e263]:
+            - generic [ref=f25e264]:
+              - heading "Shop" [level=3] [ref=f25e265]
+              - list [ref=f25e267]:
+                - listitem [ref=f25e268]:
+                  - link "Gift cards" [ref=f25e270] [cursor=pointer]:
+                    - /url: https://www.etsy.com/giftcards?ref=ftr
+                - listitem [ref=f25e271]:
+                  - link "Etsy Registry" [ref=f25e273] [cursor=pointer]:
+                    - /url: https://www.etsy.com/registry?ref=ftr
+                - listitem [ref=f25e274]:
+                  - link "Sitemap" [ref=f25e276] [cursor=pointer]:
+                    - /url: https://www.etsy.com/categories
+                - listitem [ref=f25e277]:
+                  - link "Etsy blog" [ref=f25e279] [cursor=pointer]:
+                    - /url: /blog/en/?ref=ftr
+                - listitem [ref=f25e280]:
+                  - link "Etsy United Kingdom" [ref=f25e282] [cursor=pointer]:
+                    - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+                - listitem [ref=f25e283]:
+                  - link "Etsy Germany" [ref=f25e285] [cursor=pointer]:
+                    - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+                - listitem [ref=f25e286]:
+                  - link "Etsy Canada" [ref=f25e288] [cursor=pointer]:
+                    - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+            - generic [ref=f25e289]:
+              - heading "Sell" [level=3] [ref=f25e290]
+              - list [ref=f25e292]:
+                - listitem [ref=f25e293]:
+                  - link "Sell on Etsy" [ref=f25e295] [cursor=pointer]:
+                    - /url: https://www.etsy.com/sell?ref=ftr
+                - listitem [ref=f25e296]:
+                  - link "Teams" [ref=f25e298] [cursor=pointer]:
+                    - /url: https://community.etsy.com/pages/etsy-teams/
+                - listitem [ref=f25e299]:
+                  - link "Forums" [ref=f25e301] [cursor=pointer]:
+                    - /url: https://community.etsy.com/feed/
+                - listitem [ref=f25e302]:
+                  - link "Affiliates & Creators" [ref=f25e304] [cursor=pointer]:
+                    - /url: https://www.etsy.com/affiliates?ref=ftr
+            - generic [ref=f25e305]:
+              - heading "About" [level=3] [ref=f25e306]
+              - list [ref=f25e308]:
+                - listitem [ref=f25e309]:
+                  - link "Etsy, Inc." [ref=f25e311] [cursor=pointer]:
+                    - /url: https://www.etsy.com/about?ref=ftr
+                - listitem [ref=f25e312]:
+                  - link "Policies" [ref=f25e314] [cursor=pointer]:
+                    - /url: https://www.etsy.com/legal?ref=ftr
+                - listitem [ref=f25e315]:
+                  - link "Investors" [ref=f25e317] [cursor=pointer]:
+                    - /url: https://investors.etsy.com
+                - listitem [ref=f25e318]:
+                  - link "Careers" [ref=f25e320] [cursor=pointer]:
+                    - /url: https://www.etsy.com/careers?ref=ftr
+                - listitem [ref=f25e321]:
+                  - link "Press" [ref=f25e323] [cursor=pointer]:
+                    - /url: https://www.etsy.com/press?ref=ftr
+                - listitem [ref=f25e324]:
+                  - link "Impact" [ref=f25e326] [cursor=pointer]:
+                    - /url: https://www.etsy.com/impact?ref=ftr
+            - generic [ref=f25e327]:
+              - heading "Help" [level=3] [ref=f25e328]
+              - list [ref=f25e330]:
+                - listitem [ref=f25e331]:
+                  - link "Help Center" [ref=f25e333] [cursor=pointer]:
+                    - /url: https://www.etsy.com/help?ref=ftr
+                - listitem [ref=f25e334]:
+                  - link "Privacy settings" [ref=f25e336] [cursor=pointer]:
+                    - /url: "#"
+        - list "Download the Etsy App" [ref=f25e340]:
+          - listitem [ref=f25e341]:
+            - link "App Store" [ref=f25e342] [cursor=pointer]:
+              - /url: https://etsy.app.link/d7nDUdp49V
+          - listitem [ref=f25e343]:
+            - link "Google Play" [ref=f25e344] [cursor=pointer]:
+              - /url: https://etsy.app.link/d7nDUdp49V
+        - img "Illustration of two people looking at a framed abstract artwork" [ref=f25e347]
+      - generic [ref=f25e350]:
+        - generic [ref=f25e352]:
+          - link "Update your settings United States English (US) $ (USD)" [ref=f25e353] [cursor=pointer]:
+            - /url: https://www.etsy.com/your/account/locale_preferences?from_page=https%3A%2F%2Fwww.etsy.com%2Flegal%2Fsection%2Fsellers
+            - generic [ref=f25e369]: United States
+          - generic [ref=f25e371]:
+            - link [ref=f25e372] [cursor=pointer]:
+              - /url: /social-tracking?network=instagram
+            - link [ref=f25e377] [cursor=pointer]:
+              - /url: /social-tracking?network=facebook
+            - link [ref=f25e381] [cursor=pointer]:
+              - /url: /social-tracking?network=pinterest
+            - link [ref=f25e385] [cursor=pointer]:
+              - /url: /social-tracking?network=youtube
+        - generic [ref=f25e390]:
+          - generic [ref=f25e391]: © 2026 Etsy, Inc.
+          - generic [ref=f25e392]:
+            - generic [ref=f25e393]:
+              - link "Terms of Use" [ref=f25e395] [cursor=pointer]:
+                - /url: /legal/terms-of-use?ref=ftr
+              - link "Privacy" [ref=f25e397] [cursor=pointer]:
+                - /url: /legal/privacy/?ref=ftr
+            - generic [ref=f25e398]:
+              - link "Interest-based ads" [ref=f25e400] [cursor=pointer]:
+                - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+              - link "Local Shops" [ref=f25e402] [cursor=pointer]:
+                - /url: /search/shops
+              - button "Regions" [ref=f25e404] [cursor=pointer]
+      - generic [ref=f25e410]:
+        - paragraph [ref=f25e411]: How Etsy uses cookies
+        - paragraph [ref=f25e412]:
+          - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+          - link "Privacy Policy" [ref=f25e413] [cursor=pointer]:
+            - /url: /legal/privacy/
+          - text: ","
+          - link "Cookies Policy" [ref=f25e414] [cursor=pointer]:
+            - /url: /legal/cookies/
+          - text: ", and"
+          - link "Terms of Use" [ref=f25e415] [cursor=pointer]:
+            - /url: /legal/terms-of-use/
+          - text: . Manage your preferences
+          - link "here" [ref=f25e416] [cursor=pointer]:
+            - /url: "#"
+          - text: .
+        - button "Ok" [ref=f25e418] [cursor=pointer]: Okay
+        - paragraph

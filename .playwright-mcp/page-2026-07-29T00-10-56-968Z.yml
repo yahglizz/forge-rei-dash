@@ -1,0 +1,12 @@
+- main [ref=f8e2]:
+  - generic [ref=f8e3]:
+    - link "Go back to Etsy.com" [ref=f8e5] [cursor=pointer]:
+      - /url: /
+    - generic [ref=f8e12]:
+      - heading "Uh oh!" [level=1] [ref=f8e13]
+      - heading "Sorry, the page you were looking for was not found." [level=2] [ref=f8e14]
+      - generic [ref=f8e16]:
+        - textbox "Search for anything" [ref=f8e17]
+        - button "Search" [ref=f8e18] [cursor=pointer]
+      - link "Go back to Etsy.com" [ref=f8e23] [cursor=pointer]:
+        - /url: /

@@ -1,0 +1,415 @@
+- generic [active] [ref=f41e1]:
+  - generic [ref=f41e2]:
+    - banner [ref=f41e4]:
+      - link "Etsy" [ref=f41e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - navigation [ref=f41e11]:
+        - button [ref=f41e13] [cursor=pointer]
+      - search [ref=f41e22]:
+        - generic [ref=f41e23]: Search for items or shops
+        - generic [ref=f41e25]:
+          - combobox "Search for items or shops" [ref=f41e26]
+          - button "Search" [ref=f41e27] [cursor=pointer]
+      - link "Skip to Content" [ref=f41e31] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=f41e35]:
+        - list [ref=f41e36]:
+          - listitem [ref=f41e37]:
+            - button "Sign in" [ref=f41e38] [cursor=pointer]
+          - listitem [ref=f41e39]:
+            - link "Cart" [ref=f41e41] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=f41e45]:
+      - list [ref=f41e49]:
+        - listitem [ref=f41e50]:
+          - link "Gifts" [ref=f41e51] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=f41e57]:
+          - link "Teacher Essentials" [ref=f41e58] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=f41e59]:
+          - link "Home Favorites" [ref=f41e60] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=f41e61]:
+          - link "Fashion Finds" [ref=f41e62] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=f41e63]:
+          - link "Vintage" [ref=f41e64] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=f41e65]:
+          - link "Wedding Guide" [ref=f41e66] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=f41e67]:
+          - link "Gift Cards" [ref=f41e68] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=f41e69]:
+    - generic [ref=f41e70]:
+      - generic [ref=f41e74]:
+        - generic [ref=f41e75]:
+          - heading [level=2] [ref=f41e76]:
+            - link "Our House Rules" [ref=f41e77] [cursor=pointer]:
+              - /url: /legal?ref=pageheader
+          - paragraph [ref=f41e78]: Get to know Etsy's legal terms and policies
+        - generic [ref=f41e80]:
+          - generic [ref=f41e81]:
+            - generic [ref=f41e82]: Search our policies
+            - textbox "Search our policies" [ref=f41e83]
+          - button "Search" [ref=f41e85]
+      - generic [ref=f41e91]:
+        - generic [ref=f41e92]:
+          - navigation "breadcrumb'" [ref=f41e93]:
+            - generic [ref=f41e94]:
+              - link "Our House Rules" [ref=f41e95] [cursor=pointer]:
+                - /url: /legal?ref=breadcrumb
+              - text: /
+              - 'link "House Rules Menu: %s current page" [ref=f41e96] [cursor=pointer]':
+                - /url: "?ref=breadcrumb"
+                - text: All categories
+          - heading "Etsy's Creativity Standards" [level=1] [ref=f41e97]
+        - paragraph [ref=f41e99]: Etsy’s mission is to Keep Commerce Human. We are the marketplace for original items from real people. We stay true to this by connecting buyers with unique items made, designed, handpicked, or sourced by creative sellers around the world.
+        - article [ref=f41e100]:
+          - paragraph [ref=f41e101]:
+            - text: This policy, as part of our
+            - link "Terms of Use" [ref=f41e102] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms-of-use
+            - text: ", outlines the types of items allowed on Etsy in support of our mission. By listing items for sale on Etsy, you agree to adhere to this policy and our Terms of Use."
+          - figure [ref=f41e104]:
+            - img "banner" [ref=f41e105]
+          - paragraph [ref=f41e106]:
+            - text: We believe that every item on Etsy should reflect the creativity of our community. Items on Etsy represent a range of creative endeavors, from goods carefully crafted by hand, to digital art generated with innovative technologies, craft supplies that fuel inspiration, and vintage items handpicked with care. We strive to be a marketplace where creativity thrives, special goods shine, and the role of a seller is celebrated. As such, all items must incorporate a human touch as outlined by the categories below. Additional context is available in our
+            - link "Seller Handbook" [ref=f41e107] [cursor=pointer]:
+              - /url: https://www.etsy.com/seller-handbook/article/1276491338090
+            - text: .
+          - paragraph [ref=f41e108]:
+            - link "Made by a seller" [ref=f41e109] [cursor=pointer]:
+              - /url: "#made"
+            - text: Physical items made by a seller by hand or using personal or computerized tools.
+          - paragraph [ref=f41e110]:
+            - link "Designed by a seller" [ref=f41e111] [cursor=pointer]:
+              - /url: "#designed"
+            - text: Sellers’ original designs that are produced or printed by a third party or offered as a digital download.
+          - paragraph [ref=f41e112]:
+            - link "Handpicked by a seller" [ref=f41e113] [cursor=pointer]:
+              - /url: "#handpicked"
+            - text: Vintage items, items from nature, and certain collections of items that a seller personally selected and curated for sale.
+          - paragraph [ref=f41e114]:
+            - link "Sourced by a seller" [ref=f41e115] [cursor=pointer]:
+              - /url: "#sourced"
+            - text: Items that enable buyer creativity, including craft and party supplies and items that are personalized with a buyer’s custom text or image.
+          - paragraph [ref=f41e116]: Etsy reserves the right to remove listings that do not follow our policies. Sellers remain obligated to pay any fees incurred in listing such items.
+          - heading "Made by a seller" [level=2] [ref=f41e117]
+          - paragraph [ref=f41e118]: Physical items made by a seller by hand or using personal or computerized tools.
+          - paragraph [ref=f41e119]: "Items ‘made by a seller’ include only:"
+          - list [ref=f41e120]:
+            - listitem [ref=f41e121]:
+              - text: "Handcrafted items: Items crafted entirely by hand (including using handheld or hand-guided tools like a sewing machine or table saw), from raw or basic craft materials."
+              - list [ref=f41e122]:
+                - listitem [ref=f41e123]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e124]: A wooden chair built by hand with a power saw and sander; ceramic pottery thrown on a wheel
+            - listitem [ref=f41e125]:
+              - text: "Hand altered items: Commercially available base items that a seller altered using specialized handcrafting skills."
+              - list [ref=f41e126]:
+                - listitem [ref=f41e127]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e128]: Hand-embroidering flowers onto a tote bag; reupholstering a piece of furniture with new fabric
+            - listitem [ref=f41e129]:
+              - text: "Hand assembled items: Commercially available supplies or components that a seller attached together or combined by hand to create a unique end-product."
+              - list [ref=f41e130]:
+                - listitem [ref=f41e131]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e132]: Using jewelry-making tools to attach charms to a necklace chain; sewing patches onto a denim jacket
+            - listitem [ref=f41e133]:
+              - text: "Items produced using computerized tools: Physical items that a seller produced in their personal shop or home, using computerized tools such as a laser printer, 3D printer, CNC or Cricut machine. These items must be produced based on a seller’s original design and are often personalized or customized to a buyer’s specification."
+              - list [ref=f41e134]:
+                - listitem [ref=f41e135]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e136]: Clothing embroidered by a seller using a computerized embroidery machine; tumblers decorated with vinyl stickers printed by a Cricut machine; wedding invitations designed by a seller using software and printed onto stationery using a laser printer
+          - paragraph [ref=f41e137]: "The following are examples of items that do not qualify as ‘made by a seller’:"
+          - list [ref=f41e138]:
+            - listitem [ref=f41e139]: An item assembled by a seller per the manufacturer’s instructions (e.g., flatpack furniture or a Lego set)
+            - listitem [ref=f41e140]: A commercially available base item with only superficial alteration, such as addition of a simple, mass-produced stick-on adornment
+          - paragraph [ref=f41e141]:
+            - text: Listings for items ‘made by a seller’ must use original photo or video content of the final product. When listing personalized or custom items such as monogrammed or engraved accessories, your first image must show a finished, customized item rather than the blank product or placeholder text (e.g., “Your Text Here”). See
+            - link "Listing Image Requirements" [ref=f41e142] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/listing-image-requirements/253962679005?ref=list
+            - text: for more information.
+          - paragraph [ref=f41e143]: "Examples of items that qualify as ‘made by a seller’:"
+          - figure "Handcrafted bowl; Hand altered t-shirt; Hand assembled keychain; Wooden decor made by a seller using automated tools (laser cutter); Bust made by a seller using automated tools (3D printer)" [ref=f41e145]:
+            - img "Q1" [ref=f41e146]
+          - paragraph [ref=f41e148]: "Examples of items that do not qualify as ‘made by a seller’:"
+          - figure "A commercially available facemask with a single sticker added; A Lego set assembled according to the manufacturer’s instructions" [ref=f41e150]:
+            - img "NQ1" [ref=f41e151]
+          - heading "Designed by a seller" [level=2] [ref=f41e153]
+          - paragraph [ref=f41e154]: Sellers’ original designs that are produced or printed by a third party or offered as a digital download.
+          - paragraph [ref=f41e155]: "Items ‘designed by a seller’ include only:"
+          - list [ref=f41e156]:
+            - listitem [ref=f41e157]:
+              - text: "Digital downloads of sellers’ original designs: Original content created by the seller, sold as a digital download."
+              - list [ref=f41e158]:
+                - listitem [ref=f41e159]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e160]: A digital file of a seller’s unique graphic design, audio, text document, or scanned copy of physical artwork
+            - listitem [ref=f41e161]:
+              - text: "Sellers’ original designs produced by a production partner: Original designs created by a seller and produced with the assistance of a"
+              - link "production partner" [ref=f41e162] [cursor=pointer]:
+                - /url: https://help.etsy.com/hc/en-us/articles/360000336547-Working-with-Production-Partners-on-Etsy?segment=selling
+              - text: . Sellers must disclose that an item is made by a production partner, and provide accurate information about where the item will ship from.
+              - list [ref=f41e163]:
+                - listitem [ref=f41e164]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e165]: A unique dress designed by a seller and reproduced at scale by a production partner; a coloring book designed and illustrated by a seller and printed and bound by a production partner; a graphic logo created by a seller and printed onto a phone case by a third-party printer
+            - listitem [ref=f41e166]:
+              - text: "Seller-prompted AI creations: Creations that were generated using AI tools (e.g., AI image generators such as Dall-E) based on a seller’s original prompts. Sellers must disclose within their listing description if an item is created with the use of AI. Read more about our stance on AI creations"
+              - link "here" [ref=f41e167] [cursor=pointer]:
+                - /url: https://www.etsy.com/seller-handbook/article/1275449912004
+              - text: .
+              - list [ref=f41e168]:
+                - listitem [ref=f41e169]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e170]: A fantasy scene based on a seller’s original prompt or inputs, produced by an AI generator; a custom portrait of a buyer’s pet generated using AI tools
+          - paragraph [ref=f41e171]: "The following are examples of items that do not qualify as ‘designed by a seller’:"
+          - list [ref=f41e172]:
+            - listitem [ref=f41e173]: A bundle, collection, scan, or PDF of someone else’s work
+            - listitem [ref=f41e174]: AI prompt bundles
+          - paragraph [ref=f41e175]:
+            - link "Learn more" [ref=f41e176] [cursor=pointer]:
+              - /url: https://www.etsy.com/seller-handbook/article/1276487437920
+            - text: about how Etsy has helped sellers grow their businesses through production assistance since 2016.
+          - paragraph [ref=f41e177]:
+            - text: See
+            - link "Listing Image Requirements" [ref=f41e178] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/listing-image-requirements/253962679005?ref=list
+            - text: for more information about how to correctly showcase items ‘designed by a seller’, including items made by production partners. When listing personalized or custom items such as monogrammed or engraved accessories, your first image must show a finished, customized item rather than the blank product or placeholder text (e.g., “Your Text Here”).
+          - paragraph [ref=f41e179]: "Examples of items that qualify as ‘designed by a seller’:"
+          - figure "Wedding invitations designed by a seller and provided as a digital download; A seller’s unique, original design, printed onto a blanket by a production partner; Seller-prompted AI art" [ref=f41e181]:
+            - img "Q2" [ref=f41e182]
+          - paragraph [ref=f41e184]: "Examples of items that do not qualify as ‘designed by a seller’:"
+          - figure "AI prompt bundles; A PDF file of a book that the seller did not personally create or design" [ref=f41e186]:
+            - img "NQ2" [ref=f41e187]
+          - heading "Handpicked by a seller" [level=2] [ref=f41e189]
+          - paragraph [ref=f41e190]: Vintage items, items from nature, and certain collections of items that a seller personally selected and curated for sale.
+          - list [ref=f41e191]:
+            - listitem [ref=f41e192]: "Items ‘handpicked by a seller’ include only:"
+            - listitem [ref=f41e193]:
+              - text: "Vintage items: Items that are 20+ years old, that the seller personally curated or collected. Etsy may ask for additional photo documentation or information about vintage items in your shop, such as their source, age, designer, or materials."
+              - list [ref=f41e194]:
+                - listitem [ref=f41e195]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e196]: A Rockabilly dress from the 1950s; a copy of the book “The Little Prince” from the 1940s
+            - listitem [ref=f41e197]:
+              - text: "Items from nature: One-of-a-kind natural items that the seller personally found or cultivated, as long as they are permitted by our policies for"
+              - link "Plants, Herbs, Seeds and Soil" [ref=f41e198] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/plants-herbs-seeds-and-soil/242685907951?ref=list
+              - text: and
+              - link "Endangered or Threatened Wildlife Products" [ref=f41e199] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/endangered-or-threatened-wildlife/239374829600?ref=list
+              - text: . The item might have been mounted, potted, polished, or sliced for collection, display or cultivation, so long as it was formed organically rather than man-made.
+              - list [ref=f41e200]:
+                - listitem [ref=f41e201]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e202]: A rock; a geode; a shell; a fossil; a plant/plant start; a dried flower
+            - listitem [ref=f41e203]:
+              - text: "Gift baskets: An assortment of different types of items that the seller personally selected and creatively packaged to create a new, unique set. Gift baskets must have a clear theme that ties together a variety of different types of items that were individually selected by the seller. Generic concepts such as “candy,” “clothes,” or “mystery box” (boxes with unknown contents or containing a single type of item in bulk) do"
+              - emphasis [ref=f41e204]: not
+              - text: qualify as gift basket themes. Sellers must list every item contained in a curated gift basket or box in the listing description.
+              - list [ref=f41e205]:
+                - listitem [ref=f41e206]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e207]: A “new dog parent” themed gift box containing an assortment of dog treats, dog bags, leash, and dog-themed coffee mug
+          - paragraph [ref=f41e208]: "The following are examples of items that do not qualify as ‘handpicked by a seller’:"
+          - list [ref=f41e209]:
+            - listitem [ref=f41e210]: Resold commercially available items that are newer than 20 years old, even if the item is designed to appear vintage
+            - listitem [ref=f41e211]: Resold commercially available gift baskets, or gift baskets with a single item type or from a single commercial brand, as opposed to a collection of different item types selected and creatively packaged by the seller
+            - listitem [ref=f41e212]:
+              - text: Resold items from nature
+              - list [ref=f41e213]:
+                - listitem [ref=f41e214]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e215]: Bulk landscape rocks resold from Home Depot
+          - paragraph [ref=f41e216]:
+            - text: Listings for items ‘handpicked by a seller’ must use photo or video content of the real, final product. See
+            - link "Listing Image Requirements" [ref=f41e217] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/listing-image-requirements/253962679005?ref=list
+            - text: for more information.
+          - paragraph [ref=f41e218]: "Examples of items that qualify as ‘handpicked by a seller’:"
+          - figure "Vintage jacket; Geode that a seller found in nature; A unique assortment of dried flowers; A “Book Lover” gift basket containing an assortment of different types of items that a seller handpicked, curated, and creatively packaged to reflect the theme" [ref=f41e220]:
+            - img "Q3" [ref=f41e221]
+          - paragraph [ref=f41e223]: "Examples of items that do not qualify as ‘handpicked by a seller’:"
+          - figure "Gift baskets with items from one commercial brand; Mystery boxes without a theme" [ref=f41e225]:
+            - img "NQ3" [ref=f41e226]
+          - heading "Sourced by a seller" [level=2] [ref=f41e228]
+          - paragraph [ref=f41e229]: Items that enable buyer creativity, including craft and party supplies, and items that are personalized with a buyer’s custom text or image.
+          - paragraph [ref=f41e230]: "Items ‘sourced by a seller’ include only:"
+          - list [ref=f41e231]:
+            - listitem [ref=f41e232]:
+              - text: "Craft supplies: Tools or materials whose primary purpose is to create a new item by hand."
+              - list [ref=f41e233]:
+                - listitem [ref=f41e234]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e235]: Craft tools, such as knitting needles or clay sculpting tools; craft materials such as yarn or beads; craft blanks (items that are not intended to be used without further crafting), such as paintable figurines or unfinished wooden rounds; and craft kits, such as a tie-dye or terrarium kit
+            - listitem [ref=f41e236]:
+              - text: "Party supplies: Items whose primary purpose is to decorate a special event, to give it a unique or personal aesthetic."
+              - list [ref=f41e237]:
+                - listitem [ref=f41e238]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e239]: Festive table decorations; balloons and streamers; gift wrap
+            - listitem [ref=f41e240]:
+              - text: "Buyer-personalized items produced by a production partner: Items created using a buyer’s unique text or image, produced by a production partner."
+              - list [ref=f41e241]:
+                - listitem [ref=f41e242]:
+                  - text: e.g.,
+                  - emphasis [ref=f41e243]: A t-shirt, hat, or neon sign that can be personalized with a buyer’s name or special phrase
+          - paragraph [ref=f41e244]:
+            - text: Read more about why Etsy allows items ‘sourced by a seller’
+            - link "here" [ref=f41e245] [cursor=pointer]:
+              - /url: https://www.etsy.com/seller-handbook/article/1276601870825
+            - text: .
+          - paragraph [ref=f41e246]: "The following are examples of items that do not qualify as ‘sourced by a seller’:"
+          - list [ref=f41e247]:
+            - listitem [ref=f41e248]: Resold blank items that are ready to use without craft intervention, such as blank t-shirts, hats, or tumblers
+            - listitem [ref=f41e249]: Resold generic cooking tools or ingredients; chemical compounds; automotive/bicycle parts and repair tools; office, construction, gardening, cosmetic, or home DIY supplies
+            - listitem [ref=f41e250]: Generic resold items that may be used at a party, but either are not decor, or also have everyday uses, such as plain furniture, generic tableware, stage lights, speakers, costumes, party favors, and seasonal/holiday decor not specific to a single gathering or celebration
+          - paragraph [ref=f41e251]:
+            - text: Listings for items ‘sourced by a seller’ must use photo or video content of the items you have for sale, or commercial images (e.g., from the manufacturer or distributor), subject to our
+            - link "Intellectual Property Policy" [ref=f41e252] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/ip
+            - text: . See
+            - link "Listing Image Requirements" [ref=f41e253] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/listing-image-requirements/253962679005?ref=list
+            - text: for more information.
+          - paragraph [ref=f41e254]: "Examples of items that qualify as ‘sourced by a seller’ include:"
+          - figure "Indigo dying kit; Balloon frames; Buyer-personalized t-shirt printed on demand" [ref=f41e256]:
+            - img "Q4" [ref=f41e257]
+          - paragraph [ref=f41e259]: "Examples of items that do not qualify as ‘sourced by a seller’:"
+          - figure "Electronics that can be used outside of special events; Resold clothing that is ready-to-use as-is, without further crafting" [ref=f41e261]:
+            - img "NQ4" [ref=f41e262]
+          - paragraph [ref=f41e264]: Last updated on Jun 10, 2025
+  - contentinfo [ref=f41e266]:
+    - generic [ref=f41e268]:
+      - heading "We're on a mission to keep commerce human." [level=2] [ref=f41e271]
+      - navigation "Footer" [ref=f41e273]:
+        - generic [ref=f41e274]:
+          - generic [ref=f41e275]:
+            - heading "Shop" [level=3] [ref=f41e276]
+            - list [ref=f41e278]:
+              - listitem [ref=f41e279]:
+                - link "Gift cards" [ref=f41e281] [cursor=pointer]:
+                  - /url: https://www.etsy.com/giftcards?ref=ftr
+              - listitem [ref=f41e282]:
+                - link "Etsy Registry" [ref=f41e284] [cursor=pointer]:
+                  - /url: https://www.etsy.com/registry?ref=ftr
+              - listitem [ref=f41e285]:
+                - link "Sitemap" [ref=f41e287] [cursor=pointer]:
+                  - /url: https://www.etsy.com/categories
+              - listitem [ref=f41e288]:
+                - link "Etsy blog" [ref=f41e290] [cursor=pointer]:
+                  - /url: /blog/en/?ref=ftr
+              - listitem [ref=f41e291]:
+                - link "Etsy United Kingdom" [ref=f41e293] [cursor=pointer]:
+                  - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+              - listitem [ref=f41e294]:
+                - link "Etsy Germany" [ref=f41e296] [cursor=pointer]:
+                  - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+              - listitem [ref=f41e297]:
+                - link "Etsy Canada" [ref=f41e299] [cursor=pointer]:
+                  - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+          - generic [ref=f41e300]:
+            - heading "Sell" [level=3] [ref=f41e301]
+            - list [ref=f41e303]:
+              - listitem [ref=f41e304]:
+                - link "Sell on Etsy" [ref=f41e306] [cursor=pointer]:
+                  - /url: https://www.etsy.com/sell?ref=ftr
+              - listitem [ref=f41e307]:
+                - link "Teams" [ref=f41e309] [cursor=pointer]:
+                  - /url: https://community.etsy.com/pages/etsy-teams/
+              - listitem [ref=f41e310]:
+                - link "Forums" [ref=f41e312] [cursor=pointer]:
+                  - /url: https://community.etsy.com/feed/
+              - listitem [ref=f41e313]:
+                - link "Affiliates & Creators" [ref=f41e315] [cursor=pointer]:
+                  - /url: https://www.etsy.com/affiliates?ref=ftr
+          - generic [ref=f41e316]:
+            - heading "About" [level=3] [ref=f41e317]
+            - list [ref=f41e319]:
+              - listitem [ref=f41e320]:
+                - link "Etsy, Inc." [ref=f41e322] [cursor=pointer]:
+                  - /url: https://www.etsy.com/about?ref=ftr
+              - listitem [ref=f41e323]:
+                - link "Policies" [ref=f41e325] [cursor=pointer]:
+                  - /url: https://www.etsy.com/legal?ref=ftr
+              - listitem [ref=f41e326]:
+                - link "Investors" [ref=f41e328] [cursor=pointer]:
+                  - /url: https://investors.etsy.com
+              - listitem [ref=f41e329]:
+                - link "Careers" [ref=f41e331] [cursor=pointer]:
+                  - /url: https://www.etsy.com/careers?ref=ftr
+              - listitem [ref=f41e332]:
+                - link "Press" [ref=f41e334] [cursor=pointer]:
+                  - /url: https://www.etsy.com/press?ref=ftr
+              - listitem [ref=f41e335]:
+                - link "Impact" [ref=f41e337] [cursor=pointer]:
+                  - /url: https://www.etsy.com/impact?ref=ftr
+          - generic [ref=f41e338]:
+            - heading "Help" [level=3] [ref=f41e339]
+            - list [ref=f41e341]:
+              - listitem [ref=f41e342]:
+                - link "Help Center" [ref=f41e344] [cursor=pointer]:
+                  - /url: https://www.etsy.com/help?ref=ftr
+              - listitem [ref=f41e345]:
+                - link "Privacy settings" [ref=f41e347] [cursor=pointer]:
+                  - /url: "#"
+      - list "Download the Etsy App" [ref=f41e351]:
+        - listitem [ref=f41e352]:
+          - link "App Store" [ref=f41e353] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+        - listitem [ref=f41e354]:
+          - link "Google Play" [ref=f41e355] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+      - img "Illustration of two people looking at a framed abstract artwork" [ref=f41e358]
+    - generic [ref=f41e361]:
+      - generic [ref=f41e363]:
+        - link "Update your settings United States English (US) $ (USD)" [ref=f41e364] [cursor=pointer]:
+          - /url: https://www.etsy.com/your/account/locale_preferences?from_page=https%3A%2F%2Fwww.etsy.com%2Flegal%2Fcreativity%2F
+          - generic [ref=f41e380]: United States
+        - generic [ref=f41e382]:
+          - link [ref=f41e383] [cursor=pointer]:
+            - /url: /social-tracking?network=instagram
+          - link [ref=f41e388] [cursor=pointer]:
+            - /url: /social-tracking?network=facebook
+          - link [ref=f41e392] [cursor=pointer]:
+            - /url: /social-tracking?network=pinterest
+          - link [ref=f41e396] [cursor=pointer]:
+            - /url: /social-tracking?network=youtube
+      - generic [ref=f41e401]:
+        - generic [ref=f41e402]: © 2026 Etsy, Inc.
+        - generic [ref=f41e403]:
+          - generic [ref=f41e404]:
+            - link "Terms of Use" [ref=f41e406] [cursor=pointer]:
+              - /url: /legal/terms-of-use?ref=ftr
+            - link "Privacy" [ref=f41e408] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=ftr
+          - generic [ref=f41e409]:
+            - link "Interest-based ads" [ref=f41e411] [cursor=pointer]:
+              - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+            - link "Local Shops" [ref=f41e413] [cursor=pointer]:
+              - /url: /search/shops
+            - button "Regions" [ref=f41e415] [cursor=pointer]
+    - generic [ref=f41e421]:
+      - paragraph [ref=f41e422]: How Etsy uses cookies
+      - paragraph [ref=f41e423]:
+        - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+        - link "Privacy Policy" [ref=f41e424] [cursor=pointer]:
+          - /url: /legal/privacy/
+        - text: ","
+        - link "Cookies Policy" [ref=f41e425] [cursor=pointer]:
+          - /url: /legal/cookies/
+        - text: ", and"
+        - link "Terms of Use" [ref=f41e426] [cursor=pointer]:
+          - /url: /legal/terms-of-use/
+        - text: . Manage your preferences
+        - link "here" [ref=f41e427] [cursor=pointer]:
+          - /url: "#"
+        - text: .
+      - button "Ok" [ref=f41e429] [cursor=pointer]: Okay
+      - paragraph
