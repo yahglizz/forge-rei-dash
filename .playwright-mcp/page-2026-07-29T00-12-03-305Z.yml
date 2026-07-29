@@ -1,0 +1,856 @@
+- generic [active] [ref=f59e1]:
+  - generic [ref=f59e2]:
+    - banner [ref=f59e4]:
+      - link "Etsy" [ref=f59e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - navigation [ref=f59e11]:
+        - button [ref=f59e13] [cursor=pointer]
+      - search [ref=f59e22]:
+        - generic [ref=f59e23]: Search for items or shops
+        - generic [ref=f59e25]:
+          - combobox "Search for items or shops" [ref=f59e26]
+          - button "Search" [ref=f59e27] [cursor=pointer]
+      - link "Skip to Content" [ref=f59e31] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=f59e35]:
+        - list [ref=f59e36]:
+          - listitem [ref=f59e37]:
+            - button "Sign in" [ref=f59e38] [cursor=pointer]
+          - listitem [ref=f59e39]:
+            - link "Cart" [ref=f59e41] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=f59e45]:
+      - list [ref=f59e49]:
+        - listitem [ref=f59e50]:
+          - link "Gifts" [ref=f59e51] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=f59e57]:
+          - link "Teacher Essentials" [ref=f59e58] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=f59e59]:
+          - link "Home Favorites" [ref=f59e60] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=f59e61]:
+          - link "Fashion Finds" [ref=f59e62] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=f59e63]:
+          - link "Vintage" [ref=f59e64] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=f59e65]:
+          - link "Wedding Guide" [ref=f59e66] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=f59e67]:
+          - link "Gift Cards" [ref=f59e68] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=f59e69]:
+    - generic [ref=f59e70]:
+      - generic [ref=f59e74]:
+        - generic [ref=f59e75]:
+          - heading [level=2] [ref=f59e76]:
+            - link "Our House Rules" [ref=f59e77] [cursor=pointer]:
+              - /url: /legal?ref=pageheader
+          - paragraph [ref=f59e78]: Get to know Etsy's legal terms and policies
+        - generic [ref=f59e80]:
+          - generic [ref=f59e81]:
+            - generic [ref=f59e82]: Search our policies
+            - textbox "Search our policies" [ref=f59e83]
+          - button "Search" [ref=f59e85]
+      - generic [ref=f59e91]:
+        - generic [ref=f59e92]:
+          - navigation "breadcrumb'" [ref=f59e93]:
+            - generic [ref=f59e94]:
+              - link "Our House Rules" [ref=f59e95] [cursor=pointer]:
+                - /url: /legal?ref=breadcrumb
+              - text: /
+              - 'link "House Rules Menu: %s current page" [ref=f59e96] [cursor=pointer]':
+                - /url: "?ref=breadcrumb"
+                - text: All categories
+          - heading "Etsy Payments Policy" [level=1] [ref=f59e97]
+        - paragraph [ref=f59e99]: Etsy Payments allows sellers to accept various forms of payments on Etsy.com, and Etsy's mobile apps and other services. Etsy Payments users can accept payment from buyers by credit card, debit card, Etsy Gift Card, Etsy Credit, Etsy Coupon, some bank transfer services, PayPal (where available), Pay by Bank, Apple Pay, Google Pay, and some country-specific installment payment methods - all in their domestic Etsy Payments currencies. In order to use Etsy Payments, and as further detailed in this Policy, you consent to store a debit or credit card on file, and you expressly authorize Etsy to charge such card for any amounts owed to Etsy if there are insufficient funds in your account. This policy explains all of your rights and obligations when using Etsy Payments.
+        - article [ref=f59e100]:
+          - list [ref=f59e101]:
+            - listitem [ref=f59e102]:
+              - link "Accepting These Terms" [ref=f59e103] [cursor=pointer]:
+                - /url: "#terms"
+            - listitem [ref=f59e104]:
+              - link "Overview" [ref=f59e105] [cursor=pointer]:
+                - /url: "#overview"
+            - listitem [ref=f59e106]:
+              - link "Third-Party Services" [ref=f59e107] [cursor=pointer]:
+                - /url: "#third-party"
+            - listitem [ref=f59e108]:
+              - link "Etsy's Rights and Responsibilities" [ref=f59e109] [cursor=pointer]:
+                - /url: "#etsy"
+            - listitem [ref=f59e110]:
+              - link "Seller Rights and Responsibilities" [ref=f59e111] [cursor=pointer]:
+                - /url: "#seller"
+            - listitem [ref=f59e112]:
+              - link "Appointment of Etsy as Payment Collection Agent for Sellers" [ref=f59e113] [cursor=pointer]:
+                - /url: "#appointment"
+            - listitem [ref=f59e114]:
+              - link "Deposits" [ref=f59e115] [cursor=pointer]:
+                - /url: "#deposits"
+            - listitem [ref=f59e116]:
+              - link "Recoupment" [ref=f59e117] [cursor=pointer]:
+                - /url: "#recoupment"
+            - listitem [ref=f59e118]:
+              - link "Payment Processing Fees" [ref=f59e119] [cursor=pointer]:
+                - /url: "#processing-fees"
+            - listitem [ref=f59e120]:
+              - link "Reporting Obligations" [ref=f59e121] [cursor=pointer]:
+                - /url: "#reporting"
+            - listitem [ref=f59e122]:
+              - link "Termination" [ref=f59e123] [cursor=pointer]:
+                - /url: "#termination"
+            - listitem [ref=f59e124]:
+              - link "Canadian Sellers" [ref=f59e125] [cursor=pointer]:
+                - /url: "#canadian-sellers"
+          - heading "1. Accepting These Terms" [level=2] [ref=f59e126]
+          - paragraph [ref=f59e127]: The Etsy Payments Policy (or the “Policy”) sets out your rights and responsibilities when you use Etsy Payments on Etsy’s services (we’ll refer to Etsy.com, Etsy's mobile apps, and other services as our “Services”), so please read it carefully. By using Etsy Payments, you’re agreeing to the Policy.
+          - paragraph [ref=f59e128]: The Policy is a legally binding contract between you and Etsy.
+          - list [ref=f59e129]:
+            - listitem [ref=f59e130]: If you live in North America or South America, except Canada, the contract is between you and Etsy, Inc.
+            - listitem [ref=f59e131]:
+              - text: If you live in Canada, as of September 8, 2025, this contract is between you, Etsy, Inc., and Etsy Canada Limited (ECL), a subsidiary of Etsy, Inc; thereafter, the services described in Section 12 (Canadian Sellers) below will be provided by ECL, and all other services will be provided by Etsy, Inc. If you live in the European Economic Area (EEA), this contract is between you, Etsy Ireland UC, and Etsy Payments Ireland Limited (EPIL), a subsidiary of Etsy, Inc. In addition to the terms below, you are also subject to these
+              - link "EPIL specific terms" [ref=f59e132] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/etsy-payments-ireland-limited-terms-and/1291212895325
+              - text: for seller disbursements and all other services are provided by Etsy Ireland UC. To the extent the
+              - link "EPIL terms" [ref=f59e133] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/etsy-payments-ireland-limited-terms-and/1291212895325
+              - text: and these terms conflict, the EPIL terms will govern. The
+              - link "EPIL terms" [ref=f59e134] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/policy/etsy-payments-ireland-limited-terms-and/1291212895325
+              - text: only apply to Seller disbursement services.
+            - listitem [ref=f59e135]: If you live elsewhere, the contract is between you and Etsy Ireland UC, a subsidiary of Etsy, Inc.; We’ll just refer to Etsy, Inc. and all of its subsidiaries collectively as “Etsy.
+          - paragraph [ref=f59e136]: ETSY PAYMENTS IRELAND LIMITED IS REGULATED BY THE CENTRAL BANK OF IRELAND AS A PAYMENT INSTITUTION. YOU WILL ONLY ENTER INTO A CONTRACT WITH ETSY PAYMENTS IRELAND LIMITED IF YOU ARE A SELLER IN THE EUROPEAN ECONOMIC AREA AND HAVE ONBOARDED AS AN EPIL SELLER.
+          - paragraph [ref=f59e137]: IF YOU ARE A SELLER LOCATED OUTSIDE THE EUROPEAN ECONOMIC AREA, YOU WILL NOT ENTER INTO A CONTRACT WITH ETSY PAYMENTS IRELAND LIMITED. THIS MEANS THAT ANY SUCH CONTRACT WILL BE WITH AN ETSY COMPANY THAT IS NOT REGULATED BY THE CENTRAL BANK OF IRELAND AND NOT SUBJECT TO THE SAME REGULATORY PROTECTIONS AS A PAYMENT INSTITUTION AUTHORISED IN IRELAND UNDER THE EUROPEAN UNION (PAYMENT SERVICES) REGULATIONS 2018.
+          - paragraph [ref=f59e138]:
+            - strong [ref=f59e139]: Sellers resident in Argentina, Brazil, Chile, China, Egypt, Georgia, India, Japan, Kazakhstan, Pakistan, Peru, Serbia, South Korea, Thailand, United Arab Emirates, & Ukraine
+            - text: are required to onboard to Etsy Payments by registering directly with a third-party payments provider, Payoneer. Sellers who register for Payoneer’s wallet service will link their bank account to Payoneer to receive payments for their sales on Etsy via a Payoneer Payment Account (“Payoneer Payment Account”). Payoneer’s processing of your information and provision of service to you is subject to their own privacy policy and terms (including Payoneer withdrawal fees).
+          - heading "2. Overview" [level=2] [ref=f59e140]
+          - paragraph [ref=f59e141]:
+            - text: Etsy Payments allows sellers to (a) accept payment by authorized credit and debit card transactions, some bank transfers services, PayPal (where available), transactions using Apple Pay, and transactions using Google Pay, (b) have those funds reflected in a seller’s payment account on Etsy, and (c) have those funds deposited into a seller’s designated bank account
+            - emphasis [ref=f59e142]: . Etsy reserves the right to add or remove payment methods accepted by Etsy Payments in its sole discretion, with notice where required by applicable law.
+            - text: "In the case of sellers registered with Payoneer, Etsy will send your funds, per the schedule displayed in your Payment Account, to your linked Payoneer Payment Account (and not directly to your bank account). Sellers with linked Payoneer Payment Accounts can select to withdraw available funds to their local bank account. Sellers who use Payoneer’s payment service may be subject to Payoneer withdrawal minimums and additional Payoneer fees, including Payoneer withdrawal fees typically up to 3% of the transaction amount. You can log in to your Payoneer account for more details on applicable Payoneer fees and you can learn more about Payoneer fees here: https://www.payoneer.com/about/pricing/. Etsy is not responsible for funds after they are sent to your linked Payoneer Payment Account."
+          - paragraph [ref=f59e143]: Etsy Payments is only available to sellers who are at least 18 years old who register and are approved for a payment account with Etsy. Etsy Payments is currently available to sellers in Australia, Austria, Belgium, Bulgaria, Canada, Croatia, Cyprus, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hong Kong, Hungary, Indonesia, Ireland, Israel, Italy, Latvia, Lithuania, Luxembourg, Malaysia, Malta, Mexico, Morocco, Netherlands, New Zealand, Norway, Philippines, Poland, Portugal, Romania, Singapore, Slovakia, Slovenia, South Africa, Spain, Sweden, Switzerland, Türkiye, United Kingdom, United States and Vietnam. Etsy Payments via Payoneer is currently available to sellers in Argentina, Brazil, Chile, China, Egypt, Georgia, India, Japan, Kazakhstan, Pakistan, Peru, Serbia, South Korea, Thailand, United Arab Emirates, & Ukraine.
+          - paragraph [ref=f59e144]: Sellers may only use Etsy Payments for the sale of items listed on Etsy’s Services, and agree to ship sold items once a payment transaction is complete and reflected in their payment account. Etsy reserves the right to terminate a seller’s access to Etsy Payments if the seller uses Etsy Payments in any other manner.
+          - paragraph [ref=f59e145]: Buyers and Sellers benefit from Etsy having visibility into payments made on Etsy via Etsy Payments, because it can make the Services easy to use and enables Etsy to more effectively provide support to sellers or buyers where relevant. It also can help reduce fraud and other types of misuse of the Etsy platform.
+          - heading "3. Third-Party Services" [level=2] [ref=f59e146]
+          - paragraph [ref=f59e147]: Etsy has engaged third-party service providers that provide you with regulated payment services and perform many of the services related to payment processing, including card processing, disbursements, currency exchange, identity verification, fraud analysis, and regulatory compliance.
+          - paragraph [ref=f59e148]: Etsy partners with Worldpay, PayPal, Adyen, Payoneer, and other licensed payment providers to facilitate card payments and other payments and the disbursement of funds to sellers in different countries. The payment provider and processing time for your payment will vary based on the country in which you're located.
+          - paragraph [ref=f59e149]: Etsy may share your personal or transactional information with those third-party service providers for purposes related to payments processing.
+          - paragraph [ref=f59e150]: If Etsy receives notice that your shop's content or activity violates a third party's service agreement, we may at our sole discretion take action against your account to comply with their policies. Such actions may include canceling a transaction, disabling listings from your shop, suspending or terminating your selling privileges, or removing certain payment methods.
+          - paragraph [ref=f59e151]:
+            - strong [ref=f59e152]: PayPal
+          - paragraph [ref=f59e153]: "Etsy supports two versions of PayPal: integrated PayPal and standalone PayPal."
+          - paragraph [ref=f59e154]:
+            - strong [ref=f59e155]: Integrated PayPal.
+            - text: In countries where PayPal is available and can be integrated with Etsy Payments, Integrated PayPal allows sellers to receive funds from PayPal purchases directly into their Etsy payment account, without the need to manage a separate PayPal account. This means that if a buyer pays with PayPal, the funds from the order will be credited to a seller's payment account along with the rest of the orders. The standard Etsy Payments Payment Processing Fee (described below) applies to orders that go through integrated PayPal; there is no additional PayPal fee.
+          - paragraph [ref=f59e156]:
+            - strong [ref=f59e157]: Standalone PayPal.
+            - text: Standalone PayPal exists for sellers in countries that are not yet eligible for Etsy Payments and/or, in Etsy's discretion, in some markets where it’s not an Etsy requirement to use Etsy Payments. Standalone PayPal may not be available to you if you do not have an active Etsy shop and Etsy Payments is not yet available in your country, which means you will be unable to open a shop on Etsy. Standalone PayPal will not be available to new sellers who join Etsy if Etsy Payments is available in that seller’s country. If this is the case, the seller will be required to register on Etsy Payments as part of their onboarding to Etsy. For sellers accepting standalone PayPal, you will receive funds from PayPal purchases directly into your PayPal account. Sellers who accept standalone PayPal will continue to pay PayPal fees. Orders paid through standalone PayPal are not covered by Etsy’s Purchase Protection program for sellers. Etsy reserves the right to allow certain sellers in countries that are eligible for Etsy Payments to also use Standalone PayPal for a limited time. Please note, during this transition period, it may be necessary for Etsy to process some PayPal transactions through integrated PayPal. For example, if a buyer chooses to pay with an Etsy Gift Card or Etsy Credit and covers the remaining balance using PayPal, Etsy can only process the transaction through integrated PayPal. Similarly, if a buyer purchases items from multiple shops in a single transaction and chooses PayPal as the payment method, Etsy may have to process the transaction through integrated PayPal.
+          - heading "4. Etsy’s Rights and Responsibilities" [level=2] [ref=f59e158]
+          - paragraph [ref=f59e159]:
+            - text: Etsy Payments functionality may be made available, modified, or discontinued by us at any time without notice and is subject to the limitations in Etsy’s
+            - link "Terms of Use" [ref=f59e160] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms
+            - text: .
+          - paragraph [ref=f59e161]: "As a security measure, we may impose transaction limits on buyers and sellers. For example, we may impose limits relating to the value of any transaction, deposit, or adjustment, or limits relating to the cumulative value of all transactions, deposits, or adjustments during a period of time. We may also impose limits related to the number of transactions per day or other period of time. We will not be liable to a seller: (a) if we do not proceed with a transaction, deposit, or adjustment that would exceed any limit established by us, or (b) if we permit a buyer to withdraw from a transaction."
+          - paragraph [ref=f59e162]: Etsy may refuse service of Etsy Payments to anyone, for any reason, at any time.
+          - paragraph [ref=f59e163]:
+            - text: Etsy reserves the right to decline or refund transactions that we believe to be high risk, fraudulent, in violation of trade sanctions, or otherwise in violation of Etsy’s
+            - link "Terms of Use" [ref=f59e164] [cursor=pointer]:
+              - /url: https://www.etsy.com/ie/legal/terms-of-use
+            - text: .
+          - paragraph [ref=f59e165]: In the event that a buyer does not make payment for the purchase of a legitimate item sold using Etsy Payments (e.g., where the buyer used a stolen or unauthorized credit card), Etsy may provide limited payment protection to the seller, in the interest of fairness.
+          - paragraph [ref=f59e166]:
+            - text: Etsy maintains records associated with transactions on Etsy Payments and does not pass any secure data, including credit card numbers or bank account information, to any sellers. Sellers will receive shipping information and limited buyer account and other information necessary to complete the order. Etsy’s
+            - link "Privacy Policy" [ref=f59e167] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/privacy
+            - text: further explains how Etsy handles user information.
+          - paragraph [ref=f59e168]:
+            - text: Etsy will send you any relevant notices regarding your use of Etsy Payments in accordance with our
+            - link "Electronic Communications Policy" [ref=f59e169] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/electronic-communications
+            - text: .
+          - heading "5. Seller Rights and Responsibilities" [level=2] [ref=f59e170]
+          - paragraph [ref=f59e171]:
+            - strong [ref=f59e172]: A. Use of Etsy Payments.
+            - text: If you live in a country in which Etsy Payments is available, you are required to sign up for Etsy Payments, except as otherwise determined by Etsy in its sole discretion. Using Etsy Payments will result in your shop accepting payment through authorized credit and debit card transactions, some bank transfer services, PayPal, Etsy Gift Card, Etsy Credits, Etsy Coupons, Apple Pay, Google Pay, and Klarna (where available). For you to sign up for Etsy Payments and receive payment for transactions made through Etsy Payments, you must provide all required information and complete all required steps, including in some markets, verifying your bank account, for compliance purposes. Without this information, payment cannot be made to you and, in some cases, your account functionality may be otherwise limited. You can find instructions about how to upload your bank account information
+            - link "here" [ref=f59e173] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115015775908
+            - text: . If you live in a country in which Etsy Payments is available and you do not provide Etsy with this information, Etsy may refuse you access to the Services until you do so. In Argentina, Brazil, Chile, China, Egypt, Georgia, India, Japan, Kazakhstan, Pakistan, Peru, Serbia, South Korea, Thailand, United Arab Emirates, & Ukraine, you will link your Etsy payment account with a Payoneer Payment Account to access Etsy Payments.
+          - paragraph [ref=f59e174]:
+            - strong [ref=f59e175]: B. Payment Accounts.
+            - text: A payment account is a notional ledger that allows sellers to track payment amounts, refunds, and fees related to transactions and seller services. Sellers must provide accurate personal information as requested during registration, and are responsible for maintaining and updating that information as necessary. Sellers will not impersonate any person or use any name they are not legally authorized to use. Sellers authorize us, our authorized agents and third party service providers, to verify their information (at registration and from time to time when using the Services), including by accessing public records and obtaining credit reports about the sellers. Etsy verifies sellers’ information in order to safeguard the integrity of the marketplace and reduce the risk of fraud, money laundering, terrorist financing, and the violation of trade sanctions.
+          - paragraph [ref=f59e176]:
+            - text: Payment accounts are only available to individuals who are eligible to be sellers on Etsy’s Services and who have a valid credit or debit card on file with Etsy, unless Etsy expressly waived this requirement for the particular seller. By accepting the applicable Services terms, you consent to store your card on file in accordance with the terms of this Policy by indicating your acceptance during seller onboarding or within your seller account. If for some reason, we cannot collect that consent, it will otherwise be deemed to be provided from you once you provide us with your card credentials, and in any event, at the time of the initial transaction. By agreeing to store your card on file, you authorize Etsy to store your account number, cardholder name, expiration date, and network token, and to exclusively charge your stored card for amounts owed to Etsy (including for refunds, reimbursements, chargebacks, adjustments, claims, seller fees and charges, and other charges as described in the Policy) where your Available Funds (as defined below) do not sufficiently cover such charges. You may withdraw your consent to store your card on file and authorization for Etsy to charge this card at any time by closing your Etsy account
+            - link "here" [ref=f59e177] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-us/requests/new#issue_account_closing_etsy_account-solution_primary
+            - text: . You will need to update Etsy if your card details change, expire, are cancelled or otherwise become unusable. You understand that the authorizations and consents given will remain in effect until cancelled, withdrawn or our relationship is terminated (as applicable). By withdrawing your consent or authorization, or our relationship otherwise terminates, your card details will be deleted by Etsy in due course, and your account will be terminated such that you will no longer be able to sell on Etsy. For avoidance of doubt, you will continue to remain liable for any amounts owed to Etsy even after your withdrawal of consent and authorization of the card on file or our relationship otherwise terminates. You may be required to pay your outstanding liabilities to Etsy prior to withdrawing your consent and authorization and terminating your account.
+          - paragraph [ref=f59e178]: Etsy may automatically enroll you in autobilling, or you may have the option to opt in, which Etsy will separately communicate to you. Autobilling allows Etsy to charge your card on file automatically each month to pay your Etsy bill. You may turn off autobilling in your Payment settings in the Finances tab of Shop Manager. If you turn off autobilling on or after the first of the month, we may still bill your account for the prior month and autobilling will be turned off going forward. Turning off autobilling does not otherwise revoke your consent or authorization for Etsy to store or charge your card on file, which may only be revoked by closing your Etsy account as outlined above.
+          - paragraph [ref=f59e179]:
+            - strong [ref=f59e180]: C. Disputes.
+            - text: Sellers agree to resolve any disputes directly with a buyer or with the assistance of the dispute management and refund tools available on Etsy, and in accordance with our
+            - link "Seller Policy" [ref=f59e181] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/sellers
+            - text: and
+            - link "Terms of Use" [ref=f59e182] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/terms
+            - text: . In the event that a dispute is escalated to Etsy’s Support Team, Etsy reserves the right to issue a refund to a buyer and recoup such funds from the seller if a transaction is found to be in violation of Etsy’s policies.
+          - paragraph [ref=f59e183]: In the event that a buyer submits a chargeback, Etsy will respond to the credit card networks on behalf of the seller involved in the transaction; the seller agrees to provide any requested information to us within five calendar days of the request. Etsy reserves the right to recoup funds associated with buyer chargebacks from the seller.
+          - paragraph [ref=f59e184]:
+            - strong [ref=f59e185]: D. Communications.
+            - text: We will inform sellers of each transaction, or of other information pertaining to Etsy Payments, using our standard communication procedures (detailed in our
+            - link "Electronic Communications Policy" [ref=f59e186] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/electronic-communications
+            - text: ), including by email or through Etsy's Messages tool.
+          - paragraph [ref=f59e187]:
+            - strong [ref=f59e188]: E. Refunds.
+            - text: Refunds or adjustments paid by Etsy to buyers for payments made through Etsy Payments may be initiated using the refund functionality in the seller's payment account for a period of 180 days after the purchase was made. The Etsy Payments Platform does not have refund functionality after 180 days from the original purchase date. Any such funds paid by Etsy to cover refunds will be deducted from the seller’s payment account balance. If there are insufficient funds to cover the amount of the refund, the balance will be charged to the seller’s card on file or added to the seller’s payment account. Refunds issued by Etsy will be in the original form of payment, and if the buyer chooses an Etsy Credit as their refund or such payment is not available, an Etsy credit will be issued.
+          - paragraph [ref=f59e189]:
+            - text: For full refunds to buyers who used an
+            - link "Etsy Coupon" [ref=f59e190] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/gift-cards/
+            - text: towards their underlying purchase, the buyer will be refunded the amount they paid as part of the purchase, and Etsy will be refunded the amount contributed by Etsy via the Etsy Coupon. For partial refunds to buyers who used an Etsy Coupon towards their underlying purchase, refunds will be made to the buyer and Etsy proportionate to the amount contributed to the underlying purchase (in Etsy’s case via an Etsy Coupon). You can read more about how refunds are treated in the case of purchases made using Etsy Coupons
+            - link "here" [ref=f59e191] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/gift-cards/
+            - text: .
+          - paragraph [ref=f59e192]: Etsy reserves the right to refund buyers and recoup such refunded amounts from the seller where the seller has been refused service by Etsy in accordance with Etsy’s Terms of Use; and/or in circumstances where a seller is under Reserve as detailed in Section 7 (Deposit); and/or in circumstances where the seller has unfulfilled or overdue orders.
+          - paragraph [ref=f59e193]:
+            - text: Fully refunded transactions may be eligible for cancellation in accordance with our
+            - link "Cancellation Policy" [ref=f59e194] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/cancellation-policy/253925018785
+            - text: .
+          - paragraph [ref=f59e195]:
+            - strong [ref=f59e196]: F. International Trade Laws
+            - text: . You agree that your use of Etsy Payments will not involve any countries, entities, individuals, or items prohibited by sanctions, embargoes, regulations, or orders administered by the US Department of Treasury’s Office of Foreign Assets Control (“OFAC”) or other government agencies. See our
+            - link "Sanctions Policy" [ref=f59e197] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/policy/sanctions-policy/122383404929
+            - text: for more information.
+          - paragraph [ref=f59e198]:
+            - strong [ref=f59e199]: G. Information on Cardholder Charges
+            - text: . Please note that your bank or card provider may charge additional fees (including cross-border fees) for transactions that you make on Etsy. These fees are not charged by Etsy and are at the discretion of your bank. Please contact your bank for further details.
+          - heading "6. Appointment of Etsy as Collection Agent for Sellers" [level=2] [ref=f59e200]
+          - paragraph [ref=f59e201]: Each seller appoints Etsy as its agent for the purpose of receiving, holding, and settling payments to seller, less any amounts owed to Etsy and subject to these Terms. Each seller accordingly authorizes Etsy to represent to buyers and third parties that they are the seller's agent for the foregoing purposes. Notwithstanding the prior sentence, no agency is established for tax or for any other purpose, other than to complete a transaction as set forth in the penultimate sentence of this section.Each seller agrees that a buyer payment received by Etsy, on behalf of seller, satisfies the buyer's obligations to make payment to seller, regardless of whether Etsy actually settles such payment to seller. If Etsy does not settle any such payments as described in these Terms to a seller, such seller will have recourse only against Etsy and not the buyer. Each seller irrevocably appoints and authorises Etsy to act as its sole and exclusive agent for the purpose of concluding contracts for the sale of items to a buyer in accordance with the seller’s instructions by means of transactions through Etsy’s Services. The legal contract for the purchase of each seller’s goods will in all cases be between the seller and the relevant buyer.
+          - heading "7. Deposits" [level=2] [ref=f59e202]
+          - paragraph [ref=f59e203]:
+            - strong [ref=f59e204]: A. Payment Account.
+          - paragraph [ref=f59e205]: All funds resulting from a completed transaction will be reflected as a balance in a seller’s payment account. Transactions are considered complete at the later of once the payment is approved by Etsy or our fraud analysis service provider. Any refunds, adjustments, or other amounts paid to buyers in connection with purchases, or for funds received since the last payment day, are also applied to the seller’s payment account balance.
+          - paragraph [ref=f59e206]: Funds displayed in a seller’s payment account balance are eligible for deposit (the “Available Funds”) via our payments partners into a seller’s bank account or other applicable account (i.e., a Payoneer Payment Account), subject to any applicable reserve(s) and corresponding reserve limit, hold, or deposit delay, as described in Section B. Reserves; Holds and Delays below, and as otherwise determined by the seller’s bank.
+          - paragraph [ref=f59e207]: For deposits below designated thresholds in certain markets, a deposit fee will apply. See Section 9 below for details on deposit fees. A deposit minimum also applies to deposits in certain markets. Funds will only be available for deposit if they exceed the applicable deposit minimum.
+          - paragraph [ref=f59e208]:
+            - strong [ref=f59e209]: B. Reserves; Holds and Delays
+          - paragraph [ref=f59e210]: To protect the security and integrity of our marketplace, the users of the Etsy services, and Etsy, Etsy may instruct our payment partners to take account-level or transaction-level actions based on risk-based criteria, like the criteria listed below. Some of our decisions about reserves, holds and delays may be based on criteria that demonstrate a seller’s ability to fulfill orders in a manner consistent with Etsy’s policies. These criteria are essential to our management of risk and the protection of Etsy and our users. Etsy reserves the right to use a combination of reserves, deposit delays, and holds on your account via instruction to our payment partners.
+          - paragraph [ref=f59e211]:
+            - strong [ref=f59e212]: Reserves.
+          - paragraph [ref=f59e213]: A Reserve is an amount of money pending settlement as indicated in your payment account. A Reserve will be placed on your account if we believe there may be a high level of financial risk associated with you, your account, your business model, or your transactions.
+          - paragraph [ref=f59e214]: When a Reserve is applied on your payment account, it means that a percentage of the funds in your payment account balance is held on an ongoing basis, and will not be made available for disbursement as Available Funds for a specified period of time. The Reserve percentage applies to amounts from your sales that would otherwise be available for disbursement. The percentage Reserve applied to your account is determined by your risk level and is used to create a threshold amount (explained in detail below) that applies to your payment account balance while you are in Reserve. You’ll be notified by email if a Reserve is applied to your Payment Account. The email you receive notifying you that you are in Reserve will include details of the Reserve, including the period of Reserve and the percentage applied to your Payment Account.
+          - list [ref=f59e215]:
+            - listitem [ref=f59e216]:
+              - emphasis [ref=f59e217]:
+                - strong [ref=f59e218]: Threshold Reserve Amount applicable to your Account
+            - listitem [ref=f59e219]: The threshold reserve amount is the amount of funds you must have in your Payment Account while you’re in Reserve before you’ll have money available to disburse to your bank account (the “Threshold Reserve Amount”). The Threshold Reserve Amount will maintain the percentage Reserve that has been applied to your account. As a result, it may increase and decrease as appropriate to reflect new activity in your payment account, like sales you’ve received, refunds and chargebacks, charges to your payment account where applicable, as well as and Reserve amounts released to you. The Threshold Reserve will also determine the amount of funds available to be disbursed to your bank account as Available Funds and the amount of funds that are pending, because they are still in Reserve. Funds in excess of the Threshold Reserve Amount are available to you for disbursement as described in Section 7A above. Funds below the Threshold Reserve Amount are your Reserved funds and are not available for disbursement until the end of the applicable Reserve period. If your Reserve funds are used to cover any charges and your Reserve funds fall below the Threshold Reserve Amount, funds from subsequent sales will be applied to your Reserve funds to help you meet and maintain your Threshold Reserve Amount. You can view your Threshold Reserve Amount, as well as any Reserved funds and funds available to you for disbursement (Available Funds), in your Payment Account.
+          - paragraph [ref=f59e220]: "Reserve funds will be used to address potential financial risk such as refunds, chargebacks, claims, or seller fees and charges, where your Available Funds do not sufficiently cover such charges. Reserve funds that are not used to address refunds, chargebacks, claims or seller fees, where applicable, will be released to you in full at the end of the corresponding Reserve period on a rolling basis. However, Reserve funds will not be released if, during the Reserve period relating to a particular sale, a buyer raises a case against you, or files a chargeback, and you do not have sufficient funds in your Available Funds to cover a potential refund. Etsy relies on different risk factors (and whether and how these factors have changed over time) to determine whether and how much of a Reserve should be applied to your payment account, including:"
+          - list [ref=f59e221]:
+            - listitem [ref=f59e222]: How long you’ve been in business on Etsy (including how long since you’ve made your first sale)
+            - listitem [ref=f59e223]: Details of your sales (including volume and average sales earnings)
+            - listitem [ref=f59e224]: The extent of any backlog of orders from your shop
+            - listitem [ref=f59e225]: Availability of shipping tracking information
+            - listitem [ref=f59e226]: Types of goods you sell (whether they’re ready to ship or made to order)
+            - listitem [ref=f59e227]: Ratio of cases (disputes) opened by buyers in respect of your sales
+            - listitem [ref=f59e228]: Suspensions or warnings already received
+            - listitem [ref=f59e229]: Estimated delivery times; and
+            - listitem [ref=f59e230]: Shipping status of active orders
+          - paragraph [ref=f59e231]:
+            - strong [ref=f59e232]: "Types of Account Reserves:"
+          - paragraph [ref=f59e233]: A fixed reserve is a fixed percentage of your payment account balance at the time a Reserve is placed on your account, which will be held for a specified period of time. After that, the same percentage of each of your subsequent sales will be held in Reserve, each for a specified period of time. Reserve funds will be held for such period and where applicable, will be used to address chargebacks, refunds, and pay seller fees. Reserve funds will be released on a rolling basis after the corresponding Reserve period expires, unless a case is raised against you by a buyer. Any funds above the Threshold Amount of your Reserve will be available to be disbursed as described in Section 7A.
+          - list [ref=f59e234]:
+            - listitem [ref=f59e235]: For example, your Reserve could be set at 30% and held for a 45-day rolling period – meaning 30% of the funds in your payments account balance on day 1 are Reserved and then released on day 46. If you make a sale on day 2, 30% of the funds you receive from that sale on day 2 is reserved until day 47, etc. If you make a sale on day 4, 30% of the funds you receive from that sale are reserved until day 49. If any chargebacks are filed against you, or refunds to buyers are required, or seller fees are charged, and your Available Funds are insufficient to cover such costs Reserve funds will be used to address those charges. If Reserve funds are used for such purpose(s), such funds will be released to you for disbursement less such amounts.
+          - paragraph [ref=f59e236]: A variable reserve is a percentage, determined as appropriate by Etsy’s risk team, of a seller’s payment account balance (i) delayed prior to being included as part of a seller’s Available Funds for a period of up to 180 days or (ii) deducted from a seller's payment account as a reserve for a period of up to 90 days. A variable reserve may be placed on a seller’s payment account balance in addition to any applicable Fixed Reserve in Etsy’s sole discretion. Account Reserves are placed on an account on a case by case basis, in reference to the factors listed above and other risk-based criteria, and are reviewed from time to time. Etsy may deem a seller eligible for reduction in the percentage or removal of a Reserve due to a change in our risk-assessment of a seller based on the factors listed above, or as a result of a seller’s positive performance, such as a reduction in cases or an improvement in the seller’s fulfillment of orders. Etsy may increase the Reserve percentage held and/or the period for which the Reserve applies based on our re-review of a seller account against the factors listed above, and other risk-based criteria. If we change the terms of a Reserve due to a change in our risk assessment, we’ll notify you of the new terms.
+          - paragraph [ref=f59e237]:
+            - link "Here" [ref=f59e238] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/en-gb/articles/360052804274
+            - text: are some steps you can take to reduce the likelihood of having a Reserve applied to your account.
+          - paragraph [ref=f59e239]:
+            - strong [ref=f59e240]: Holds and Delays
+            - text: . In some cases, deposits to a seller's bank accounts could be temporarily delayed by an issue at Etsy, Etsy’s third-party service providers, or a seller’s bank. We’ll do our best to communicate with any affected seller as soon as we can.
+          - paragraph [ref=f59e241]: Separately, if we believe that a seller's actions may result in buyer disputes, chargebacks, increased risk of fraud, counterfeiting, or other claims, or if applicable law requires it, then we may, in addition to any applicable Reserve and in our sole discretion, put a hold or deposit delay on the seller’s payment account balance (and any accounts Etsy determines are related to your account).
+          - list [ref=f59e242]:
+            - listitem [ref=f59e243]:
+              - text: A
+              - strong [ref=f59e244]: hold
+              - text: "may be put on funds associated with a particular transaction if there is a dispute or investigation related to the order, for the shorter of: (a) 180 days after the estimated delivery date, or (b) completion of any investigation regarding the seller’s actions."
+            - listitem [ref=f59e245]:
+              - strong [ref=f59e246]: Deposit delays
+              - text: are defined as the number of days between a sale and the day the net amount from the sale becomes available for deposit, provided the payment has been completed. A deposit delay may be between 0 and 180 days. A deposit delay is applied across all transactions for a seller and the number of days is reflected in each seller’s payment account.
+          - paragraph [ref=f59e247]: If Etsy places a hold or deposit delay on a seller’s account, we’ll do our best to communicate with the affected seller as appropriate as soon as we can.
+          - paragraph [ref=f59e248]: We always work hard to avoid and minimize any delays. However, please note that Etsy is not obligated to refund any fees or reimburse any expenses due to holds or delayed deposits.
+          - paragraph [ref=f59e249]:
+            - strong [ref=f59e250]: C. Country and Currency Options.
+            - text: "In the United States, Australia, Canada, the European Union, Hong Kong, Indonesia, Israel, Malaysia, Mexico, Morocco, New Zealand, Norway, Philippines, Singapore, South Africa, Switzerland, Türkiye, United Kingdom and Vietnam, Available Funds can only be deposited into bank accounts, in the domestic currency of the account, which includes the following currencies: US Dollars (USD), Australian Dollars (AUD), Canadian Dollars (CAD), Swiss Francs (CHF), Danish Krone (DKK), Euros (EUR), British Pounds (GBP), Hong Kong Dollars (HKD), Indonesian Rupiah (IDR), Israeli Shekel (ILS), Moroccan Dirham (MAD), Mexican Peso (MXN), Malaysian Ringgit (MYR), New Zealand Dollars (NZD), Norwegian Krone (NOK), Philippine Peso (PHP), Swedish Krona (SEK), Singapore Dollars (SGD), Turkish Lira (TRY), South African Rand (ZAR) and Vietnamese Dong (VND). In Argentina, Brazil, Chile, China, Egypt, Georgia, India, Japan, Kazakhstan, Pakistan, Peru, Serbia, South Korea, Thailand, United Arab Emirates, & Ukraine, funds will be deposited to your Payoneer Payment Account in United States Dollar (USD) and through Payoneer’s payment services you can subsequently withdraw to your local bank account in your local currency."
+          - paragraph [ref=f59e251]:
+            - strong [ref=f59e252]: D. Scheduled Deposits.
+            - text: Etsy will instruct our payments partners to initiate a deposit of a seller’s Available Funds into the seller’s bank account on a daily, weekly, biweekly, or monthly basis. Sellers can select the frequency of disbursements from their payment account in their account settings. When a seller selects daily disbursements, disbursements will be made on each day that the seller's payment account has a balance equal to or greater than the minimum daily disbursement thresholds listed below. When a seller selects weekly, biweekly, or monthly disbursements, disbursements will be made on every applicable Monday. In this policy we'll refer to the date of disbursement as the "Payment Date." Deposits into a seller’s bank account will generally be credited within five (5) business days from the date Etsy initiates the deposit request. The actual timing of the deposit may depend on how quickly a seller’s bank processes the request. Notwithstanding the foregoing, disbursements for sellers using a Payoneer Payment Account will be made weekly on Mondays if a seller has a positive disbursement balance.
+          - paragraph [ref=f59e253]: "Daily Disbursement Thresholds by Currency:"
+          - table [ref=f59e254]:
+            - rowgroup [ref=f59e255]:
+              - row [ref=f59e256]:
+                - columnheader "Currency" [ref=f59e257]
+                - columnheader "Threshold" [ref=f59e258]
+            - rowgroup [ref=f59e259]:
+              - row [ref=f59e260]:
+                - cell "AUD" [ref=f59e261]
+                - cell "25.00" [ref=f59e262]
+              - row [ref=f59e263]:
+                - cell "CAD" [ref=f59e264]
+                - cell "25.00" [ref=f59e265]
+              - row [ref=f59e266]:
+                - cell "CHF" [ref=f59e267]
+                - cell "15.00" [ref=f59e268]
+              - row [ref=f59e269]:
+                - cell "DKK" [ref=f59e270]
+                - cell "200.00" [ref=f59e271]
+              - row [ref=f59e272]:
+                - cell "EUR" [ref=f59e273]
+                - cell "20.00" [ref=f59e274]
+              - row [ref=f59e275]:
+                - cell "GBP" [ref=f59e276]
+                - cell "15.00" [ref=f59e277]
+              - row [ref=f59e278]:
+                - cell "HKD" [ref=f59e279]
+                - cell "200.00" [ref=f59e280]
+              - row [ref=f59e281]:
+                - cell "IDR" [ref=f59e282]
+                - cell "1,400,000.00" [ref=f59e283]
+              - row [ref=f59e284]:
+                - cell "ILS" [ref=f59e285]
+                - cell "350.00" [ref=f59e286]
+              - row [ref=f59e287]:
+                - cell "MAD" [ref=f59e288]
+                - cell "1000.00" [ref=f59e289]
+              - row [ref=f59e290]:
+                - cell "MXN" [ref=f59e291]
+                - cell "2000.00" [ref=f59e292]
+              - row [ref=f59e293]:
+                - cell "MYR" [ref=f59e294]
+                - cell "400.00" [ref=f59e295]
+              - row [ref=f59e296]:
+                - cell "NOK" [ref=f59e297]
+                - cell "25.00" [ref=f59e298]
+              - row [ref=f59e299]:
+                - cell "NZD" [ref=f59e300]
+                - cell "25.00" [ref=f59e301]
+              - row [ref=f59e302]:
+                - cell "PHP" [ref=f59e303]
+                - cell "5,000.00" [ref=f59e304]
+              - row [ref=f59e305]:
+                - cell "SEK" [ref=f59e306]
+                - cell "100.00" [ref=f59e307]
+              - row [ref=f59e308]:
+                - cell "SGD" [ref=f59e309]
+                - cell "25.00" [ref=f59e310]
+              - row [ref=f59e311]:
+                - cell "TRY" [ref=f59e312]
+                - cell "600.00" [ref=f59e313]
+              - row [ref=f59e314]:
+                - cell "USD" [ref=f59e315]
+                - cell "25.00" [ref=f59e316]
+              - row [ref=f59e317]:
+                - cell "VND" [ref=f59e318]
+                - cell "2,300,000" [ref=f59e319]
+              - row [ref=f59e320]:
+                - cell "ZAR" [ref=f59e321]
+                - cell "1,500.00" [ref=f59e322]
+          - paragraph [ref=f59e323]: "Disbursement Minimums by Country:"
+          - table [ref=f59e324]:
+            - rowgroup [ref=f59e325]:
+              - row [ref=f59e326]:
+                - columnheader "Currency" [ref=f59e327]
+                - columnheader "Minimum" [ref=f59e328]
+            - rowgroup [ref=f59e329]:
+              - row [ref=f59e330]:
+                - cell "IDR" [ref=f59e331]
+                - cell "28,000.00" [ref=f59e332]
+              - row [ref=f59e333]:
+                - cell "ILS" [ref=f59e334]
+                - cell "7.00" [ref=f59e335]
+              - row [ref=f59e336]:
+                - cell "MAD" [ref=f59e337]
+                - cell "20.00" [ref=f59e338]
+              - row [ref=f59e339]:
+                - cell "MYR" [ref=f59e340]
+                - cell "9.00" [ref=f59e341]
+              - row [ref=f59e342]:
+                - cell "MXN" [ref=f59e343]
+                - cell "40.00" [ref=f59e344]
+              - row [ref=f59e345]:
+                - cell "PHP" [ref=f59e346]
+                - cell "100.00" [ref=f59e347]
+              - row [ref=f59e348]:
+                - cell "TRY" [ref=f59e349]
+                - cell "50.00" [ref=f59e350]
+              - row [ref=f59e351]:
+                - cell "VND" [ref=f59e352]
+                - cell "45,000" [ref=f59e353]
+              - row [ref=f59e354]:
+                - cell "ZAR" [ref=f59e355]
+                - cell "35.00" [ref=f59e356]
+          - paragraph [ref=f59e357]: The Payment Date will fall on the next business day (Monday through Friday, excluding bank holidays) if the scheduled Payment Date falls on a non-business day. If a seller elects to change the frequency of disbursements, the following deposit will be initiated on the next business day if the seller selects daily disbursements, or on the next applicable Monday if the seller selects weekly, biweekly, or monthly disbursements. When a seller either initially provides or later changes their bank account information, the seller must wait at least five (5) calendar days to request a deposit into a bank account as a security precaution. The next scheduled deposit after a change to bank account information will occur on the next applicable Payment Date after a period of five (5) calendar days from the date of the requested change.
+          - paragraph [ref=f59e358]:
+            - strong [ref=f59e359]: E. Instant Transfer (US seller only)
+            - text: . Eligible U.S sellers may use instant transfer to make transfers from their Etsy Payment account directly to their bank account, subject to a fee. Please note that if applicable, an instant transfer fee will be charged and displayed as part of the transfer process. Instant transfer is available 24/7, including on weekends and public holidays, and funds typically settle within 30 minutes. You can learn more about instant transfer in
+            - link "this Help Article" [ref=f59e360] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360046998234/01K7J6AHJNC3NR8WEA7QMXT87H?segment=selling#h_01K7J6828G5CNVVYAZ2G7BQHHP
+            - text: .
+          - paragraph [ref=f59e361]:
+            - strong [ref=f59e362]: F. Escheatment.
+            - text: If Etsy cannot settle funds into a seller’s bank account, or the seller is refused service by Etsy under Etsy’s Terms of Use, the funds will remain with Etsy and the balance remains available in the seller’s payment account. It is the seller’s sole responsibility to update their bank account information to receive the funds, if applicable. If a seller fails to update the information to claim the funds within a certain period of time, or Etsy cannot release funds to the seller for compliance reasons, Etsy will escheat the funds to the relevant government authority as required in order to comply with applicable escheatment laws.
+          - heading "8. Recoupment" [level=2] [ref=f59e363]
+          - paragraph [ref=f59e364]:
+            - strong [ref=f59e365]: A.
+            - text: "We reserve the right, in our sole discretion, to seek reimbursement from a seller (and any accounts Etsy determines are related to your account) in any of the following circumstances: (a) we provide a refund to a buyer because a seller did not promptly deliver the goods or we otherwise determine, consistent with Section 5"
+            - link "Seller Rights and Responsibilities" [ref=f59e366] [cursor=pointer]:
+              - /url: https://www.etsy.com/legal/etsy-payments/#etsy
+            - text: ", that a refund is warranted in a particular circumstance, (b) we discover erroneous or duplicate transactions related to a seller, (c) we receive a chargeback from a buyer's credit card issuer or reversal of payment for the amount of a buyer's purchase from a seller, or (d) a seller does not act in accordance with Etsy’s policies."
+          - paragraph [ref=f59e367]:
+            - strong [ref=f59e368]: B
+            - text: . We may obtain reimbursement of any amounts owed by a seller to Etsy by deducting from future payments owed to the seller, reversing any credits to the seller’s payment account balance, charging the seller's card on file, charging the seller’s payment account (and any accounts Etsy determines are related to your account), or seeking reimbursement from the seller by any other lawful means, including by using third-party collections services. You authorize us to use any or all of the foregoing methods to seek reimbursement. Etsy may suspend your selling privileges at any time pending payment of your outstanding balance.
+          - heading "9. Payment Processing Fees" [level=2] [ref=f59e369]
+          - paragraph [ref=f59e370]:
+            - strong [ref=f59e371]: A. Overview.
+            - text: "Etsy charges a fee (the “Payment Processing Fee”) for each transaction processed through Etsy Payments. The fee amount will be assessed on the gross order amount, including shipping and tax (if applicable). Payment Processing Fees will be reflected in your payment account and will be deducted from the total amount of the payment at the time the payment is considered complete. We reserve the right to modify the Payment Processing Fee at any time. For deposits below designated thresholds in certain markets, a deposit fee will apply, as described in the table below. Deposit fees are deducted from your Available Funds and reflected in your payment account at the time of your scheduled deposit. In the event of any partial or full refunds credited back to a buyer by a seller, the Payment Processing Fee and other applicable fees will be recalculated based on the adjusted sale price. The difference between the original Payment Processing Fee and the adjusted Payment Processing Fee will be applied to the refund amount being credited back to the seller. Other applicable fees will be refunded to the seller's payment account. Deposit fees will be refunded if the deposit is returned to a seller’s payment account. For clarity, for full refunds credited back to a buyer that are covered by Etsy (e.g., through Etsy’s Protection Program), the Payment Processing Fee and other applicable fees (including without limitation: transaction fee, offsite ads fee, etc.) will not be credited back to the seller."
+          - paragraph [ref=f59e372]:
+            - strong [ref=f59e373]: B. Fee Amount.
+            - text: "Payment Processing Fees vary based on the location of a seller’s bank account. Please see this chart for further details:"
+          - table [ref=f59e374]:
+            - rowgroup [ref=f59e375]:
+              - row [ref=f59e376]:
+                - columnheader "Location of Bank Account" [ref=f59e377]
+                - columnheader "Etsy Payments Fees (% of total sale price + flat fee per order) exclusive of VAT, where applicable" [ref=f59e378]
+                - columnheader "Deposit fee where applicable (exclusive of VAT, where applicable)" [ref=f59e379]
+            - rowgroup [ref=f59e380]:
+              - row [ref=f59e381]:
+                - cell "Argentina" [ref=f59e382]
+                - cell "6.5% + 0.30 USD" [ref=f59e383]
+                - cell [ref=f59e384]
+              - row [ref=f59e385]:
+                - cell "Australia (domestic orders)" [ref=f59e386]
+                - cell "3% + 0.25 AUD" [ref=f59e387]
+                - cell [ref=f59e388]
+              - row [ref=f59e389]:
+                - cell "Australia (international orders)" [ref=f59e390]
+                - cell "4% + 0.25 AUD" [ref=f59e391]
+                - cell [ref=f59e392]
+              - row [ref=f59e393]:
+                - cell "Austria" [ref=f59e394]
+                - cell "4% + 0.30 EUR" [ref=f59e395]
+                - cell [ref=f59e396]
+              - row [ref=f59e397]:
+                - cell "Belgium" [ref=f59e398]
+                - cell "4% + 0.30 EUR" [ref=f59e399]
+                - cell [ref=f59e400]
+              - row [ref=f59e401]:
+                - cell "Brazil" [ref=f59e402]
+                - cell "6.5% + 0.30 USD" [ref=f59e403]
+                - cell [ref=f59e404]
+              - row [ref=f59e405]:
+                - cell "Bulgaria" [ref=f59e406]
+                - cell "4% + 0.30 EUR" [ref=f59e407]
+                - cell [ref=f59e408]
+              - row [ref=f59e409]:
+                - cell "Canada (domestic orders; orders from the US)" [ref=f59e410]
+                - cell "3% + 0.25 CAD" [ref=f59e411]
+                - cell [ref=f59e412]
+              - row [ref=f59e413]:
+                - cell "Canada (international orders)" [ref=f59e414]
+                - cell "4% + 0.25 CAD" [ref=f59e415]
+                - cell [ref=f59e416]
+              - row [ref=f59e417]:
+                - cell "Chile" [ref=f59e418]
+                - cell "6.5% + 0.30 USD" [ref=f59e419]
+                - cell [ref=f59e420]
+              - row [ref=f59e421]:
+                - cell "China" [ref=f59e422]
+                - cell "6.5% + 0.30 USD" [ref=f59e423]
+                - cell [ref=f59e424]
+              - row [ref=f59e425]:
+                - cell "Croatia" [ref=f59e426]
+                - cell "4% + 0.30 EUR" [ref=f59e427]
+                - cell [ref=f59e428]
+              - row [ref=f59e429]:
+                - cell "Cyprus" [ref=f59e430]
+                - cell "4% + 0.30 EUR" [ref=f59e431]
+                - cell [ref=f59e432]
+              - row [ref=f59e433]:
+                - cell "Czech Republic" [ref=f59e434]
+                - cell "4% + 0.30 EUR" [ref=f59e435]
+                - cell [ref=f59e436]
+              - row [ref=f59e437]:
+                - cell "Denmark" [ref=f59e438]
+                - cell "4% + 2.50 DKK" [ref=f59e439]
+              - row [ref=f59e440]:
+                - cell "Egypt" [ref=f59e441]
+                - cell "6.5% + 0.30 USD" [ref=f59e442]
+                - cell [ref=f59e443]
+              - row [ref=f59e444]:
+                - cell "Estonia" [ref=f59e445]
+                - cell "4% + 0.30 EUR" [ref=f59e446]
+                - cell [ref=f59e447]
+              - row [ref=f59e448]:
+                - cell "Finland" [ref=f59e449]
+                - cell "4% + 0.30 EUR" [ref=f59e450]
+                - cell [ref=f59e451]
+              - row [ref=f59e452]:
+                - cell "France" [ref=f59e453]
+                - cell "4% + 0.30 EUR" [ref=f59e454]
+              - row [ref=f59e455]:
+                - cell "Georgia" [ref=f59e456]
+                - cell "6.5% + 0.30 USD" [ref=f59e457]
+                - cell [ref=f59e458]
+              - row [ref=f59e459]:
+                - cell "Germany" [ref=f59e460]
+                - cell "4% + 0.30 EUR" [ref=f59e461]
+                - cell [ref=f59e462]
+              - row [ref=f59e463]:
+                - cell "Greece" [ref=f59e464]
+                - cell "4% + 0.30 EUR" [ref=f59e465]
+                - cell [ref=f59e466]
+              - row [ref=f59e467]:
+                - cell "Hong Kong" [ref=f59e468]
+                - cell "4.4% + 2.00 HKD" [ref=f59e469]
+                - cell [ref=f59e470]
+              - row [ref=f59e471]:
+                - cell "Hungary" [ref=f59e472]
+                - cell "4% + 0.30 EUR" [ref=f59e473]
+                - cell [ref=f59e474]
+              - row [ref=f59e475]:
+                - cell "Indonesia" [ref=f59e476]
+                - cell "4.5% + 7,000 IDR" [ref=f59e477]
+                - cell "28,000.00 IDR for deposits less than 1,400,000.00 IDR" [ref=f59e478]
+              - row [ref=f59e479]:
+                - cell "India" [ref=f59e480]
+                - cell "5% + 25 INR" [ref=f59e481]
+                - cell [ref=f59e482]
+              - row [ref=f59e483]:
+                - cell "Ireland" [ref=f59e484]
+                - cell "4% + 0.30 EUR" [ref=f59e485]
+                - cell [ref=f59e486]
+              - row [ref=f59e487]:
+                - cell "Israel" [ref=f59e488]
+                - cell "4.5% + 2.00 ILS" [ref=f59e489]
+                - cell "7.00 ILS for deposits less than 350.00 ILS" [ref=f59e490]
+              - row [ref=f59e491]:
+                - cell "Italy" [ref=f59e492]
+                - cell "4% + 0.30 EUR" [ref=f59e493]
+                - cell [ref=f59e494]
+              - row [ref=f59e495]:
+                - cell "Japan" [ref=f59e496]
+                - cell "6% + 0.30 USD" [ref=f59e497]
+                - cell [ref=f59e498]
+              - row [ref=f59e499]:
+                - cell "Kazakhstan" [ref=f59e500]
+                - cell "6.5% + 0.30 USD" [ref=f59e501]
+                - cell [ref=f59e502]
+              - row [ref=f59e503]:
+                - cell "Latvia" [ref=f59e504]
+                - cell "4% + 0.30 EUR" [ref=f59e505]
+                - cell [ref=f59e506]
+              - row [ref=f59e507]:
+                - cell "Lithuania" [ref=f59e508]
+                - cell "4% + 0.30 EUR" [ref=f59e509]
+                - cell [ref=f59e510]
+              - row [ref=f59e511]:
+                - cell "Luxembourg" [ref=f59e512]
+                - cell "4% + 0.30 EUR" [ref=f59e513]
+                - cell [ref=f59e514]
+              - row [ref=f59e515]:
+                - cell "Malaysia" [ref=f59e516]
+                - cell "4.5% + 2.00 MYR" [ref=f59e517]
+                - cell "8.00 MYR for deposits less than 400.00 MYR" [ref=f59e518]
+              - row [ref=f59e519]:
+                - cell "Malta" [ref=f59e520]
+                - cell "4% + 0.30 EUR" [ref=f59e521]
+                - cell [ref=f59e522]
+              - row [ref=f59e523]:
+                - cell "Mexico" [ref=f59e524]
+                - cell "4.5% + 8.00 MXN (effective July 8, 2024)" [ref=f59e525]
+                - cell "40.00 MXN for deposits less than 2000.00 MXN" [ref=f59e526]
+              - row [ref=f59e527]:
+                - cell "Morocco" [ref=f59e528]
+                - cell "4.5% + 5.00 MAD" [ref=f59e529]
+                - cell "20.00 MAD for deposits less than 1000.00 MAD" [ref=f59e530]
+              - row [ref=f59e531]:
+                - cell "Netherlands" [ref=f59e532]
+                - cell "4% + 0.30 EUR" [ref=f59e533]
+                - cell [ref=f59e534]
+              - row [ref=f59e535]:
+                - cell "New Zealand (domestic orders)" [ref=f59e536]
+                - cell "3% + 0.30 NZD" [ref=f59e537]
+              - row [ref=f59e538]:
+                - cell "New Zealand (international orders)" [ref=f59e539]
+                - cell "4% + 0.30 NZD" [ref=f59e540]
+              - row [ref=f59e541]:
+                - cell "Norway" [ref=f59e542]
+                - cell "4% + 2.50 NOK" [ref=f59e543]
+              - row [ref=f59e544]:
+                - cell "Pakistan" [ref=f59e545]
+                - cell "6.5% + 0.30 USD" [ref=f59e546]
+                - cell [ref=f59e547]
+              - row [ref=f59e548]:
+                - cell "Peru" [ref=f59e549]
+                - cell "6.5% + 0.30 USD" [ref=f59e550]
+                - cell [ref=f59e551]
+              - row [ref=f59e552]:
+                - cell "Philippines" [ref=f59e553]
+                - cell "4.5% + 25 PHP" [ref=f59e554]
+                - cell "100.00 PHP for deposits less than 5,000.00 PHP" [ref=f59e555]
+              - row [ref=f59e556]:
+                - cell "Poland" [ref=f59e557]
+                - cell "4% + 0.30 EUR" [ref=f59e558]
+                - cell [ref=f59e559]
+              - row [ref=f59e560]:
+                - cell "Portugal" [ref=f59e561]
+                - cell "4% + 0.30 EUR" [ref=f59e562]
+                - cell [ref=f59e563]
+              - row [ref=f59e564]:
+                - cell "Romania" [ref=f59e565]
+                - cell "4% + 0.30 EUR" [ref=f59e566]
+              - row [ref=f59e567]:
+                - cell "Serbia" [ref=f59e568]
+                - cell "6.5% + 0.30 USD" [ref=f59e569]
+                - cell [ref=f59e570]
+              - row [ref=f59e571]:
+                - cell "Singapore" [ref=f59e572]
+                - cell "4.4% + 0.35 SGD" [ref=f59e573]
+                - cell [ref=f59e574]
+              - row [ref=f59e575]:
+                - cell "Slovakia" [ref=f59e576]
+                - cell "4% + 0.30 EUR" [ref=f59e577]
+                - cell [ref=f59e578]
+              - row [ref=f59e579]:
+                - cell "Slovenia" [ref=f59e580]
+                - cell "4% + 0.30 EUR" [ref=f59e581]
+                - cell [ref=f59e582]
+              - row [ref=f59e583]:
+                - cell "South Africa" [ref=f59e584]
+                - cell "4.5% + 8.00 ZAR" [ref=f59e585]
+                - cell "30.00 ZAR for deposits less than 1,500.00 ZAR" [ref=f59e586]
+              - row [ref=f59e587]:
+                - cell "South Korea" [ref=f59e588]
+                - cell "6.5% + 0.30 USD" [ref=f59e589]
+                - cell [ref=f59e590]
+              - row [ref=f59e591]:
+                - cell "Spain" [ref=f59e592]
+                - cell "4% + 0.30 EUR" [ref=f59e593]
+                - cell [ref=f59e594]
+              - row [ref=f59e595]:
+                - cell "Sweden" [ref=f59e596]
+                - cell "4% + 3.00 SEK" [ref=f59e597]
+                - cell [ref=f59e598]
+              - row [ref=f59e599]:
+                - cell "Switzerland" [ref=f59e600]
+                - cell "4% + 0.50 CHF" [ref=f59e601]
+                - cell [ref=f59e602]
+              - row [ref=f59e603]:
+                - cell "Thailand" [ref=f59e604]
+                - cell "6% + 0.30 USD" [ref=f59e605]
+                - cell [ref=f59e606]
+              - row [ref=f59e607]:
+                - cell "Türkiye" [ref=f59e608]
+                - cell "6.5% + 14.00 TRY (effective July 8, 2024)" [ref=f59e609]
+                - cell "42.00 TRY for deposits less than 600.00 TRY" [ref=f59e610]
+              - row [ref=f59e611]:
+                - cell "Ukraine" [ref=f59e612]
+                - cell "6% + 0.30 USD" [ref=f59e613]
+              - row [ref=f59e614]:
+                - cell "United Arab Emirates" [ref=f59e615]
+                - cell "6.5% + 0.30 USD" [ref=f59e616]
+              - row [ref=f59e617]:
+                - cell "United Kingdom" [ref=f59e618]
+                - cell "4% + 0.20 GBP" [ref=f59e619]
+                - cell [ref=f59e620]
+              - row [ref=f59e621]:
+                - cell "United States" [ref=f59e622]
+                - cell "3% + 0.25 USD" [ref=f59e623]
+                - cell [ref=f59e624]
+              - row [ref=f59e625]:
+                - cell "Vietnam" [ref=f59e626]
+                - cell "4.5% + 11,550 VND" [ref=f59e627]
+                - cell "45,000 VND for deposits less than 45,000 VND" [ref=f59e628]
+          - paragraph [ref=f59e629]:
+            - strong [ref=f59e630]: C. Listing Currency Conversion Considerations for Sellers.
+            - text: When a seller lists and subsequently sells an item in a currency other than the currency of the seller's payment account, Etsy will settle the associated transaction proceeds in the currency of the seller's payment account. When such a service is required, Etsy applies an additional 2.5% currency conversion fee. Calculation rates are updated regularly.
+          - paragraph [ref=f59e631]:
+            - strong [ref=f59e632]: D. Value-Added Tax (VAT).
+            - text: Depending on your business status and location, Etsy may be required to charge the prevailing applicable VAT rate on seller fees accrued each month and remit it to the relevant tax authority. VAT is collected on Etsy Payments processing fees for sellers located in
+            - link "eligible Etsy Payments countries" [ref=f59e633] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/115015710408
+            - text: where required. To learn more about how VAT works on Etsy, see
+            - link "this Help article" [ref=f59e634] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000337247
+            - text: . Etsy reserves the right to charge tax rates based on the tax information provided and adjust tax rates if the tax information is incorrect or invalid.
+          - paragraph [ref=f59e635]:
+            - strong [ref=f59e636]: E. Sales Tax.
+            - text: Where applicable, sales tax will be applied to certain fees charged by Etsy. To learn more about how sales tax works, see
+            - link "this Help article" [ref=f59e637] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/35267490737431
+            - text: . Etsy reserves the right to charge sales tax based on the tax information provided by you, and may adjust these tax rates if your tax information is incorrect or invalid. You are solely responsible for keeping your location information accurate and current. If your location changes, please update your location information on Etsy as soon as possible.
+          - paragraph [ref=f59e638]:
+            - strong [ref=f59e639]: F. Browsing Currency Considerations for Buyers.
+            - text: In the case of a buyer purchasing from a seller who lists in a currency other than the buyer's browsing currency, Etsy will automatically calculate the listing price in the buyer's browsing currency. When such a calculation is required, Etsy applies an additional currency conversion charge. Calculation rates are updated regularly.
+          - paragraph [ref=f59e640]:
+            - strong [ref=f59e641]: G. Interest.
+            - text: In the United States, Etsy may earn interest (or other compensation) from the balances in our bank accounts because of the timing difference between our being paid by buyers and our paying sellers (when our bank account is being debited to pay Available Funds in payment accounts to sellers).
+          - heading "10. Reporting Obligations" [level=2] [ref=f59e642]
+          - paragraph [ref=f59e643]:
+            - strong [ref=f59e644]: US
+          - paragraph [ref=f59e645]:
+            - text: Internal Revenue Service regulations require that we file a Form 1099-K to report unadjusted annual gross sales information for sellers located in the United States or being paid in USD in certain circumstances. Please see
+            - link "this Help article" [ref=f59e646] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000336447
+            - text: for more details.
+          - paragraph [ref=f59e647]: To comply with these regulations, sellers who meet or approach applicable thresholds in a calendar year, aggregated across his or her Shops, will be required to provide taxpayer-identification information to Etsy.
+          - paragraph [ref=f59e648]:
+            - text: In addition to the IRS reporting requirements referenced above, certain states have enacted similar reporting regulations, and sellers who meet or approach applicable state thresholds will also be required to provide taxpayer-identification information to Etsy. Please see this
+            - link "Help article" [ref=f59e649] [cursor=pointer]:
+              - /url: https://help.etsy.com/hc/articles/360000336447
+            - text: for details of reporting threshold requirements related to the specific states.
+          - paragraph [ref=f59e650]:
+            - strong [ref=f59e651]: Non-US
+          - paragraph [ref=f59e652]: Etsy is also required to withhold taxes and/or report tax information to local tax authorities in certain countries outside the US. These withholding tax and reporting obligations are triggered when sellers make sales via Etsy and relevant requirements/thresholds for withholding and/or reporting are met.
+          - paragraph [ref=f59e653]: To comply with these withholding tax and/or reporting obligations, Etsy requires that you add your taxpayer name, taxpayer-identification and/or other applicable information to your Etsy shop as you approach the relevant thresholds. You are responsible for providing valid and accurate tax information. If you provide inaccurate or invalid tax information, Etsy may remove the information, suspend your selling privileges until you provide corrected information and/or take whatever action is deemed necessary per local tax rules without notice. Etsy may also adjust the amounts charged for withholding tax and/or taxes on seller fees, or may incorrectly calculate and remit applicable withholding tax, based on any inaccurate or invalid information you provide. You will be responsible for correcting any incorrect reporting and withholding with the relevant taxing authority due to inaccurate or invalid information you provide.
+          - heading "11. Termination" [level=2] [ref=f59e654]
+          - paragraph [ref=f59e655]: Sellers may terminate this contract and their acceptance of Etsy Payments at any time by adjusting the Settings in their account with Etsy. Etsy may also terminate or suspend a seller’s use of Etsy Payments at any time.
+          - paragraph [ref=f59e656]: Upon termination, any non-disputed Available Funds will be deposited into a seller’s bank account or a seller’s Payoneer Payment Account, as applicable. Etsy reserves the right, upon termination of access to Etsy Payments, to set off against any payments to be made to the seller, an amount determined by us to be adequate to cover any anticipated chargebacks, refunds, adjustments, or other amounts that might be paid to buyers in connection with purchases from the seller's payment account for a prospective 180-day period. At the end of the 180-day period following termination, we will disburse to the seller any amount not used to offset chargebacks, refunds, adjustments, or such other amounts paid to buyers, or seek reimbursement from the seller via any of the means authorized in this Policy for any additional amount required to offset chargebacks, refunds, adjustments, or other amounts paid to buyers, as applicable.
+          - heading "12. Canadian Sellers" [level=2] [ref=f59e657]
+          - paragraph [ref=f59e658]: In addition to the terms above, this section applies if you live in Canada. ECL has applied to become a registered payment service provider under the Retail Payment Activities Act (Canada). ECL will safeguard any Available Funds it is holding for you by holding an amount equivalent to your Available Funds balance, in trust on your behalf, in a segregated account at a financial institution that is not used for any other purpose. By using the Services, you confirm that you intend for ECL to hold such amount in trust on your behalf. You will not be entitled to any interest earned, if any, on the amount held in trust on your behalf. ECL will be responsible for disbursing your funds.
+          - paragraph [ref=f59e659]: Last updated on Feb 12, 2026
+  - contentinfo [ref=f59e661]:
+    - generic [ref=f59e663]:
+      - heading "We're on a mission to keep commerce human." [level=2] [ref=f59e666]
+      - navigation "Footer" [ref=f59e668]:
+        - generic [ref=f59e669]:
+          - generic [ref=f59e670]:
+            - heading "Shop" [level=3] [ref=f59e671]
+            - list [ref=f59e673]:
+              - listitem [ref=f59e674]:
+                - link "Gift cards" [ref=f59e676] [cursor=pointer]:
+                  - /url: https://www.etsy.com/giftcards?ref=ftr
+              - listitem [ref=f59e677]:
+                - link "Etsy Registry" [ref=f59e679] [cursor=pointer]:
+                  - /url: https://www.etsy.com/registry?ref=ftr
+              - listitem [ref=f59e680]:
+                - link "Sitemap" [ref=f59e682] [cursor=pointer]:
+                  - /url: https://www.etsy.com/categories
+              - listitem [ref=f59e683]:
+                - link "Etsy blog" [ref=f59e685] [cursor=pointer]:
+                  - /url: /blog/en/?ref=ftr
+              - listitem [ref=f59e686]:
+                - link "Etsy United Kingdom" [ref=f59e688] [cursor=pointer]:
+                  - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+              - listitem [ref=f59e689]:
+                - link "Etsy Germany" [ref=f59e691] [cursor=pointer]:
+                  - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+              - listitem [ref=f59e692]:
+                - link "Etsy Canada" [ref=f59e694] [cursor=pointer]:
+                  - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+          - generic [ref=f59e695]:
+            - heading "Sell" [level=3] [ref=f59e696]
+            - list [ref=f59e698]:
+              - listitem [ref=f59e699]:
+                - link "Sell on Etsy" [ref=f59e701] [cursor=pointer]:
+                  - /url: https://www.etsy.com/sell?ref=ftr
+              - listitem [ref=f59e702]:
+                - link "Teams" [ref=f59e704] [cursor=pointer]:
+                  - /url: https://community.etsy.com/pages/etsy-teams/
+              - listitem [ref=f59e705]:
+                - link "Forums" [ref=f59e707] [cursor=pointer]:
+                  - /url: https://community.etsy.com/feed/
+              - listitem [ref=f59e708]:
+                - link "Affiliates & Creators" [ref=f59e710] [cursor=pointer]:
+                  - /url: https://www.etsy.com/affiliates?ref=ftr
+          - generic [ref=f59e711]:
+            - heading "About" [level=3] [ref=f59e712]
+            - list [ref=f59e714]:
+              - listitem [ref=f59e715]:
+                - link "Etsy, Inc." [ref=f59e717] [cursor=pointer]:
+                  - /url: https://www.etsy.com/about?ref=ftr
+              - listitem [ref=f59e718]:
+                - link "Policies" [ref=f59e720] [cursor=pointer]:
+                  - /url: https://www.etsy.com/legal?ref=ftr
+              - listitem [ref=f59e721]:
+                - link "Investors" [ref=f59e723] [cursor=pointer]:
+                  - /url: https://investors.etsy.com
+              - listitem [ref=f59e724]:
+                - link "Careers" [ref=f59e726] [cursor=pointer]:
+                  - /url: https://www.etsy.com/careers?ref=ftr
+              - listitem [ref=f59e727]:
+                - link "Press" [ref=f59e729] [cursor=pointer]:
+                  - /url: https://www.etsy.com/press?ref=ftr
+              - listitem [ref=f59e730]:
+                - link "Impact" [ref=f59e732] [cursor=pointer]:
+                  - /url: https://www.etsy.com/impact?ref=ftr
+          - generic [ref=f59e733]:
+            - heading "Help" [level=3] [ref=f59e734]
+            - list [ref=f59e736]:
+              - listitem [ref=f59e737]:
+                - link "Help Center" [ref=f59e739] [cursor=pointer]:
+                  - /url: https://www.etsy.com/help?ref=ftr
+              - listitem [ref=f59e740]:
+                - link "Privacy settings" [ref=f59e742] [cursor=pointer]:
+                  - /url: "#"
+      - list "Download the Etsy App" [ref=f59e746]:
+        - listitem [ref=f59e747]:
+          - link "App Store" [ref=f59e748] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+        - listitem [ref=f59e749]:
+          - link "Google Play" [ref=f59e750] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+      - img "Illustration of two people looking at a framed abstract artwork" [ref=f59e753]
+    - generic [ref=f59e756]:
+      - generic [ref=f59e758]:
+        - link "Update your settings United States English (US) $ (USD)" [ref=f59e759] [cursor=pointer]:
+          - /url: https://www.etsy.com/your/account/locale_preferences?from_page=https%3A%2F%2Fwww.etsy.com%2Flegal%2Fetsy-payments%2F
+          - generic [ref=f59e775]: United States
+        - generic [ref=f59e777]:
+          - link [ref=f59e778] [cursor=pointer]:
+            - /url: /social-tracking?network=instagram
+          - link [ref=f59e783] [cursor=pointer]:
+            - /url: /social-tracking?network=facebook
+          - link [ref=f59e787] [cursor=pointer]:
+            - /url: /social-tracking?network=pinterest
+          - link [ref=f59e791] [cursor=pointer]:
+            - /url: /social-tracking?network=youtube
+      - generic [ref=f59e796]:
+        - generic [ref=f59e797]: © 2026 Etsy, Inc.
+        - generic [ref=f59e798]:
+          - generic [ref=f59e799]:
+            - link "Terms of Use" [ref=f59e801] [cursor=pointer]:
+              - /url: /legal/terms-of-use?ref=ftr
+            - link "Privacy" [ref=f59e803] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=ftr
+          - generic [ref=f59e804]:
+            - link "Interest-based ads" [ref=f59e806] [cursor=pointer]:
+              - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+            - link "Local Shops" [ref=f59e808] [cursor=pointer]:
+              - /url: /search/shops
+            - button "Regions" [ref=f59e810] [cursor=pointer]
+    - generic [ref=f59e816]:
+      - paragraph [ref=f59e817]: How Etsy uses cookies
+      - paragraph [ref=f59e818]:
+        - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+        - link "Privacy Policy" [ref=f59e819] [cursor=pointer]:
+          - /url: /legal/privacy/
+        - text: ","
+        - link "Cookies Policy" [ref=f59e820] [cursor=pointer]:
+          - /url: /legal/cookies/
+        - text: ", and"
+        - link "Terms of Use" [ref=f59e821] [cursor=pointer]:
+          - /url: /legal/terms-of-use/
+        - text: . Manage your preferences
+        - link "here" [ref=f59e822] [cursor=pointer]:
+          - /url: "#"
+        - text: .
+      - button "Ok" [ref=f59e824] [cursor=pointer]: Okay
+      - paragraph

@@ -1,0 +1,283 @@
+- generic [active] [ref=f49e1]:
+  - generic [ref=f49e2]:
+    - banner [ref=f49e4]:
+      - link "Etsy" [ref=f49e6] [cursor=pointer]:
+        - /url: /?ref=lgo
+      - search [ref=f49e13]:
+        - generic [ref=f49e14]: Search for items or shops
+        - generic [ref=f49e16]:
+          - combobox "Search for items or shops" [ref=f49e17]
+          - button "Search" [ref=f49e18] [cursor=pointer]
+      - link "Skip to Content" [ref=f49e22] [cursor=pointer]:
+        - /url: "#content"
+      - navigation "Main" [ref=f49e26]:
+        - list [ref=f49e27]:
+          - listitem [ref=f49e28]:
+            - button "Sign in" [ref=f49e29] [cursor=pointer]
+          - listitem [ref=f49e30]:
+            - link "Cart" [ref=f49e32] [cursor=pointer]:
+              - /url: https://www.etsy.com/cart?ref=hdr-cart
+    - navigation [ref=f49e36]:
+      - list [ref=f49e40]:
+        - listitem [ref=f49e41]:
+          - link "Gifts" [ref=f49e42] [cursor=pointer]:
+            - /url: /featured/hub/gifts?ref=gift_global_nav
+        - listitem [ref=f49e48]:
+          - link "Teacher Essentials" [ref=f49e49] [cursor=pointer]:
+            - /url: https://www.etsy.com/r/curated/teacher-essentials?sections=1485306332665&narrow=teacher-favorites&ref=TeachEssentials72726_cat_nav
+        - listitem [ref=f49e50]:
+          - link "Home Favorites" [ref=f49e51] [cursor=pointer]:
+            - /url: /featured/hub/home-favorites?ref=contentful_promo_cat_nav-5
+        - listitem [ref=f49e52]:
+          - link "Fashion Finds" [ref=f49e53] [cursor=pointer]:
+            - /url: /featured/hub/fashion-favorites?ref=contentful_promo_cat_nav-6
+        - listitem [ref=f49e54]:
+          - link "Vintage" [ref=f49e55] [cursor=pointer]:
+            - /url: /r/curated/etsys-best-vintage-finds?sections=1461029776888&narrow=best-vintage-finds&ref=contentful_promo_cat_nav-7
+        - listitem [ref=f49e56]:
+          - link "Wedding Guide" [ref=f49e57] [cursor=pointer]:
+            - /url: /featured/hub/weddings-hub?ref=contentful_promo_cat_nav-9
+        - listitem [ref=f49e58]:
+          - link "Gift Cards" [ref=f49e59] [cursor=pointer]:
+            - /url: /giftcards?ref=contentful_promo_cat_nav-10
+  - main [ref=f49e60]:
+    - generic [ref=f49e61]:
+      - generic [ref=f49e62]:
+        - heading [level=1] [ref=f49e63]:
+          - link "Seller Handbook" [ref=f49e64] [cursor=pointer]:
+            - /url: /seller-handbook
+        - button "Search" [ref=f49e67] [cursor=pointer]
+        - list [ref=f49e71]:
+          - listitem [ref=f49e72]:
+            - link "Latest articles" [ref=f49e73] [cursor=pointer]:
+              - /url: /seller-handbook
+          - listitem [ref=f49e74]:
+            - link "Getting Started" [ref=f49e75] [cursor=pointer]:
+              - /url: /seller-handbook/subtopic/getting-started
+          - listitem [ref=f49e76]:
+            - link "Growing Your Business" [ref=f49e77] [cursor=pointer]:
+              - /url: /seller-handbook/topic/marketing-and-promotions
+          - listitem [ref=f49e78]:
+            - link "Seller Stories" [ref=f49e79] [cursor=pointer]:
+              - /url: /seller-handbook/topic/seller-story
+          - listitem [ref=f49e80]:
+            - link "Site Updates" [ref=f49e81] [cursor=pointer]:
+              - /url: /seller-handbook/category/site-updates
+      - generic [ref=f49e82]:
+        - generic [ref=f49e84]:
+          - generic [ref=f49e85]:
+            - heading "July 9, 2024 | 3 minute read" [level=3] [ref=f49e86]
+            - heading "What's Etsy’s Stance on AI Creations?" [level=3] [ref=f49e87]
+            - paragraph
+            - generic [ref=f49e88]:
+              - img "Avatar image for Etsy Staff" [ref=f49e89]
+              - text: by Etsy Staff
+          - generic [ref=f49e90]:
+            - img "Title image for the article" [ref=f49e91]
+            - button [ref=f49e92] [cursor=pointer]
+        - generic [ref=f49e95]:
+          - generic [ref=f49e96]: Want to open your own Etsy shop? Create your shop today!
+          - generic [ref=f49e97]:
+            - link "Learn more" [ref=f49e98] [cursor=pointer]:
+              - /url: /sell?ref-seller-handbook=seller-handbook-learn-more
+            - link "Create your shop" [ref=f49e99] [cursor=pointer]:
+              - /url: /your/shop/create?ref-seller-handbook=seller-handbook-open-shop-logged-in
+        - generic [ref=f49e102]:
+          - generic [ref=f49e103]:
+            - paragraph [ref=f49e104]: At Etsy, we strive to support our creative community while embracing technological innovation in the arts. We recognize that many tools used by our sellers today, such as photo editing software, increasingly include AI capabilities that can enhance the creative process and open new artistic possibilities. When artists use these AI tools, they still make creative decisions and contributions to guide the AI and carefully curate the output to produce unique, finished works for sale.
+            - heading "Seller-prompted AI creations" [level=2] [ref=f49e105]
+            - paragraph [ref=f49e106]: After carefully considering the complex issues surrounding AI-generated content, we have decided to continue to allow sellers to use their original prompts in combination with AI tools to create the artwork they sell on Etsy. Permitted examples of this might include a fantasy scene based on a seller’s original prompt or inputs and produced by an AI generator, or a custom portrait of a buyer’s pet generated using AI tools. Sellers must disclose within their listing description if an item is created with the use of AI.
+            - paragraph [ref=f49e107]: We believe this decision aligns with our values of supporting artists through the evolution of art. However, we also understand there are important ongoing conversations regarding the training of AI models, including ethical questions about the use of copyrighted works and concerns about mitigating bias and negative environmental impacts.
+            - paragraph [ref=f49e108]: As such, we will be closely monitoring developments in this rapidly-evolving area, listening to feedback from our community, and periodically reevaluating our policies. We are committed to striking the right balance between enabling our sellers to leverage new creative tools and technologies, while ensuring that Etsy remains a marketplace known for its original items from real people. Maintaining the trust of both our sellers and buyers will always be our top priority.
+            - heading "AI prompt bundles" [level=2] [ref=f49e109]
+            - paragraph [ref=f49e110]: While we allow the use of AI tools in the creative process, we prohibit the sale of AI prompt bundles on our platform. We believe that the prompts used to generate AI artwork are an integral part of the creative process and should not be sold separately from the final artwork. Selling prompt bundles without the accompanying finished artwork undermines the value of the artist's creative input and curation, which are essential to the creation of the unique, creative items that Etsy is known for.
+            - heading "Nudity and sexual content" [level=2] [ref=f49e111]
+            - paragraph [ref=f49e112]:
+              - text: Any AI-generated depictions of nudity and sexual content must follow the rules and restrictions outlined by our
+              - link "Prohibited Items Policy" [ref=f49e113] [cursor=pointer]:
+                - /url: https://www.etsy.com/legal/prohibited/?ref=list
+              - text: . Also note that we prohibit content which infringes on the privacy, publicity, and personal rights of others.
+          - generic [ref=f49e115]:
+            - img "Avatar image for Etsy Staff" [ref=f49e116]
+            - text: Words by Etsy Staff
+        - generic [ref=f49e117]:
+          - heading "Connect with the community" [level=3] [ref=f49e119]
+          - generic [ref=f49e134]:
+            - heading "Looking for a place to share questions and spark new conversations?" [level=3] [ref=f49e135]
+            - heading "Join the conversation in the Forums and get inspired" [level=3] [ref=f49e136]
+            - link "See more" [ref=f49e137] [cursor=pointer]:
+              - /url: https://community.etsy.com/feed/
+        - separator [ref=f49e138]
+        - generic [ref=f49e139]:
+          - heading "Latest articles" [level=3] [ref=f49e141]
+          - generic [ref=f49e142]:
+            - generic [ref=f49e145] [cursor=pointer]:
+              - img "2026 Etsy Design Awards Seller Guide" [ref=f49e146]
+              - button [ref=f49e147]
+              - generic [ref=f49e150]:
+                - link [ref=f49e151]:
+                  - /url: /seller-handbook/article/1016797779396
+                  - heading "2026 Etsy Design Awards Seller Guide" [level=4] [ref=f49e152]
+                - paragraph [ref=f49e153]: We want to see the best of your shop! Submit the item you’re most proud of.
+                - paragraph [ref=f49e155]: Read now
+            - generic [ref=f49e158] [cursor=pointer]:
+              - 'img "In Case of Emergency: Resources for Small Business Owners" [ref=f49e159]'
+              - button [ref=f49e160]
+              - generic [ref=f49e163]:
+                - link [ref=f49e164]:
+                  - /url: /seller-handbook/article/22715169631
+                  - 'heading "In Case of Emergency: Resources for Small Business Owners" [level=4] [ref=f49e165]'
+                - paragraph [ref=f49e166]: Learn ways to protect your business when an unexpected disaster strikes with this handy resource guide for artists, makers, and small business owners.
+                - paragraph [ref=f49e168]: Read now
+            - generic [ref=f49e171] [cursor=pointer]:
+              - 'img "Checklist: Get Your Listings Ready to Advertise" [ref=f49e172]'
+              - button [ref=f49e173]
+              - generic [ref=f49e176]:
+                - link [ref=f49e177]:
+                  - /url: /seller-handbook/article/648735427806
+                  - 'heading "Checklist: Get Your Listings Ready to Advertise" [level=4] [ref=f49e178]'
+                - paragraph [ref=f49e179]: Use this cheat sheet to help optimize your listings’ advertising performance.
+                - paragraph [ref=f49e181]: Read now
+            - generic [ref=f49e184] [cursor=pointer]:
+              - img "Developing a Brand Design Palette" [ref=f49e185]
+              - button [ref=f49e186]
+              - generic [ref=f49e189]:
+                - link [ref=f49e190]:
+                  - /url: /seller-handbook/article/353829141574
+                  - heading "Developing a Brand Design Palette" [level=4] [ref=f49e191]
+                - paragraph [ref=f49e192]: Learn how to establish a cohesive aesthetic by pinpointing the colors, fonts, and photography style that best reflect your brand.
+                - paragraph [ref=f49e194]: Read now
+        - generic [ref=f49e196]:
+          - generic [ref=f49e197]: Get free online marketing tips and resources delivered directly to your inbox
+          - generic [ref=f49e206]:
+            - textbox "you@email.com" [ref=f49e207]
+            - button "Subscribe" [ref=f49e208] [cursor=pointer]
+  - contentinfo [ref=f49e211]:
+    - generic [ref=f49e213]:
+      - heading "We're on a mission to keep commerce human." [level=2] [ref=f49e216]
+      - navigation "Footer" [ref=f49e218]:
+        - generic [ref=f49e219]:
+          - generic [ref=f49e220]:
+            - heading "Shop" [level=3] [ref=f49e221]
+            - list [ref=f49e223]:
+              - listitem [ref=f49e224]:
+                - link "Gift cards" [ref=f49e226] [cursor=pointer]:
+                  - /url: https://www.etsy.com/giftcards?ref=ftr
+              - listitem [ref=f49e227]:
+                - link "Etsy Registry" [ref=f49e229] [cursor=pointer]:
+                  - /url: https://www.etsy.com/registry?ref=ftr
+              - listitem [ref=f49e230]:
+                - link "Sitemap" [ref=f49e232] [cursor=pointer]:
+                  - /url: https://www.etsy.com/categories
+              - listitem [ref=f49e233]:
+                - link "Etsy blog" [ref=f49e235] [cursor=pointer]:
+                  - /url: /blog/en/?ref=ftr
+              - listitem [ref=f49e236]:
+                - link "Etsy United Kingdom" [ref=f49e238] [cursor=pointer]:
+                  - /url: https://www.etsy.com/uk/?locale_override=GBP%7Cen-GB%7CGB
+              - listitem [ref=f49e239]:
+                - link "Etsy Germany" [ref=f49e241] [cursor=pointer]:
+                  - /url: https://www.etsy.com/de/?locale_override=EUR%7Cde%7CDE
+              - listitem [ref=f49e242]:
+                - link "Etsy Canada" [ref=f49e244] [cursor=pointer]:
+                  - /url: https://www.etsy.com/ca/?locale_override=CAD%7Cen-US%7CCA
+          - generic [ref=f49e245]:
+            - heading "Sell" [level=3] [ref=f49e246]
+            - list [ref=f49e248]:
+              - listitem [ref=f49e249]:
+                - link "Sell on Etsy" [ref=f49e251] [cursor=pointer]:
+                  - /url: https://www.etsy.com/sell?ref=ftr
+              - listitem [ref=f49e252]:
+                - link "Teams" [ref=f49e254] [cursor=pointer]:
+                  - /url: https://community.etsy.com/pages/etsy-teams/
+              - listitem [ref=f49e255]:
+                - link "Forums" [ref=f49e257] [cursor=pointer]:
+                  - /url: https://community.etsy.com/feed/
+              - listitem [ref=f49e258]:
+                - link "Affiliates & Creators" [ref=f49e260] [cursor=pointer]:
+                  - /url: https://www.etsy.com/affiliates?ref=ftr
+          - generic [ref=f49e261]:
+            - heading "About" [level=3] [ref=f49e262]
+            - list [ref=f49e264]:
+              - listitem [ref=f49e265]:
+                - link "Etsy, Inc." [ref=f49e267] [cursor=pointer]:
+                  - /url: https://www.etsy.com/about?ref=ftr
+              - listitem [ref=f49e268]:
+                - link "Policies" [ref=f49e270] [cursor=pointer]:
+                  - /url: https://www.etsy.com/legal?ref=ftr
+              - listitem [ref=f49e271]:
+                - link "Investors" [ref=f49e273] [cursor=pointer]:
+                  - /url: https://investors.etsy.com
+              - listitem [ref=f49e274]:
+                - link "Careers" [ref=f49e276] [cursor=pointer]:
+                  - /url: https://www.etsy.com/careers?ref=ftr
+              - listitem [ref=f49e277]:
+                - link "Press" [ref=f49e279] [cursor=pointer]:
+                  - /url: https://www.etsy.com/press?ref=ftr
+              - listitem [ref=f49e280]:
+                - link "Impact" [ref=f49e282] [cursor=pointer]:
+                  - /url: https://www.etsy.com/impact?ref=ftr
+          - generic [ref=f49e283]:
+            - heading "Help" [level=3] [ref=f49e284]
+            - list [ref=f49e286]:
+              - listitem [ref=f49e287]:
+                - link "Help Center" [ref=f49e289] [cursor=pointer]:
+                  - /url: https://www.etsy.com/help?ref=ftr
+              - listitem [ref=f49e290]:
+                - link "Privacy settings" [ref=f49e292] [cursor=pointer]:
+                  - /url: "#"
+      - list "Download the Etsy App" [ref=f49e296]:
+        - listitem [ref=f49e297]:
+          - link "App Store" [ref=f49e298] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+        - listitem [ref=f49e299]:
+          - link "Google Play" [ref=f49e300] [cursor=pointer]:
+            - /url: https://etsy.app.link/d7nDUdp49V
+      - img "Illustration of two people looking at a framed abstract artwork" [ref=f49e303]
+    - generic [ref=f49e306]:
+      - generic [ref=f49e308]:
+        - link "Update your settings United States English (US) $ (USD)" [ref=f49e309] [cursor=pointer]:
+          - /url: https://www.etsy.com/your/account/locale_preferences?from_page=https%3A%2F%2Fwww.etsy.com%2Fseller-handbook%2Farticle%2F1275449912004
+          - generic [ref=f49e325]: United States
+        - generic [ref=f49e327]:
+          - link [ref=f49e328] [cursor=pointer]:
+            - /url: /social-tracking?network=instagram
+          - link [ref=f49e333] [cursor=pointer]:
+            - /url: /social-tracking?network=facebook
+          - link [ref=f49e337] [cursor=pointer]:
+            - /url: /social-tracking?network=pinterest
+          - link [ref=f49e341] [cursor=pointer]:
+            - /url: /social-tracking?network=youtube
+      - generic [ref=f49e346]:
+        - generic [ref=f49e347]: © 2026 Etsy, Inc.
+        - generic [ref=f49e348]:
+          - generic [ref=f49e349]:
+            - link "Terms of Use" [ref=f49e351] [cursor=pointer]:
+              - /url: /legal/terms-of-use?ref=ftr
+            - link "Privacy" [ref=f49e353] [cursor=pointer]:
+              - /url: /legal/privacy/?ref=ftr
+          - generic [ref=f49e354]:
+            - link "Interest-based ads" [ref=f49e356] [cursor=pointer]:
+              - /url: /legal/policy/cookies-tracking-technologies/44797645975?ref=ftr#marketing-services
+            - link "Local Shops" [ref=f49e358] [cursor=pointer]:
+              - /url: /search/shops
+            - button "Regions" [ref=f49e360] [cursor=pointer]
+    - generic [ref=f49e366]:
+      - paragraph [ref=f49e367]: How Etsy uses cookies
+      - paragraph [ref=f49e368]:
+        - text: We use cookies and similar technologies to collect and share data about your use of the site. By using our site, you agree to this, as well as our
+        - link "Privacy Policy" [ref=f49e369] [cursor=pointer]:
+          - /url: /legal/privacy/
+        - text: ","
+        - link "Cookies Policy" [ref=f49e370] [cursor=pointer]:
+          - /url: /legal/cookies/
+        - text: ", and"
+        - link "Terms of Use" [ref=f49e371] [cursor=pointer]:
+          - /url: /legal/terms-of-use/
+        - text: . Manage your preferences
+        - link "here" [ref=f49e372] [cursor=pointer]:
+          - /url: "#"
+        - text: .
+      - button "Ok" [ref=f49e374] [cursor=pointer]: Okay
+      - paragraph
+  - status [ref=f49e375]
