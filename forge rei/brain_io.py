@@ -308,13 +308,13 @@ def undo_note(rel):
         if len(hashes) >= 2:
             subprocess.run(["git", "-C", str(repo), "checkout", hashes[1], "--", rp],
                            check=True, capture_output=True, timeout=15)
-            subprocess.run(["git", "-C", str(repo), "add", rp],
+            subprocess.run(["git", "-C", str(repo), "add", "--", rp],
                            check=True, capture_output=True, timeout=15)
             subprocess.run(["git", "-C", str(repo), "commit", "-m", f"brain: undo {rel}"],
                            check=True, capture_output=True, timeout=15)
             return {"ok": True, "restored": rel, "toCommit": hashes[1][:8]}
         if len(hashes) == 1:
-            subprocess.run(["git", "-C", str(repo), "rm", rp],
+            subprocess.run(["git", "-C", str(repo), "rm", "--", rp],
                            check=True, capture_output=True, timeout=15)
             subprocess.run(["git", "-C", str(repo), "commit", "-m", f"brain: undo (remove) {rel}"],
                            check=True, capture_output=True, timeout=15)

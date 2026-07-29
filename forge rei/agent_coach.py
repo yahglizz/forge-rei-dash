@@ -61,8 +61,24 @@ _SECRET_PATTERNS = [
 ]
 
 
+# The vendor blocklist above is necessarily incomplete — META (EAA…), Telegram
+# (<id>:AA…), Higgsfield dashed-UUID keys, GitHub ghp_/github_pat_, Metricool
+# tokens, and GHL location ids all slip past a shape-by-shape list. Since a
+# coaching insight is always prose, we ALSO reject on shape: a PEM block, or any
+# 20+ char run of non-space that mixes letters and digits (no English word does
+# that — but every API token, key, and location id does). This makes the
+# docstring's "never a credential or location id" promise real via one rule
+# instead of chasing every vendor format. False positive just drops one insight.
+_HIGH_ENTROPY_TOKEN = re.compile(r"\S{20,}")
+
+
 def _looks_like_secret(text: str) -> bool:
     t = str(text or "")
+    if "-----BEGIN" in t:
+        return True
+    for tok in _HIGH_ENTROPY_TOKEN.findall(t):
+        if any(c.isalpha() for c in tok) and any(c.isdigit() for c in tok):
+            return True
     return any(p.search(t) for p in _SECRET_PATTERNS)
 
 

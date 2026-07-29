@@ -183,6 +183,30 @@ class DaycareSecurityTests(unittest.TestCase):
         bridge = daycare.SupabaseBridge(enabled)
         self.assertIsNone(bridge.autoadmin_session("127.0.0.1"))
 
+    def test_autoadmin_refuses_proxied_request(self):
+        # Tailscale Serve fronts the box on 127.0.0.1 but always adds forwarding
+        # headers. A loopback peer WITH proxy headers is a tailnet visitor, not the
+        # SSH-tunnel owner → refused, even with autoadmin enabled + admin creds.
+        enabled = config(autoadmin=True, test_profiles=(("admin", "BL-ADM-301", "123456"),))
+        bridge = daycare.SupabaseBridge(enabled)
+        minted = session()
+        with mock.patch.object(bridge, "login", return_value=(minted, {"role": "admin"})):
+            daycare._SESSIONS[minted.sid] = minted
+            # Serve request (X-Forwarded-Proto set) → refused.
+            self.assertIsNone(
+                bridge.autoadmin_session("127.0.0.1", {"X-Forwarded-Proto": "https"}))
+            self.assertIsNone(
+                bridge.autoadmin_session("127.0.0.1", {"X-Forwarded-For": "100.80.10.20"}))
+            # Direct tunnel (no forwarding headers) → still works.
+            self.assertIs(bridge.autoadmin_session("127.0.0.1", {}), minted)
+
+    def test_is_owner_loopback_distinguishes_tunnel_from_serve(self):
+        self.assertTrue(daycare.is_owner_loopback({}, "127.0.0.1"))
+        self.assertTrue(daycare.is_owner_loopback({"User-Agent": "curl"}, "::1"))
+        self.assertFalse(daycare.is_owner_loopback({"X-Forwarded-Proto": "https"}, "127.0.0.1"))
+        self.assertFalse(daycare.is_owner_loopback({"Tailscale-User-Login": "a@b.c"}, "127.0.0.1"))
+        self.assertFalse(daycare.is_owner_loopback({}, "100.80.10.20"))
+
     def test_parent_and_wrong_location_cannot_login_to_forge(self):
         bridge = daycare.BRIDGE
         with self.assertRaises(daycare.DaycareError) as role_error:
