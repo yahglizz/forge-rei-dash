@@ -268,6 +268,43 @@ def _client_networks():
 
 _ALLOWED_CLIENT_NETWORKS = _client_networks()
 
+
+def _allowed_hostnames():
+    """Hostnames the dashboard answers to. Anything else in the Host header is a
+    DNS-rebinding probe — reject it. The network ACL keys on the real peer IP,
+    but a rebinding page reaches us from the victim's (allowed) tailnet IP with an
+    attacker Host, so the peer check alone can't stop it. IP-literal Hosts inside
+    the client CIDRs are always fine; named Hosts must be on this list."""
+    raw = os.environ.get(
+        "FORGE_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,forge-reios.tail0a2dda.ts.net")
+    return frozenset(h.strip().lower() for h in raw.split(",") if h.strip())
+
+
+_ALLOWED_HOSTNAMES = _allowed_hostnames()
+
+
+def _host_header_ok(host_header):
+    """True if the Host header is a hostname/IP we serve. Empty Host (HTTP/1.0,
+    non-browser CLI) passes — the rebinding attack always sends a real Host. Fails
+    OPEN on parse errors to avoid bricking the owner over a header edge case."""
+    host = (host_header or "").strip().lower()
+    if not host:
+        return True
+    try:
+        if host.startswith("["):            # [ipv6](:port)?
+            name = host[1:host.index("]")]
+        elif host.count(":") == 1:           # host:port (ipv4 or name)
+            name = host.rsplit(":", 1)[0]
+        else:
+            name = host                      # bare name or bare ipv6
+        if name in _ALLOWED_HOSTNAMES or name in ("localhost", "127.0.0.1", "::1"):
+            return True
+        ip = ipaddress.ip_address(name)
+        return any(ip in net for net in _ALLOWED_CLIENT_NETWORKS)
+    except (ValueError, IndexError):
+        return name in _ALLOWED_HOSTNAMES
+
 # Shared revision for the separate desktop dashboard and mobile app. Both clients
 # read the same connector, so a successful write can invalidate every open view
 # without merging the frontends or exposing state files over HTTP.
@@ -2955,6 +2992,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._dashboard_client_allowed():
             return self._send_json({"error": "private dashboard access required"}, 403)
+        if not _host_header_ok(self.headers.get("Host")):
+            return self._send_json({"error": "bad host"}, 421)
         if not self._same_origin_post():
             return self._send_json({"error": "same-origin request required"}, 403)
         parsed = urllib.parse.urlparse(self.path)
@@ -3956,6 +3995,15 @@ class Handler(BaseHTTPRequestHandler):
                     headers={"Set-Cookie": daycare_supabase.session_cookie(session.sid)},
                 )
             if path == "/api/daycare/auth/test-login":
+                # Passwordless role-picker login is a convenience for the DIRECT
+                # tunnel owner only. Tailscale Serve makes every tailnet client
+                # look loopback, so gate on the proxy-header-absent owner check —
+                # otherwise any tailnet device could POST {"profile":"admin"} and
+                # get a full admin session with no credential.
+                if not daycare_supabase.is_owner_loopback(self.headers, client_ip):
+                    raise daycare_supabase.DaycareError(
+                        403, "Test login is only available on the local tunnel",
+                        "test_access_disabled")
                 session, profile = daycare_supabase.BRIDGE.login_test_profile(
                     body.get("profile"))
                 return self._send_json(
@@ -4513,6 +4561,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._dashboard_client_allowed():
             return self._send_json({"error": "private dashboard access required"}, 403)
+        if not _host_header_ok(self.headers.get("Host")):
+            return self._send_json({"error": "bad host"}, 421)
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
