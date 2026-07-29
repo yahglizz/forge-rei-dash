@@ -21,7 +21,7 @@ HERE = Path(__file__).resolve().parent
 STATE = HERE / "marcus_state" / "agency_callsheet.json"
 _LOCK = threading.Lock()
 
-STATUSES = ("new", "answered", "no_answer", "callback", "dead")
+STATUSES = ("new", "answered", "interested", "no_answer", "callback", "dead")
 
 MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
 _PDF_RE = re.compile(r"^data:application/pdf;base64,(.+)$", re.S)
@@ -235,10 +235,12 @@ def set_status(lead_id, status):
         for lead in d["leads"]:
             if lead["id"] == lead_id:
                 lead["status"] = status
-                if status in ("answered", "no_answer", "callback"):
+                if status in ("answered", "interested", "no_answer", "callback"):
                     lead["last_called"] = datetime.now().strftime("%m/%d %H:%M")
-                if status in ("answered", "no_answer"):
-                    tally_outcome = status
+                if status in ("answered", "interested"):
+                    tally_outcome = "answered"
+                elif status == "no_answer":
+                    tally_outcome = "no_answer"
                 break
         else:
             return {"ok": False, "detail": "Lead not found."}
@@ -262,6 +264,86 @@ def set_note(lead_id, note):
                 _save(d)
                 return {"ok": True}
     return {"ok": False, "detail": "Lead not found."}
+
+
+def _escalate_notes(lead, info):
+    """Build the client-book note: contact info the client record has no field for,
+    plus what they actually said on the call."""
+    lines = []
+    phone = str(info.get("phone") or lead.get("phone") or "").strip()
+    email = str(info.get("email") or lead.get("email") or "").strip()
+    if phone:
+        lines.append(f"Phone: {phone}")
+    if email:
+        lines.append(f"Email: {email}")
+    loc = str(lead.get("location") or "").strip()
+    if loc:
+        lines.append(f"Location: {loc}")
+    nxt = str(info.get("next_step") or "").strip()
+    if nxt:
+        lines.append(f"Next step: {nxt}")
+    said = str(info.get("notes") or "").strip()
+    if said:
+        lines.append(f"Said on the call: {said}")
+    lines.append(f"Source: cold call ({datetime.now().strftime('%Y-%m-%d')}), call sheet {lead.get('id')}")
+    return "\n".join(lines)[:2000]
+
+
+def escalate(lead_id, info):
+    """Interested → create (or refresh) a Pipeline lead in the agency client book.
+
+    Internal + reversible (delete the client row to undo) — nothing is texted,
+    emailed, or published, so this stays inside CLAUDE.md rule 2.
+    """
+    info = info if isinstance(info, dict) else {}
+    with _LOCK:
+        d = _load()
+        snapshot = next((dict(l) for l in d["leads"] if l["id"] == lead_id), None)
+    if snapshot is None:
+        return {"ok": False, "detail": "Lead not found."}
+
+    name = str(info.get("name") or snapshot.get("name") or snapshot.get("company") or "").strip()
+    if not name:
+        return {"ok": False, "detail": "Who did you talk to? A contact name is required."}
+
+    client = {
+        "name": name,
+        "business": str(info.get("business") or snapshot.get("company") or "").strip(),
+        "status": "lead",
+        "site": str(info.get("site") or snapshot.get("website") or "").strip(),
+        "mrr": info.get("mrr") or 0,
+        "services": info.get("services") if isinstance(info.get("services"), list) else [],
+        "notes": _escalate_notes(snapshot, info),
+    }
+    if snapshot.get("client_id"):
+        client["id"] = snapshot["client_id"]  # re-escalate updates, never duplicates
+
+    try:
+        import agency_io
+        res = agency_io.save_client(client)
+    except Exception as e:
+        return {"ok": False, "detail": f"Couldn't save to the client book: {e}"}
+    if not res.get("ok"):
+        return {"ok": False, "detail": res.get("error") or "Client save failed."}
+
+    cid = res["client"]["id"]
+    with _LOCK:
+        d = _load()
+        for lead in d["leads"]:
+            if lead["id"] == lead_id:
+                lead["client_id"] = cid
+                lead["escalated"] = datetime.now().strftime("%m/%d %H:%M")
+                said = str(info.get("notes") or "").strip()
+                nxt = str(info.get("next_step") or "").strip()
+                summary = " · ".join(x for x in (nxt, said) if x)
+                if summary:
+                    lead["note"] = summary[:300]
+                break
+        _save(d)
+
+    out = set_status(lead_id, "interested")
+    out["client"] = res["client"]
+    return out
 
 
 def delete_lead(lead_id):
