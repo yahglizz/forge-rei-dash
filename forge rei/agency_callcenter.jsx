@@ -119,6 +119,17 @@ const CC_SHEET_CSS = `
 .cc-modal input,.cc-modal textarea{width:100%;background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.13);border-radius:6px;color:inherit;
   padding:7px 9px;font-size:13px;font-family:inherit}
+/* offer sheet — what you read off while they're on the line */
+.cc-offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.cc-offer{text-align:left;border:1px solid rgba(255,255,255,.14);border-radius:9px;
+  padding:11px 12px;background:rgba(255,255,255,.04);color:inherit;font:inherit;cursor:pointer}
+.cc-offer:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.28)}
+.cc-offer.on{border-color:#ffd479;background:rgba(255,212,121,.14);box-shadow:0 0 0 1px rgba(255,212,121,.35) inset}
+.cc-offer .o-name{font-weight:700;font-size:13px}
+.cc-offer .o-price{font-size:21px;font-weight:700;color:#ffd479;margin:3px 0 5px}
+.cc-offer ul{margin:0;padding-left:15px;font-size:11px;line-height:1.55;color:rgba(255,255,255,.62)}
+.cc-offer.o-custom{border-style:dashed}
+.cc-offer.o-custom .o-price{font-size:15px;color:rgba(255,255,255,.75)}
 `;
 
 function CcStatusPill({ status }) {
@@ -176,6 +187,7 @@ function CcRow({ n, lead, busy, onMark, onNote, onDelete, onInterested }) {
         {lead.client_id && (
           <div style={{ fontSize: 10.5, color: "#ffd479", marginTop: 3 }}>
             → in Pipeline {lead.escalated ? "(" + lead.escalated + ")" : ""}
+            {lead.offer ? " · " + lead.offer : ""}
           </div>
         )}
       </td>
@@ -186,6 +198,13 @@ function CcRow({ n, lead, busy, onMark, onNote, onDelete, onInterested }) {
 // Interested → capture what they told you, push a Pipeline lead into the client book.
 // Internal + reversible: it creates a client row with status "lead". Nothing is sent.
 function CcEscalate({ lead, busy, onCancel, onSave }) {
+  // Prices come from the server (agency_offers.py), which is kept in sync with
+  // the public ClientForge site. Never hardcode a price here — quoting a number
+  // the prospect can't find on the site is how a deal dies at the follow-up.
+  const cat = window.useApi("/api/agency/offers", { interval: 0 });
+  const offers = (cat.data && cat.data.offers) || [];
+  const [pick, setPick] = useStateCc(null);      // offer id, "custom", or null
+  const [cd, setCd] = useStateCc({ name: "", price: "", monthly: false, includes: "" });
   const [f, setF] = useStateCc({
     name: lead.name || lead.company || "",
     business: lead.company || lead.name || "",
@@ -202,6 +221,16 @@ function CcEscalate({ lead, busy, onCancel, onSave }) {
     services: p.services.indexOf(s) < 0 ? p.services.concat([s]) : p.services.filter((x) => x !== s),
   }));
   const row = { display: "flex", gap: 10, marginBottom: 10 };
+  const setCust = (k, v) => setCd((p) => Object.assign({}, p, { [k]: v }));
+
+  function chosenOffer() {
+    if (pick === "custom") {
+      if (!cd.name.trim() && !cd.price) return null;
+      return { custom: true, name: cd.name || "Custom deal", price: cd.price || 0,
+               monthly: cd.monthly, includes: cd.includes };
+    }
+    return pick ? { id: pick } : null;
+  }
 
   return (
     <div className="cc-modal-back" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
@@ -214,6 +243,61 @@ function CcEscalate({ lead, busy, onCancel, onSave }) {
           <div style={{ fontSize: 12, marginBottom: 14, padding: "7px 10px", borderRadius: 6,
             background: "rgba(255,212,121,.1)", border: "1px solid rgba(255,212,121,.28)", color: "#ffcf8a" }}>
             <b>Their pain:</b> {lead.pain}
+          </div>
+        )}
+
+        <div style={{ marginBottom: 14 }}>
+          <label>What you're offering them</label>
+          {cat.error && <div className="faint" style={{ fontSize: 12 }}>Couldn't load the offer sheet — you can still save without one.</div>}
+          <div className="cc-offers">
+            {offers.map((o) => (
+              <button key={o.id} type="button"
+                className={"cc-offer" + (pick === o.id ? " on" : "")}
+                onClick={() => setPick(pick === o.id ? null : o.id)}>
+                <div className="o-name">{o.name}</div>
+                <div className="o-price">{o.from ? "From " : ""}{o.display}</div>
+                <ul>{o.includes.slice(0, 3).map((x, i) => <li key={i}>{x}</li>)}</ul>
+              </button>
+            ))}
+            <button type="button"
+              className={"cc-offer o-custom" + (pick === "custom" ? " on" : "")}
+              onClick={() => setPick(pick === "custom" ? null : "custom")}>
+              <div className="o-name">✎ Custom deal</div>
+              <div className="o-price">Name your own</div>
+              <ul><li>Whatever closes them</li><li>Marked off-sheet</li></ul>
+            </button>
+          </div>
+        </div>
+
+        {pick === "custom" && (
+          <div style={{ marginBottom: 14, padding: 12, borderRadius: 9,
+            border: "1px dashed rgba(255,212,121,.45)", background: "rgba(255,212,121,.06)" }}>
+            <div style={row}>
+              <div style={{ flex: 2 }}>
+                <label>Deal name</label>
+                <input value={cd.name} onChange={(e) => setCust("name", e.target.value)}
+                  placeholder="Starter site + 2 months support" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>Price</label>
+                <input type="number" min="0" value={cd.price}
+                  onChange={(e) => setCust("price", e.target.value)} placeholder="200" />
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label>What they get</label>
+              <input value={cd.includes} onChange={(e) => setCust("includes", e.target.value)}
+                placeholder="5-page site, booking form, 2 months of edits" />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 7, textTransform: "none",
+              fontSize: 12.5, letterSpacing: 0, color: "inherit", marginBottom: 0 }}>
+              <input type="checkbox" checked={cd.monthly} style={{ width: "auto" }}
+                onChange={(e) => setCust("monthly", e.target.checked)} />
+              Recurring — bill this every month
+            </label>
+            <div className="faint" style={{ fontSize: 11, marginTop: 6 }}>
+              Only a recurring deal counts toward MRR. One-time builds don't.
+            </div>
           </div>
         )}
 
@@ -246,7 +330,8 @@ function CcEscalate({ lead, busy, onCancel, onSave }) {
           </div>
           <div style={{ flex: 1 }}>
             <label>Est. $/mo</label>
-            <input type="number" min="0" value={f.mrr} onChange={(e) => set("mrr", e.target.value)} placeholder="300" />
+            <input type="number" min="0" value={f.mrr} onChange={(e) => set("mrr", e.target.value)}
+              placeholder="0" title="Only if you agreed something recurring outside the offer above" />
           </div>
         </div>
 
@@ -274,7 +359,8 @@ function CcEscalate({ lead, busy, onCancel, onSave }) {
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button className="cc-btn faint" disabled={busy} onClick={onCancel} style={{ cursor: "pointer", padding: "7px 14px" }}>Cancel</button>
-          <button className="cc-btn cc-yes" disabled={busy || !f.name.trim()} onClick={() => onSave(f)}
+          <button className="cc-btn cc-yes" disabled={busy || !f.name.trim()}
+            onClick={() => onSave(Object.assign({}, f, { offer: chosenOffer() }))}
             style={{ cursor: busy || !f.name.trim() ? "default" : "pointer", padding: "7px 14px" }}>
             {busy ? "Saving…" : "Save → Pipeline"}
           </button>

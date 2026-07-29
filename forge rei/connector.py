@@ -989,6 +989,7 @@ import agency_deploy  # noqa: E402
 import agency_build_studio  # noqa: E402 — Blueprint Studio: idea -> build-ready plan (propose-only)
 import agency_calls  # noqa: E402
 import agency_callsheet  # noqa: E402
+import agency_offers  # noqa: E402
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
@@ -2496,6 +2497,10 @@ def api_agency_callsheet(_q):
     return agency_callsheet.list_leads()
 
 
+def api_agency_offers(_q):
+    return agency_offers.list_offers()
+
+
 # Operable AI agents (Dyson, Eco) — Anthropic-backed, chat + tasks.
 def api_agency_agents(_q):
     return agency_agents.status()
@@ -2652,6 +2657,7 @@ ROUTES = {
     "/api/agency/approvals": api_agency_approvals,
     "/api/agency/calls": api_agency_calls,
     "/api/agency/callsheet": api_agency_callsheet,
+    "/api/agency/offers": api_agency_offers,
     "/api/agency/agents": api_agency_agents,
     "/api/agency/agents/history": api_agency_agents_history,
     "/api/agency/agents/tasks": api_agency_agents_tasks,
@@ -2702,7 +2708,7 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/agency/build/list",
             "/api/agency/workflows", "/api/agency/ads", "/api/agency/ads/accounts",
             "/api/agency/eco", "/api/agency/approvals", "/api/agency/calls",
-            "/api/agency/callsheet",
+            "/api/agency/callsheet", "/api/agency/offers",
             "/api/agency/agents", "/api/agency/agents/history",
             "/api/agency/agents/tasks", "/api/agency/social",
             "/api/agency/social/besttime", "/api/agency/social/posts",

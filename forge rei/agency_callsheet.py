@@ -300,6 +300,12 @@ def _escalate_notes(lead, info):
     pain = str(info.get("pain") or lead.get("pain") or "").strip()
     if pain:
         lines.append(f"Pain point: {pain}")
+    offer = info.get("_offer")
+    if offer:
+        import agency_offers
+        lines.append(f"Offer quoted: {agency_offers.line(offer)}")
+        if offer.get("includes"):
+            lines.append(f"  includes: {offer['includes']}")
     nxt = str(info.get("next_step") or "").strip()
     if nxt:
         lines.append(f"Next step: {nxt}")
@@ -327,13 +333,28 @@ def escalate(lead_id, info):
     if not name:
         return {"ok": False, "detail": "Who did you talk to? A contact name is required."}
 
+    import agency_offers
+    offer = agency_offers.normalize(info.get("offer"))
+    info = dict(info, _offer=offer)
+
+    services = info.get("services") if isinstance(info.get("services"), list) else []
+    if offer and offer.get("service") and offer["service"] not in services:
+        services = services + [offer["service"]]
+
+    # A one-time build is NOT recurring revenue — only a monthly offer sets mrr,
+    # or the Pipeline/MRR tiles would read a $1,100 site as $1,100/mo forever.
+    mrr = info.get("mrr") or 0
+    if offer:
+        mrr = offer["price"] if offer.get("monthly") else mrr
+
     client = {
         "name": name,
         "business": str(info.get("business") or snapshot.get("company") or "").strip(),
         "status": "lead",
+        "plan": agency_offers.line(offer),
         "site": str(info.get("site") or snapshot.get("website") or "").strip(),
-        "mrr": info.get("mrr") or 0,
-        "services": info.get("services") if isinstance(info.get("services"), list) else [],
+        "mrr": mrr,
+        "services": services,
         "notes": _escalate_notes(snapshot, info),
     }
     if snapshot.get("client_id"):
@@ -354,6 +375,7 @@ def escalate(lead_id, info):
             if lead["id"] == lead_id:
                 lead["client_id"] = cid
                 lead["escalated"] = datetime.now().strftime("%m/%d %H:%M")
+                lead["offer"] = agency_offers.line(offer)
                 said = str(info.get("notes") or "").strip()
                 nxt = str(info.get("next_step") or "").strip()
                 summary = " · ".join(x for x in (nxt, said) if x)
@@ -438,19 +460,31 @@ if __name__ == "__main__":
     agency_io.save_client = _fake_save  # monkeypatch
 
     esc = escalate(lid, {"name": "Regina", "business": "Bright Start Daycare",
-                          "mrr": 300, "services": ["Website"],
+                          "services": ["Website"], "offer": {"id": "website-app"},
                           "next_step": "Zoom Thu 10am", "notes": "site has no tour form"})
     assert esc["ok"], esc
     assert saved_clients[0]["status"] == "lead", saved_clients
+    # a one-time build must NOT become recurring revenue
+    assert saved_clients[0]["mrr"] == 0, saved_clients[0]
+    assert saved_clients[0]["plan"] == "Website + App Combo — $1,100", saved_clients[0]
+    assert "Offer quoted: Website + App Combo — $1,100" in saved_clients[0]["notes"]
+
     assert "Phone: " in saved_clients[0]["notes"], saved_clients[0]["notes"]
     assert "Zoom Thu 10am" in saved_clients[0]["notes"], saved_clients[0]["notes"]
     lead = [l for l in esc["leads"] if l["id"] == lid][0]
     assert lead["status"] == "interested" and lead["client_id"] == "c_test1", lead
+    assert lead["offer"] == "Website + App Combo — $1,100", lead
     assert calls == ["answered", "answered"], calls  # interested counts as a dial
+
+    # a custom MONTHLY deal does set mrr, and is labelled off-sheet
+    escalate(lid, {"name": "Regina", "offer": {"custom": True, "name": "Starter care",
+                                                 "price": 175, "monthly": True}})
+    assert saved_clients[-1]["mrr"] == 175, saved_clients[-1]
+    assert "CUSTOM" in saved_clients[-1]["plan"], saved_clients[-1]
 
     # re-escalating updates the SAME client, never creates a second one
     escalate(lid, {"name": "Regina", "mrr": 400})
-    assert saved_clients[1].get("id") == "c_test1", saved_clients[1]
+    assert saved_clients[-1].get("id") == "c_test1", saved_clients[-1]
 
     assert escalate("nope", {"name": "x"})["ok"] is False
     assert escalate(lid, {"name": "   "})["ok"] is False  # name required
