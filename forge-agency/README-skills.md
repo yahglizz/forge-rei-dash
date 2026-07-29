@@ -12,6 +12,13 @@ agents:
 - `skills/agency-skills-backlog.md` — brainstormed roadmap of future capabilities
   for both agents.
 
+**Operator-facing (not loaded into Dyson/Eco prompts — prospecting isn't their job):**
+
+- `skills/agency-icp.md` — who ClientForge cold-calls: territory order, niche
+  ranking, qualify/disqualify, buying-signal scoring, the Clay column build.
+- `skills/agency-cold-call-playbook.md` — the offer ladder + pricing, call goal,
+  scripts, objections, post-call flow, compliance rules.
+
 ## Seed vs. live (learned) playbooks
 
 These files are the **seed** — a stable, version-controlled starting point. The
