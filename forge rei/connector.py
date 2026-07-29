@@ -4127,14 +4127,20 @@ class Handler(BaseHTTPRequestHandler):
                     self.headers, self.client_address[0] if self.client_address else None)
                 effective_sid = sid
                 set_cookie = None
+                owner = daycare_supabase.is_owner_loopback(
+                    self.headers, self.client_address[0] if self.client_address else None)
                 if secure and not sid:
-                    # Loopback owner with no cookie → hand back an auto-admin session
-                    # so the console opens straight in (no login screen).
-                    auto = daycare_supabase.BRIDGE.autoadmin_session(self._daycare_client_ip())
+                    # DIRECT loopback owner with no cookie → hand back an auto-admin
+                    # session so the console opens straight in (no login screen). A
+                    # Tailscale Serve client is loopback-by-peer but proxied, so
+                    # autoadmin_session refuses it and it falls to the login flow.
+                    auto = daycare_supabase.BRIDGE.autoadmin_session(
+                        self._daycare_client_ip(), self.headers)
                     if auto is not None:
                         effective_sid = auto.sid
                         set_cookie = daycare_supabase.session_cookie(auto.sid)
-                result = daycare_supabase.BRIDGE.auth_status(effective_sid if secure else None)
+                result = daycare_supabase.BRIDGE.auth_status(
+                    effective_sid if secure else None, owner=owner)
                 if not secure:
                     result["secureRequired"] = True
                 return self._send_json(
