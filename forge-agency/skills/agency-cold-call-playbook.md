@@ -50,8 +50,15 @@ Trust first, margin second. The website is the door, not the business.
 
 ## 2. Before you dial
 
-- **Read the row.** The `pitch_angle` from Clay is the opener. One specific,
-  true, agreeable thing about *their* web presence. Generic = dead call.
+- **Read the pain point.** It's the column right next to the phone number in the
+  Call Sheet, and it IS the opener — one specific, true, agreeable thing about
+  *their* web presence (spec: `agency-icp.md` §5). Generic = dead call.
+- **If the pain point is empty, don't dial the row yet.** Look the business up,
+  write one true sentence in the cell, then call. Ninety seconds of looking beats
+  a call opened with "so, how's the website treating you?"
+- **Never say a pain you haven't verified.** If Clay wrote it and you can't see it
+  on their site in the next ten seconds, fix the cell before you dial. Telling an
+  owner their form is broken when it works ends the call and burns the number.
 - **Pull their site up on screen** while it rings. If they say "what's wrong with
   it," you're looking at it.
 - **Know the owner's name.** Ask for them by first name — it's the difference

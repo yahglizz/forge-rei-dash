@@ -109,7 +109,7 @@ re-derive it.
 - **No phone number**, or a call-center/IVR main line with no path to a person.
 - **Already has an obviously good, recently-built site AND runs clean ads** —
   nothing to fix, we'd be a downgrade pitch.
-- **On our internal do-not-call list** (§7).
+- **On our internal do-not-call list** (§8).
 - Adult, gambling, MLM, anything we wouldn't put our name on.
 
 ---
@@ -137,7 +137,62 @@ fixing the thing eating what they already spend.
 
 ---
 
-## 5. The Clay build (what columns to create)
+## 5. THE PAIN POINT — the one column that matters
+
+**Every lead carries a pain point or it does not get called.** Not a category, not
+a score, not "needs a website" — one specific, concrete, checkable sentence about
+what is broken for *that business*, written so the owner would hear it and think
+*yeah, I know*.
+
+This is the column the whole call opens on. Without it you are a stranger with a
+pitch; with it you are someone who looked.
+
+**A real pain point:**
+
+- "Running Facebook ads right now but the site has no way to book a tour."
+- "No website at all, just a Facebook page — 61 reviews at 4.8."
+- "88 Google reviews at 4.7, busiest center on the block, and invisible online."
+- "Second location opened in May, the site still lists only the first."
+- "Site doesn't load on a phone, copyright says 2019."
+- "No ages, hours, or CCIS subsidy info anywhere on the site."
+
+**Not a pain point:**
+
+- "Outdated website" / "poor online presence" / "needs modernization" — generic,
+  says nothing, could be any of the 10,000 businesses on the list.
+- "Losing customers to competitors" — we can't see that. It's a guess.
+- "Struggling with lead generation" — we don't know their lead flow.
+- Anything with a number we didn't actually observe.
+
+### The rule for whoever writes it (Clay AI column, an agent, or Claude)
+
+**Ground it, or leave it empty. Never invent one.** This is the agency creed
+(`agency-evidence-discipline`) applied to prospecting: every pain point must be
+traceable to something we actually observed — the GBP record, the live homepage,
+the Meta Ad Library, the review count, a job post. If the enrichment came back
+thin, the pain point is **empty**, and the lead drops to the bottom of the list
+or out of it.
+
+**Why this is non-negotiable:** an invented pain gets read out loud to a real
+business owner on a real phone call. "Your booking form is broken" to someone
+whose form works fine ends the call and burns the number permanently. An empty
+pain costs one skipped lead. A wrong one costs the lead, the reputation, and any
+referral behind it.
+
+**Bad/no website is observable. Ad spend is observable. Reviews are observable.
+Their revenue, their staffing, their frustration, and their intentions are not.**
+
+### Where it lives downstream
+
+The pain point is a first-class column in the dashboard's **Call Sheet**
+(`pain` on each lead) — editable inline, shown next to the phone number so it's
+under your eyes while it rings. When a lead is marked **Interested**, the pain
+point rides into the Pipeline client note automatically, so the mockup gets built
+against the actual complaint instead of a guess.
+
+---
+
+## 6. The Clay build (what columns to create)
 
 **Source:** Google Maps / GBP import — search `<niche> in <city>` across the
 territory's zip codes. That's the base table.
@@ -153,29 +208,36 @@ territory's zip codes. That's the base table.
 4. `direct_phone` — waterfall enrichment; fall back to the GBP number.
 5. `email` — waterfall; used for the post-call mockup send, not for the call.
 6. `site_status` — HTTP column fetching the homepage, then an AI column scoring:
-   `NONE / BAD / OK / GOOD` with a one-line reason. This reason becomes the
-   opener on the phone — it must be specific ("no way to book a tour," not "looks
-   dated").
+   `NONE / BAD / OK / GOOD` with a one-line reason.
 7. `runs_ads` — Meta Ad Library check on the business's Facebook page → `YES/NO`.
 8. `last_review_date` — is the business alive.
 9. `score` — formula column implementing §4.
-10. `pitch_angle` — AI column, one sentence: the single most specific thing wrong
-    with their web presence, phrased as something the owner would agree with.
+10. **`pain_point` — the §5 column. Required.** AI column fed ONLY the enrichment
+    columns above (site_status + its reason, runs_ads, review_count, rating,
+    hiring, location count). Prompt it explicitly: *"One sentence naming the
+    single specific thing that is broken about this business's web presence,
+    using only the fields given. If the fields don't prove a specific problem,
+    output an empty string. Never guess."* Then **filter out empty pain points**
+    before export, or send them last.
 
 **Output columns to export (must match the Call Sheet's parser):**
 
 ```
-name, company, phone, email, website, location
+name, company, phone, email, website, location, pain
 ```
 
-Put the owner's name in `name`, the business in `company`, and stuff the score +
-pitch angle into `location` or append them as extra text — the Call Sheet's AI
-extractor reads pasted text, so extra columns survive as long as the six names
-above are present.
+Put the owner's name in `name`, the business in `company`, and the §5 sentence in
+`pain`. Header row is fine — the parser ignores it. Extra columns (score,
+runs_ads) survive as loose text and are safe to include; the extractor reads the
+paste rather than fixed positions.
+
+**Column order and delimiter don't matter** — pipe, comma, or tab all parse. What
+matters is that `pain` is populated, because it is the only column that changes
+what you say when they pick up.
 
 ---
 
-## 6. Getting the list into the dashboard
+## 7. Getting the list into the dashboard
 
 **No new tooling needed.** Clay → export/copy the filtered rows → paste into the
 dashboard's **Agency → Call Sheet → paste text** box. `agency_callsheet.import_text`
@@ -193,7 +255,7 @@ the daily dial tally + streak in the Call Center.
 
 ---
 
-## 7. Internal do-not-call list
+## 8. Internal do-not-call list
 
 If anyone says "don't call me again," mark the row `dead` **and** add the number
 to the internal DNC note in the Call Sheet immediately. Before every new import,
@@ -203,7 +265,7 @@ that asked out, even from a different list.
 
 ---
 
-## 8. What this file is NOT
+## 9. What this file is NOT
 
 - Not the phone script — that's `agency-cold-call-playbook.md`.
 - Not client data — real clients live in the dashboard's Clients tab.
