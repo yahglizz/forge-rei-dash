@@ -26,6 +26,32 @@ makes them confidently wrong, which is worse. Read §8 as the load-bearing secti
 
 ---
 
+## 0. Mobile-first is a build requirement, not a polish pass
+
+**Operator standing rule (2026-07-30): every Shopify page is mobile-optimised in the same
+build that creates it.** Never ship a desktop-first page intending to fix the phone layout
+later — by then real paid traffic has already seen the broken version, and this store sells
+almost entirely to mobile paid social.
+
+The phone layout **is** the layout. Desktop is the courtesy view. Before any page is called
+done, all of the following must be true:
+
+- **Sticky Add to cart bar on phones**, revealed once the main buy button scrolls out of
+  view. On a paid-traffic product page this is the single highest-leverage mobile element.
+- **The offer is reachable in about one thumb scroll.** A 100dvh hero that pushes price and
+  Add to cart two screens down wastes the click the ad paid for (§2).
+- **Tap targets ≥ 44px** — colour swatches especially, which default far smaller.
+- **`srcset` + `sizes` on every image.** A phone must never download a desktop-width file;
+  page weight is a conversion line item (§1) and mobile bandwidth is the constraint.
+- **`env(safe-area-inset-bottom)` respected** so fixed elements clear the iPhone home
+  indicator.
+- **No horizontal overflow at 390px.**
+- **Bottom padding reserved** so a sticky bar never covers footer or policy links.
+- **Judged on a real phone**, not a resized desktop window (§5 already says this for
+  checkout; it applies to the whole page).
+
+Record the mobile decisions in the project's md files, not just in chat.
+
 ## 1. Theme
 
 Pick for speed and trust, not features. A Shopify free theme (**Dawn** or **Refresh**) is the
