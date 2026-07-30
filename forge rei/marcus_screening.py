@@ -321,7 +321,7 @@ class Screener:
             return {"skipped": "seller opted out (stop/remove) — not entertaining"}
         if marcus_engine._is_opt_out(last_in):
             return {"skipped": "explicit opt-out / please stop contacting — not entertaining"}
-        if marcus_engine._is_denial(last_in):
+        if marcus_engine._is_denial(last_in, info.get("name")):
             return {"skipped": "wrong number / not the seller — not entertaining"}
 
         triage = "Scout's triage for this lead: (not yet scored by Scout)"

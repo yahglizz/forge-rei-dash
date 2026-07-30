@@ -371,7 +371,7 @@ class ScoutEngine:
             return self._sk_text
 
     # -- scoring ------------------------------------------------------------
-    def _rule_score(self, cls, body, needs_reply):
+    def _rule_score(self, cls, body, needs_reply, expected_name=None):
         """Deterministic provisional score (no Claude). Returns a partial record dict."""
         if cls == "DNC":
             return {"intent": "dead", "motivation": 0, "bucket": "dead",
@@ -384,7 +384,7 @@ class ScoutEngine:
                     "reason": "explicit opt-out / please stop contacting", "scoreSource": "rule"}
         # Wrong number / mistaken identity / "did I call you?" / "who is this" — not a
         # seller conversation. Dead bucket skips Claude AND auto-screen (never call-worthy).
-        if marcus_engine._is_denial(body):
+        if marcus_engine._is_denial(body, expected_name):
             return {"intent": "dead", "motivation": 0, "bucket": "dead",
                     "reason": "wrong number / not the seller — ignored", "scoreSource": "rule"}
         if cls == "NRN" or marcus_engine._is_soft_no(body):
@@ -534,7 +534,7 @@ class ScoutEngine:
                                  reason="explicit opt-out / please stop contacting",
                                  scoreSource="reconcile")
                         moved += 1
-                elif marcus_engine._is_denial(body):
+                elif marcus_engine._is_denial(body, r.get("name")):
                     if r.get("bucket") != "dead":
                         r.update(intent="dead", bucket="dead", motivation=0,
                                  reason="wrong number / not the seller — ignored",
@@ -611,7 +611,8 @@ class ScoutEngine:
             if cls != "DNC" and (cls == "NRN" or marcus_engine._is_soft_no(body)
                                  or marcus_engine._is_hard_no(body)):
                 cls = "NRN"   # a flat "No"/"not interested" is NOT a warm lead
-            base = self._rule_score(cls, body, needs_reply)
+            expected_name = c.get("fullName") or c.get("contactName")
+            base = self._rule_score(cls, body, needs_reply, expected_name)
             price = _extract_price(body)
             staged.append((c, body, needs_reply, base, price, cls))
             # Only live, nuanced leads go to Claude (skip dead/nurture — already filtered).

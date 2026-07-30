@@ -209,8 +209,7 @@ _DENIAL_PHRASES = [
     "never spoke to you", "you have the wrong",
 ]
 
-# Match only explicit identity and ownership denials. A blanket "I'm not <word>"
-# rule also catches ordinary seller context such as "I'm not in a huge rush."
+# Explicit identity and ownership denials remain safe without contact context.
 _IDENTITY_DENIAL_RE = re.compile(
     r"^\s*(?:"
     r"(?:i\s*am|i'?m)\s+not\s+(?:the\s+)?(?:owner|seller)(?:\s+anymore)?"
@@ -220,13 +219,15 @@ _IDENTITY_DENIAL_RE = re.compile(
     r"(?:it|this|that|the\s+(?:house|home|property))"
     r"|(?:this|that)(?:\s+is\s+not|\s+isn'?t|'?s\s+not)\s+"
     r"(?:me|my\s+(?:house|home|property))(?:\s+anymore)?"
-    r"|(?:i\s*am|i'?m)\s+not\s+"
-    r"(?!interested|selling|sure|ready|available|looking|able|going|me|my)"
-    r"[a-z][a-z'-]*"
-    r"|(?:this|that)(?:\s+is\s+not|\s+isn'?t|'?s\s+not)\s+"
-    r"(?!interested|selling|sure|ready|available|looking|able|going|me|my)"
-    r"[a-z][a-z'-]*"
     r")(?=\s*(?:[.!?]+(?:\s|$)|$))",
+    re.IGNORECASE,
+)
+
+_NAMED_IDENTITY_DENIAL_RE = re.compile(
+    r"^\s*(?:(?:i\s*am|i'?m)\s+not"
+    r"|(?:this|that)(?:\s+is\s+not|\s+isn'?t|'?s\s+not))\s+"
+    r"(?P<name>[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)*)"
+    r"(?=\s*(?:[.!?]+(?:\s|$)|$))",
     re.IGNORECASE,
 )
 
@@ -243,14 +244,21 @@ _OPT_OUT_PHRASES = [
 ]
 
 
-def _is_denial(body):
+def _is_denial(body, expected_name=None):
     """True for wrong-number / mistaken-identity / 'did I call you?' / 'who is this'
     replies — never a real seller conversation. Skip Claude, skip screening, skip Do
     Today entirely."""
     b = (body or "").lower()
     if any(p in b for p in _DENIAL_PHRASES):
         return True
-    return bool(_IDENTITY_DENIAL_RE.search(body or ""))
+    if _IDENTITY_DENIAL_RE.search(body or ""):
+        return True
+    named = _NAMED_IDENTITY_DENIAL_RE.search(body or "")
+    expected_tokens = re.findall(r"[a-z][a-z'-]*", (expected_name or "").lower())
+    if not named or not expected_tokens or expected_tokens[0] == "unknown":
+        return False
+    denied_name = " ".join(re.findall(r"[a-z][a-z'-]*", named.group("name").lower()))
+    return denied_name in (expected_tokens[0], " ".join(expected_tokens))
 
 
 def _is_opt_out(body):
@@ -499,7 +507,7 @@ class MarcusEngine:
                     continue
                 inbound = p.get("inbound") or ""
                 reply = p.get("suggestedReply") or ""
-                if _is_denial(inbound):
+                if _is_denial(inbound, p.get("name")):
                     # Upgrade old model-written wrong-number re-pitches in place before
                     # evaluating their stale copy; the deterministic close replaces it.
                     p["classification"] = "WRONG_NUMBER"
@@ -897,13 +905,13 @@ class MarcusEngine:
                           {"conversationId": c.get("id"), "inbound": body})
             return {"error": "ambiguous numeric-only inbound", "gate": "draft_context"}
         cls = classify(body)
+        full = c.get("fullName") or c.get("contactName") or ""
         # Any "not selling / not right now" seller (but NOT a DNC/STOP) gets
         # Yahjair's fixed referral message verbatim — overrides the AI draft.
         if cls != "DNC" and (cls == "NRN" or _is_soft_no(body)):
             cls = "NRN"
-        if _is_denial(body):
+        if _is_denial(body, full):
             cls = "WRONG_NUMBER"
-        full = c.get("fullName") or c.get("contactName") or ""
         first = (full.split() or ["there"])[0]
         action = ACTION_BY_CLASS.get(cls, ACTION_BY_CLASS["CONTINUE"])
 
