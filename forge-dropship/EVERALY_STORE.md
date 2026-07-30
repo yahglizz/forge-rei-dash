@@ -72,17 +72,53 @@ in the dashboard still returns the "add key" mock. Until it is filled, Midas can
 orders, products or inventory, and the Shopify half of the MER reconciliation in
 [[dropship-store-setup]] §8d cannot run. **A brief written over mock data is fabrication.**
 
-### Filling it (operator only — do not hand the token to an agent or paste it in chat)
+### There is no `shpat_` token to copy on this store
 
-1. Shopify admin → **Settings → Apps and sales channels → Develop apps → Create an app**.
-2. Name it `Forge Dashboard`. Configure **Admin API scopes**, read-only is enough to start:
-   `read_products`, `read_inventory`, `read_orders`, `read_fulfillments`,
-   `read_customers`, `read_locations`.
-3. **Install app**, then reveal the **Admin API access token** once (`shpat_…`).
-4. Paste it into `forge-dropship/config/dropship.env` on the workstation:
-   `SHOPIFY_ADMIN_TOKEN=shpat_…`
-5. Repeat on the box at `/opt/forge/forge-dropship/config/dropship.env`, then
-   `systemctl restart forge-reios`.
+Checked in the admin on 2026-07-30. **Everaly has no legacy custom-app flow.**
+`Settings → Apps and sales channels → Develop apps` only offers "Build apps in Dev
+Dashboard", and a Dev Dashboard app's Settings page exposes exactly three things:
+
+| What the Dev Dashboard shows | Prefix | Works on `/admin/api`? |
+|---|---|---|
+| Client ID | — | no, it is an OAuth identifier |
+| Secret | — | no, it is the OAuth secret |
+| App automation token ("for CI/CD workflows only") | `atkn_` | **no** |
+| Storefront API access token (elsewhere) | `shpss_` | **no** |
+
+All three of those were tried against `/admin/api/2026-07/graphql.json` and returned
+`401 Invalid API key or access token`. Do not go hunting for a "reveal token once"
+button — it does not exist here.
+
+### Filling it — one-time OAuth (operator only; never paste the token into chat)
+
+The supported way to get a durable Admin token for a Dev Dashboard app is an OAuth
+authorization-code exchange. The offline token it returns does not expire, which is what
+a daemon needs. Two scripts do it; both write the token straight into `dropship.env` and
+never print it.
+
+- `scripts/get-shopify-token.mjs` — Node, use on the Windows workstation (no Python there)
+- `scripts/get_shopify_token.py` — stdlib Python, use on the Mac or the box
+
+**In the Dev Dashboard** (dev.shopify.com → your app):
+
+1. **Configuration → Admin API access scopes**: `read_products`, `read_inventory`,
+   `read_orders`, `read_fulfillments`, `read_customers`, `read_locations`.
+2. **Configuration → Redirect URLs**: add exactly `http://localhost:3456/callback`.
+3. **Release a new version** so the config goes live.
+4. **Settings** → copy the **Client ID**, reveal the **Secret**.
+
+**Then:**
+
+```
+node forge-dropship/scripts/get-shopify-token.mjs --client-id <CLIENT_ID>
+```
+
+It prompts for the secret with hidden input (or reads `SHOPIFY_CLIENT_SECRET`), opens the
+browser for you to approve the install, exchanges the code, and rewrites the
+`SHOPIFY_ADMIN_TOKEN=` line in `config/dropship.env`.
+
+5. Copy that same line to the box at `/opt/forge/forge-dropship/config/dropship.env`,
+   then `systemctl restart forge-reios`.
 6. Flip `FORGE_DROPSHIP_BRIEF=1` in `/etc/default/forge-reios` once the read works — the
    daily brief is deliberately off while the store has no data.
 
