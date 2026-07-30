@@ -85,7 +85,7 @@ class GuardedFakeMarcus(FakeSendingMarcus):
             message,
             conv_id=p.get("conversationId"),
             name="Ledger Lead",
-            last_seller_message="yes, still interested",
+            last_seller_message="the kitchen needs some work",
             kind="marcus_approve",
             autonomous=bool(p.get("autonomous")),
         )
@@ -214,11 +214,11 @@ class AceSendLedgerIntegrationTest(unittest.TestCase):
 
         first = ace.apply(
             self.conv_id, self.thread, REPORT, self.convo, marcus,
-            last_seller_msg="yes, still interested",
+            last_seller_msg="the kitchen needs some work",
         )
         second = ace.apply(
             self.conv_id, self.thread, REPORT, self.convo, marcus,
-            last_seller_msg="yes, still interested",
+            last_seller_msg="the kitchen needs some work",
         )
 
         self.assertTrue(first.get("sent"), first)

@@ -173,7 +173,7 @@ def guard(contact_id, message, conv_id=None, name="", scout=None,
     if conv_id and DEDUP_MINUTES > 0 and not operator:
         if send_ledger.touched_within(conv_id, DEDUP_MINUTES / 60.0):
             return {"error": f"thread touched within {DEDUP_MINUTES:g} minutes",
-                    "gate": "send_ledger"}
+                    "gate": "send_ledger_MUTATION"}
 
     last_in = (last_seller_message or "").strip()
     protected_draft = autonomous or kind in ("screening_nurture", "marcus_nrn")
