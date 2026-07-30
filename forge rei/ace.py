@@ -382,19 +382,20 @@ _FACT_REASK_PATTERNS = {
     )),
 }
 _FACT_REQUEST_AUX_RE = re.compile(
-    r"\b(?:can|could|would)\s+you\s+(?:please\s+)?"
+    r"^\s*(?:can|could|would)\s+you\s+(?:please\s+)?"
     r"(?:tell\s+me|describe|walk\s+me\s+through|"
     r"share\s+(?:your|the|more\s+about))\b",
     re.IGNORECASE,
 )
 _FACT_REQUEST_IMPERATIVE_RE = re.compile(
-    r"(?:^|,)\s*(?:please\s+)?"
+    r"^\s*(?:please\s+)?"
     r"(?:tell\s+me|describe|walk\s+me\s+through|"
     r"share\s+(?:your|the|more\s+about))\b",
     re.IGNORECASE,
 )
-_FACT_REQUEST_CLAUSE_SPLIT_RE = re.compile(
-    r"[.?!;,]+|\b(?:and|but|so|then)\b",
+_FACT_REQUEST_BOUNDARY_RE = re.compile(r"[.?!;,]+")
+_FACT_REQUEST_NEW_SUBJECT_RE = re.compile(
+    r"\b(?:and|or|but|so|then)\s+(?=(?:we|i|they|he|she|it)\b)",
     re.IGNORECASE,
 )
 _FACT_REQUEST_TOPIC_PATTERNS = {
@@ -476,17 +477,25 @@ def _qualification_hint(decision, rec, report, retry=False):
     )
 
 
-def _draft_requests_fact(text, fact):
-    """Match seller-directed requests whose fact topic stays in the same clause."""
-    topic_pattern = _FACT_REQUEST_TOPIC_PATTERNS.get(fact)
-    if not topic_pattern:
-        return False
-    for clause in _FACT_REQUEST_CLAUSE_SPLIT_RE.split(text):
+def _seller_request_fragments(text):
+    """Yield request text after an anchored seller-directed lead."""
+    for segment in _FACT_REQUEST_BOUNDARY_RE.split(text):
         for lead_pattern in (_FACT_REQUEST_AUX_RE, _FACT_REQUEST_IMPERATIVE_RE):
-            for lead in lead_pattern.finditer(clause):
-                if topic_pattern.search(clause, lead.end()):
-                    return True
-    return False
+            lead = lead_pattern.match(segment)
+            if lead:
+                remainder = segment[lead.end():]
+                yield _FACT_REQUEST_NEW_SUBJECT_RE.split(remainder, maxsplit=1)[0]
+                break
+
+
+def _draft_requests_fact(text, fact):
+    """Match a fact topic inside the same seller-request fragment."""
+    topic_pattern = _FACT_REQUEST_TOPIC_PATTERNS.get(fact)
+    return bool(
+        topic_pattern
+        and any(topic_pattern.search(fragment)
+                for fragment in _seller_request_fragments(text))
+    )
 
 
 def _draft_targets_fact(text, fact):

@@ -272,8 +272,9 @@ def _is_hard_no(body):
 _DENIAL_CLAUSE = (
     r"(?:"
     r"i\s+(?:do\s+not|don'?t)\s+know\s+you"
-    r"|(?:(?:you\s+(?:have|got)|you(?:'ve|ve)\s+got|this\s+is|it(?:'?s|\s+is))"
-    r"\s+(?:the\s+)?)?(?:the\s+)?wrong\s+"
+    r"|(?:(?:(?:i\s+(?:think|believe)\s+)?you\s+(?:have|got)"
+    r"|you(?:'ve|ve)\s+got|this\s+is|it(?:'?s|\s+is))\s+)?"
+    r"(?:the\s+)?wrong\s+"
     r"(?:number|person|contact|recipient|owner|seller)"
     r"|(?:i(?:'?m|\s+am)\s+)?not\s+who\s+you\s+think(?:\s+i\s+am)?"
     r"|(?:i(?:'?m|\s+am)\s+)?not\s+(?:the\s+person\s+)?"
@@ -281,16 +282,9 @@ _DENIAL_CLAUSE = (
     r")"
 )
 _DENIAL_MESSAGE_RE = re.compile(
-    rf"^\s*(?:sorry\s*[,;:-]?\s*)?{_DENIAL_CLAUSE}"
+    rf"^\s*(?:sorry(?:\s*[,;:-]\s*(?:but\s+)?|\s+but\s+|\s+))?"
+    rf"{_DENIAL_CLAUSE}"
     rf"(?:\s*[,;.!-]+\s*{_DENIAL_CLAUSE})*\s*[.!?]*\s*$",
-    re.IGNORECASE,
-)
-_EXPLICIT_RECIPIENT_DENIAL_RE = re.compile(
-    r"^\s*(?:"
-    r"(?:sorry\s+but\s+)?(?:the\s+)?wrong\s+(?:number|person)"
-    r"|(?:i\s+(?:think|believe)\s+)?you\s+(?:have|got)\s+"
-    r"(?:the\s+)?wrong\s+(?:number|person)"
-    r")\b(?=\s*(?:[.!?,;]|$))",
     re.IGNORECASE,
 )
 
@@ -360,8 +354,6 @@ def _is_denial(body, expected_name=None):
     """True for wrong-number / mistaken-identity / 'did I call you?' / 'who is this'
     replies — never a real seller conversation. Skip Claude, skip screening, skip Do
     Today entirely."""
-    if _EXPLICIT_RECIPIENT_DENIAL_RE.search(body or ""):
-        return True
     if _DENIAL_MESSAGE_RE.match(body or ""):
         return True
     if _STANDALONE_DENIAL_RE.match(body or ""):
