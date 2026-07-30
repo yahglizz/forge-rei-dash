@@ -414,6 +414,7 @@ class ScoutEngine:
         """items: list of (idx, body). Returns {idx: {intent, motivation, askingPrice, reason}}."""
         if not items:
             return {}
+        submitted = {i for i, _body in items}
         lines = []
         for i, body in items:
             snippet = (body or "").replace("\n", " ").strip()[:300]
@@ -466,7 +467,9 @@ class ScoutEngine:
         if isinstance(parsed, list):
             for obj in parsed:
                 if isinstance(obj, dict) and "i" in obj:
-                    out[int(obj["i"])] = obj
+                    idx = int(obj["i"])
+                    if idx in submitted:
+                        out[idx] = obj
         return out
 
     def _bucket_from_intent(self, intent, motivation, needs_reply):

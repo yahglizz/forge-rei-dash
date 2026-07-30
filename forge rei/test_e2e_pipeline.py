@@ -599,6 +599,31 @@ class SafetyFilters(E2EBase):
         self.assertNotEqual("dead", rec["bucket"])
         self.assertEqual("rule", rec["scoreSource"])
 
+    def test_named_identity_mismatch_rejects_unsubmitted_claude_index(self):
+        self.ghl.add_lead("c14", "ct14", "Jordan Reed", "+15551230014", [
+            ("outbound", "hi, reaching out about the property"),
+            ("inbound", "I am not geraldine"),
+        ])
+        self.ghl.add_lead("c15", "ct15", "Taylor Green", "+15551230015", [
+            ("outbound", "hi, reaching out about the property"),
+            ("inbound", "yes, I would consider selling"),
+        ])
+        self.claude["scout"] = json.dumps([
+            {"i": 0, "intent": "dead", "motivation": 0,
+             "askingPrice": None, "reason": "not the named contact"},
+            {"i": 1, "intent": "nurture", "motivation": 15,
+             "askingPrice": None, "reason": "considering without urgency"},
+        ])
+
+        self.scout.poll_once()
+
+        skipped = self.scout.records["c14"]
+        self.assertNotEqual("dead", skipped["bucket"])
+        self.assertEqual("rule", skipped["scoreSource"])
+        eligible = self.scout.records["c15"]
+        self.assertEqual("nurture", eligible["bucket"])
+        self.assertEqual("claude", eligible["scoreSource"])
+
     def test_explicit_optout_is_dead_grade_even_without_stop_keyword(self):
         # Live example: Kristen Moffett's actual full reply — an explicit removal demand
         # that never says "stop" or "unsubscribe" (the only DNC_PHRASES matches), so it
