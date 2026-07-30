@@ -4,8 +4,12 @@ import importlib
 import importlib.util
 import inspect
 from pathlib import Path
+import tempfile
 import unittest
+from unittest import mock
 
+import ace
+import brain_io
 import marcus_engine
 
 
@@ -155,6 +159,70 @@ class SellerClassifierTests(unittest.TestCase):
 
         engine = MarcusEngineStatusStub()
         self.assertEqual(metadata, marcus_engine.MarcusEngine.status(engine)["classifierSource"])
+
+    def test_prompt_skills_fall_back_to_repo_when_vault_is_missing(self):
+        with tempfile.TemporaryDirectory() as td:
+            missing_vault = Path(td) / "missing-vault"
+            with mock.patch.object(brain_io, "VAULT", missing_vault):
+                engine = MarcusEngineStatusStub()
+                self.assertTrue(marcus_engine.MarcusEngine._load_reply_rubric(engine))
+                self.assertTrue(marcus_engine.MarcusEngine._load_playbook(engine))
+                sources = marcus_engine.skill_sources()
+
+        required = {
+            "replyRubric": ("seller-reply-playbook.md",),
+            "playbook": (
+                "marcus-playbook.md",
+                "yahjair-voice.md",
+                "wholesale-seller-texter.md",
+            ),
+        }
+        for group, names in required.items():
+            entries = sources[group]
+            if group == "replyRubric":
+                entries = {names[0]: entries}
+            for name in names:
+                with self.subTest(skill=name):
+                    metadata = entries[name]
+                    self.assertGreater(metadata["bytes"], 0)
+                    self.assertEqual("repo", metadata["source"])
+                    self.assertEqual(name, Path(metadata["path"]).name)
+                    self.assertIn("forge-marcus", Path(metadata["path"]).parts)
+                    self.assertEqual({"path", "source", "bytes"}, set(metadata))
+
+    def test_vault_skill_overrides_matching_repo_seed(self):
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td)
+            skills = vault / "Skills"
+            skills.mkdir()
+            override = skills / "marcus-playbook.md"
+            override.write_text("vault-only marker", encoding="utf-8")
+            with mock.patch.object(brain_io, "VAULT", vault):
+                engine = MarcusEngineStatusStub()
+                playbook = marcus_engine.MarcusEngine._load_playbook(engine)
+                sources = marcus_engine.skill_sources()
+
+        metadata = sources["playbook"]["marcus-playbook.md"]
+        self.assertIn("vault-only marker", playbook)
+        self.assertEqual(str(override), metadata["path"])
+        self.assertEqual("vault", metadata["source"])
+        self.assertEqual(len("vault-only marker".encode("utf-8")), metadata["bytes"])
+
+    def test_prompt_health_is_metadata_only_in_marcus_and_ace_status(self):
+        with tempfile.TemporaryDirectory() as td:
+            missing_vault = Path(td) / "missing-vault"
+            with mock.patch.object(brain_io, "VAULT", missing_vault):
+                expected = marcus_engine.skill_sources()
+                marcus_status = marcus_engine.MarcusEngine.status(MarcusEngineStatusStub())
+                with mock.patch.object(ace, "_load", return_value={
+                    "mode": "off", "sentToday": 0, "day": ace._today(), "log": [],
+                }):
+                    ace_status = ace.status()
+
+        self.assertEqual(expected, marcus_status["promptHealth"])
+        self.assertEqual(expected, ace_status["promptHealth"])
+        self.assertFalse(ace_status["degradedPrompt"])
+        self.assertNotIn("vault-only marker", repr(ace_status["promptHealth"]))
 
 
 class MarcusEngineStatusStub:
