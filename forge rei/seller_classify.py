@@ -20,10 +20,10 @@ _NRN_RE = re.compile(
 _PRICE_RE = re.compile(
     r"(?:\b(?:"
     r"how\s+much|"
-    r"what\s+would\s+you|"
+    r"what\s+would\s+you\s+(?:give|pay|offer)|"
     r"your\s+offer|"
-    r"what\s+can\s+you|"
-    r"price|offer|pay|"
+    r"what\s+can\s+you\s+(?:do|give|pay|offer)|"
+    r"price|offer|"
     r"ballpark|range|numbers|"
     r"what\s+number|your\s+best|most\s+you\s+can|worth\s+to\s+you|"
     r"what\s+are\s+you\s+offering|what\s+were\s+you\s+thinking"

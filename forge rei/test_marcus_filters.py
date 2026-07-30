@@ -39,6 +39,9 @@ class SellerClassifierTests(unittest.TestCase):
             ("the stopwatch is running", "CONTINUE"),
             ("the rangefinder is broken", "CONTINUE"),
             ("the ballparking exercise can wait", "CONTINUE"),
+            ("i pay the property taxes", "CONTINUE"),
+            ("what would you like to know", "CONTINUE"),
+            ("what can you tell me about closing", "CONTINUE"),
         )
         for body, expected in cases:
             with self.subTest(body=body):
