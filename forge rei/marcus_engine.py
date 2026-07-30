@@ -209,14 +209,15 @@ _DENIAL_PHRASES = [
     "never spoke to you", "you have the wrong",
 ]
 
-# "I am not [name]" / "this isn't [name]" identity denials — can't be a fixed phrase list
-# since the name varies (real examples hit: "I am not geraldine", "THIS IS NOT KRISTEN").
-# Excludes the common continuations that are a real seller signal, not a denial
-# ("I'm not interested" / "I am not selling" / "I'm not ready" are NRN, not this).
+# Match only explicit identity and ownership denials. A blanket "I'm not <word>"
+# rule also catches ordinary seller context such as "I'm not in a huge rush."
 _IDENTITY_DENIAL_RE = re.compile(
-    r"(?i)\b(?:i\s*am\s*not|i'?m\s*not|this\s*is\s*not|this\s*isn'?t|that'?s\s*not)\s+"
-    r"(?!interested|selling|sure|ready|available|looking|able|going|going\s*to)"
-    r"[a-z]{2,}\b"
+    r"(?i)\b(?:"
+    r"(?:i\s*am|i'?m)\s+not\s+(?:the\s+)?(?:owner|seller)\b"
+    r"|i\s+(?:do\s+not|don'?t)\s+own\b"
+    r"|never\s+owned\b"
+    r"|(?:this|that)(?:\s+is|'?s)\s+not\s+(?:me|my\s+(?:house|home|property))\b"
+    r")"
 )
 
 # Explicit opt-out / harassment complaints that AREN'T in the DNC phrase list ("stop",
