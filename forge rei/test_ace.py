@@ -507,5 +507,208 @@ class AceDigestTest(unittest.TestCase):
         self.assertEqual("supervised", d["mode"])
 
 
+class AcePivotDecideTest(unittest.TestCase):
+    """Phase 6: the four escalation triggers that used to send NOTHING now earn one
+    call-pivot text — and only ever one per thread."""
+
+    def setUp(self):
+        self._orig_state = ace.STATE
+        self._orig_paused = ace.forge_ops.paused
+        self._tmp = tempfile.TemporaryDirectory()
+        ace.STATE = Path(self._tmp.name) / "ace.json"
+        ace.forge_ops.paused = lambda: False
+        ace.set_mode("full")
+        self.ce = conversation_engine.ConversationEngine()
+
+    def tearDown(self):
+        ace.STATE = self._orig_state
+        ace.forge_ops.paused = self._orig_paused
+        self._tmp.cleanup()
+
+    def test_price_ask_pivots_instead_of_going_silent(self):
+        d = ace.decide(rec(), REPORT, self.ce, last_seller_msg="how much will you give me")
+        self.assertEqual("pivot", d["action"])
+        self.assertEqual("classify:PRICE", d["reason"])
+
+    def test_ready_pivots(self):
+        d = ace.decide(rec(), REPORT, self.ce,
+                       last_seller_msg="yes im interested lets do it")
+        self.assertEqual("pivot", d["action"])
+        self.assertIn("classify:", d["reason"])
+
+    def test_call_ready_state_pivots(self):
+        d = ace.decide(rec(state="CALL_READY"), REPORT, self.ce)
+        self.assertEqual("pivot", d["action"])
+        self.assertEqual("call-ready", d["reason"])
+
+    def test_max_replies_pivots(self):
+        d = ace.decide(rec(replies=ace.MAX_REPLIES), REPORT, self.ce)
+        self.assertEqual("pivot", d["action"])
+        self.assertEqual("max replies reached", d["reason"])
+
+    def test_all_facts_gathered_pivots(self):
+        d = ace.decide(rec(facts=ALL_FACTS), REPORT, self.ce)
+        self.assertEqual("pivot", d["action"])
+
+    def test_never_pivots_twice(self):
+        d = ace.decide(rec(pivot_at=1), REPORT, self.ce,
+                       last_seller_msg="seriously whats your number")
+        self.assertEqual("escalate", d["action"])
+        self.assertIn("operator", d["reason"])
+
+    def test_pivoted_thread_stops_the_question_lane_too(self):
+        # _next_state can regress a thread out of CALL_READY, so the ledger — not the
+        # state — is what makes the handoff permanent. Facts are missing here, which would
+        # normally produce a qualifying question.
+        d = ace.decide(rec(pivot_at=1, facts={"condition": False, "timeline": False,
+                                              "price": False, "motivation": False,
+                                              "occupancy": False}),
+                       REPORT, self.ce)
+        self.assertEqual("escalate", d["action"])
+
+    def test_held_beats_pivot(self):
+        d = ace.decide(rec(held=True), REPORT, self.ce, last_seller_msg="whats your offer")
+        self.assertEqual("stop", d["action"])
+        self.assertEqual("operator-held", d["reason"])
+
+    def test_terminal_beats_pivot(self):
+        for state in ("HANDED_OFF", "DEAD"):
+            d = ace.decide(rec(state=state), REPORT, self.ce,
+                           last_seller_msg="whats your offer")
+            self.assertEqual("stop", d["action"])
+
+    def test_decide_stays_pure(self):
+        r = rec()
+        before = dict(r)
+        ace.decide(r, REPORT, self.ce, last_seller_msg="how much")
+        self.assertEqual(before, r)          # no side effects, no ledger write
+
+
+class AcePivotApplyTest(unittest.TestCase):
+    def setUp(self):
+        self._orig_state = ace.STATE
+        self._orig_cr = ace.CALL_READY
+        self._orig_paused = ace.forge_ops.paused
+        self._tmp = tempfile.TemporaryDirectory()
+        ace.STATE = Path(self._tmp.name) / "ace.json"
+        ace.CALL_READY = Path(self._tmp.name) / "call_ready.json"
+        ace.forge_ops.paused = lambda: False
+        self.marked = []
+        self.ce = quiet_convo(conversation_engine.ConversationEngine())
+        self.ce.note_call_pivot = lambda conv_id, reason="": self.marked.append(conv_id) or 1
+
+    def tearDown(self):
+        ace.STATE = self._orig_state
+        ace.CALL_READY = self._orig_cr
+        ace.forge_ops.paused = self._orig_paused
+        self._tmp.cleanup()
+
+    def test_pivot_sends_autonomous_and_marks_ledger(self):
+        ace.set_mode("full")
+        m = FakeSendingMarcus(draft="whats a good time for a quick call today")
+        d = ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        self.assertTrue(d.get("pivoted"))
+        self.assertTrue(m.calls[0]["pivot"])
+        self.assertTrue(m.approved[0]["autonomous"])   # LOCKED: full sms_guard stack
+        self.assertEqual(["v1"], self.marked)
+
+    def test_pivot_still_builds_the_call_card(self):
+        ace.set_mode("full")
+        ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, FakeSendingMarcus())
+        self.assertEqual(1, ace.call_ready_list()["waiting"])
+
+    def test_leaked_price_is_replaced_by_the_gate_safe_twin(self):
+        import marcus_engine
+        ace.set_mode("full")
+        m = FakeSendingMarcus(draft="i can do 40k for it")
+        ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        self.assertEqual(marcus_engine.CALL_PIVOT_FALLBACK, m.approved[0]["edited"])
+
+    def test_offer_word_is_replaced_even_without_digits(self):
+        # "offer" alone trips sms_guard._OFFER_RE — the message would never reach the
+        # seller, so substitute rather than gamble the highest-intent text in the funnel.
+        import marcus_engine
+        ace.set_mode("full")
+        m = FakeSendingMarcus(draft="let me put together a fair offer for you")
+        ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        self.assertEqual(marcus_engine.CALL_PIVOT_FALLBACK, m.approved[0]["edited"])
+
+    def test_gate_block_leaves_thread_eligible_and_refunds_cap(self):
+        # A block at 8:59pm must not become silence forever — no ledger write, no cap spend,
+        # and the operator still gets the call card.
+        ace.set_mode("full")
+        m = FakeSendingMarcus(approve_ok=False)
+        ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        self.assertEqual([], self.marked)
+        self.assertEqual(0, ace.status()["sentToday"])
+        self.assertEqual(1, ace.call_ready_list()["waiting"])
+
+    def test_pivot_reserve_survives_question_exhaustion(self):
+        # Burn every slot the question lane is allowed, then prove a pivot still sends.
+        ace.set_mode("supervised")
+        m = FakeSendingMarcus()
+        for i in range(ace.reply_cap_for("supervised")):
+            ace.apply(f"q{i}", rec(conv=f"q{i}"), REPORT, self.ce, m)
+        blocked = ace.apply("qmore", rec(conv="qmore"), REPORT, self.ce, m)
+        self.assertNotIn("sent", blocked)
+        d = ace.apply("v9", rec(conv="v9", state="CALL_READY"), REPORT, self.ce, m)
+        self.assertTrue(d.get("pivoted"))
+
+    def test_pivot_inert_when_off_and_clocked_out(self):
+        m = FakeSendingMarcus()
+        ace.set_mode("off")
+        ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        ace.set_mode("full")
+        ace.forge_ops.paused = lambda: True
+        ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        self.assertEqual([], m.approved)
+        self.assertEqual([], self.marked)
+
+
+class CallPivotFallbackGateTest(unittest.TestCase):
+    """The load-bearing pair. If these ever disagree, autonomous sends go silent."""
+
+    def test_twin_passes_the_central_gate(self):
+        import marcus_engine
+        import sms_guard
+        self.assertFalse(sms_guard._quotes_price_or_offer(marcus_engine.CALL_PIVOT_FALLBACK))
+
+    def test_original_fallback_is_gate_blocked_which_is_why_the_twin_exists(self):
+        # _PRICE_FALLBACK says "an accurate offer not a lowball"; sms_guard._OFFER_RE
+        # matches the bare word "offer". Documented here so nobody "simplifies" the twin
+        # away and silently reintroduces the bug.
+        import marcus_engine
+        import sms_guard
+        self.assertTrue(
+            sms_guard._quotes_price_or_offer(marcus_engine.MarcusEngine._PRICE_FALLBACK))
+
+    def test_twin_has_no_digits_or_dollar_sign(self):
+        import marcus_engine
+        t = marcus_engine.CALL_PIVOT_FALLBACK
+        self.assertNotIn("$", t)
+        self.assertFalse(any(ch.isdigit() for ch in t))
+
+
+class ConvoPivotLedgerTest(unittest.TestCase):
+    def setUp(self):
+        self._orig = conversation_engine.STATE
+        self._tmp = tempfile.TemporaryDirectory()
+        conversation_engine.STATE = Path(self._tmp.name) / "conversations.json"
+
+    def tearDown(self):
+        conversation_engine.STATE = self._orig
+        self._tmp.cleanup()
+
+    def test_note_call_pivot_persists_and_survives_update(self):
+        ce = conversation_engine.ConversationEngine()
+        ce.update("v1", contact_id="c1", report=REPORT)
+        ts = ce.note_call_pivot("v1", reason="classify:PRICE")
+        self.assertTrue(ts)
+        self.assertTrue(ce.get("v1")["callPivotAt"])
+        # A later screening refresh must not wipe the ledger — update() mutates the record.
+        ce.update("v1", contact_id="c1", report=REPORT)
+        self.assertTrue(ce.get("v1")["callPivotAt"])
+
+
 if __name__ == "__main__":
     unittest.main()
