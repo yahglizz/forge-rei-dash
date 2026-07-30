@@ -141,11 +141,12 @@ class TelegramAceCallbackTest(unittest.TestCase):
                 self.assertIsInstance(call.func, ast.Attribute)
                 self.assertIsInstance(call.func.value, ast.Name)
                 self.assertEqual(("ace", "hold"), (call.func.value.id, call.func.attr))
-                self.assertGreaterEqual(len(call.args), 2)
+                self.assertEqual(2, len(call.args))
                 self.assertIsInstance(call.args[0], ast.Name)
                 self.assertEqual(callback_arg, call.args[0].id)
                 self.assertIsInstance(call.args[1], ast.Name)
                 self.assertEqual("CONVO", call.args[1].id)
+                self.assertEqual(["reason"], [keyword.arg for keyword in call.keywords])
                 keywords = {keyword.arg: keyword.value for keyword in call.keywords}
                 reason_node = keywords.get("reason")
                 self.assertIsInstance(reason_node, ast.Constant)
