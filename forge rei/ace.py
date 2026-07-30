@@ -381,36 +381,39 @@ _FACT_REASK_PATTERNS = {
         r"\b(?:are there|do you have)\s+any\s+(?:tenants?|renters?)\b",
     )),
 }
+_FACT_REQUEST_LEAD = (
+    r"(?:"
+    r"\b(?:(?:(?:can|could|would)\s+you\s+)?"
+    r"(?:tell\s+me|describe|walk\s+me\s+through)"
+    r"|(?:can|could|would)\s+you\s+share\s+(?:your|the|more\s+about))"
+    r"|(?:^|(?<=[.!?]))\s*(?:please\s+)?share\s+(?:your|the|more\s+about)"
+    r")\b.{0,70}\b"
+)
 _FACT_REQUEST_PATTERNS = {
     "condition": re.compile(
-        r"\b(?:(?:can|could|would)\s+you\s+)?"
-        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        _FACT_REQUEST_LEAD +
         r"(?:condition|shape|repairs?|work|updates?|fix(?:es)?)\b",
         re.IGNORECASE,
     ),
     "timeline": re.compile(
-        r"\b(?:(?:can|could|would)\s+you\s+)?"
-        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        _FACT_REQUEST_LEAD +
         r"(?:timeline|timeframe|deadline|closing date|when\b.{0,35}\b"
         r"(?:sell|close|move|vacate|wrap))\w*\b",
         re.IGNORECASE,
     ),
     "price": re.compile(
-        r"\b(?:(?:can|could|would)\s+you\s+)?"
-        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        _FACT_REQUEST_LEAD +
         r"(?:asking price|price|number|amount|how much)\b",
         re.IGNORECASE,
     ),
     "motivation": re.compile(
-        r"\b(?:(?:can|could|would)\s+you\s+)?"
-        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        _FACT_REQUEST_LEAD +
         r"(?:reason|motivat\w*|why\b.{0,35}\b(?:sell|move)|"
         r"what\b.{0,35}\b(?:sell|move))\w*\b",
         re.IGNORECASE,
     ),
     "occupancy": re.compile(
-        r"\b(?:(?:can|could|would)\s+you\s+)?"
-        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        _FACT_REQUEST_LEAD +
         r"(?:occupancy|vacant|occupied|tenant|renter|"
         r"who\b.{0,35}\b(?:live|stay|occup))\w*\b",
         re.IGNORECASE,
