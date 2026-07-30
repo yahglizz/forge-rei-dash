@@ -62,7 +62,8 @@ def main():
     playbook = eng._playbook_only() or ""
     creed = agent_creed.block("dropship") or ""
     context = dropship_context.context_block() or ""
-    context_source = dropship_context.load_context().strip()
+    context_source = dropship_context.load_context()
+    loaded_context_path = dropship_context.context_path()
     # "utilized" = reaches a real prompt through ANY path
     loaded = "\n".join([core, chat] + list(lanes.values()))
 
@@ -91,10 +92,13 @@ def main():
             # 3,500 chars. Its midpoint moves as operators append status updates,
             # so prove the canonical file is the source and its budgeted prefix
             # reaches the prompt instead of relying on the generic middle marker.
-            expected_source = p.read_text(encoding="utf-8").strip()
+            expected_source = p.read_text(encoding="utf-8")
+            if (loaded_context_path is None
+                    or loaded_context_path.resolve() != p.resolve()):
+                misrouted.append(f"{p.name}: dropship_context.context_path() is not canonical")
             if context_source != expected_source:
                 misrouted.append(f"{p.name}: NOT loaded by dropship_context.load_context()")
-            elif expected_source[:3500] not in context:
+            if expected_source.strip()[:3500] not in context:
                 misrouted.append(f"{p.name}: NOT in dropship_context.context_block()")
         elif p.name == PLAYBOOK:
             if not in_playbook:
