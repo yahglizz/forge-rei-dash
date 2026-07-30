@@ -47,6 +47,17 @@ TRUE_DENIALS = (
     "thats not my house anymore",
 )
 
+NAMED_IDENTITY_DENIALS = (
+    "THIS IS NOT KRISTEN. I've had this number for 5 years.",
+    "I am not geraldine",
+)
+
+DENIAL_PHRASE_CONTINUATIONS = (
+    "I don't own it outright; there is a mortgage",
+    "I've never owned an investment property; this is my primary home",
+    "That's not me refusing; I need time",
+)
+
 
 class SellerClassifierTests(unittest.TestCase):
     def test_all_real_price_asks_are_price(self):
@@ -96,6 +107,16 @@ class SellerClassifierTests(unittest.TestCase):
         for body in TRUE_DENIALS:
             with self.subTest(body=body):
                 self.assertTrue(marcus_engine._is_denial(body))
+
+    def test_named_identity_denials_are_denials(self):
+        for body in NAMED_IDENTITY_DENIALS:
+            with self.subTest(body=body):
+                self.assertTrue(marcus_engine._is_denial(body))
+
+    def test_denial_phrases_inside_seller_context_are_not_denials(self):
+        for body in DENIAL_PHRASE_CONTINUATIONS:
+            with self.subTest(body=body):
+                self.assertFalse(marcus_engine._is_denial(body))
 
     def test_tracked_module_exposes_classifier_and_price_safe_drafter(self):
         spec = importlib.util.find_spec("seller_classify")
