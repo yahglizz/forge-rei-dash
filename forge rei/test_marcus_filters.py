@@ -224,6 +224,21 @@ class SellerClassifierTests(unittest.TestCase):
         self.assertFalse(ace_status["degradedPrompt"])
         self.assertNotIn("vault-only marker", repr(ace_status["promptHealth"]))
 
+    def test_ace_prompt_is_degraded_when_a_required_skill_is_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td)
+            skills = vault / "Skills"
+            skills.mkdir()
+            (skills / "seller-reply-playbook.md").write_text("", encoding="utf-8")
+            with mock.patch.object(brain_io, "VAULT", vault):
+                with mock.patch.object(ace, "_load", return_value={
+                    "mode": "off", "sentToday": 0, "day": ace._today_key(), "log": [],
+                }):
+                    ace_status = ace.status()
+
+        self.assertEqual(0, ace_status["promptHealth"]["replyRubric"]["bytes"])
+        self.assertTrue(ace_status["degradedPrompt"])
+
 
 class MarcusEngineStatusStub:
     """Enough state to exercise status() without loading Marcus's live files."""
