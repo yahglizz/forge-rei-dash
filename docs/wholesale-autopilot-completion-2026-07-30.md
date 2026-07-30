@@ -205,6 +205,15 @@ could not run. Therefore this run is not acceptance evidence for:
 Restore Anthropic credits and rerun the complete isolated harness. Do not infer
 full scenario acceptance from deterministic probes.
 
+If that harness passes and the operator later enables a capped rollout, watch
+these first-week signals:
+
+- PRICE pivots: correct trigger rate and false-positive rate;
+- fact-adherence rejects/retries and any known-fact re-ask;
+- central gate blocks grouped by reason, especially ledger dedupe and legitimacy;
+- call-ready acknowledgement latency and unanswered post-pivot inbound age;
+- duplicate touches, daily-cap usage, holds/undos, and any price-scrub fallback.
+
 ## Sixteen-hop audit
 
 | Hop | Result |
