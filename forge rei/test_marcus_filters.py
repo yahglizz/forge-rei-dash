@@ -44,7 +44,10 @@ NOT_DENIALS = (
 )
 
 TRUE_DENIALS = (
+    "I don't know you",
     "wrong number",
+    "wrong person",
+    "you have the wrong number, I don't know you",
     "im not the owner",
     "im not the seller",
     "i dont own it",
@@ -71,6 +74,8 @@ COMPLETE_SELLER_CONTEXT = (
 )
 
 AMBIGUOUS_PHRASE_SELLER_CONTEXT = (
+    "I don't know you, but yes, I'm open to selling",
+    "You have the wrong price, but I would consider selling",
     "you called me about my house, yes I'm open to selling",
     "who is this about my property? yes, I would consider selling",
     "what is this regarding the house? I may be open to selling",
