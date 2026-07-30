@@ -156,21 +156,34 @@ class AceDecideTest(unittest.TestCase):
         self.assertEqual("reply", d["action"])
         self.assertEqual("timeline", d["fact"])
 
+    # The three escalation triggers below now return action "pivot" — the thread still gets
+    # handed to the operator (d["escalate"] is True and apply() builds the call card), but
+    # the FIRST one on a thread also earns a single call-pivot text instead of silence.
+    # Once pivoted they escalate silently again; see AcePivotDecideTest.
     def test_escalate_when_all_facts(self):
         ace.set_mode("shadow")
         facts = {k: True for k in conversation_engine.TARGET_FACTS}
         d = ace.decide(rec(facts=facts), REPORT, self.ce)
-        self.assertEqual("escalate", d["action"])
+        self.assertEqual("pivot", d["action"])
+        self.assertTrue(d["escalate"])
+        self.assertEqual("escalate", ace.decide(rec(facts=facts, pivot_at=1), REPORT,
+                                                self.ce)["action"])
 
     def test_escalate_call_ready(self):
         ace.set_mode("shadow")
         d = ace.decide(rec(state="CALL_READY"), REPORT, self.ce)
-        self.assertEqual("escalate", d["action"])
+        self.assertEqual("pivot", d["action"])
+        self.assertTrue(d["escalate"])
+        self.assertEqual("escalate", ace.decide(rec(state="CALL_READY", pivot_at=1), REPORT,
+                                                self.ce)["action"])
 
     def test_escalate_max_replies(self):
         ace.set_mode("shadow")
         d = ace.decide(rec(replies=5), REPORT, self.ce)
-        self.assertEqual("escalate", d["action"])
+        self.assertEqual("pivot", d["action"])
+        self.assertTrue(d["escalate"])
+        self.assertEqual("escalate", ace.decide(rec(replies=5, pivot_at=1), REPORT,
+                                                self.ce)["action"])
 
     def test_held_stops(self):
         ace.set_mode("shadow")

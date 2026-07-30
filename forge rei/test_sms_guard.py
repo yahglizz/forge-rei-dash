@@ -335,7 +335,7 @@ class SmsGuardTest(unittest.TestCase):
         m._persist_proposal = lambda proposal: None
         m._mark_seen = lambda contact_id: False
         seen = {}
-        def fake_draft(first, cls, body, history, hint=None, seller_context=None):
+        def fake_draft(first, cls, body, history, hint=None, seller_context=None, pivot=False):
             seen["history"] = history
             seen["seller_context"] = seller_context
             return "thats a solid starting point, lets talk", "claude"
