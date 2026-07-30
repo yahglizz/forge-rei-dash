@@ -11,6 +11,7 @@ screening) is reproduced synchronously so assertions are deterministic.
 """
 
 import json
+import re
 import tempfile
 import time
 import unittest
@@ -112,20 +113,27 @@ class FakeMarcus:
         self.approved = []
         self._n = 0
 
-    def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None):
+    def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None,
+                          pivot=False):
         self._n += 1
         pid = f"p{self._n}"
+        suggested = "Would a quick call be easier to talk through the details?" if pivot else ""
+        if hint and not pivot:
+            match = re.search(r'Suggested question:\s*"([^"]+)"', hint)
+            if match:
+                suggested = match.group(1).strip().rstrip(".?") + "?"
         self.proposals[pid] = {
             "conversationId": conv_id, "contactId": contact_id, "hint": hint,
             "status": "pending", "ts": int(time.time() * 1000) + self._n,
-            "sentReply": f"draft for {conv_id}",
+            "suggestedReply": suggested, "pivot": bool(pivot),
         }
-        return {"ok": True, "id": pid}
+        return {"ok": True, "proposalId": pid}
 
-    def approve(self, pid):
+    def approve(self, pid, message=None):
         p = self.proposals.get(pid)
         if not p:
             return {"error": "no such proposal"}
+        p["sentReply"] = message or p.get("suggestedReply")
         p["status"] = "sent"
         self.approved.append(pid)
         return {"ok": True}
@@ -707,7 +715,7 @@ class AceLadder(E2EBase):
         self.assertEqual("stop", d["action"])
         self.assertEqual("ace off", d["reason"])
 
-    def test_call_ready_escalates_instead_of_texting(self):
+    def test_call_ready_shadow_drafts_pivot_instead_of_texting(self):
         ace.set_mode("shadow")
         self.ghl.add_lead("c1", "ct1", "Maria Lopez", "+15551230001", [
             ("outbound", "hey, saw your property on elm st — would you consider selling?"),
@@ -720,12 +728,16 @@ class AceLadder(E2EBase):
         self.claude["atlas"] = json.dumps(ATLAS_PREP)
         self.scout.poll_once()
         self.assertEqual("CALL_READY", self.convo.get("c1")["state"])
-        self.assertEqual({}, self.marcus.proposals)      # escalate = phone call, not a text
+        pending = [p for p in self.marcus.proposals.values() if p["status"] == "pending"]
+        self.assertEqual(1, len(pending))
+        self.assertTrue(pending[0]["pivot"])
+        self.assertEqual([], self.marcus.approved)       # shadow drafts, but never sends
+        self.assertEqual([], self.ghl.sms_posts())
         ready = ace.call_ready_list().get("callReady") or []
         self.assertEqual(1, len(ready))
         self.assertEqual("ct1", ready[0]["contactId"])
         kinds = [e.get("kind") for e in ace.status().get("log", [])]
-        self.assertIn("escalate", kinds)
+        self.assertIn("shadow_pivot", kinds)
 
 
 if __name__ == "__main__":
