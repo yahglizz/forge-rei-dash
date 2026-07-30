@@ -120,7 +120,7 @@ def _resolved_skill(name):
     """Return the selected repo seed or matching vault override."""
     seed = MARCUS_SKILLS_DIR / name
     selected = seed if seed.is_file() else None
-    source = "repo" if selected else "missing"
+    source = "seed" if selected else "missing"
     try:
         import brain_io
         vault = brain_io.VAULT / "Skills" / name

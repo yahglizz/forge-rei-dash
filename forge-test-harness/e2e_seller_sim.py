@@ -25,10 +25,12 @@ HOW TO RUN (on the box — the Windows dev machine has no real python3)
        python3 /tmp/e2e_seller_sim.py'
 
 Env notes:
-  * `FORGE_VAULT=/opt/forge/vault` is REQUIRED. It lives in the systemd unit
+  * `FORGE_VAULT=/opt/forge/vault` selects production-learned prompt overrides. It lives
+    in the systemd unit
     (`/etc/systemd/system/forge-reios.service`), NOT in `/etc/default/forge-reios`,
-    so sourcing the env file alone leaves it unset — and the drafter then silently
-    runs with a 0-byte playbook. See bug B5 in CODEX_WHOLESALE_AUTOPILOT_TASK.md.
+    so sourcing the env file alone leaves it unset. The isolated harness copies the
+    tracked repo seeds as a fallback and CONFIG reports every resolved source and byte
+    count. See bug B5 in CODEX_WHOLESALE_AUTOPILOT_TASK.md.
   * `FORGE_SMS_DEDUPE_MINUTES=0` compresses a multi-day conversation into seconds.
     It DISABLES the send-ledger dedupe gate — that gate is therefore NOT covered by
     this harness and needs its own test.
@@ -50,6 +52,13 @@ _APP_CANDIDATES = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "forge rei"),
 ]
 _MARKER = "_FORGE_E2E_ISOLATED"
+_MARCUS_SKILL_SEEDS = (
+    "seller-reply-playbook.md",
+    "marcus-playbook.md",
+    "yahjair-voice.md",
+    "wholesale-seller-texter.md",
+    "closing-plays.md",
+)
 
 
 # Marcus can still load the legacy toolkit's draft_reply override. The classifier itself
