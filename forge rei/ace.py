@@ -309,8 +309,8 @@ _FACT_DRAFT_PATTERNS = {
         r"\b(?:take|accept)\b.{0,20}\b(?:for it|for the (?:property|house|home))\b",
     )),
     "motivation": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
-        r"\b(?:reason|motivat\w*)\b.{0,35}\b(?:sell(?:ing)?|move|moving)\b",
-        r"\b(?:sell(?:ing)?|move|moving)\b.{0,35}\b(?:reason|motivat\w*)\b",
+        r"\b(?:reason|motivat\w*)\b.{0,35}\b(?:sale|sell(?:ing)?|move|moving)\b",
+        r"\b(?:sale|sell(?:ing)?|move|moving)\b.{0,35}\b(?:reason|motivat\w*)\b",
         r"\bwhy\b.{0,35}\b(?:sell(?:ing)?|move|moving|let(?:ting)? "
         r"(?:it|the property|the house|the home) go)\b",
         r"\bwhat(?:'s| is|s)\b.{0,25}\b(?:got|made|making|driv(?:e|ing)|prompt(?:ed|ing))"
@@ -318,7 +318,8 @@ _FACT_DRAFT_PATTERNS = {
         r"\bwhat changed\b",
     )),
     "occupancy": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
-        r"\b(?:vacant|occupied|occupancy|tenant|renter|rented|owner[- ]occupied)\b",
+        r"\b(?:vacant|occupied|occupancy|occup(?:y|ies|ied|ying)|tenant|renter|rented|"
+        r"owner[- ]occupied)\b",
         r"\b(?:who|anyone|someone|somebody)\b.{0,50}\b(?:live|living|stay|staying)\b",
         r"\bwho\b.{0,40}\bcalls?\s+(?:the\s+)?(?:property|place|house)\s+home\b",
         r"\b(?:is|does)\b.{0,20}\b(?:someone|anyone|owner|seller)\b.{0,20}"
@@ -329,9 +330,14 @@ _FACT_REASK_PATTERNS = {
     "condition": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
         r"\bwhat(?:'s| is)?\s+(?:kind of\s+)?(?:condition|shape)\b",
         r"\bwhat\s+(?:kind of\s+)?(?:repairs?|work|updates?|fixes?)\b",
-        r"\b(?:does|do)\b.{0,20}\b(?:need|require)\b.{0,20}"
+        r"\b(?:is|was)\s+(?:it|the\s+(?:property|house|home|place))\b.{0,20}"
+        r"\b(?:condition|shape|updated|damaged)\b",
+        r"\b(?:does|do)\s+(?:it|the\s+(?:property|house|home|place))\b.{0,20}"
+        r"\b(?:need|require)\b.{0,20}"
         r"\b(?:repairs?|work|fix(?:es|ing)?|updates?)\b",
-        r"\b(?:is|are)\b.{0,25}\b(?:roof|hvac|foundation)\b.{0,15}"
+        r"\b(?:has|have)\s+(?:it|the\s+(?:property|house|home|place))\b.{0,20}"
+        r"\b(?:updated|renovated|damaged|repaired)\b",
+        r"\b(?:is|are)\s+(?:the\s+)?(?:roof|hvac|foundation)\b.{0,15}"
         r"\b(?:new|old|working|damaged|updated|replaced)\b",
         r"\b(?:how|what)\b.{0,20}\b(?:roof|hvac|foundation)\b",
     )),
@@ -343,6 +349,10 @@ _FACT_REASK_PATTERNS = {
         r"\b(?:sell|close|move|vacate|wrap)\w*\b",
         r"\b(?:do|are|would|can|could|will)\s+you\b.{0,35}"
         r"\b(?:sell|close|move|vacate|done|wrap(?:ped|ping)? up)\b",
+        r"\b(?:is|was)\s+there\b.{0,15}\b(?:timeline|timeframe|deadline|"
+        r"closing date)\b",
+        r"\b(?:do|did)\s+you\b.{0,20}\b(?:have|need|want)\b.{0,20}"
+        r"\b(?:timeline|timeframe|deadline|closing date)\b",
     )),
     "price": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
         r"\bwhat(?:'s| is| are)?\b.{0,20}\b(?:price|asking|number|amount)\b",
@@ -355,7 +365,8 @@ _FACT_REASK_PATTERNS = {
         r"\bwhy\s+(?:are|do|did|would|will)\s+you\b.{0,35}"
         r"\b(?:sell|move|let)\w*\b",
         r"\bwhat(?:'s| is|s)\b.{0,25}\b(?:got|made|making|driv(?:e|ing)|"
-        r"prompt(?:ed|ing))\b.{0,40}\b(?:sell(?:ing)?|move|moving|this)\b",
+        r"prompt(?:ed|ing)|motivat(?:e|es|ed|ing))\b.{0,40}"
+        r"\b(?:sale|sell(?:ing)?|move|moving|this)\b",
         r"\bwhat(?:'s| is)?\s+(?:your\s+|the\s+)?(?:reason|motivation)\b",
         r"\bwhat changed\b",
     )),
@@ -365,7 +376,7 @@ _FACT_REASK_PATTERNS = {
         r"\b(?:is|are)\b.{0,20}\b(?:anyone|someone|tenant|renter)\b.{0,20}"
         r"\b(?:living|staying|there)\b",
         r"\bwho\b.{0,40}\b(?:live|living|stay|staying|calls?\s+(?:the\s+)?"
-        r"(?:property|place|house)\s+home)\b",
+        r"(?:property|place|house)\s+home|occup(?:y|ies|ied|ying))\b",
         r"\bdoes\b.{0,25}\b(?:live|stay)\b.{0,15}\bthere\b",
         r"\b(?:are there|do you have)\s+any\s+(?:tenants?|renters?)\b",
     )),

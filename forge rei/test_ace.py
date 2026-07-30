@@ -558,6 +558,76 @@ class AceDraftAdherenceTest(unittest.TestCase):
                 )
                 self.assertIn("already-known", reason or "")
 
+    def test_declarative_known_fact_acknowledgments_are_admitted(self):
+        cases = [
+            (
+                "timeline",
+                {"condition"},
+                "Since it does need repairs, how soon are you looking to sell?",
+            ),
+            (
+                "condition",
+                {"timeline"},
+                "Since there is a deadline, what shape is it in?",
+            ),
+            (
+                "condition",
+                {"motivation"},
+                "Since the sale is motivated by relocation, what shape is it in?",
+            ),
+            (
+                "timeline",
+                {"occupancy"},
+                "Since the owner occupies it, how soon are you looking to sell?",
+            ),
+            (
+                "timeline",
+                {"price"},
+                "Since the asking price is set, how soon are you looking to sell?",
+            ),
+        ]
+        for fact, known_facts, draft in cases:
+            with self.subTest(fact=fact, known_facts=known_facts):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact, known_facts=known_facts
+                )
+                self.assertIsNone(reason)
+
+    def test_alternate_known_fact_interrogatives_are_rejected(self):
+        cases = [
+            (
+                "timeline",
+                {"condition"},
+                "how soon are you looking to sell and is it in good shape?",
+            ),
+            (
+                "condition",
+                {"timeline"},
+                "what shape is it in and is there a deadline?",
+            ),
+            (
+                "condition",
+                {"motivation"},
+                "what shape is it in and what's motivating the sale?",
+            ),
+            (
+                "timeline",
+                {"occupancy"},
+                "how soon are you looking to sell and who occupies it?",
+            ),
+            (
+                "timeline",
+                {"price"},
+                "how soon are you looking to sell and what is the asking price?",
+            ),
+        ]
+        for fact, known_facts, draft in cases:
+            with self.subTest(fact=fact, known_facts=known_facts):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact, known_facts=known_facts
+                )
+                self.assertIn("already-known", reason or "")
+
 
 class AceHoldAckTest(unittest.TestCase):
     """Stop-button + call-ready ack plumbing."""
