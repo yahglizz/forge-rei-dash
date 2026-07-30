@@ -3,8 +3,10 @@ import unittest
 from pathlib import Path
 
 import ace
+import agent_bus
 import conversation_engine
 import cost_tracker
+import marcus_engine
 import send_ledger
 import sms_guard
 import telegram_io
@@ -68,53 +70,6 @@ class FakeSendingMarcus(FakeMarcus):
         return {"ok": True}
 
 
-class GuardedFakeMarcus(FakeSendingMarcus):
-    """Marcus-shaped test hook: only the external GHL POST is simulated."""
-
-    def __init__(self):
-        super().__init__()
-        self.outbound = []
-
-    def approve(self, pid, edited=None):
-        p = self.proposals.get(pid)
-        if not p:
-            return {"error": "proposal not found or already handled"}
-        message = edited or p["suggestedReply"]
-        gate = sms_guard.guard(
-            p.get("contactId"),
-            message,
-            conv_id=p.get("conversationId"),
-            name="Ledger Lead",
-            last_seller_message="the kitchen needs some work",
-            kind="marcus_approve",
-            autonomous=bool(p.get("autonomous")),
-        )
-        self.approved.append({
-            "pid": pid,
-            "autonomous": p.get("autonomous"),
-            "edited": edited,
-            "gate": gate.get("gate"),
-        })
-        if not gate.get("ok"):
-            return gate
-
-        self.outbound.append({
-            "conversationId": p["conversationId"],
-            "contactId": p["contactId"],
-            "message": message,
-        })
-        p["status"] = "sent"
-        p["sentReply"] = message
-        sms_guard.record_success(
-            reservation=gate.get("reservation"),
-            conv_id=p["conversationId"],
-            contact_id=p["contactId"],
-            message=message,
-            kind="marcus_approve",
-        )
-        return {"ok": True}
-
-
 def rec(state="QUALIFYING", facts=None, replies=0, held=False, name="Lead", contact="c1",
         phone="2675550100", pivot_at=None, conv="v1"):
     r = {"convId": conv, "contactId": contact, "name": name, "state": state,
@@ -155,6 +110,11 @@ class AceSendLedgerIntegrationTest(unittest.TestCase):
             "guard_state": sms_guard.STATE,
             "ledger_state": send_ledger.STATE,
             "cost_state": cost_tracker.STATE,
+            "marcus_proposals": marcus_engine.PROPOSALS_LOG,
+            "marcus_handled": marcus_engine.HANDLED_LOG,
+            "marcus_seen": marcus_engine.SEEN_CONTACTS_LOG,
+            "marcus_config": marcus_engine.CONFIG_FILE,
+            "bus_send": agent_bus.send,
             "paused": ace.forge_ops.paused,
             "test_status": ace.test_mode.status,
             "within_hours": sms_guard._within_hours,
@@ -169,6 +129,11 @@ class AceSendLedgerIntegrationTest(unittest.TestCase):
         sms_guard.STATE = root / "sms_guard.json"
         send_ledger.STATE = root / "send_ledger.json"
         cost_tracker.STATE = root / "cost_tracker.json"
+        marcus_engine.PROPOSALS_LOG = root / "proposals.jsonl"
+        marcus_engine.HANDLED_LOG = root / "handled.jsonl"
+        marcus_engine.SEEN_CONTACTS_LOG = root / "seen_contacts.jsonl"
+        marcus_engine.CONFIG_FILE = root / "marcus_config.json"
+        agent_bus.send = lambda *args, **kwargs: {"ok": True}
         ace.forge_ops.paused = lambda: False
         ace.test_mode.status = lambda: {"enabled": False}
         sms_guard._within_hours = lambda: True
@@ -187,6 +152,60 @@ class AceSendLedgerIntegrationTest(unittest.TestCase):
         self.convo = conversation_engine.ConversationEngine()
         self.conv_id = "conv-ledger-integration"
         self.thread = rec(conv=self.conv_id, contact="contact-ledger")
+        self.ghl_posts = []
+        self.guard_calls = []
+
+        def ghl_get(endpoint, params=None):
+            if endpoint == "/conversations/search":
+                return {"conversations": [{
+                    "id": self.conv_id,
+                    "contactId": self.thread["contactId"],
+                    "fullName": self.thread["name"],
+                    "phone": self.thread["phone"],
+                    "lastMessageBody": "the kitchen needs some work",
+                    "lastMessageDate": 1,
+                    "lastMessageDirection": "inbound",
+                    "unreadCount": 1,
+                }]}
+            if endpoint == f"/conversations/{self.conv_id}/messages":
+                return {"messages": {"messages": [{
+                    "direction": "inbound",
+                    "body": "the kitchen needs some work",
+                }]}}
+            return {}
+
+        def ghl_post(endpoint, body=None):
+            self.ghl_posts.append((endpoint, body or {}))
+            return {"ok": True}
+
+        self.marcus = marcus_engine.MarcusEngine(ghl_get, ghl_post, "location-test")
+        self.marcus.anthropic_key = None
+        self.marcus._ai_draft = lambda *args, **kwargs: (
+            "how soon are you looking to sell", "integration_fixture"
+        )
+
+        def safety_check(contact_id, message, conv_id=None, name="",
+                         last_seller_message=None, kind="sms", autonomous=False,
+                         check_legit=True):
+            self.guard_calls.append({
+                "convId": conv_id,
+                "autonomous": autonomous,
+                "kind": kind,
+            })
+            return sms_guard.guard(
+                contact_id,
+                message,
+                conv_id=conv_id,
+                name=name,
+                last_seller_message=last_seller_message,
+                kind=kind,
+                autonomous=autonomous,
+                check_legit=check_legit,
+            )
+
+        self.marcus.safety_check = safety_check
+        self.marcus.safety_record = sms_guard.record_success
+        self.marcus.safety_release = sms_guard.release
         self.convo.update(
             self.conv_id,
             contact_id=self.thread["contactId"],
@@ -202,6 +221,11 @@ class AceSendLedgerIntegrationTest(unittest.TestCase):
         sms_guard.STATE = self._orig["guard_state"]
         send_ledger.STATE = self._orig["ledger_state"]
         cost_tracker.STATE = self._orig["cost_state"]
+        marcus_engine.PROPOSALS_LOG = self._orig["marcus_proposals"]
+        marcus_engine.HANDLED_LOG = self._orig["marcus_handled"]
+        marcus_engine.SEEN_CONTACTS_LOG = self._orig["marcus_seen"]
+        marcus_engine.CONFIG_FILE = self._orig["marcus_config"]
+        agent_bus.send = self._orig["bus_send"]
         ace.forge_ops.paused = self._orig["paused"]
         ace.test_mode.status = self._orig["test_status"]
         sms_guard._within_hours = self._orig["within_hours"]
@@ -210,26 +234,35 @@ class AceSendLedgerIntegrationTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_second_ace_attempt_is_blocked_by_real_send_ledger_and_refunds_cap(self):
-        marcus = GuardedFakeMarcus()
-
         first = ace.apply(
-            self.conv_id, self.thread, REPORT, self.convo, marcus,
+            self.conv_id, self.thread, REPORT, self.convo, self.marcus,
             last_seller_msg="the kitchen needs some work",
         )
         second = ace.apply(
-            self.conv_id, self.thread, REPORT, self.convo, marcus,
+            self.conv_id, self.thread, REPORT, self.convo, self.marcus,
             last_seller_msg="the kitchen needs some work",
         )
 
         self.assertTrue(first.get("sent"), first)
         self.assertEqual("send_ledger", second.get("gate"), second)
         self.assertNotIn("sent", second)
-        self.assertEqual(1, len(marcus.outbound))
-        self.assertEqual(2, len(marcus.approved))
+        self.assertEqual([True, True], [
+            call["autonomous"] for call in self.guard_calls
+        ])
+        sms_posts = [
+            body for endpoint, body in self.ghl_posts
+            if endpoint == "/conversations/messages"
+        ]
+        self.assertEqual(1, len(sms_posts))
+        self.assertEqual(1, self.marcus.counts["sent"])
         self.assertGreater(send_ledger.last_touch_at(self.conv_id), 0)
         self.assertEqual(1, ace.status()["sentToday"])
         self.assertEqual(1, self.convo.get(self.conv_id)["replies"])
-        self.assertEqual(1, sms_guard.status()["sent"])
+        self.assertEqual(
+            {"sent": 1, "pending": 0},
+            {key: sms_guard.status()[key] for key in ("sent", "pending")},
+        )
+        self.assertEqual(1, cost_tracker.status()["today"]["sms"])
 
 
 class ConvEngineQuestionTest(unittest.TestCase):

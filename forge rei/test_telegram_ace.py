@@ -165,10 +165,22 @@ class TelegramAceCallbackTest(unittest.TestCase):
         )
 
         self.assertTrue(result.get("pivoted"), result)
+        production_actions = getattr(ace, "telegram_action_handlers", None)
+        self.assertTrue(
+            callable(production_actions),
+            "ACE must expose the production action mapping used by connector",
+        )
+        telegram_io.set_actions(production_actions(self.convo))
+        pivot_receipts = [
+            receipt for receipt in self.receipts
+            if receipt["dedupe_key"] == f"acepivot:{conv_id}"
+        ]
+        self.assertEqual(1, len(pivot_receipts), self.receipts)
+        pivot_receipt = pivot_receipts[0]
+        self.assertIn("ACE call-pivot", pivot_receipt["text"])
         payloads = [
             button.get("callback_data")
-            for receipt in self.receipts
-            for row in receipt["buttons"]
+            for row in pivot_receipt["buttons"]
             for button in row
             if button.get("callback_data")
         ]
