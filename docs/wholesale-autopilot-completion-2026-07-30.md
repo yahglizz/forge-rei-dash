@@ -10,9 +10,10 @@ requires the operator's decision before implementation. The full post-fix
 Claude scenario run remains blocked by Anthropic HTTP 400, credit balance too
 low. ACE, wholesale autopilot, and test mode are all off on the live box.
 
-Current local tip: `177c82e`. The workstation auto-sync pushed the changes and
-the box autopull deployed them. No manual seller SMS, live Telegram callback,
-pipeline move, or mode-enable action was performed.
+The verified implementation is present through commit `177c82e`; later commits
+only refresh this evidence report. The workstation auto-sync pushed the changes
+and the box autopull deployed them. No manual seller SMS, live Telegram
+callback, pipeline move, or mode-enable action was performed.
 
 ## Pre-edit baseline
 
@@ -273,4 +274,3 @@ No reusable agent judgment skill was changed. The reusable lessons here are
 code-test patterns (exercise the real production seam and mutation-kill
 false-pass paths), not Marcus/Scout/Atlas operating judgment, so they do not
 belong in a learned agent playbook.
-
