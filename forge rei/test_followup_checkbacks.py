@@ -78,8 +78,8 @@ class FollowupCheckbackTest(unittest.TestCase):
                     engine._scan_due_checkbacks()
 
                 record = screener.screenings[CONTACT_ID]
-                self.assertIs(record["checkBackDue"], True)
-                self.assertEqual(record["checkBackDueSince"], NOW_MS)
+                self.assertIs(record.get("checkBackDue"), True)
+                self.assertEqual(record.get("checkBackDueSince"), NOW_MS)
 
                 persisted = json.loads(screening_state.read_text())
                 saved_record = persisted["screenings"][CONTACT_ID]
