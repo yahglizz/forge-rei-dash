@@ -76,6 +76,9 @@ function AcePanel() {
   const mode = s.mode || "off";
   const modeColor = ACE_MODE_COLOR[mode] || ACE_MODE_COLOR.off;
   const autopilotEnabled = autopilot.enabled === true;
+  const autopilotReady = !ap.loading && !ap.error && typeof autopilot.enabled === "boolean";
+  const autopilotLabel = ap.loading ? "LOADING" : (ap.error ? "UNAVAILABLE" :
+    (autopilotEnabled ? "ON" : "OFF"));
 
   const setMode = async (m) => {
     setAceBusy(true);
@@ -145,8 +148,9 @@ function AcePanel() {
           <div className="card-title" style={{ fontSize: 13.5 }}>
             Re-engagement Autopilot
             <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 800,
-                           color: autopilotEnabled ? "#22C55E" : "#64748B", letterSpacing: 0 }}>
-              {autopilotEnabled ? "ON" : "OFF"}
+                           color: ap.error ? "#E5484D" :
+                             (autopilotEnabled ? "#22C55E" : "#64748B"), letterSpacing: 0 }}>
+              {autopilotLabel}
             </span>
           </div>
           <div className="faint" style={{ fontSize: 11 }}>
@@ -156,13 +160,14 @@ function AcePanel() {
           </div>
         </div>
         <button type="button" role="switch" aria-checked={autopilotEnabled}
-          aria-label="Toggle re-engagement autopilot" disabled={autopilotBusy}
+          aria-label="Toggle re-engagement autopilot"
+          disabled={autopilotBusy || !autopilotReady}
           onClick={() => setAutopilotEnabled(!autopilotEnabled)}
           style={{ position: "relative", width: 44, height: 24, padding: 0,
                    border: "1px solid " + (autopilotEnabled ? "#22C55E" : "var(--border)"),
                    borderRadius: 12, background: autopilotEnabled ? "#22C55E" : "var(--card-2)",
-                   cursor: autopilotBusy ? "wait" : "pointer",
-                   opacity: autopilotBusy ? 0.6 : 1, flexShrink: 0 }}>
+                   cursor: autopilotBusy ? "wait" : (autopilotReady ? "pointer" : "not-allowed"),
+                   opacity: (autopilotBusy || !autopilotReady) ? 0.6 : 1, flexShrink: 0 }}>
           <span style={{ position: "absolute", top: 3, left: autopilotEnabled ? 23 : 3,
                          width: 16, height: 16, borderRadius: "50%", background: "#fff",
                          transition: "left 120ms ease" }} />

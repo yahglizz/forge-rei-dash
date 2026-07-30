@@ -102,6 +102,8 @@ class AutopilotRouteTests(unittest.TestCase):
         self.assertIn('window.useApi("/api/autopilot/status"', source)
         self.assertIn('window.apiPost("/api/autopilot/toggle", { enabled:', source)
         self.assertIn("Re-engagement Autopilot", source)
+        self.assertIn("const autopilotReady =", source)
+        self.assertIn("disabled={autopilotBusy || !autopilotReady}", source)
 
         checked = subprocess.run(
             ["node", str(HERE / "deploy" / "valjsx.js"), str(HERE / "ace.jsx")],
