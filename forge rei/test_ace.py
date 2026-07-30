@@ -538,6 +538,21 @@ class AceDraftAdherenceTest(unittest.TestCase):
                 )
                 self.assertIsNone(reason)
 
+    def test_valid_request_paraphrases_are_admitted_for_every_fact(self):
+        cases = [
+            ("condition", "tell me what repairs the property needs."),
+            ("timeline", "tell me when you would like to close."),
+            ("price", "tell me what number you have in mind."),
+            ("motivation", "tell me what has you thinking about selling."),
+            ("occupancy", "tell me who is living there now."),
+        ]
+        for fact, draft in cases:
+            with self.subTest(fact=fact, draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact
+                )
+                self.assertIsNone(reason)
+
     def test_known_fact_acknowledgments_are_not_treated_as_reasks(self):
         cases = [
             (
