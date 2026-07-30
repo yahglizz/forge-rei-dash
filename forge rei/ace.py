@@ -384,7 +384,8 @@ def decide(rec, report, convo, last_seller_msg=None):
                 import marcus_engine
                 cls = (marcus_engine.classify(last_seller_msg) or "").upper()
                 known_facts = sum(
-                    1 for value in ((rec or {}).get("facts") or {}).values() if value
+                    1 for fact in _FACT_REPORT_FIELDS
+                    if ((rec or {}).get("facts") or {}).get(fact)
                 )
                 if cls == "PRICE":
                     return {"action": "pivot", "escalate": True, "reason": f"classify:{cls}"}
