@@ -381,39 +381,38 @@ _FACT_REASK_PATTERNS = {
         r"\b(?:are there|do you have)\s+any\s+(?:tenants?|renters?)\b",
     )),
 }
-_FACT_REQUEST_LEAD = (
-    r"(?:"
-    r"\b(?:(?:(?:can|could|would)\s+you\s+)?"
-    r"(?:tell\s+me|describe|walk\s+me\s+through)"
-    r"|(?:can|could|would)\s+you\s+share\s+(?:your|the|more\s+about))"
-    r"|(?:^|(?<=[.!?]))\s*(?:please\s+)?share\s+(?:your|the|more\s+about)"
-    r")\b.{0,70}\b"
+_FACT_REQUEST_AUX_RE = re.compile(
+    r"\b(?:can|could|would)\s+you\s+(?:please\s+)?"
+    r"(?:tell\s+me|describe|walk\s+me\s+through|"
+    r"share\s+(?:your|the|more\s+about))\b",
+    re.IGNORECASE,
 )
-_FACT_REQUEST_PATTERNS = {
+_FACT_REQUEST_IMPERATIVE_RE = re.compile(
+    r"(?:^|,)\s*(?:please\s+)?"
+    r"(?:tell\s+me|describe|walk\s+me\s+through|"
+    r"share\s+(?:your|the|more\s+about))\b",
+    re.IGNORECASE,
+)
+_FACT_REQUEST_TOPIC_PATTERNS = {
     "condition": re.compile(
-        _FACT_REQUEST_LEAD +
         r"(?:condition|shape|repairs?|work|updates?|fix(?:es)?)\b",
         re.IGNORECASE,
     ),
     "timeline": re.compile(
-        _FACT_REQUEST_LEAD +
         r"(?:timeline|timeframe|deadline|closing date|when\b.{0,35}\b"
         r"(?:sell|close|move|vacate|wrap))\w*\b",
         re.IGNORECASE,
     ),
     "price": re.compile(
-        _FACT_REQUEST_LEAD +
         r"(?:asking price|price|number|amount|how much)\b",
         re.IGNORECASE,
     ),
     "motivation": re.compile(
-        _FACT_REQUEST_LEAD +
         r"(?:reason|motivat\w*|why\b.{0,35}\b(?:sell|move)|"
         r"what\b.{0,35}\b(?:sell|move))\w*\b",
         re.IGNORECASE,
     ),
     "occupancy": re.compile(
-        _FACT_REQUEST_LEAD +
         r"(?:occupancy|vacant|occupied|tenant|renter|"
         r"who\b.{0,35}\b(?:live|stay|occup))\w*\b",
         re.IGNORECASE,
@@ -473,11 +472,23 @@ def _qualification_hint(decision, rec, report, retry=False):
     )
 
 
+def _draft_requests_fact(text, fact):
+    """Match seller-directed requests whose fact topic stays in the same sentence."""
+    topic_pattern = _FACT_REQUEST_TOPIC_PATTERNS.get(fact)
+    if not topic_pattern:
+        return False
+    for clause in re.split(r"[.?!;]+", text):
+        for lead_pattern in (_FACT_REQUEST_AUX_RE, _FACT_REQUEST_IMPERATIVE_RE):
+            for lead in lead_pattern.finditer(clause):
+                if topic_pattern.search(clause, lead.end()):
+                    return True
+    return False
+
+
 def _draft_targets_fact(text, fact):
-    request_pattern = _FACT_REQUEST_PATTERNS.get(fact)
     return (
         any(pattern.search(text) for pattern in _FACT_REASK_PATTERNS.get(fact, ()))
-        or bool(request_pattern and request_pattern.search(text))
+        or _draft_requests_fact(text, fact)
     )
 
 

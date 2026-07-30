@@ -533,6 +533,25 @@ class SafetyFilters(E2EBase):
         self.assertEqual("rule", rec["scoreSource"])
         self.assertEqual([], [b for b in self.bus if b["data"].get("type") == "hot_lead"])
 
+    def test_prefixed_wrong_recipient_denials_go_dead(self):
+        cases = (
+            ("c21", "ct21", "I think you have the wrong number"),
+            ("c22", "ct22", "Sorry but wrong number"),
+        )
+        for conv_id, contact_id, body in cases:
+            self.ghl.add_lead(conv_id, contact_id, "Wrong Recipient", "+15551230021", [
+                ("outbound", "hi, reaching out about the house on birch ln"),
+                ("inbound", body),
+            ])
+
+        self.scout.poll_once()
+
+        for conv_id, _contact_id, _body in cases:
+            with self.subTest(conv_id=conv_id):
+                rec = self.scout.records[conv_id]
+                self.assertEqual("dead", rec["bucket"])
+                self.assertEqual("rule", rec["scoreSource"])
+
     def test_who_is_this_variants_go_dead_free_no_screen(self):
         # Live example: Ernest Brown replied "Who are you?" to our follow-up. It used to
         # be HELP -> rule bucket "warm"/50, spending a Claude call before landing anywhere.

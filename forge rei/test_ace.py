@@ -480,22 +480,25 @@ class AceApplyTest(unittest.TestCase):
 
     def test_buyer_directed_timeline_share_retries_then_fails_closed(self):
         ace.set_mode("supervised")
-        noted = []
-        self.ce.note_reply = lambda conv_id: noted.append(conv_id)
-        m = FakeSendingMarcus(drafts=[
-            "We can share our timeline on a call. Are you free today?",
-            "We can share our timeline on a call. Are you free today?",
-        ])
+        drafts = (
+            "We can describe our timeline on a call. Are you free today?",
+            "Can you share your availability? We can share our timeline on a call",
+        )
+        for draft in drafts:
+            with self.subTest(draft=draft):
+                noted = []
+                self.ce.note_reply = lambda conv_id: noted.append(conv_id)
+                m = FakeSendingMarcus(drafts=[draft, draft])
 
-        d = ace.apply("v1", rec(), REPORT, self.ce, m)
+                d = ace.apply("v1", rec(), REPORT, self.ce, m)
 
-        self.assertFalse(d.get("sent"))
-        self.assertEqual("fact_adherence", d.get("gate"))
-        self.assertEqual(2, len(m.calls))
-        self.assertEqual([], m.approved)
-        self.assertEqual(2, len(m.dismissed))
-        self.assertEqual([], noted)
-        self.assertEqual(0, ace.status()["sentToday"])
+                self.assertFalse(d.get("sent"))
+                self.assertEqual("fact_adherence", d.get("gate"))
+                self.assertEqual(2, len(m.calls))
+                self.assertEqual([], m.approved)
+                self.assertEqual(2, len(m.dismissed))
+                self.assertEqual([], noted)
+                self.assertEqual(0, ace.status()["sentToday"])
 
 
 class AceDraftAdherenceTest(unittest.TestCase):
@@ -533,6 +536,7 @@ class AceDraftAdherenceTest(unittest.TestCase):
         cases = [
             ("condition", "We can share our property condition on a call. Are you free today?"),
             ("timeline", "We can share our timeline on a call. Are you free today?"),
+            ("timeline", "We can describe our timeline on a call. Are you free today?"),
             ("price", "We can share our asking price on a call. Are you free today?"),
             ("motivation", "We can share our reason for buying on a call. Are you free today?"),
             ("occupancy", "We can share our occupancy plan on a call. Are you free today?"),
@@ -543,6 +547,18 @@ class AceDraftAdherenceTest(unittest.TestCase):
                     {"suggestedReply": draft}, fact
                 )
                 self.assertIsNotNone(reason)
+
+    def test_request_lead_cannot_license_fact_topic_in_next_sentence(self):
+        reason = ace._draft_adherence_reason(
+            {
+                "suggestedReply": (
+                    "Can you share your availability? "
+                    "We can share our timeline on a call"
+                )
+            },
+            "timeline",
+        )
+        self.assertIsNotNone(reason)
 
     def test_generic_substring_collisions_do_not_satisfy_assigned_fact(self):
         cases = [
@@ -588,10 +604,16 @@ class AceDraftAdherenceTest(unittest.TestCase):
                 self.assertIsNone(reason)
 
     def test_seller_directed_share_request_is_admitted(self):
-        reason = ace._draft_adherence_reason(
-            {"suggestedReply": "can you share your timeline"}, "timeline"
+        drafts = (
+            "can you share your timeline",
+            "John, please share your timeline",
         )
-        self.assertIsNone(reason)
+        for draft in drafts:
+            with self.subTest(draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, "timeline"
+                )
+                self.assertIsNone(reason)
 
     def test_known_fact_acknowledgments_are_not_treated_as_reasks(self):
         cases = [

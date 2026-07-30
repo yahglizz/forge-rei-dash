@@ -285,6 +285,10 @@ _DENIAL_MESSAGE_RE = re.compile(
     rf"(?:\s*[,;.!-]+\s*{_DENIAL_CLAUSE})*\s*[.!?]*\s*$",
     re.IGNORECASE,
 )
+_UNMISTAKABLE_RECIPIENT_DENIAL_RE = re.compile(
+    r"\bwrong\s+(?:number|person)\b",
+    re.IGNORECASE,
+)
 
 _STANDALONE_DENIAL_RE = re.compile(
     r"^\s*(?:"
@@ -352,6 +356,8 @@ def _is_denial(body, expected_name=None):
     """True for wrong-number / mistaken-identity / 'did I call you?' / 'who is this'
     replies — never a real seller conversation. Skip Claude, skip screening, skip Do
     Today entirely."""
+    if _UNMISTAKABLE_RECIPIENT_DENIAL_RE.search(body or ""):
+        return True
     if _DENIAL_MESSAGE_RE.match(body or ""):
         return True
     if _STANDALONE_DENIAL_RE.match(body or ""):

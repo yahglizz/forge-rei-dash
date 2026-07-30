@@ -47,6 +47,8 @@ TRUE_DENIALS = (
     "I don't know you",
     "wrong number",
     "wrong person",
+    "I think you have the wrong number",
+    "Sorry but wrong number",
     "you have the wrong number, I don't know you",
     "im not the owner",
     "im not the seller",
