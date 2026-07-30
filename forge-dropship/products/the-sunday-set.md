@@ -1,7 +1,4 @@
 ---
-
-> **Brand: Everaly** (everaly.com). Canonical copy — this file is the synced one.
-> Store and dashboard wiring: `../EVERALY_STORE.md`.
 product_gid: gid://shopify/Product/9284974674146
 admin_url: https://admin.shopify.com/store/pt4x1h-mf/products/9284974674146
 source: AutoDS import
@@ -14,6 +11,10 @@ rubrics_applied:
   - forge-dropship/skills/dropship-four-triggers-ad-writer.md (Avatar → Problem → Mechanism → Offer)
   - forge-dropship/skills/dropship-evidence-discipline.md (no invented facts)
 ---
+
+> **Brand: Everaly** (everaly.com). Canonical copy — this file is the synced one.
+>
+> Store and dashboard wiring: `../EVERALY_STORE.md`.
 
 # Ekouaer Women's Button-Down Pajama Set — product page packet
 
