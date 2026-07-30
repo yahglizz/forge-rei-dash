@@ -174,24 +174,32 @@ def _bump_sent():
         return d["sentToday"]
 
 
-def _reserve_send_slot(m):
+def _reserve_send_slot(m, kind="reply"):
     """Atomically reserve one ACE auto-send slot before drafting.
 
     The screening bridge can run several worker threads. A separate check-then-bump can let
     two threads pass the daily cap at once, so reserve under the same lock and release on any
     downstream draft/gate failure.
+
+    `kind="pivot"` may spend the full cap; `kind="reply"` (a qualifying question) may only
+    spend cap - PIVOT_RESERVE, so the day's last slot(s) stay available for the one text
+    that actually earns the call.
     """
-    cap = cap_for(m)
-    if cap <= 0:
-        return {"error": f"ace daily cap {cap} reached", "cap": cap}
+    hard_cap = cap_for(m)
+    cap = hard_cap if kind == "pivot" else reply_cap_for(m)
+    if hard_cap <= 0:
+        return {"error": f"ace daily cap {hard_cap} reached", "cap": hard_cap}
     with _LOCK:
         d = _roll(_load())
         sent = int(d.get("sentToday") or 0)
         if sent >= cap:
-            return {"error": f"ace daily cap {cap} reached", "cap": cap, "sentToday": sent}
+            note = (f"ace daily cap {hard_cap} reached" if kind == "pivot"
+                    else f"ace question cap {cap} reached (pivot reserve held back "
+                         f"{hard_cap - cap})")
+            return {"error": note, "cap": cap, "sentToday": sent}
         d["sentToday"] = sent + 1
         _save(d)
-        return {"ok": True, "sentToday": d["sentToday"], "cap": cap}
+        return {"ok": True, "sentToday": d["sentToday"], "cap": hard_cap}
 
 
 def _release_send_slot():
@@ -256,22 +264,29 @@ def decide(rec, report, convo, last_seller_msg=None):
             return _stop(f"terminal:{state}")
         if (rec or {}).get("held"):
             return _stop("operator-held")
-        # Escalation triggers → hand the operator the call, stop texting.
+        # The thread already got its one call-pivot — it belongs to the operator now. This
+        # sits ABOVE every escalation trigger on purpose: it must also stop the qualifying
+        # question lane, because _next_state can regress a thread out of CALL_READY and
+        # would otherwise let ACE start texting a handed-off seller again.
+        if _pivoted(rec):
+            return {"action": "escalate", "reason": "call-pivot sent — operator's call"}
+        # Escalation triggers → hand the operator the call. The FIRST one on a thread also
+        # sends a single call-pivot text (action "pivot"); apply() escalates either way.
         if state == "CALL_READY":
-            return {"action": "escalate", "reason": "call-ready"}
+            return {"action": "pivot", "escalate": True, "reason": "call-ready"}
         if int((rec or {}).get("replies") or 0) >= MAX_REPLIES:
-            return {"action": "escalate", "reason": "max replies reached"}
+            return {"action": "pivot", "escalate": True, "reason": "max replies reached"}
         if last_seller_msg:
             try:
                 import marcus_engine
                 cls = (marcus_engine.classify(last_seller_msg) or "").upper()
                 if cls in ("PRICE", "READY"):
-                    return {"action": "escalate", "reason": f"classify:{cls}"}
+                    return {"action": "pivot", "escalate": True, "reason": f"classify:{cls}"}
             except Exception:
                 pass
         nq = convo.next_question(rec, report)
         if not nq:
-            return {"action": "escalate", "reason": "all facts gathered"}
+            return {"action": "pivot", "escalate": True, "reason": "all facts gathered"}
         return {"action": "reply", "reason": f"qualify:{nq['fact']}",
                 "fact": nq["fact"], "question": nq["question"], "source": nq.get("source")}
     except Exception as e:  # noqa: BLE001
@@ -330,6 +345,38 @@ def _find_pending_pid(marcus, conv_id):
         return None
 
 
+def _pivot_text(proposal):
+    """Final safety net on the pivot wording, evaluated before we hand it to approve().
+
+    The drafter is told the blocked words, but "give you" in particular slips into sentences
+    that have nothing to do with price ("so i can give you something solid") and sms_guard
+    rejects the whole message on sight — which means the seller gets silence at the exact
+    moment they asked to do business. So re-run the gate's own check here and substitute the
+    known-safe twin rather than gamble the highest-intent text in the funnel.
+
+    Fails CLOSED: if sms_guard can't be imported, return the twin."""
+    try:
+        import marcus_engine
+        safe = marcus_engine.CALL_PIVOT_FALLBACK
+    except Exception:
+        return None
+    text = ((proposal or {}).get("suggestedReply") or "").strip()
+    if not text:
+        return safe
+    try:
+        import sms_guard
+        if sms_guard._quotes_price_or_offer(text):
+            return safe
+    except Exception:
+        return safe
+    try:
+        if text == marcus_engine.MarcusEngine._PRICE_FALLBACK:
+            return safe          # the operator-facing fallback is gate-blocked when autonomous
+    except Exception:
+        pass
+    return text
+
+
 def apply(conv_id, rec, report, convo, marcus, last_seller_msg=None, deal_prep=None):
     """Phase 3 SUPERVISED/FULL: decide, then AUTO-SEND the next qualifying question through
     the exact same gated path a tap uses (make_proposal_for → approve → sms_guard).
@@ -340,10 +387,16 @@ def apply(conv_id, rec, report, convo, marcus, last_seller_msg=None, deal_prep=N
     try:
         d = decide(rec, report, convo, last_seller_msg=last_seller_msg)
         action = d.get("action")
+        if action == "pivot":
+            _do_pivot(conv_id, rec, report, convo, marcus, d,
+                      last_seller_msg=last_seller_msg, deal_prep=deal_prep)
+            return d
         if action == "escalate":
             log_event("escalate", conv_id, d.get("reason"), {"name": (rec or {}).get("name")})
-            if d.get("reason") == "call-ready":
-                call_ready_upsert(rec, report, deal_prep)
+            # Build the call card on ANY escalate reason, not just "call-ready" — the
+            # operator's job is now the call, so every handed-off thread earns a card.
+            # call_ready_upsert dedupes its own Telegram ping via row["pingedAt"].
+            call_ready_upsert(rec, report, deal_prep)
             return d
         if action == "stop":
             if d.get("reason") not in ("ace off", "clocked out"):
@@ -351,7 +404,7 @@ def apply(conv_id, rec, report, convo, marcus, last_seller_msg=None, deal_prep=N
             return d
         # reply → reserve ACE's own daily cap BEFORE drafting (cheap fail-fast, race-safe).
         m = mode()
-        slot = _reserve_send_slot(m)
+        slot = _reserve_send_slot(m, kind="reply")
         if not slot.get("ok"):
             cap = slot.get("cap", cap_for(m))
             log_event("blocked", conv_id, slot.get("error") or f"ace daily cap {cap} reached",
