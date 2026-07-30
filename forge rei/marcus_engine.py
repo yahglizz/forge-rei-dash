@@ -212,12 +212,22 @@ _DENIAL_PHRASES = [
 # Match only explicit identity and ownership denials. A blanket "I'm not <word>"
 # rule also catches ordinary seller context such as "I'm not in a huge rush."
 _IDENTITY_DENIAL_RE = re.compile(
-    r"(?i)\b(?:"
-    r"(?:i\s*am|i'?m)\s+not\s+(?:the\s+)?(?:owner|seller)\b"
-    r"|i\s+(?:do\s+not|don'?t)\s+own\b"
-    r"|never\s+owned\b"
-    r"|(?:this|that)(?:\s+is|'?s)\s+not\s+(?:me|my\s+(?:house|home|property))\b"
-    r")"
+    r"^\s*(?:"
+    r"(?:i\s*am|i'?m)\s+not\s+(?:the\s+)?(?:owner|seller)(?:\s+anymore)?"
+    r"|i\s+(?:do\s+not|don'?t)\s+own\s+"
+    r"(?:it|this|that|the\s+(?:house|home|property))(?:\s+anymore)?"
+    r"|(?:i(?:'ve|\s+have)?\s+)?never\s+owned\s+"
+    r"(?:it|this|that|the\s+(?:house|home|property))"
+    r"|(?:this|that)(?:\s+is\s+not|\s+isn'?t|'?s\s+not)\s+"
+    r"(?:me|my\s+(?:house|home|property))(?:\s+anymore)?"
+    r"|(?:i\s*am|i'?m)\s+not\s+"
+    r"(?!interested|selling|sure|ready|available|looking|able|going|me|my)"
+    r"[a-z][a-z'-]*"
+    r"|(?:this|that)(?:\s+is\s+not|\s+isn'?t|'?s\s+not)\s+"
+    r"(?!interested|selling|sure|ready|available|looking|able|going|me|my)"
+    r"[a-z][a-z'-]*"
+    r")(?=\s*(?:[.!?]+(?:\s|$)|$))",
+    re.IGNORECASE,
 )
 
 # Explicit opt-out / harassment complaints that AREN'T in the DNC phrase list ("stop",
