@@ -505,6 +505,59 @@ class AceDraftAdherenceTest(unittest.TestCase):
                 )
                 self.assertIsNone(reason)
 
+    def test_known_fact_acknowledgments_are_not_treated_as_reasks(self):
+        cases = [
+            (
+                {"occupancy"},
+                "Since it's vacant, how soon are you looking to sell?",
+            ),
+            (
+                {"condition"},
+                "Since the roof is new, do you need this wrapped up this month?",
+            ),
+        ]
+        for known_facts, draft in cases:
+            with self.subTest(draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, "timeline", known_facts=known_facts
+                )
+                self.assertIsNone(reason)
+
+    def test_known_fact_questions_are_rejected(self):
+        cases = [
+            (
+                "timeline",
+                {"condition"},
+                "how soon are you looking to sell and what shape is it in?",
+            ),
+            (
+                "condition",
+                {"timeline"},
+                "what shape is it in and how soon are you looking to sell?",
+            ),
+            (
+                "timeline",
+                {"occupancy"},
+                "how soon are you looking to sell and is it vacant?",
+            ),
+            (
+                "condition",
+                {"motivation"},
+                "what shape is it in and why are you selling?",
+            ),
+            (
+                "timeline",
+                {"price"},
+                "how soon are you looking to sell and what number do you have in mind?",
+            ),
+        ]
+        for fact, known_facts, draft in cases:
+            with self.subTest(fact=fact, known_facts=known_facts):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact, known_facts=known_facts
+                )
+                self.assertIn("already-known", reason or "")
+
 
 class AceHoldAckTest(unittest.TestCase):
     """Stop-button + call-ready ack plumbing."""
