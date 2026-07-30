@@ -52,16 +52,39 @@ _APP_CANDIDATES = [
 _MARKER = "_FORGE_E2E_ISOLATED"
 
 
+# marcus_engine locates the real classifier at `HERE.parent / "marcus-wholesale-agent"`.
+# The scratch tree must reproduce that layout or the harness silently falls back to
+# `_fallback_classify` and stops reflecting production — which is bug B1 itself.
+_TOOLKIT_CANDIDATES = [
+    "/opt/forge/marcus-wholesale-agent",
+    os.path.expanduser("~/Desktop/marcus-wholesale-agent"),
+]
+
+
 def _bootstrap():
     app = next((p for p in _APP_CANDIDATES if os.path.isdir(p)), None)
     if not app:
         sys.exit("could not find the app dir (forge rei / /opt/forge/forge-rei)")
-    run = tempfile.mkdtemp(prefix="forge_e2e_")
+    root = tempfile.mkdtemp(prefix="forge_e2e_")
+    run = os.path.join(root, "forge-rei")          # keep root as the parent dir
+    os.makedirs(os.path.join(run, "marcus_state"), exist_ok=True)
     for name in os.listdir(app):
         if name.endswith(".py"):
             shutil.copy2(os.path.join(app, name), os.path.join(run, name))
-    os.makedirs(os.path.join(run, "marcus_state"), exist_ok=True)
     shutil.copy2(os.path.abspath(__file__), os.path.join(run, "sim.py"))
+
+    toolkit = next((p for p in _TOOLKIT_CANDIDATES if os.path.isdir(p)), None)
+    if toolkit:
+        try:
+            os.symlink(toolkit, os.path.join(root, "marcus-wholesale-agent"))
+            print(f"[e2e] classifier toolkit linked from {toolkit}")
+        except OSError as e:
+            print(f"[e2e] !! could not link the toolkit ({e}) — the run will use the "
+                  "weaker _fallback_classify and will NOT reflect production (bug B1)")
+    else:
+        print("[e2e] !! classifier toolkit not found — this run uses _fallback_classify, "
+              "NOT the classifier production runs (bug B1)")
+
     env = dict(os.environ, **{_MARKER: run})
     print(f"[e2e] isolated run dir: {run}\n")
     raise SystemExit(subprocess.call([sys.executable, os.path.join(run, "sim.py")], env=env))
@@ -248,12 +271,18 @@ def probe_classifiers():
         src = inspect.getsourcefile(marcus_engine.classify) or "?"
     except Exception:
         pass
+    prod = marcus_engine.classify.__module__ == "scan_missed_replies"
     out = {"classifySource": src, "classifyModule": marcus_engine.classify.__module__,
+           "usingProductionClassifier": prod,
            "priceAsks": price, "priceMissed": len(price_missed), "priceTotal": len(price),
            "denialProbe": denial, "denialFalsePositives": len(denial_fp)}
+    if not prod:
+        print("!! WARNING: running _fallback_classify, not the classifier production uses. "
+              "Classification results below are not representative. (bug B1)")
     print("PROBE " + json.dumps(
-        {k: out[k] for k in ("classifySource", "classifyModule", "priceMissed",
-                             "priceTotal", "denialFalsePositives")}, default=str))
+        {k: out[k] for k in ("classifySource", "classifyModule", "usingProductionClassifier",
+                             "priceMissed", "priceTotal", "denialFalsePositives")},
+        default=str))
     for r in price_missed:
         print(f"   PRICE MISS  {r['classify']:9} | {r['text']}")
     for r in denial_fp:
