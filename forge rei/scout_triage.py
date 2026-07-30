@@ -616,7 +616,9 @@ class ScoutEngine:
             price = _extract_price(body)
             staged.append((c, body, needs_reply, base, price, cls))
             # Only live, nuanced leads go to Claude (skip dead/nurture — already filtered).
-            if key and base["bucket"] not in ("dead", "nurture") and len(live_for_claude) < SCORE_BATCH:
+            named_mismatch = marcus_engine._is_named_identity_mismatch(body, expected_name)
+            if (key and not named_mismatch and base["bucket"] not in ("dead", "nurture")
+                    and len(live_for_claude) < SCORE_BATCH):
                 live_for_claude.append((len(staged) - 1, body))
 
         claude_out = self._claude_batch(key, live_for_claude) if live_for_claude else {}
@@ -807,9 +809,12 @@ class ScoutEngine:
             if cls != "DNC" and (cls == "NRN" or marcus_engine._is_soft_no(body)
                                  or marcus_engine._is_hard_no(body)):
                 cls = "NRN"
-            base = self._rule_score(cls, body, True)
+            expected_name = c.get("fullName") or c.get("contactName")
+            base = self._rule_score(cls, body, True, expected_name)
             staged.append((c, body, base, _extract_price(body)))
-            if key and base["bucket"] not in ("dead", "nurture") and len(live_for_claude) < SCORE_BATCH:
+            named_mismatch = marcus_engine._is_named_identity_mismatch(body, expected_name)
+            if (key and not named_mismatch and base["bucket"] not in ("dead", "nurture")
+                    and len(live_for_claude) < SCORE_BATCH):
                 live_for_claude.append((len(staged) - 1, body))
             if len(staged) >= limit:
                 break

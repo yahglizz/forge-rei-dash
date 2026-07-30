@@ -244,6 +244,23 @@ _OPT_OUT_PHRASES = [
 ]
 
 
+def _named_identity_match(body, expected_name=None):
+    """Return True/False for a named identity statement, or None when absent."""
+    named = _NAMED_IDENTITY_DENIAL_RE.search(body or "")
+    if not named:
+        return None
+    expected_tokens = re.findall(r"[a-z][a-z'-]*", (expected_name or "").lower())
+    if not expected_tokens or expected_tokens[0] == "unknown":
+        return False
+    denied_name = " ".join(re.findall(r"[a-z][a-z'-]*", named.group("name").lower()))
+    return denied_name in (expected_tokens[0], " ".join(expected_tokens))
+
+
+def _is_named_identity_mismatch(body, expected_name=None):
+    """True when a named identity statement lacks matching contact context."""
+    return _named_identity_match(body, expected_name) is False
+
+
 def _is_denial(body, expected_name=None):
     """True for wrong-number / mistaken-identity / 'did I call you?' / 'who is this'
     replies — never a real seller conversation. Skip Claude, skip screening, skip Do
@@ -253,12 +270,7 @@ def _is_denial(body, expected_name=None):
         return True
     if _IDENTITY_DENIAL_RE.search(body or ""):
         return True
-    named = _NAMED_IDENTITY_DENIAL_RE.search(body or "")
-    expected_tokens = re.findall(r"[a-z][a-z'-]*", (expected_name or "").lower())
-    if not named or not expected_tokens or expected_tokens[0] == "unknown":
-        return False
-    denied_name = " ".join(re.findall(r"[a-z][a-z'-]*", named.group("name").lower()))
-    return denied_name in (expected_tokens[0], " ".join(expected_tokens))
+    return _named_identity_match(body, expected_name) is True
 
 
 def _is_opt_out(body):
