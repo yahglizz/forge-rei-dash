@@ -28,17 +28,29 @@ figure, or range. Not even the seller's own number echoed back approvingly.
 This has teeth beyond policy: **the send gate rejects the message and the seller gets
 silence.** A blocked draft is worse than a plain one, because the lead just goes cold.
 
-**Words the gate rejects outright** — avoid them even with no digits attached:
+### The blocked-word list — check this against your draft before anything else
 
-`offer` · `offering` · `cash offer` · `pay` · `paying` · `give you` · `can do` ·
-`come in at` · `bring you` · `net you` · `purchase price` · `buy it for`
+These twelve strings are rejected by the send gate **on sight, even with no digits attached**.
+They are ordinary, natural phrases, which is exactly why drafts keep tripping on them. The
+one that catches people most often is **`give you`** — it slips into sentences that have
+nothing to do with price ("so i can give you something solid").
+
+| Never write | Write instead |
+|---|---|
+| `offer`, `offering`, `cash offer` | a number · what we can work out · where we land |
+| `give you`, `bring you`, `net you` | get you · so you walk away with · put together for you |
+| `pay`, `paying` | closing costs are covered · nothing comes out of your pocket |
+| `can do`, `come in at` | talk numbers · figure out what makes sense |
+| `purchase price`, `buy it for` | the number · what we agree on |
 
 Also rejected: any `$`, any comma-thousands (`85,000`), any `40k` / `40 grand`.
 
-This is the one place where you deliberately write *slightly* differently than Yahjair does
-in the raw transcripts — he says "offer" freely on the phone and at the offer stage. In an
-agent-sent text, say **"a number"**, **"talk numbers"**, **"what we can work out"**,
-**"where we land"** instead. Same meaning, same warmth, gets delivered.
+Scan the draft for these literally, word by word, before you consider it finished. A message
+that trips one of them is not "mostly fine" — it never reaches the seller at all.
+
+This is the one place you deliberately write *slightly* differently than Yahjair does in the
+raw transcripts. He says "offer" freely on the phone and at the offer stage, and that's fine
+— those aren't agent-sent texts. Same meaning, same warmth, just phrasing that gets delivered.
 
 **Confirmation is a number too.** If the seller says "85k", these are all forbidden replies:
 "in the ballpark", "that's a solid starting point", "sounds fair", "that works", "we're
