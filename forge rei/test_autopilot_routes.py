@@ -2,6 +2,7 @@ import io
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -51,6 +52,16 @@ class AutopilotRouteTests(unittest.TestCase):
 
         self.assertIs(expected, result)
         status.assert_called_once_with()
+
+    def test_autopilot_state_defaults_off_when_no_state_file_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "autopilot.json"
+            with mock.patch.object(connector.autopilot, "STATE", state):
+                result = connector.autopilot.status()
+
+        self.assertFalse(result["enabled"])
+        self.assertEqual(0, result["sentToday"])
+        self.assertFalse(state.exists())
 
     def test_toggle_handler_delegates_false_to_autopilot(self):
         expected = {"enabled": False, "sentToday": 0, "cap": 10}

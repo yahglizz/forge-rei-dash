@@ -63,15 +63,19 @@ function AcePanel() {
   const st = window.useApi("/api/ace/status", { interval: 15000 });
   const dg = window.useApi("/api/ace/digest", { interval: 30000 });
   const cr = window.useApi("/api/ace/callready", { interval: 30000 });
+  const ap = window.useApi("/api/autopilot/status", { interval: 15000 });
   const [aceBusy, setAceBusy] = useStateAce(false);
+  const [autopilotBusy, setAutopilotBusy] = useStateAce(false);
   const [ackBusy, setAckBusy] = useStateAce(null);
 
   const s = st.data || {};
   const d = dg.data || {};
+  const autopilot = ap.data || {};
   const sum = d.summary || {};
   const rows = (cr.data && cr.data.callReady) || [];
   const mode = s.mode || "off";
   const modeColor = ACE_MODE_COLOR[mode] || ACE_MODE_COLOR.off;
+  const autopilotEnabled = autopilot.enabled === true;
 
   const setMode = async (m) => {
     setAceBusy(true);
@@ -79,6 +83,13 @@ function AcePanel() {
     catch (e) { /* refresh shows truth */ }
     setAceBusy(false);
     st.refresh(); dg.refresh();
+  };
+  const setAutopilotEnabled = async (enabled) => {
+    setAutopilotBusy(true);
+    try { await window.apiPost("/api/autopilot/toggle", { enabled: enabled }); }
+    catch (e) { /* refresh shows truth */ }
+    setAutopilotBusy(false);
+    ap.refresh();
   };
   const ack = async (convId) => {
     setAckBusy(convId);
@@ -117,15 +128,45 @@ function AcePanel() {
             style={{ background: "var(--danger, #e5484d)", color: "#fff", border: "none",
                      borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 800,
                      fontFamily: "inherit", cursor: "pointer", opacity: aceBusy ? 0.6 : 1 }}>
-            🛑 KILL — all autonomy off
+            🛑 KILL ACE
           </button>
         )}
       </div>
       <AceModeControl mode={mode} onSet={setMode} busy={aceBusy} />
       <div className="faint" style={{ fontSize: 10.5 }}>
         Every ACE text runs the FULL gate stack (legit thread check, 9–8 ET, DNC, price-scrub,
-        dedupe, clock-out) — never quotes a price. Clock-out and Off both stop it instantly.
+        dedupe, clock-out) — never quotes a price. Clock-out and ACE Off both stop it instantly.
         {s.testScoped ? " Test Mode is ON: non-whitelisted contacts are blocked server-side." : ""}
+      </div>
+
+      <div style={{ borderTop: "1px solid var(--card-2)", paddingTop: 12,
+                    display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div className="card-title" style={{ fontSize: 13.5 }}>
+            Re-engagement Autopilot
+            <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 800,
+                           color: autopilotEnabled ? "#22C55E" : "#64748B", letterSpacing: 0 }}>
+              {autopilotEnabled ? "ON" : "OFF"}
+            </span>
+          </div>
+          <div className="faint" style={{ fontSize: 11 }}>
+            {autopilotEnabled
+              ? (autopilot.sentToday || 0) + "/" + (autopilot.cap || 0) + " bumps sent today"
+              : "Follow-up bumps require approval"}
+          </div>
+        </div>
+        <button type="button" role="switch" aria-checked={autopilotEnabled}
+          aria-label="Toggle re-engagement autopilot" disabled={autopilotBusy}
+          onClick={() => setAutopilotEnabled(!autopilotEnabled)}
+          style={{ position: "relative", width: 44, height: 24, padding: 0,
+                   border: "1px solid " + (autopilotEnabled ? "#22C55E" : "var(--border)"),
+                   borderRadius: 12, background: autopilotEnabled ? "#22C55E" : "var(--card-2)",
+                   cursor: autopilotBusy ? "wait" : "pointer",
+                   opacity: autopilotBusy ? 0.6 : 1, flexShrink: 0 }}>
+          <span style={{ position: "absolute", top: 3, left: autopilotEnabled ? 23 : 3,
+                         width: 16, height: 16, borderRadius: "50%", background: "#fff",
+                         transition: "left 120ms ease" }} />
+        </button>
       </div>
 
       {rows.length > 0 && (
