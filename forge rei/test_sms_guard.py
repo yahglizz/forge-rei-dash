@@ -140,6 +140,15 @@ class SmsGuardTest(unittest.TestCase):
         self.assertGate("send_ledger", autonomous=True)
         self.assertGate("ok")           # operator may re-text a live thread
 
+    def test_real_send_ledger_blocks_second_autonomous_touch(self):
+        sms_guard.send_ledger.STATE = Path(self._tmp.name) / "send_ledger.json"
+        first = self.gate(autonomous=True, conv_id="v-ledger")
+        self.assertTrue(first.get("ok"), first)
+        sms_guard.send_ledger.record("v-ledger", kind="ace")
+
+        second = self.gate(autonomous=True, conv_id="v-ledger")
+        self.assertEqual("send_ledger", second.get("gate"), second)
+
     def test_our_message_blocks_autonomous_only(self):
         self.assertGate("our_message", autonomous=True,
                         last="we buy houses cash offer close fast")
