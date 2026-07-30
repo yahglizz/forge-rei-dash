@@ -267,10 +267,8 @@ def _is_hard_no(body):
     return bool(_HARD_NO_RE.match(body or ""))
 
 
-# Denial / wrong-number / confused-recipient replies — NOT a seller conversation at all.
-# "Did I call you? No", "I'm not [name]", "who dis", "wrong person" etc. These currently
-# fall through every bucket to CONTINUE ("warm", 45) — burning a Marcus screening call and
-# a Do Today task on someone who isn't a lead. Edit this list as new phrasing shows up.
+# Unmistakable wrong-recipient language may appear inside a longer complaint. Ambiguous
+# confused-recipient phrases are handled separately as complete-message shapes below.
 _DENIAL_PHRASES = [
     "i don't know you", "i dont know you", "i do not know you",
     "wrong number", "wrong person", "not who you think", "not who you're looking for",
