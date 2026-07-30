@@ -564,6 +564,41 @@ class SafetyFilters(E2EBase):
         self.assertFalse(marcus_engine._is_denial("I'm not interested in selling, thanks"))
         self.assertFalse(marcus_engine._is_denial("I am not selling right now"))
 
+    def test_named_identity_denial_backfill_uses_screened_contact_name(self):
+        self.ghl.add_lead("c13", "ct13", "Kristen Moffett", "+15551230013", [
+            ("outbound", "Hi Kristen, reaching out about the property"),
+            ("inbound", "THIS IS NOT KRISTEN."),
+            ("outbound", "Sorry about that."),
+        ])
+        self.screener.screenings["ct13"] = {
+            "convId": "c13",
+            "contactId": "ct13",
+            "name": "Kristen Moffett",
+            "phone": "+15551230013",
+        }
+
+        result = self.scout.backfill(self.screener)
+
+        self.assertEqual(1, result["restored"])
+        self.assertEqual("dead", self.scout.records["c13"]["bucket"])
+        self.assertEqual("rule", self.scout.records["c13"]["scoreSource"])
+
+    def test_named_identity_mismatch_cannot_be_overwritten_dead_by_claude(self):
+        self.ghl.add_lead("c14", "ct14", "Jordan Reed", "+15551230014", [
+            ("outbound", "hi, reaching out about the property"),
+            ("inbound", "I am not geraldine"),
+        ])
+        self.claude["scout"] = json.dumps([
+            {"i": 0, "intent": "dead", "motivation": 0,
+             "askingPrice": None, "reason": "not the named contact"},
+        ])
+
+        self.scout.poll_once()
+
+        rec = self.scout.records["c14"]
+        self.assertNotEqual("dead", rec["bucket"])
+        self.assertEqual("rule", rec["scoreSource"])
+
     def test_explicit_optout_is_dead_grade_even_without_stop_keyword(self):
         # Live example: Kristen Moffett's actual full reply — an explicit removal demand
         # that never says "stop" or "unsubscribe" (the only DNC_PHRASES matches), so it
