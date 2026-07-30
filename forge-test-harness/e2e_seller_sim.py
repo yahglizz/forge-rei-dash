@@ -52,6 +52,7 @@ _APP_CANDIDATES = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "forge rei"),
 ]
 _MARKER = "_FORGE_E2E_ISOLATED"
+_CONFIG_ONLY = "FORGE_E2E_CONFIG_ONLY"
 _MARCUS_SKILL_SEEDS = (
     "seller-reply-playbook.md",
     "marcus-playbook.md",
@@ -132,9 +133,54 @@ HERE = os.environ[_MARKER]
 sys.path.insert(0, HERE)
 os.chdir(HERE)
 
+import marcus_engine           # noqa: E402
+
+
+def _prompt_skill_config():
+    """Return CONFIG-safe prompt metadata without exposing skill contents."""
+    sources = marcus_engine.skill_sources()
+    rubric = sources.get("replyRubric") or {}
+    playbook = sources.get("playbook") or {}
+    entries = [rubric] + list(playbook.values())
+    degraded = (
+        len(entries) != len(_MARCUS_SKILL_SEEDS)
+        or any(int(entry.get("bytes") or 0) <= 0 for entry in entries)
+    )
+    return {
+        "skillSources": sources,
+        "replyRubricBytes": int(rubric.get("bytes") or 0),
+        "playbookBytes": sum(
+            int(entry.get("bytes") or 0) for entry in playbook.values()
+        ),
+        "degradedPrompt": degraded,
+    }
+
+
+def _build_config(include_runtime=False):
+    cfg = {
+        "runDir": HERE,
+        "vault": os.environ.get("FORGE_VAULT"),
+    }
+    if include_runtime:
+        cfg.update({
+            "aceMode": ace.mode(), "cap": ace.cap_for(),
+            "questionCap": ace.reply_cap_for(), "pivotReserve": ace.PIVOT_RESERVE,
+            "maxReplies": ace.MAX_REPLIES,
+            "smsDedupeMinutes": sms_guard.DEDUP_MINUTES,
+            "sendWindowET": [sms_guard.SEND_START, sms_guard.SEND_END],
+            "hourET": sms_guard._hour_et(), "withinHours": sms_guard._within_hours(),
+        })
+    cfg.update(_prompt_skill_config())
+    return cfg
+
+
+if os.environ.get(_CONFIG_ONLY):
+    print("CONFIG " + json.dumps(_build_config(), default=str))
+    raise SystemExit(0)
+
+
 import ace                     # noqa: E402
 import conversation_engine     # noqa: E402
-import marcus_engine           # noqa: E402
 import marcus_screening        # noqa: E402
 import scout_triage            # noqa: E402
 import sms_guard               # noqa: E402
@@ -218,26 +264,6 @@ for _eng in (MARCUS, SCREENER):
     _eng.safety_check = _check
     _eng.safety_record = lambda **kw: sms_guard.record_success(**kw)
     _eng.safety_release = sms_guard.release
-
-
-def _prompt_skill_config():
-    """Return CONFIG-safe prompt metadata without exposing skill contents."""
-    sources = marcus_engine.skill_sources()
-    rubric = sources.get("replyRubric") or {}
-    playbook = sources.get("playbook") or {}
-    entries = [rubric] + list(playbook.values())
-    degraded = (
-        len(entries) != len(_MARCUS_SKILL_SEEDS)
-        or any(int(entry.get("bytes") or 0) <= 0 for entry in entries)
-    )
-    return {
-        "skillSources": sources,
-        "replyRubricBytes": int(rubric.get("bytes") or 0),
-        "playbookBytes": sum(
-            int(entry.get("bytes") or 0) for entry in playbook.values()
-        ),
-        "degradedPrompt": degraded,
-    }
 
 
 def bridge(report):
@@ -389,16 +415,7 @@ def run_scenario(sc):
 
 def main():
     ace.set_mode("full")
-    cfg = {
-        "runDir": HERE, "aceMode": ace.mode(), "cap": ace.cap_for(),
-        "questionCap": ace.reply_cap_for(), "pivotReserve": ace.PIVOT_RESERVE,
-        "maxReplies": ace.MAX_REPLIES,
-        "smsDedupeMinutes": sms_guard.DEDUP_MINUTES,
-        "sendWindowET": [sms_guard.SEND_START, sms_guard.SEND_END],
-        "hourET": sms_guard._hour_et(), "withinHours": sms_guard._within_hours(),
-        "vault": os.environ.get("FORGE_VAULT"),
-    }
-    cfg.update(_prompt_skill_config())
+    cfg = _build_config(include_runtime=True)
     print("CONFIG " + json.dumps(cfg, default=str))
     if cfg["degradedPrompt"]:
         print("!! WARNING: at least one required drafter skill resolved to 0 bytes. "
