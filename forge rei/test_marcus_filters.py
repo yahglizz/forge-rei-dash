@@ -1,5 +1,6 @@
 """Regression tests for Marcus's tracked seller-message classifier."""
 
+import ast
 import importlib
 import importlib.util
 import inspect
@@ -159,6 +160,24 @@ class SellerClassifierTests(unittest.TestCase):
 
         engine = MarcusEngineStatusStub()
         self.assertEqual(metadata, marcus_engine.MarcusEngine.status(engine)["classifierSource"])
+
+    def test_e2e_harness_recognizes_tracked_classifier_source(self):
+        harness = Path(__file__).resolve().parent.parent / "forge-test-harness" / "e2e_seller_sim.py"
+        tree = ast.parse(harness.read_text(encoding="utf-8"), filename=str(harness))
+        probe = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "probe_classifiers"
+        )
+        production_assignment = next(
+            node for node in probe.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "prod"
+                    for target in node.targets)
+        )
+        expression = ast.unparse(production_assignment.value)
+        self.assertIn("seller_classify.py", expression)
+        self.assertIn("HERE", expression)
+        self.assertNotIn("scan_missed_replies", expression)
 
     def test_prompt_skills_fall_back_to_repo_when_vault_is_missing(self):
         with tempfile.TemporaryDirectory() as td:

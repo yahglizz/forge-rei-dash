@@ -52,9 +52,8 @@ _APP_CANDIDATES = [
 _MARKER = "_FORGE_E2E_ISOLATED"
 
 
-# marcus_engine locates the real classifier at `HERE.parent / "marcus-wholesale-agent"`.
-# The scratch tree must reproduce that layout or the harness silently falls back to
-# `_fallback_classify` and stops reflecting production — which is bug B1 itself.
+# Marcus can still load the legacy toolkit's draft_reply override. The classifier itself
+# must always resolve to the tracked seller_classify.py copied into the scratch app tree.
 _TOOLKIT_CANDIDATES = [
     "/opt/forge/marcus-wholesale-agent",
     os.path.expanduser("~/Desktop/marcus-wholesale-agent"),
@@ -77,13 +76,13 @@ def _bootstrap():
     if toolkit:
         try:
             os.symlink(toolkit, os.path.join(root, "marcus-wholesale-agent"))
-            print(f"[e2e] classifier toolkit linked from {toolkit}")
+            print(f"[e2e] optional legacy draft toolkit linked from {toolkit}")
         except OSError as e:
-            print(f"[e2e] !! could not link the toolkit ({e}) — the run will use the "
-                  "weaker _fallback_classify and will NOT reflect production (bug B1)")
+            print(f"[e2e] could not link the optional legacy draft toolkit ({e}); "
+                  "the tracked repo drafter fallback will be used")
     else:
-        print("[e2e] !! classifier toolkit not found — this run uses _fallback_classify, "
-              "NOT the classifier production runs (bug B1)")
+        print("[e2e] optional legacy draft toolkit not found; "
+              "the tracked repo drafter fallback will be used")
 
     env = dict(os.environ, **{_MARKER: run})
     print(f"[e2e] isolated run dir: {run}\n")
@@ -271,17 +270,21 @@ def probe_classifiers():
         src = inspect.getsourcefile(marcus_engine.classify) or "?"
     except Exception:
         pass
-    prod = marcus_engine.classify.__module__ == "scan_missed_replies"
+    prod = os.path.realpath(src) == os.path.realpath(os.path.join(HERE, "seller_classify.py"))
+    source_meta = marcus_engine.classifier_source()
     out = {"classifySource": src, "classifyModule": marcus_engine.classify.__module__,
            "usingProductionClassifier": prod,
+           "legacyDraftOverride": bool(source_meta.get("externalDraftOverride")),
+           "draftSource": source_meta.get("draftSource"),
            "priceAsks": price, "priceMissed": len(price_missed), "priceTotal": len(price),
            "denialProbe": denial, "denialFalsePositives": len(denial_fp)}
     if not prod:
-        print("!! WARNING: running _fallback_classify, not the classifier production uses. "
-              "Classification results below are not representative. (bug B1)")
+        print("!! WARNING: classifier is not the tracked seller_classify.py copied into "
+              "the isolated app tree. Classification results are not representative. (bug B1)")
     print("PROBE " + json.dumps(
         {k: out[k] for k in ("classifySource", "classifyModule", "usingProductionClassifier",
-                             "priceMissed", "priceTotal", "denialFalsePositives")},
+                             "legacyDraftOverride", "draftSource", "priceMissed",
+                             "priceTotal", "denialFalsePositives")},
         default=str))
     for r in price_missed:
         print(f"   PRICE MISS  {r['classify']:9} | {r['text']}")
