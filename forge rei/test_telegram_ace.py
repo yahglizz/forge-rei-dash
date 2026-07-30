@@ -72,14 +72,7 @@ class TelegramAceCallbackTest(unittest.TestCase):
         telegram_io._api = self._capture_api
         telegram_io.send = self._capture_send
         self.convo = conversation_engine.ConversationEngine()
-        telegram_io.set_actions({
-            "acestop": lambda conv_id: ace.hold(
-                conv_id, self.convo, reason="operator stop tap"
-            ),
-            "aceundo": lambda conv_id: ace.hold(
-                conv_id, self.convo, reason="operator undo tap"
-            ),
-        })
+        telegram_io.set_actions(ace.telegram_action_handlers(self.convo))
 
     def tearDown(self):
         ace.STATE = self._orig["ace_state"]
@@ -165,12 +158,6 @@ class TelegramAceCallbackTest(unittest.TestCase):
         )
 
         self.assertTrue(result.get("pivoted"), result)
-        production_actions = getattr(ace, "telegram_action_handlers", None)
-        self.assertTrue(
-            callable(production_actions),
-            "ACE must expose the production action mapping used by connector",
-        )
-        telegram_io.set_actions(production_actions(self.convo))
         pivot_receipts = [
             receipt for receipt in self.receipts
             if receipt["dedupe_key"] == f"acepivot:{conv_id}"
