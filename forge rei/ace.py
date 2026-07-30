@@ -35,6 +35,25 @@ _MAX_LOG = 50
 CAP_SUPERVISED = int(os.environ.get("FORGE_ACE_CAP_SUPERVISED", "3"))
 CAP_FULL = int(os.environ.get("FORGE_ACE_CAP_FULL", "10"))
 
+# Phase 6 — the CALL PIVOT.
+#
+# Before this, every `escalate` was SILENT: a seller who wrote "how much will you give me?"
+# or "yes i want to sell" got no text at all, because decide() escalated and apply() only
+# built the operator's call card. Those are the two highest-intent messages a seller ever
+# sends, so silence there is the most expensive bug in the funnel. Now the first escalate on
+# a thread sends ONE call-pivot text (no number, asks for the call) and then escalates
+# exactly as before.
+#
+# PIVOT_RESERVE keeps slots that ordinary qualifying questions cannot touch. Without it, on
+# supervised (cap 3) three questions can burn the whole budget by noon and the 2pm price ask
+# gets silence anyway — reintroducing the very bug this feature exists to fix. The operator's
+# total daily autonomy budget is unchanged; only the mix is protected.
+PIVOT_RESERVE = int(os.environ.get("FORGE_ACE_PIVOT_RESERVE", "1"))
+
+# Reasons that earn a pivot text. Everything else (terminal state, operator-held, DNC,
+# clocked out, test-mode scoped out) escalates silently exactly as it always did.
+PIVOT_REASONS = ("call-ready", "max replies reached", "all facts gathered")
+
 # Phase 4 — call-ready queue store.
 CALL_READY = Path(__file__).resolve().parent / "marcus_state" / "call_ready.json"
 _CR_LOCK = threading.Lock()
@@ -43,6 +62,25 @@ _CR_LOCK = threading.Lock()
 def cap_for(m=None):
     m = m or mode()
     return CAP_SUPERVISED if m == "supervised" else CAP_FULL if m == "full" else 0
+
+
+def reply_cap_for(m=None):
+    """Cap for ordinary qualifying questions — the full cap minus the pivot reserve.
+
+    Questions gather facts; the pivot earns the call. When the day's budget is tight the
+    pivot is worth more, so it gets the last slot(s). Never drops below 1, so a reserve
+    larger than the cap can't silence the question lane entirely."""
+    return max(1, cap_for(m) - PIVOT_RESERVE)
+
+
+def _pivoted(rec):
+    """Has this thread already had its one call-pivot? Reads the durable ledger written by
+    ConversationEngine.note_call_pivot. Never raises — on doubt, report not-pivoted so the
+    seller gets a reply rather than silence."""
+    try:
+        return bool((rec or {}).get("callPivotAt"))
+    except Exception:
+        return False
 
 
 def _today_key():

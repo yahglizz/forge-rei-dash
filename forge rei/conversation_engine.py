@@ -195,6 +195,34 @@ class ConversationEngine:
         except Exception:
             return 0
 
+    def note_call_pivot(self, conv_id, reason=""):
+        """Record that the ONE call-pivot text went out on this thread.
+
+        This is the durable dedupe for the pivot: `ace.decide()` reads `callPivotAt` off the
+        record and, once it's set, never texts the thread again — not another pivot, not a
+        qualifying question. It lives here rather than in ace.json because ace.json's log is
+        capped at 50 entries, and because `update()` mutates the existing record instead of
+        rebuilding it, so this key survives every screening refresh.
+
+        The state alone can't carry this: `_next_state` recomputes from facts each time and
+        can regress a thread out of CALL_READY. Returns the timestamp, or 0. Never raises."""
+        if not conv_id:
+            return 0
+        try:
+            now = int(time.time() * 1000)
+            with self.lock:
+                d = self._load()
+                rec = d.get(str(conv_id)) or {"convId": str(conv_id), "history": []}
+                rec["callPivotAt"] = now
+                if reason:
+                    rec["callPivotReason"] = str(reason)[:120]
+                rec["updatedAt"] = now
+                d[str(conv_id)] = rec
+                self._save(d)
+                return now
+        except Exception:
+            return 0
+
     def set_state(self, conv_id, state):
         """Force a state (operator ack -> HANDED_OFF, reopen, etc.). Never raises."""
         if not conv_id or not state:

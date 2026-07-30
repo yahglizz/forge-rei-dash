@@ -720,6 +720,23 @@ class MarcusEngine:
                            "Scout's recommended angle: " + str(hint)[:300]
                            + "\nReopen the conversation naturally on that angle — like you're "
                            "picking back up with someone you already talked to, not a cold blast.")
+        # The pivot block goes LAST so it's the freshest instruction in the system prompt,
+        # and uncapped — the blocked-word list is the whole point and must not be truncated.
+        if pivot:
+            sys_prompt += (
+                "\n\n=== THIS TEXT IS THE CALL PIVOT — the most important text you write ===\n"
+                "The seller just asked for a number, or told you they're ready. This ONE "
+                "message has to earn the phone call. Do not state, hint at, confirm, or "
+                "invent any figure — not even theirs echoed back approvingly.\n"
+                "The send gate REJECTS these strings on sight, even with no digits attached, "
+                "and a rejected message means the seller gets total silence: "
+                "offer, offering, cash offer, pay, paying, give you, can do, come in at, "
+                "bring you, net you, purchase price, buy it for. Say 'a number', 'talk "
+                "numbers', 'what we can work out', 'where we land', 'get you' instead.\n"
+                "Shape: acknowledge what they ACTUALLY said in their words, say plainly you "
+                "don't want to throw out a random number and waste their time, ask for a "
+                "quick call today, leave the text option open. One or two lines, his voice. "
+                "Write it fresh for this person — do not reuse a stock sentence.")
         convo = "\n".join(history[-6:]) if history else f"Seller: {body}"
         try:
             # sys_prompt (north star + creed + rubric + playbooks + brain notes) is
@@ -760,7 +777,9 @@ class MarcusEngine:
             text = "".join(b.get("text", "") for b in data.get("content", [])).strip()
             text = self._scrub_voice(text, seller_said=body or "")
             # Hard boundary in code: if the model leaked a number, swap for the call-pivot.
-            text, leaked = self._no_price_over_text(text, cls, safety_context)
+            # On the ACE pivot path the swap target must be the gate-safe twin, or the
+            # "safe" replacement gets rejected by sms_guard and the seller hears nothing.
+            text, leaked = self._no_price_over_text(text, cls, safety_context, autonomous=pivot)
             unsafe = _draft_safety_reason(text, safety_context)
             if unsafe:
                 self.last_error = f"AI draft blocked: {unsafe}"
@@ -812,7 +831,8 @@ class MarcusEngine:
         except Exception as e:  # noqa: BLE001
             self.last_error = str(e)
 
-    def _make_proposal(self, c, key, hint=None, body_override=None, allow_auto=True):
+    def _make_proposal(self, c, key, hint=None, body_override=None, allow_auto=True,
+                       pivot=False):
         # allow_auto=False: the CALLER owns the send decision (Scout handoff wants a gated
         # proposal; ACE approves it itself). Without this, TEST MODE's auto-send below fires
         # inside the draft call, sends immediately and pops the proposal — so the caller's
@@ -859,12 +879,15 @@ class MarcusEngine:
             seller_context = body
             if cls == "WRONG_NUMBER":
                 reply, source = CANNED_WRONG_NUMBER_REPLY, "canned_wrong_number"
-            elif cls == "NRN" and not hint:
+            # `pivot` counts alongside `hint` here: a seller who writes "not ready right now,
+            # but how much would you give me?" trips _is_soft_no and gets forced to NRN above,
+            # and the canned referral line is the wrong answer to a price ask.
+            elif cls == "NRN" and not (hint or pivot):
                 reply, source = CANNED_NRN_REPLY, "canned"
             else:
                 seller_context, recent_history = self._recent_thread(c.get("id"), body)
                 reply, source = self._ai_draft(first, cls, body, recent_history, hint=hint,
-                                               seller_context=seller_context)
+                                               seller_context=seller_context, pivot=pivot)
             unsafe = _draft_safety_reason(reply, seller_context)
             if unsafe:
                 self.last_error = f"Draft blocked before queue: {unsafe}"
@@ -893,6 +916,9 @@ class MarcusEngine:
                 "unread": c.get("unreadCount") or 0,
                 "reengage": bool(hint),
                 "newLead": bool(is_new),
+                # Never set reengage for a pivot — autopilot.maybe_send only fires on
+                # re-engage bumps, and an ACE pivot must not be mistaken for one.
+                "pivot": bool(pivot),
             }
             self.proposals[pid] = proposal
             self._persist_proposal(proposal)
@@ -922,7 +948,8 @@ class MarcusEngine:
                     self._log("autosend", f"TEST MODE — auto-replied to {full or 'contact'}", {"id": pid})
             return {"ok": True, "proposalId": pid}
 
-    def make_proposal_for(self, conversation_id, contact_id=None, hint=None, seller_said=None):
+    def make_proposal_for(self, conversation_id, contact_id=None, hint=None, seller_said=None,
+                          pivot=False):
         """Force a reply proposal for one conversation — used by Scout's handoff so a
         hot/missed lead lands in Marcus's approval inbox with a drafted reply (still gated).
 
@@ -952,7 +979,7 @@ class MarcusEngine:
             # Block drafting a reply TO our own outreach — UNLESS this is a deliberate
             # re-engage (hint present). A missed lead's last message is often our own
             # unanswered follow-up; re-engaging it is exactly the point.
-            if not _is_seller_message(c.get("lastMessageBody")) and not hint:
+            if not _is_seller_message(c.get("lastMessageBody")) and not (hint or pivot):
                 return {"error": "last message is our own outreach, not a seller message"}
             key = f"{c.get('id')}:{c.get('lastMessageDate')}"
             with self.lock:
@@ -963,7 +990,7 @@ class MarcusEngine:
             # → full sms_guard stack). Letting _make_proposal auto-send here would both
             # bypass the gate and pop the proposal before the caller can find it.
             made = self._make_proposal(c, key, hint=hint, body_override=seller_said,
-                                       allow_auto=False)
+                                       allow_auto=False, pivot=pivot)
             if not (made or {}).get("ok"):
                 return made or {"error": "draft was not queued", "gate": "draft_safety"}
             return {"ok": True, "conversationId": conversation_id,
