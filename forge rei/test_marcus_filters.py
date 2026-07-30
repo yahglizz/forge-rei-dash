@@ -26,6 +26,27 @@ PRICE_ASKS = (
     "what would you pay",
 )
 
+NOT_DENIALS = (
+    "im not in a huge rush",
+    "im not in a position to sell yet",
+    "im not the only owner",
+    "im not at the house right now",
+    "im not really sure what its worth",
+    "im not against selling",
+    "im not in town till friday",
+    "im not a cash buyer im the owner",
+)
+
+TRUE_DENIALS = (
+    "wrong number",
+    "im not the owner",
+    "im not the seller",
+    "i dont own it",
+    "never owned it",
+    "thats not me",
+    "thats not my house anymore",
+)
+
 
 class SellerClassifierTests(unittest.TestCase):
     def test_all_real_price_asks_are_price(self):
@@ -65,6 +86,16 @@ class SellerClassifierTests(unittest.TestCase):
         for body, expected in cases:
             with self.subTest(body=body):
                 self.assertEqual(expected, marcus_engine.classify(body))
+
+    def test_ordinary_seller_replies_are_not_identity_denials(self):
+        for body in NOT_DENIALS:
+            with self.subTest(body=body):
+                self.assertFalse(marcus_engine._is_denial(body))
+
+    def test_explicit_identity_and_ownership_denials_are_denials(self):
+        for body in TRUE_DENIALS:
+            with self.subTest(body=body):
+                self.assertTrue(marcus_engine._is_denial(body))
 
     def test_tracked_module_exposes_classifier_and_price_safe_drafter(self):
         spec = importlib.util.find_spec("seller_classify")
