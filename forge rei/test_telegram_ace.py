@@ -1,3 +1,4 @@
+import ast
 import tempfile
 import unittest
 from pathlib import Path
@@ -102,6 +103,53 @@ class TelegramAceCallbackTest(unittest.TestCase):
 
     def test_aceundo_callback_holds_thread_and_decide_stops(self):
         self._assert_callback_holds_and_stops("aceundo")
+
+    def test_production_connector_registers_ace_hold_handlers(self):
+        source = Path(__file__).with_name("connector.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        registries = [
+            node.args[0]
+            for node in ast.walk(tree)
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "telegram_io"
+                and node.func.attr == "set_actions"
+                and node.args
+                and isinstance(node.args[0], ast.Dict)
+            )
+        ]
+        self.assertEqual(1, len(registries), "expected one production action registry")
+        actions = {
+            key.value: value
+            for key, value in zip(registries[0].keys, registries[0].values)
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        }
+
+        for action, reason in (
+            ("acestop", "operator stop tap"),
+            ("aceundo", "operator undo tap"),
+        ):
+            with self.subTest(action=action):
+                handler = actions.get(action)
+                self.assertIsInstance(handler, ast.Lambda, f"{action} must be a lambda")
+                self.assertEqual(1, len(handler.args.args), f"{action} must accept conv_id")
+                callback_arg = handler.args.args[0].arg
+                call = handler.body
+                self.assertIsInstance(call, ast.Call, f"{action} must call ace.hold")
+                self.assertIsInstance(call.func, ast.Attribute)
+                self.assertIsInstance(call.func.value, ast.Name)
+                self.assertEqual(("ace", "hold"), (call.func.value.id, call.func.attr))
+                self.assertGreaterEqual(len(call.args), 2)
+                self.assertIsInstance(call.args[0], ast.Name)
+                self.assertEqual(callback_arg, call.args[0].id)
+                self.assertIsInstance(call.args[1], ast.Name)
+                self.assertEqual("CONVO", call.args[1].id)
+                keywords = {keyword.arg: keyword.value for keyword in call.keywords}
+                reason_node = keywords.get("reason")
+                self.assertIsInstance(reason_node, ast.Constant)
+                self.assertEqual(reason, reason_node.value)
 
 
 if __name__ == "__main__":
