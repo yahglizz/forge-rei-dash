@@ -4,6 +4,7 @@ import ast
 import importlib
 import importlib.util
 import inspect
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -175,9 +176,35 @@ class SellerClassifierTests(unittest.TestCase):
                     for target in node.targets)
         )
         expression = ast.unparse(production_assignment.value)
-        self.assertIn("seller_classify.py", expression)
+        self.assertIn("_is_tracked_classifier_source", expression)
+        self.assertIn("src", expression)
         self.assertIn("HERE", expression)
         self.assertNotIn("scan_missed_replies", expression)
+
+    def test_e2e_harness_classifier_source_check_uses_resolved_path_equality(self):
+        harness = Path(__file__).resolve().parent.parent / "forge-test-harness" / "e2e_seller_sim.py"
+        tree = ast.parse(harness.read_text(encoding="utf-8"), filename=str(harness))
+        helper = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_is_tracked_classifier_source"
+        )
+        module = ast.fix_missing_locations(ast.Module(body=[helper], type_ignores=[]))
+        namespace = {"os": os}
+        exec(compile(module, str(harness), "exec"), namespace)
+        is_tracked = namespace["_is_tracked_classifier_source"]
+
+        with tempfile.TemporaryDirectory() as td:
+            repo_dir = Path(td) / "forge-rei"
+            tracked = repo_dir / "seller_classify.py"
+            normalized_tracked = repo_dir / "nested" / ".." / "seller_classify.py"
+            external_scan = Path(td) / "marcus-wholesale-agent" / "scan_missed_replies.py"
+            outside_same_name = Path(td) / "other-app" / "seller_classify.py"
+
+            self.assertTrue(is_tracked(str(tracked), str(repo_dir)))
+            self.assertTrue(is_tracked(str(normalized_tracked), str(repo_dir)))
+            self.assertFalse(is_tracked(str(external_scan), str(repo_dir)))
+            self.assertFalse(is_tracked(str(outside_same_name), str(repo_dir)))
+            self.assertFalse(is_tracked(None, str(repo_dir)))
 
     def test_prompt_skills_fall_back_to_repo_when_vault_is_missing(self):
         with tempfile.TemporaryDirectory() as td:

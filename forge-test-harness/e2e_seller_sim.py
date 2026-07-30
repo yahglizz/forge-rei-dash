@@ -60,6 +60,15 @@ _TOOLKIT_CANDIDATES = [
 ]
 
 
+def _is_tracked_classifier_source(source, repo_dir):
+    """Return true only for the tracked classifier copied into this isolated app."""
+    if not source or not repo_dir:
+        return False
+    actual = os.path.realpath(os.fspath(source))
+    expected = os.path.realpath(os.path.join(os.fspath(repo_dir), "seller_classify.py"))
+    return actual == expected
+
+
 def _bootstrap():
     app = next((p for p in _APP_CANDIDATES if os.path.isdir(p)), None)
     if not app:
@@ -270,7 +279,7 @@ def probe_classifiers():
         src = inspect.getsourcefile(marcus_engine.classify) or "?"
     except Exception:
         pass
-    prod = os.path.realpath(src) == os.path.realpath(os.path.join(HERE, "seller_classify.py"))
+    prod = _is_tracked_classifier_source(src, HERE)
     source_meta = marcus_engine.classifier_source()
     out = {"classifySource": src, "classifyModule": marcus_engine.classify.__module__,
            "usingProductionClassifier": prod,
