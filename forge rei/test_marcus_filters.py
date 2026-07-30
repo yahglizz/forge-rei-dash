@@ -70,6 +70,20 @@ COMPLETE_SELLER_CONTEXT = (
     "I'm not there.",
 )
 
+AMBIGUOUS_PHRASE_SELLER_CONTEXT = (
+    "you called me about my house, yes I'm open to selling",
+    "who is this about my property? yes, I would consider selling",
+    "what is this regarding the house? I may be open to selling",
+)
+
+STANDALONE_DENIALS = (
+    "did I call you? No",
+    "you called me",
+    "who is this?",
+    "who are you?",
+    "what is this?",
+)
+
 
 class SellerClassifierTests(unittest.TestCase):
     def test_all_real_price_asks_are_price(self):
@@ -90,6 +104,17 @@ class SellerClassifierTests(unittest.TestCase):
         for body, expected in cases:
             with self.subTest(body=body):
                 self.assertEqual(expected, marcus_engine.classify(body))
+
+    def test_factual_price_vocabulary_is_not_a_price_ask(self):
+        cases = (
+            "the kitchen range is new",
+            "the house numbers are hard to see",
+            "we received an offer last week",
+            "the previous offer fell through",
+        )
+        for body in cases:
+            with self.subTest(body=body):
+                self.assertEqual("CONTINUE", marcus_engine.classify(body))
 
     def test_core_intents(self):
         cases = (
@@ -133,9 +158,19 @@ class SellerClassifierTests(unittest.TestCase):
                 self.assertFalse(marcus_engine._is_denial(body, "Jordan Reed"))
 
     def test_denial_phrases_inside_seller_context_are_not_denials(self):
-        for body in DENIAL_PHRASE_CONTINUATIONS + COMPLETE_SELLER_CONTEXT:
+        cases = (
+            DENIAL_PHRASE_CONTINUATIONS
+            + COMPLETE_SELLER_CONTEXT
+            + AMBIGUOUS_PHRASE_SELLER_CONTEXT
+        )
+        for body in cases:
             with self.subTest(body=body):
                 self.assertFalse(marcus_engine._is_denial(body))
+
+    def test_standalone_confused_recipient_phrases_remain_denials(self):
+        for body in STANDALONE_DENIALS:
+            with self.subTest(body=body):
+                self.assertTrue(marcus_engine._is_denial(body))
 
     def test_tracked_module_exposes_classifier_and_price_safe_drafter(self):
         spec = importlib.util.find_spec("seller_classify")

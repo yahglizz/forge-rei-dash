@@ -547,6 +547,29 @@ class SafetyFilters(E2EBase):
         self.assertEqual("rule", rec["scoreSource"])
         self.assertIsNone(self.screener.screenings.get("ct8"))
 
+    def test_ambiguous_identity_phrase_with_seller_context_stays_active(self):
+        cases = (
+            ("c16", "ct16", "you called me about my house, yes I'm open to selling"),
+            ("c17", "ct17", "who is this about my property? yes, I would consider selling"),
+            ("c18", "ct18", "what is this regarding the house? I may be open to selling"),
+        )
+        for conv_id, contact_id, body in cases:
+            self.ghl.add_lead(conv_id, contact_id, "Open Seller", "+15551230016", [
+                ("outbound", "hi, reaching out about the property"),
+                ("inbound", body),
+            ])
+
+        self.scout.poll_once()
+
+        for conv_id, contact_id, _body in cases:
+            with self.subTest(conv_id=conv_id):
+                self.assertNotEqual("dead", self.scout.records[conv_id]["bucket"])
+                self.assertNotIn(
+                    "wrong number",
+                    self.scout.records[conv_id].get("reason", "").lower(),
+                )
+                self.assertIsNotNone(self.screener.screenings.get(contact_id))
+
     def test_identity_denial_regex_catches_named_variants(self):
         # Live examples route dead only when the denied name matches the contact.
         self.ghl.add_lead("c9", "ct9", "Kristen Moffett", "+15551230009", [

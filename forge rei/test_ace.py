@@ -480,6 +480,36 @@ class AceApplyTest(unittest.TestCase):
 
 
 class AceDraftAdherenceTest(unittest.TestCase):
+    def test_fact_statements_do_not_satisfy_assigned_fact(self):
+        cases = [
+            ("condition", "The condition of the property matters."),
+            ("timeline", "Your timeline matters."),
+            ("price", "I noted the asking price."),
+            ("motivation", "Your motivation for selling matters."),
+            ("occupancy", "I understand the property is vacant."),
+        ]
+        for fact, draft in cases:
+            with self.subTest(fact=fact, draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact
+                )
+                self.assertIsNotNone(reason)
+
+    def test_fact_vocabulary_with_call_question_does_not_satisfy_assigned_fact(self):
+        cases = [
+            ("condition", "the condition matters, are you free for a quick call today?"),
+            ("timeline", "your timeline matters, are you free for a quick call today?"),
+            ("price", "your asking price matters, are you free for a quick call today?"),
+            ("motivation", "your motivation for selling matters, are you free for a quick call today?"),
+            ("occupancy", "occupancy matters, are you free for a quick call today?"),
+        ]
+        for fact, draft in cases:
+            with self.subTest(fact=fact, draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact
+                )
+                self.assertIsNotNone(reason)
+
     def test_generic_substring_collisions_do_not_satisfy_assigned_fact(self):
         cases = [
             ("condition", "would next month work for you?"),
@@ -493,8 +523,11 @@ class AceDraftAdherenceTest(unittest.TestCase):
                 )
                 self.assertIsNotNone(reason)
 
-    def test_valid_occupancy_and_timeline_paraphrases_are_admitted(self):
+    def test_valid_question_paraphrases_are_admitted_for_every_fact(self):
         cases = [
+            ("condition", "what kind of work does the house need?"),
+            ("price", "what number did you have in mind?"),
+            ("motivation", "why are you considering selling?"),
             ("occupancy", "who currently calls the property home?"),
             ("timeline", "do you need this wrapped up this month?"),
         ]
