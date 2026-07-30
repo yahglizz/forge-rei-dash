@@ -207,7 +207,7 @@ class TelegramAceCallbackTest(unittest.TestCase):
         self.assertEqual("stop", decision.get("action"), decision)
         self.assertEqual("operator-held", decision.get("reason"), decision)
 
-    def test_production_connector_registers_ace_hold_handlers(self):
+    def test_production_connector_registers_shared_ace_action_handlers(self):
         source = Path(__file__).with_name("connector.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         registries = [
@@ -224,36 +224,30 @@ class TelegramAceCallbackTest(unittest.TestCase):
             )
         ]
         self.assertEqual(1, len(registries), "expected one production action registry")
-        actions = {
-            key.value: value
+        shared_factories = [
+            value
             for key, value in zip(registries[0].keys, registries[0].values)
-            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+            if key is None
         }
-
-        for action, reason in (
-            ("acestop", "operator stop tap"),
-            ("aceundo", "operator undo tap"),
-        ):
-            with self.subTest(action=action):
-                handler = actions.get(action)
-                self.assertIsInstance(handler, ast.Lambda, f"{action} must be a lambda")
-                self.assertEqual(1, len(handler.args.args), f"{action} must accept conv_id")
-                callback_arg = handler.args.args[0].arg
-                call = handler.body
-                self.assertIsInstance(call, ast.Call, f"{action} must call ace.hold")
-                self.assertIsInstance(call.func, ast.Attribute)
-                self.assertIsInstance(call.func.value, ast.Name)
-                self.assertEqual(("ace", "hold"), (call.func.value.id, call.func.attr))
-                self.assertEqual(2, len(call.args))
-                self.assertIsInstance(call.args[0], ast.Name)
-                self.assertEqual(callback_arg, call.args[0].id)
-                self.assertIsInstance(call.args[1], ast.Name)
-                self.assertEqual("CONVO", call.args[1].id)
-                self.assertEqual(["reason"], [keyword.arg for keyword in call.keywords])
-                keywords = {keyword.arg: keyword.value for keyword in call.keywords}
-                reason_node = keywords.get("reason")
-                self.assertIsInstance(reason_node, ast.Constant)
-                self.assertEqual(reason, reason_node.value)
+        matches = []
+        for call in shared_factories:
+            if not (
+                isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and isinstance(call.func.value, ast.Name)
+                and call.func.value.id == "ace"
+                and call.func.attr == "telegram_action_handlers"
+            ):
+                continue
+            self.assertEqual(1, len(call.args))
+            self.assertIsInstance(call.args[0], ast.Name)
+            self.assertEqual("CONVO", call.args[0].id)
+            matches.append(call)
+        self.assertEqual(
+            1,
+            len(matches),
+            "connector must register ace.telegram_action_handlers(CONVO)",
+        )
 
 
 if __name__ == "__main__":
