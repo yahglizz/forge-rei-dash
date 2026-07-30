@@ -15,20 +15,48 @@ REPORT = {
 }
 
 
+class ReceiptMarcus:
+    def __init__(self):
+        self.proposals = {}
+
+    def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None,
+                          pivot=False):
+        pid = f"proposal-{conv_id}"
+        self.proposals[pid] = {
+            "id": pid,
+            "conversationId": conv_id,
+            "contactId": contact_id,
+            "status": "pending",
+            "suggestedReply": "when is a good time for a quick call today?",
+            "pivot": bool(pivot),
+            "ts": 1,
+        }
+        return {"ok": True, "conversationId": conv_id, "proposalId": pid}
+
+    def approve(self, pid, edited=None):
+        proposal = self.proposals[pid]
+        proposal["status"] = "sent"
+        proposal["sentReply"] = edited or proposal["suggestedReply"]
+        return {"ok": True}
+
+
 class TelegramAceCallbackTest(unittest.TestCase):
     def setUp(self):
         self._orig = {
             "ace_state": ace.STATE,
+            "call_ready": ace.CALL_READY,
             "conversation_state": conversation_engine.STATE,
             "paused": ace.forge_ops.paused,
             "test_status": ace.test_mode.status,
             "actions": telegram_io._ACTIONS,
             "authorized": telegram_io._authorized,
             "api": telegram_io._api,
+            "send": telegram_io.send,
         }
         self._tmp = tempfile.TemporaryDirectory()
         root = Path(self._tmp.name)
         ace.STATE = root / "ace.json"
+        ace.CALL_READY = root / "call_ready.json"
         conversation_engine.STATE = root / "conversations.json"
         ace._save({
             "mode": "full",
@@ -39,8 +67,10 @@ class TelegramAceCallbackTest(unittest.TestCase):
         ace.forge_ops.paused = lambda: False
         ace.test_mode.status = lambda: {"enabled": False}
         self.api_calls = []
+        self.receipts = []
         telegram_io._authorized = lambda from_id, chat_id: True
         telegram_io._api = self._capture_api
+        telegram_io.send = self._capture_send
         self.convo = conversation_engine.ConversationEngine()
         telegram_io.set_actions({
             "acestop": lambda conv_id: ace.hold(
@@ -53,17 +83,27 @@ class TelegramAceCallbackTest(unittest.TestCase):
 
     def tearDown(self):
         ace.STATE = self._orig["ace_state"]
+        ace.CALL_READY = self._orig["call_ready"]
         conversation_engine.STATE = self._orig["conversation_state"]
         ace.forge_ops.paused = self._orig["paused"]
         ace.test_mode.status = self._orig["test_status"]
         telegram_io._ACTIONS = self._orig["actions"]
         telegram_io._authorized = self._orig["authorized"]
         telegram_io._api = self._orig["api"]
+        telegram_io.send = self._orig["send"]
         self._tmp.cleanup()
 
     def _capture_api(self, method, payload=None, **kwargs):
         self.api_calls.append((method, payload, kwargs))
         return {"ok": True, "result": {}}
+
+    def _capture_send(self, text, buttons=None, dedupe_key=None):
+        self.receipts.append({
+            "text": text,
+            "buttons": buttons or [],
+            "dedupe_key": dedupe_key,
+        })
+        return {"ok": True}
 
     def _dispatch(self, payload, conv_id):
         self.convo.update(
@@ -103,6 +143,57 @@ class TelegramAceCallbackTest(unittest.TestCase):
 
     def test_aceundo_callback_holds_thread_and_decide_stops(self):
         self._assert_callback_holds_and_stops("aceundo")
+
+    def test_pivot_receipt_callback_dispatch_holds_thread_and_stops_next_decision(self):
+        conv_id = "conv-receipt-integration"
+        stored = self.convo.update(
+            conv_id,
+            contact_id="contact-receipt",
+            name="Receipt Lead",
+            phone="2675550111",
+            report=REPORT,
+        )
+        pivot_record = dict(stored, state="CALL_READY")
+
+        result = ace.apply(
+            conv_id,
+            pivot_record,
+            REPORT,
+            self.convo,
+            ReceiptMarcus(),
+            last_seller_msg="how much can you pay?",
+        )
+
+        self.assertTrue(result.get("pivoted"), result)
+        payloads = [
+            button.get("callback_data")
+            for receipt in self.receipts
+            for row in receipt["buttons"]
+            for button in row
+            if button.get("callback_data")
+        ]
+        self.assertIn(f"acestop:{conv_id}", payloads)
+        self.assertIn(f"aceundo:{conv_id}", payloads)
+        captured_payload = next(
+            payload for payload in payloads if payload.startswith("acestop:")
+        )
+
+        telegram_io._handle_callback({
+            "id": "callback-from-captured-receipt",
+            "from": {"id": "operator"},
+            "data": captured_payload,
+            "message": {
+                "message_id": 43,
+                "text": "ACE call-pivot receipt",
+                "chat": {"id": "operator"},
+            },
+        }, token="test-token")
+
+        held = self.convo.get(conv_id)
+        self.assertTrue(held.get("held"), held)
+        decision = ace.decide(held, REPORT, self.convo)
+        self.assertEqual("stop", decision.get("action"), decision)
+        self.assertEqual("operator-held", decision.get("reason"), decision)
 
     def test_production_connector_registers_ace_hold_handlers(self):
         source = Path(__file__).with_name("connector.py").read_text(encoding="utf-8")

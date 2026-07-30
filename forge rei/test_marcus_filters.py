@@ -276,7 +276,7 @@ class SellerClassifierTests(unittest.TestCase):
             self.assertFalse(is_tracked(str(outside_same_name), str(repo_dir)))
             self.assertFalse(is_tracked(None, str(repo_dir)))
 
-    def test_prompt_skills_fall_back_to_repo_when_vault_is_missing(self):
+    def test_prompt_skills_fall_back_to_seed_when_vault_is_missing(self):
         with tempfile.TemporaryDirectory() as td:
             missing_vault = Path(td) / "missing-vault"
             with mock.patch.object(brain_io, "VAULT", missing_vault):

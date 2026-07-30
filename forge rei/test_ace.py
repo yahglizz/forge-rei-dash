@@ -4,6 +4,10 @@ from pathlib import Path
 
 import ace
 import conversation_engine
+import cost_tracker
+import send_ledger
+import sms_guard
+import telegram_io
 
 
 class FakeMarcus:
@@ -64,6 +68,53 @@ class FakeSendingMarcus(FakeMarcus):
         return {"ok": True}
 
 
+class GuardedFakeMarcus(FakeSendingMarcus):
+    """Marcus-shaped test hook: only the external GHL POST is simulated."""
+
+    def __init__(self):
+        super().__init__()
+        self.outbound = []
+
+    def approve(self, pid, edited=None):
+        p = self.proposals.get(pid)
+        if not p:
+            return {"error": "proposal not found or already handled"}
+        message = edited or p["suggestedReply"]
+        gate = sms_guard.guard(
+            p.get("contactId"),
+            message,
+            conv_id=p.get("conversationId"),
+            name="Ledger Lead",
+            last_seller_message="yes, still interested",
+            kind="marcus_approve",
+            autonomous=bool(p.get("autonomous")),
+        )
+        self.approved.append({
+            "pid": pid,
+            "autonomous": p.get("autonomous"),
+            "edited": edited,
+            "gate": gate.get("gate"),
+        })
+        if not gate.get("ok"):
+            return gate
+
+        self.outbound.append({
+            "conversationId": p["conversationId"],
+            "contactId": p["contactId"],
+            "message": message,
+        })
+        p["status"] = "sent"
+        p["sentReply"] = message
+        sms_guard.record_success(
+            reservation=gate.get("reservation"),
+            conv_id=p["conversationId"],
+            contact_id=p["contactId"],
+            message=message,
+            kind="marcus_approve",
+        )
+        return {"ok": True}
+
+
 def rec(state="QUALIFYING", facts=None, replies=0, held=False, name="Lead", contact="c1",
         phone="2675550100", pivot_at=None, conv="v1"):
     r = {"convId": conv, "contactId": contact, "name": name, "state": state,
@@ -91,6 +142,94 @@ def quiet_convo(ce):
 REPORT = {"interest": "interested",
           "callPrep": {"questions": ["How soon are you hoping to close?",
                                      "What's the condition like?"]}}
+
+
+class AceSendLedgerIntegrationTest(unittest.TestCase):
+    """Two real ACE attempts share the real temporary send-ledger window."""
+
+    def setUp(self):
+        self._orig = {
+            "ace_state": ace.STATE,
+            "call_ready": ace.CALL_READY,
+            "conversation_state": conversation_engine.STATE,
+            "guard_state": sms_guard.STATE,
+            "ledger_state": send_ledger.STATE,
+            "cost_state": cost_tracker.STATE,
+            "paused": ace.forge_ops.paused,
+            "test_status": ace.test_mode.status,
+            "within_hours": sms_guard._within_hours,
+            "verdict": sms_guard.legit_check.verdict,
+            "telegram_send": telegram_io.send,
+        }
+        self._tmp = tempfile.TemporaryDirectory()
+        root = Path(self._tmp.name)
+        ace.STATE = root / "ace.json"
+        ace.CALL_READY = root / "call_ready.json"
+        conversation_engine.STATE = root / "conversations.json"
+        sms_guard.STATE = root / "sms_guard.json"
+        send_ledger.STATE = root / "send_ledger.json"
+        cost_tracker.STATE = root / "cost_tracker.json"
+        ace.forge_ops.paused = lambda: False
+        ace.test_mode.status = lambda: {"enabled": False}
+        sms_guard._within_hours = lambda: True
+        sms_guard.legit_check.verdict = lambda scout, conv_id, name="": {
+            "legit": True,
+            "urgency": "high",
+            "reason": "integration fixture",
+        }
+        telegram_io.send = lambda text, buttons=None, dedupe_key=None: {"ok": True}
+        ace._save({
+            "mode": "full",
+            "day": ace._today_key(),
+            "sentToday": 0,
+            "log": [],
+        })
+        self.convo = conversation_engine.ConversationEngine()
+        self.conv_id = "conv-ledger-integration"
+        self.thread = rec(conv=self.conv_id, contact="contact-ledger")
+        self.convo.update(
+            self.conv_id,
+            contact_id=self.thread["contactId"],
+            name=self.thread["name"],
+            phone=self.thread["phone"],
+            report=REPORT,
+        )
+
+    def tearDown(self):
+        ace.STATE = self._orig["ace_state"]
+        ace.CALL_READY = self._orig["call_ready"]
+        conversation_engine.STATE = self._orig["conversation_state"]
+        sms_guard.STATE = self._orig["guard_state"]
+        send_ledger.STATE = self._orig["ledger_state"]
+        cost_tracker.STATE = self._orig["cost_state"]
+        ace.forge_ops.paused = self._orig["paused"]
+        ace.test_mode.status = self._orig["test_status"]
+        sms_guard._within_hours = self._orig["within_hours"]
+        sms_guard.legit_check.verdict = self._orig["verdict"]
+        telegram_io.send = self._orig["telegram_send"]
+        self._tmp.cleanup()
+
+    def test_second_ace_attempt_is_blocked_by_real_send_ledger_and_refunds_cap(self):
+        marcus = GuardedFakeMarcus()
+
+        first = ace.apply(
+            self.conv_id, self.thread, REPORT, self.convo, marcus,
+            last_seller_msg="yes, still interested",
+        )
+        second = ace.apply(
+            self.conv_id, self.thread, REPORT, self.convo, marcus,
+            last_seller_msg="yes, still interested",
+        )
+
+        self.assertTrue(first.get("sent"), first)
+        self.assertEqual("send_ledger", second.get("gate"), second)
+        self.assertNotIn("sent", second)
+        self.assertEqual(1, len(marcus.outbound))
+        self.assertEqual(2, len(marcus.approved))
+        self.assertGreater(send_ledger.last_touch_at(self.conv_id), 0)
+        self.assertEqual(1, ace.status()["sentToday"])
+        self.assertEqual(1, self.convo.get(self.conv_id)["replies"])
+        self.assertEqual(1, sms_guard.status()["sent"])
 
 
 class ConvEngineQuestionTest(unittest.TestCase):

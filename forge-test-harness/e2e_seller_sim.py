@@ -78,6 +78,21 @@ def _is_tracked_classifier_source(source, repo_dir):
     return actual == expected
 
 
+def _copy_marcus_skill_seeds(app, root):
+    """Copy only Marcus's tracked prompt seeds into the isolated sibling tree."""
+    source_dir = os.path.join(os.path.dirname(os.path.abspath(app)),
+                              "forge-marcus", "skills")
+    target_dir = os.path.join(os.path.abspath(root), "forge-marcus", "skills")
+    os.makedirs(target_dir, exist_ok=True)
+    copied = []
+    for name in _MARCUS_SKILL_SEEDS:
+        source = os.path.join(source_dir, name)
+        if os.path.isfile(source):
+            shutil.copy2(source, os.path.join(target_dir, name))
+            copied.append(name)
+    return copied
+
+
 def _bootstrap():
     app = next((p for p in _APP_CANDIDATES if os.path.isdir(p)), None)
     if not app:
@@ -89,6 +104,9 @@ def _bootstrap():
         if name.endswith(".py"):
             shutil.copy2(os.path.join(app, name), os.path.join(run, name))
     shutil.copy2(os.path.abspath(__file__), os.path.join(run, "sim.py"))
+    copied_seeds = _copy_marcus_skill_seeds(app, root)
+    print(f"[e2e] copied {len(copied_seeds)}/{len(_MARCUS_SKILL_SEEDS)} "
+          "tracked Marcus prompt seeds")
 
     toolkit = next((p for p in _TOOLKIT_CANDIDATES if os.path.isdir(p)), None)
     if toolkit:
@@ -200,6 +218,26 @@ for _eng in (MARCUS, SCREENER):
     _eng.safety_check = _check
     _eng.safety_record = lambda **kw: sms_guard.record_success(**kw)
     _eng.safety_release = sms_guard.release
+
+
+def _prompt_skill_config():
+    """Return CONFIG-safe prompt metadata without exposing skill contents."""
+    sources = marcus_engine.skill_sources()
+    rubric = sources.get("replyRubric") or {}
+    playbook = sources.get("playbook") or {}
+    entries = [rubric] + list(playbook.values())
+    degraded = (
+        len(entries) != len(_MARCUS_SKILL_SEEDS)
+        or any(int(entry.get("bytes") or 0) <= 0 for entry in entries)
+    )
+    return {
+        "skillSources": sources,
+        "replyRubricBytes": int(rubric.get("bytes") or 0),
+        "playbookBytes": sum(
+            int(entry.get("bytes") or 0) for entry in playbook.values()
+        ),
+        "degradedPrompt": degraded,
+    }
 
 
 def bridge(report):
@@ -359,13 +397,13 @@ def main():
         "sendWindowET": [sms_guard.SEND_START, sms_guard.SEND_END],
         "hourET": sms_guard._hour_et(), "withinHours": sms_guard._within_hours(),
         "vault": os.environ.get("FORGE_VAULT"),
-        "replyRubricBytes": len(MARCUS._load_reply_rubric() or ""),
-        "playbookBytes": len(MARCUS._load_playbook() or ""),
     }
+    cfg.update(_prompt_skill_config())
     print("CONFIG " + json.dumps(cfg, default=str))
-    if not cfg["replyRubricBytes"] or not cfg["playbookBytes"]:
-        print("!! WARNING: the drafter loaded a 0-byte playbook/rubric. Set FORGE_VAULT. "
-              "Drafts below are NOT representative of production. (bug B5)")
+    if cfg["degradedPrompt"]:
+        print("!! WARNING: at least one required drafter skill resolved to 0 bytes. "
+              "Check the scratch seeds and FORGE_VAULT. Drafts below are NOT "
+              "representative of production. (bug B5)")
     if not cfg["withinHours"]:
         print("!! WARNING: outside the 9am-8pm ET send window — every send will be gated "
               "at sms_guard. Re-run during the window for a meaningful result.")
