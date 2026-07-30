@@ -237,3 +237,65 @@ After that, start with the existing capped mode and watch first-week price
 pivots, fact-adherence rejects/retries, gate blocks by reason, call-ready
 acknowledgement latency, duplicate-touch prevention, and unanswered post-pivot
 inbound age.
+
+## Final Important-Finding Fix Wave
+
+This local-only review wave addressed the three remaining Important findings.
+It did not invoke SSH, deploy, push, restart a service, inspect or change live
+state, send SMS, or call live Telegram. The workstation auto-sync service
+created commits while the worktree was being edited.
+
+### Fixes
+
+1. `marcus_engine._is_denial` now limits ambiguous confused-recipient phrases
+   such as `you called me`, `who is this`, and `what is this` to complete-message
+   denial shapes. Explicit ownership denials and expected-name matching are
+   unchanged. Continued property/selling context remains active through Scout.
+2. `seller_classify._PRICE_RE` no longer treats bare `range`, `numbers`, or
+   `offer` as a price ask. Those terms require question/request grammar, while
+   every existing string in `PRICE_ASKS` still returns `PRICE` immediately.
+3. ACE assigned-fact adherence now requires a fact-targeted interrogative or
+   request. A fact statement followed by an unrelated call question is rejected.
+   Natural question/request paraphrases for all five facts remain admitted.
+
+### TDD evidence
+
+RED runs against the pre-fix production predicates:
+
+```text
+test_marcus_filters: 19 tests, FAILED (failures=7)
+AceDraftAdherenceTest: 8 tests, FAILED (failures=10)
+valid request regression: 1 test, FAILED (failures=1)
+Scout continued-context integration: 1 test, FAILED (failures=3)
+```
+
+The failures were the intended behavior gaps, not import or fixture errors.
+
+Fresh GREEN verification after the final source edit:
+
+```text
+focused Marcus filters: 19/19
+focused Ace adherence: 9/9
+focused Scout integration: 1/1
+test_ace + test_marcus_filters + test_sms_guard + test_e2e_pipeline: 140/140
+FORGE_MARCUS=0 PYTHONUTF8=1 full discovery: 300/300
+AST parse: 6/6 changed Python files
+git diff --check: clean
+```
+
+Auto-sync commits for this wave:
+
+- `ce25666c072ed6ae1a4acffa84bad394bcc9c92e`
+- `3b0f73109439181431cad27903fcbea60a515616`
+- `3c990a3c1ec17e660eed2add63e33cd31f4fce51`
+- `6693302` (comment-only clarification after diff review)
+
+Detailed evidence is in
+`.superpowers/sdd/2026-07-30-wholesale-autopilot-fixes/final-fix-report.md`.
+
+### Remaining concern
+
+The go/no-go remains **NO-GO**. This wave did not rerun the remote,
+Claude-dependent isolated harness, and the prior low-credit Anthropic HTTP 400
+blocker remains unresolved in the available evidence. Restore credit and pass
+that harness before enabling ACE.
