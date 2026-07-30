@@ -64,6 +64,20 @@ def cap_for(m=None):
     return CAP_SUPERVISED if m == "supervised" else CAP_FULL if m == "full" else 0
 
 
+def _prompt_status():
+    try:
+        import marcus_engine
+        health = marcus_engine.skill_sources()
+        required = [health.get("replyRubric") or {}]
+        required.extend((health.get("playbook") or {}).values())
+        degraded = not required or any(
+            int(item.get("bytes") or 0) == 0 for item in required
+        )
+        return health, degraded
+    except Exception:
+        return {}, True
+
+
 def reply_cap_for(m=None):
     """Cap for ordinary qualifying questions — the full cap minus the pivot reserve.
 
@@ -214,6 +228,7 @@ def _release_send_slot():
 
 
 def status():
+    prompt_health, degraded_prompt = _prompt_status()
     try:
         with _LOCK:
             d = _roll(_load())
@@ -236,9 +251,18 @@ def status():
                 "testScoped": bool(test.get("enabled")),
                 "testPhoneCount": len(test.get("phones") or []),
                 "warning": warning,
+                "promptHealth": prompt_health,
+                "degradedPrompt": degraded_prompt,
             }
     except Exception as e:  # noqa: BLE001
-        return {"mode": "off", "sentToday": 0, "error": str(e), "log": []}
+        return {
+            "mode": "off",
+            "sentToday": 0,
+            "error": str(e),
+            "log": [],
+            "promptHealth": prompt_health,
+            "degradedPrompt": degraded_prompt,
+        }
 
 
 def _stop(reason):

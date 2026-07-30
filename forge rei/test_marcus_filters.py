@@ -215,7 +215,7 @@ class SellerClassifierTests(unittest.TestCase):
                 expected = marcus_engine.skill_sources()
                 marcus_status = marcus_engine.MarcusEngine.status(MarcusEngineStatusStub())
                 with mock.patch.object(ace, "_load", return_value={
-                    "mode": "off", "sentToday": 0, "day": ace._today(), "log": [],
+                    "mode": "off", "sentToday": 0, "day": ace._today_key(), "log": [],
                 }):
                     ace_status = ace.status()
 

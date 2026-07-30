@@ -663,21 +663,9 @@ class MarcusEngine:
         Loaded in FULL (short + non-negotiable) and injected uncapped, separate from the
         [:1500]-sliced voice playbook so the hard rule is never truncated away. mtime-cached."""
         try:
-            import brain_io
-            p = brain_io.VAULT / "Skills" / "seller-reply-playbook.md"
-            if not p.is_file():
-                return ""
-            sig = p.stat().st_mtime
-            if getattr(self, "_rr_mtime", None) != sig:
-                txt = p.read_text(errors="ignore")
-                # strip the yaml frontmatter — the model wants the body, not metadata
-                if txt.startswith("---"):
-                    end = txt.find("\n---", 3)
-                    if end != -1:
-                        txt = txt[end + 4:]
-                self._rr_text = txt.strip()
-                self._rr_mtime = sig
-            return self._rr_text
+            text, _path, _source = _skill_text(_REPLY_RUBRIC_SKILL)
+            # Strip YAML frontmatter: the model wants the body, not metadata.
+            return _without_frontmatter(text)
         except Exception:
             return ""
 
@@ -1240,6 +1228,7 @@ class MarcusEngine:
             "counts": self.counts,
             "lastError": self.last_error,
             "classifierSource": classifier_source(),
+            "promptHealth": skill_sources(),
             "task": (f"{len(self.proposals)} seller replies waiting on you"
                      if self.proposals else "Idle — watching GoHighLevel for replies"),
         }
