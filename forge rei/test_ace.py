@@ -441,6 +441,24 @@ class AceApplyTest(unittest.TestCase):
         self.assertEqual(["v1"], noted)
         self.assertEqual(1, ace.status()["sentToday"])
 
+    def test_assigned_fact_plus_known_fact_is_rejected_before_retry(self):
+        ace.set_mode("supervised")
+        noted = []
+        self.ce.note_reply = lambda conv_id: noted.append(conv_id)
+        m = FakeSendingMarcus(drafts=[
+            "how soon are you looking to sell and what shape is it in?",
+            "do you need this wrapped up this month?",
+        ])
+
+        d = ace.apply("v1", rec(), REPORT, self.ce, m)
+
+        self.assertTrue(d.get("sent"))
+        self.assertEqual(2, len(m.calls))
+        self.assertEqual(1, len(m.dismissed))
+        self.assertEqual(1, len(m.approved))
+        self.assertEqual(["v1"], noted)
+        self.assertEqual(1, ace.status()["sentToday"])
+
     def test_two_wrong_fact_drafts_fail_without_send_or_reply_accounting(self):
         ace.set_mode("supervised")
         noted = []
@@ -459,6 +477,33 @@ class AceApplyTest(unittest.TestCase):
         self.assertEqual(2, len(m.dismissed))
         self.assertEqual([], noted)
         self.assertEqual(0, ace.status()["sentToday"])
+
+
+class AceDraftAdherenceTest(unittest.TestCase):
+    def test_generic_substring_collisions_do_not_satisfy_assigned_fact(self):
+        cases = [
+            ("condition", "would next month work for you?"),
+            ("timeline", "is the property close by?"),
+            ("motivation", "why is the roof damaged?"),
+        ]
+        for fact, draft in cases:
+            with self.subTest(fact=fact, draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact
+                )
+                self.assertIsNotNone(reason)
+
+    def test_valid_occupancy_and_timeline_paraphrases_are_admitted(self):
+        cases = [
+            ("occupancy", "who currently calls the property home?"),
+            ("timeline", "do you need this wrapped up this month?"),
+        ]
+        for fact, draft in cases:
+            with self.subTest(fact=fact, draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, fact
+                )
+                self.assertIsNone(reason)
 
 
 class AceHoldAckTest(unittest.TestCase):
