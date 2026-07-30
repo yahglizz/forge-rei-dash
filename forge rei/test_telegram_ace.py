@@ -228,7 +228,7 @@ class TelegramAceCallbackTest(unittest.TestCase):
             value
             for key, value in zip(registries[0].keys, registries[0].values)
             if key is None
-        }
+        ]
         matches = []
         for call in shared_factories:
             if not (

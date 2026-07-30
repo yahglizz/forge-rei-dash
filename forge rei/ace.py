@@ -946,6 +946,19 @@ def hold(conv_id, convo, reason="operator stop"):
 
 # ── Phase 4: call-ready queue + escalation ──────────────────────────────────────────────
 
+def telegram_action_handlers(convo):
+    """Production Telegram callback mapping for ACE thread controls."""
+    return {
+        "acestop": lambda conv_id: hold(
+            conv_id, convo, reason="operator stop tap"
+        ),
+        "aceundo": lambda conv_id: hold(
+            conv_id, convo, reason="operator undo tap"
+        ),
+        "aceack": lambda conv_id: ack(conv_id, convo),
+    }
+
+
 def _cr_load():
     try:
         d = json.loads(CALL_READY.read_text())

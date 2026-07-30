@@ -2061,9 +2061,7 @@ telegram_io.set_actions({
     "skillno": skill_forge.dismiss,
     # ACE thread controls: stop/undo hold the thread (decide() checks held first);
     # ack marks a call-ready lead HANDED_OFF — the operator owns it from here.
-    "acestop": lambda cid: ace.hold(cid, CONVO, reason="operator stop tap"),
-    "aceundo": lambda cid: ace.hold(cid, CONVO, reason="operator undo tap"),
-    "aceack": lambda cid: ace.ack(cid, CONVO),
+    **ace.telegram_action_handlers(CONVO),
     # Remote-control confirm gates: ✅ fires the queued outward send, ❌ drops it.
     "opsgo": telegram_ops.confirm,
     "opsno": telegram_ops.cancel,
