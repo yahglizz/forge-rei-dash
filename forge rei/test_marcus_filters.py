@@ -49,6 +49,7 @@ TRUE_DENIALS = (
     "wrong person",
     "I think you have the wrong number",
     "Sorry but wrong number",
+    "Sorry, but wrong number",
     "you have the wrong number, I don't know you",
     "im not the owner",
     "im not the seller",
@@ -78,6 +79,8 @@ COMPLETE_SELLER_CONTEXT = (
 AMBIGUOUS_PHRASE_SELLER_CONTEXT = (
     "I don't know you, but yes, I'm open to selling",
     "You have the wrong price, but I would consider selling",
+    "Wrong number, but I'd sell for 150k",
+    "You have the wrong person; I own it with my wife",
     "100k is the wrong number, but I'd sell for 150k",
     "You have the wrong person listed as owner; I own it with my wife",
     "you called me about my house, yes I'm open to selling",

@@ -573,6 +573,8 @@ class SafetyFilters(E2EBase):
             ("c18", "ct18", "what is this regarding the house? I may be open to selling"),
             ("c19", "ct19", "I don't know you, but yes, I'm open to selling"),
             ("c20", "ct20", "You have the wrong price, but I would consider selling"),
+            ("c25", "ct25", "Wrong number, but I'd sell for 150k"),
+            ("c26", "ct26", "You have the wrong person; I own it with my wife"),
             ("c23", "ct23", "100k is the wrong number, but I'd sell for 150k"),
             (
                 "c24",

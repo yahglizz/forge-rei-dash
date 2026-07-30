@@ -484,6 +484,7 @@ class AceApplyTest(unittest.TestCase):
             "We can describe our timeline on a call. Are you free today?",
             "Can you share your availability? We can share our timeline on a call",
             "Can you share your availability, and we can share our timeline on a call?",
+            "Can you share your availability or we can share our timeline on a call?",
         )
         for draft in drafts:
             with self.subTest(draft=draft):
@@ -553,6 +554,7 @@ class AceDraftAdherenceTest(unittest.TestCase):
         drafts = (
             "Can you share your availability? We can share our timeline on a call",
             "Can you share your availability, and we can share our timeline on a call?",
+            "Can you share your availability or we can share our timeline on a call?",
         )
         for draft in drafts:
             with self.subTest(draft=draft):
@@ -609,6 +611,7 @@ class AceDraftAdherenceTest(unittest.TestCase):
             "can you share your timeline",
             "John, please share your timeline",
             "got it, can you share your timeline",
+            "Can you describe your situation and your timeline?",
         )
         for draft in drafts:
             with self.subTest(draft=draft):
