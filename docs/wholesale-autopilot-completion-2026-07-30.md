@@ -143,6 +143,20 @@ Task 8 commits were created and pushed by the workstation auto-sync service:
 
 Task 8 did not invoke `git push` or any deploy command.
 
+### Review fix round 1
+
+The harness provenance signal is backed by executable resolved-path coverage,
+not only a static AST-name check. The pure helper accepts exactly the isolated
+repo's `seller_classify.py` (including a normalized equivalent path) and rejects
+the external legacy scan module, an outside same-named file, and a missing
+source. The probe's helper wiring is checked separately.
+
+```text
+focused provenance tests: 2/2 passed
+test_marcus_filters + test_e2e_pipeline: 40/40 passed
+full discovery: 294/294 passed
+```
+
 ## Skill-update assessment
 
 No agent seed skill was changed for Task 8. The reusable lessons were test-double
