@@ -14,6 +14,7 @@ class SmsGuardTest(unittest.TestCase):
             "paused": sms_guard.forge_ops.paused,
             "within": sms_guard._within_hours,
             "touched": sms_guard.send_ledger.touched_within,
+            "ledger_state": sms_guard.send_ledger.STATE,
             "verdict": sms_guard.legit_check.verdict,
             "cap": sms_guard.DAILY_CAP,
         }
@@ -26,6 +27,7 @@ class SmsGuardTest(unittest.TestCase):
         sms_guard.forge_ops.paused = self._orig["paused"]
         sms_guard._within_hours = self._orig["within"]
         sms_guard.send_ledger.touched_within = self._orig["touched"]
+        sms_guard.send_ledger.STATE = self._orig["ledger_state"]
         sms_guard.legit_check.verdict = self._orig["verdict"]
         sms_guard.DAILY_CAP = self._orig["cap"]
         self._tmp.cleanup()
@@ -142,6 +144,7 @@ class SmsGuardTest(unittest.TestCase):
 
     def test_real_send_ledger_blocks_second_autonomous_touch(self):
         sms_guard.send_ledger.STATE = Path(self._tmp.name) / "send_ledger.json"
+        sms_guard.send_ledger.touched_within = self._orig["touched"]
         first = self.gate(autonomous=True, conv_id="v-ledger")
         self.assertTrue(first.get("ok"), first)
         sms_guard.send_ledger.record("v-ledger", kind="ace")
