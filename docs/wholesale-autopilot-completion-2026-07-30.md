@@ -2,9 +2,11 @@
 
 ## Scope and safety
 
-This report covers the local implementation and verification for B1-B9. No SSH,
-manual push, deployment, service restart, live-state write, seller SMS, or live
-Telegram action was performed during Task 8.
+This report covers the local implementation and verification for B1-B9. The Task
+8 agent did not invoke SSH, `git push`, a deploy command, a service restart, a
+live-state write, seller SMS, or a live Telegram action. The workstation
+auto-sync and box autopull did deploy the committed changes without a manual
+deploy.
 
 Local state read after verification:
 
@@ -47,11 +49,11 @@ No production check was weakened to resolve these failures.
 
 | Bug | Status and evidence |
 |---|---|
-| B1 | Fixed. The classifier is tracked in `forge rei/seller_classify.py:40`; `marcus_engine.classifier_source()` at line 106 exposes source metadata. The harness now recognizes only the copied `HERE/seller_classify.py` as production and reports the optional legacy drafter separately. Local probe: `usingProductionClassifier=true`. |
-| B2 | Fixed. All 14 price strings pass `test_marcus_filters.SellerClassifierTests.test_all_real_price_asks_are_price`; boundary negatives remain covered. Remote scenario-B confirmation is pending below. |
+| B1 | Fixed. The classifier is tracked in `forge rei/seller_classify.py:40`; `marcus_engine.classifier_source()` at line 106 exposes source metadata. The isolated deployed-box harness confirmed the copied `seller_classify.py` as production and reported the legacy draft override separately. |
+| B2 | Fixed. All 14 price strings pass locally, and the deployed-box deterministic probe reported `priceMissed=0` of 14. Claude-dependent scenario-B confirmation remains blocked below. |
 | B3 | Decision: **option (b), 3 facts**. `forge rei/ace.py:32` sets `READY_MIN_FACTS = 3`, enforced at line 508. READY below three facts keeps qualifying; explicit PRICE pivots immediately. This preserves broad seller intent while avoiding empty call cards. |
-| B4 | Fixed. Context-aware denial logic is at `forge rei/marcus_engine.py:335`. All 8 required non-denials return false, true ownership/identity denials remain true, and named denials require matching contact context. |
-| B5 | Fixed. Seed/vault source metadata is exposed by `forge rei/marcus_engine.py:169`; ACE returns `degradedPrompt`, and `forge rei/ace.jsx:115` renders `DEGRADED PROMPT`. Missing-vault tests prove every required repo seed has non-zero UTF-8 bytes. |
+| B4 | Fixed. Context-aware denial logic is at `forge rei/marcus_engine.py:335`. All 8 required non-denials return false locally, true ownership/identity denials remain true, and named denials require matching contact context. The deployed-box deterministic probe reported `denialFalsePositives=0`. |
+| B5 | Fixed. Seed/vault source metadata is exposed by `forge rei/marcus_engine.py:169`; ACE returns `degradedPrompt`, and `forge rei/ace.jsx:115` renders `DEGRADED PROMPT`. The deployed-box harness loaded a 10,640-byte reply rubric and 18,714-byte playbook. |
 | B6 | Fixed. Grounded one-fact hints are built at `forge rei/ace.py:410`; deterministic adherence and known-fact re-ask rejection are at line 446. Drafting retries once, then fails closed without reply/send accounting. |
 | B7 | Recommendation only, **not implemented pending operator sign-off**: preserve permanent seller-facing silence after the single call pivot. If a new inbound remains unacknowledged for **2 hours**, send an operator-only Telegram re-ping quoting the inbound and increasing urgency. |
 | B8 | Verified locally. `forge rei/test_sms_guard.py:145` uses the real temporary send ledger and proves the second autonomous touch is blocked by `send_ledger`. `forge rei/test_telegram_ace.py:101` exercises callback parsing through durable `ace.hold`; line 107 statically verifies production connector registration. |
@@ -164,46 +166,74 @@ interface parity and path-based harness provenance, both code-specific integrati
 plumbing rather than Marcus/Scout/Atlas judgment. Updating a learned playbook would
 put test mechanics into an agent decision skill and is not warranted.
 
-## Parent-owned remote evidence placeholders
+## Remote evidence
 
 ### Post-fix production-like isolated harness
 
-**PARENT MUST FILL AFTER RUNNING THE COPIED `/tmp` HARNESS.**
+The parent ran the post-fix isolated harness on the deployed box on 2026-07-30.
+The deterministic configuration and classifier/filter probes passed:
 
-- Date/time:
-- Deployed commit:
-- Structured output artifact/path:
-- `usingProductionClassifier=true` with source inside isolated `forge-rei`:
-- PRICE result: `14/14`, `priceMissed=0`:
-- Denial result: `denialFalsePositives=0`:
-- Required prompt skill/rubric/playbook bytes all non-zero:
-- Scenario A opener action (must not pivot below 3 facts):
-- Scenario A explicit price turn action (`pivot`):
-- Scenario A facts present before pivot:
-- Scenario B price turn action (`pivot`):
-- Every reply draft targets assigned fact:
-- Repeated already-known fact questions: `0`:
-- Gate blocks/errors:
-- Call pivots/call-ready cards:
+```text
+CONFIG replyRubricBytes=10640 playbookBytes=18714
+PROBE classifySource=<isolated forge-rei>/seller_classify.py
+PROBE usingProductionClassifier=true
+PROBE legacyDraftOverride=true
+PROBE priceMissed=0 priceTotal=14
+PROBE denialFalsePositives=0
+```
+
+The Claude-dependent chain did **not** complete. Anthropic returned HTTP 400
+because the API credit balance was too low during screening, drafting, and
+`legit_check`. The harness reported:
+
+```text
+SENT_COUNT 0
+```
+
+Therefore this run is **not** acceptance evidence for:
+
+- Scenario A avoiding the opener pivot and pivoting on the explicit price ask.
+- Scenario A facts being populated before the pivot.
+- Scenario B pivoting on its price ask.
+- Assigned-fact adherence across generated drafts.
+- Zero repeated already-known-fact questions.
+- Successful gated sends, call pivots, or call-ready cards through the full
+  Claude-dependent chain.
+
+Restore Anthropic credits and rerun the complete isolated harness. Do not infer
+scenario acceptance from the deterministic probe results.
 
 ### Deploy and live health
 
-**PARENT MUST FILL. TASK 8 LOCAL WORK DID NOT DEPLOY OR INSPECT THE BOX.**
+The workstation auto-sync committed/pushed the changes and the box autopull
+deployed them. No manual `git push` or deploy command was used by Task 8.
 
-- Commit pushed/deployed:
-- Autopull/deploy completed at:
-- `systemctl status forge-reios`: active:
-- Required protected endpoints returning HTTP 200:
-- Env/secret URLs returning HTTP 404:
-- Live `ace.mode()`: off:
-- Live autopilot enabled: false:
-- Live test whitelist: empty:
-- Any service/log errors:
+- Deployed application commits included the Task 8 changes through `91ee41b`
+  before this evidence-only report update.
+- `forge-reios` service: active.
+- HTTP 200:
+  - `GET /api/ace/status`
+  - `GET /api/ace/digest`
+  - `GET /api/ace/callready`
+  - `GET /api/autopilot/status`
+  - `GET /api/marcus/status`
+- HTTP 404:
+  - `/.env`
+  - `/ALL_KEYS.env`
+  - `/forge%20rei/.env`
+- Live ACE mode: `off`.
+- Live autopilot enabled: `false`.
+- Live test mode enabled: `false`.
+- Live test phones: empty.
+- Blocking external error: Anthropic API HTTP 400, credit balance too low.
 
 ## Go/no-go
 
-**NO-GO for flipping ACE to full until the parent fills and passes every remote
-harness, deploy, health, secret-404, and live-state item above.** If those checks
-pass, start with the existing capped mode and watch first-week price pivots,
-fact-adherence rejects/retries, gate blocks by reason, call-ready acknowledgement
-latency, duplicate-touch prevention, and unanswered post-pivot inbound age.
+**NO-GO for flipping ACE to full.** Service health, endpoint protection, live
+off-state, tracked classifier provenance, price classification, denial filtering,
+and prompt bytes are verified. Anthropic credits must be restored and the full
+Claude-dependent isolated harness must then pass every scenario requirement.
+After that, start with the existing capped mode and watch first-week price
+pivots, fact-adherence rejects/retries, gate blocks by reason, call-ready
+acknowledgement latency, duplicate-touch prevention, and unanswered post-pivot
+inbound age.
