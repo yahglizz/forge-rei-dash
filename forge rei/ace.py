@@ -279,17 +279,51 @@ _FACT_REPORT_FIELDS = {
     "occupancy": "propertyStatus",
 }
 _UNKNOWN_VALUES = ("", "unknown", "not mentioned", "none", "n/a", "null")
-_FACT_DRAFT_TERMS = {
-    "condition": ("condition", "shape", "repair", "fix", "work", "roof", "hvac",
-                  "foundation", "damage", "updated"),
-    "timeline": ("timeline", "timeframe", "how soon", "when", "close", "sell by",
-                 "looking to sell", "ready to sell"),
-    "price": ("price", "asking", "number in mind", "looking to get", "hoping to get",
-              "want for", "need for", "take for"),
-    "motivation": ("motivation", "why", "reason", "what's got", "whats got",
-                   "thinking about selling", "want to sell", "goal"),
-    "occupancy": ("vacant", "occupied", "occupancy", "living there", "live there",
-                  "tenant", "renter", "rented"),
+_FACT_DRAFT_PATTERNS = {
+    "condition": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\b(?:condition|shape)\b",
+        r"\b(?:repairs?|fix(?:es|ed|ing)?|renovat(?:e|ed|ion|ions)|updates?|updated|"
+        r"damage[sd]?|roof|hvac|foundation)\b",
+        r"\b(?:needs?|requires?)\s+(?:some\s+|any\s+)?work\b",
+        r"\bwhat\s+(?:kind of\s+)?work\b.{0,30}\b(?:need|require|done)\b",
+        r"\bwork\s+(?:is|was|would be|needs? to be)\s+(?:needed|required|done)\b",
+    )),
+    "timeline": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\b(?:timeline|timeframe|deadline|closing date)\b",
+        r"\bhow soon\b",
+        r"\bwhen\b.{0,50}\b(?:sell(?:ing)?|close|closing|move|moving|vacate|done|"
+        r"wrap(?:ped|ping)? up)\b",
+        r"\b(?:sell(?:ing)?|close|closing|move|moving|vacate|done|"
+        r"wrap(?:ped|ping)? up)\b.{0,50}\b(?:when|soon|date|deadline|days?|weeks?|"
+        r"months?|years?)\b",
+        r"\b(?:need|want|hope|looking|plan(?:ning)?|ready)\b.{0,35}\b(?:sell(?:ing)?|"
+        r"close|closing|move|moving|done|wrap(?:ped|ping)? up)\b",
+        r"\b(?:this|next|within|by|in)\s+(?:the\s+next\s+)?(?:\d+\s+)?"
+        r"(?:days?|weeks?|months?|years?)\b",
+    )),
+    "price": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\b(?:asking price|price|asking|number in mind)\b",
+        r"\b(?:looking|hoping|want|need)\b.{0,20}\b(?:get|for it|for the "
+        r"(?:property|house|home))\b",
+        r"\bwhat\b.{0,20}\b(?:number|amount)\b",
+        r"\b(?:take|accept)\b.{0,20}\b(?:for it|for the (?:property|house|home))\b",
+    )),
+    "motivation": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\b(?:reason|motivat\w*)\b.{0,35}\b(?:sell(?:ing)?|move|moving)\b",
+        r"\b(?:sell(?:ing)?|move|moving)\b.{0,35}\b(?:reason|motivat\w*)\b",
+        r"\bwhy\b.{0,35}\b(?:sell(?:ing)?|move|moving|let(?:ting)? "
+        r"(?:it|the property|the house|the home) go)\b",
+        r"\bwhat(?:'s| is|s)\b.{0,25}\b(?:got|made|making|driv(?:e|ing)|prompt(?:ed|ing))"
+        r"\b.{0,40}\b(?:sell(?:ing)?|move|moving|this)\b",
+        r"\bwhat changed\b",
+    )),
+    "occupancy": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\b(?:vacant|occupied|occupancy|tenant|renter|rented|owner[- ]occupied)\b",
+        r"\b(?:who|anyone|someone|somebody)\b.{0,50}\b(?:live|living|stay|staying)\b",
+        r"\bwho\b.{0,40}\bcalls?\s+(?:the\s+)?(?:property|place|house)\s+home\b",
+        r"\b(?:is|does)\b.{0,20}\b(?:someone|anyone|owner|seller)\b.{0,20}"
+        r"\b(?:living|live|staying|stay)\b",
+    )),
 }
 
 
@@ -303,18 +337,33 @@ def _known_value(value):
     return text[:300] if text.lower() not in _UNKNOWN_VALUES else None
 
 
+def _known_fact_names(rec, report, exclude=None):
+    facts = (rec or {}).get("facts") or {}
+    report = report or {}
+    known = set()
+    for name, report_field in _FACT_REPORT_FIELDS.items():
+        if name == exclude:
+            continue
+        marker = facts.get(name)
+        marker_known = marker if isinstance(marker, bool) else _known_value(marker) is not None
+        if marker_known or _known_value(report.get(report_field)) is not None:
+            known.add(name)
+    return known
+
+
 def _qualification_hint(decision, rec, report, retry=False):
     """Ground a one-fact draft and make already-known values explicit."""
     fact = decision.get("fact")
     known = []
     fact_flags = (rec or {}).get("facts") or {}
     report = report or {}
+    known_facts = _known_fact_names(rec, report, exclude=fact)
     for name, report_field in _FACT_REPORT_FIELDS.items():
         if name == fact:
             continue
         conversation_value = _known_value(fact_flags.get(name))
         report_value = _known_value(report.get(report_field))
-        if fact_flags.get(name) or report_value is not None:
+        if name in known_facts:
             value = conversation_value or report_value or "already known (value unavailable)"
             known.append(f"{name}: {value}")
     known_context = "; ".join(known) if known else "none"
@@ -330,15 +379,22 @@ def _qualification_hint(decision, rec, report, retry=False):
     )
 
 
-def _draft_adherence_reason(proposal, fact):
+def _draft_targets_fact(text, fact):
+    return any(pattern.search(text) for pattern in _FACT_DRAFT_PATTERNS.get(fact, ()))
+
+
+def _draft_adherence_reason(proposal, fact, known_facts=None):
     """Return a stable failure reason when a qualifying draft misses its assigned fact."""
     text = str((proposal or {}).get("suggestedReply")
                or (proposal or {}).get("sentReply") or "").strip()
     if not text:
         return "draft text unavailable"
     normalized = re.sub(r"\s+", " ", text.lower().replace("\u2019", "'"))
-    if not any(term in normalized for term in _FACT_DRAFT_TERMS.get(fact, ())):
+    if not _draft_targets_fact(normalized, fact):
         return f"draft does not ask about assigned fact: {fact}"
+    for known_fact in sorted(known_facts or ()):
+        if known_fact != fact and _draft_targets_fact(normalized, known_fact):
+            return f"draft re-asks already-known fact: {known_fact}"
     try:
         import sms_guard
         if sms_guard._quotes_price_or_offer(text):
@@ -501,7 +557,11 @@ def _draft_qualifying_proposal(marcus, conv_id, contact_id, decision, rec, repor
             found = _find_pending_pid(marcus, conv_id)
             if found:
                 pid, proposal = found
-        last_reason = _draft_adherence_reason(proposal, decision.get("fact"))
+        assigned_fact = decision.get("fact")
+        last_reason = _draft_adherence_reason(
+            proposal, assigned_fact,
+            known_facts=_known_fact_names(rec, report, exclude=assigned_fact),
+        )
         if not last_reason:
             return {"ok": True, "proposalId": pid, "proposal": proposal,
                     "attempts": attempt + 1}
