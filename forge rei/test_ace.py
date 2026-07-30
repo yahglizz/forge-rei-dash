@@ -20,12 +20,13 @@ class FakeMarcus:
 class FakeSendingMarcus(FakeMarcus):
     """P3 fake: drafting creates a pending proposal; approve records what was sent."""
 
-    def __init__(self, approve_ok=True, draft=None):
+    def __init__(self, approve_ok=True, draft=None, drafts=None):
         super().__init__()
         self.proposals = {}
         self.approved = []
+        self.dismissed = []
         self.approve_ok = approve_ok
-        self.draft = draft or "how soon are you looking to sell"
+        self.drafts = list(drafts or [draft or "how soon are you looking to sell"])
         self._n = 0
 
     def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None,
@@ -34,9 +35,10 @@ class FakeSendingMarcus(FakeMarcus):
                                   seller_said=seller_said, pivot=pivot)
         self._n += 1
         pid = f"p_{conv_id}_{self._n}"
+        draft = self.drafts[min(self._n - 1, len(self.drafts) - 1)]
         self.proposals[pid] = {"id": pid, "conversationId": conv_id,
                                "contactId": contact_id, "status": "pending",
-                               "suggestedReply": self.draft,
+                               "suggestedReply": draft,
                                "pivot": bool(pivot),
                                "ts": self._n}
         return {"ok": True, "conversationId": conv_id, "proposalId": pid}
@@ -51,6 +53,14 @@ class FakeSendingMarcus(FakeMarcus):
             return {"error": "gate says no", "gate": "send_hours"}
         p["status"] = "sent"
         p["sentReply"] = edited or p["suggestedReply"]
+        return {"ok": True}
+
+    def dismiss(self, pid):
+        p = self.proposals.pop(pid, None)
+        if not p:
+            return {"error": "not found"}
+        p["status"] = "dismissed"
+        self.dismissed.append(pid)
         return {"ok": True}
 
 
@@ -255,12 +265,37 @@ class AceConsiderShadowTest(unittest.TestCase):
 
     def test_shadow_drafts_one_proposal(self):
         ace.set_mode("shadow")
-        m = FakeMarcus()
+        m = FakeSendingMarcus()
         d = ace.consider("v1", rec(), REPORT, self.ce, m, last_seller_msg="yeah still thinking")
         self.assertEqual("reply", d["action"])
         self.assertEqual(1, len(m.calls))
         self.assertIn("timeline", m.calls[0]["hint"])
         self.assertNotIn("$", m.calls[0]["hint"])
+
+    def test_shadow_hint_names_assigned_fact_and_known_values(self):
+        ace.set_mode("shadow")
+        facts = {"condition": True, "timeline": False, "price": True,
+                 "motivation": True, "occupancy": True}
+        report = {
+            "conditionNotes": "new roof, kitchen needs work",
+            "timeline": "unknown",
+            "askingPrice": "$92,000",
+            "motivationLevel": "high",
+            "propertyStatus": "tenant occupied",
+            "callPrep": {"questions": []},
+        }
+        m = FakeSendingMarcus()
+
+        d = ace.consider("v1", rec(facts=facts), report, self.ce, m)
+
+        self.assertEqual("timeline", d["fact"])
+        hint = m.calls[0]["hint"]
+        self.assertIn("Assigned fact: timeline", hint)
+        self.assertIn("condition: new roof, kitchen needs work", hint)
+        self.assertIn("price: $92,000", hint)
+        self.assertIn("motivation: high", hint)
+        self.assertIn("occupancy: tenant occupied", hint)
+        self.assertIn("Do not re-ask", hint)
 
     def test_shadow_escalate_makes_no_proposal(self):
         # An ALREADY-pivoted thread escalates silently — this is the case that still
@@ -387,6 +422,43 @@ class AceApplyTest(unittest.TestCase):
             d["day"] = "2000-01-01"
             ace._save(d)
         self.assertEqual(0, ace.status()["sentToday"])     # _roll resets on read
+
+    def test_wrong_fact_draft_retries_once_then_sends_adherent_question(self):
+        ace.set_mode("supervised")
+        noted = []
+        self.ce.note_reply = lambda conv_id: noted.append(conv_id)
+        m = FakeSendingMarcus(drafts=[
+            "what kind of shape is the property in",
+            "how soon are you looking to sell",
+        ])
+
+        d = ace.apply("v1", rec(), REPORT, self.ce, m)
+
+        self.assertTrue(d.get("sent"))
+        self.assertEqual(2, len(m.calls))
+        self.assertEqual(1, len(m.approved))
+        self.assertEqual(1, len(m.dismissed))
+        self.assertEqual(["v1"], noted)
+        self.assertEqual(1, ace.status()["sentToday"])
+
+    def test_two_wrong_fact_drafts_fail_without_send_or_reply_accounting(self):
+        ace.set_mode("supervised")
+        noted = []
+        self.ce.note_reply = lambda conv_id: noted.append(conv_id)
+        m = FakeSendingMarcus(drafts=[
+            "what kind of shape is the property in",
+            "is the property vacant right now",
+        ])
+
+        d = ace.apply("v1", rec(), REPORT, self.ce, m)
+
+        self.assertFalse(d.get("sent"))
+        self.assertEqual("fact_adherence", d.get("gate"))
+        self.assertEqual(2, len(m.calls))
+        self.assertEqual([], m.approved)
+        self.assertEqual(2, len(m.dismissed))
+        self.assertEqual([], noted)
+        self.assertEqual(0, ace.status()["sentToday"])
 
 
 class AceHoldAckTest(unittest.TestCase):
@@ -539,15 +611,26 @@ class AcePivotDecideTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_price_ask_pivots_instead_of_going_silent(self):
-        d = ace.decide(rec(), REPORT, self.ce, last_seller_msg="how much will you give me")
+        no_facts = {fact: False for fact in conversation_engine.TARGET_FACTS}
+        d = ace.decide(rec(facts=no_facts), REPORT, self.ce,
+                       last_seller_msg="how much will you give me")
         self.assertEqual("pivot", d["action"])
         self.assertEqual("classify:PRICE", d["reason"])
 
-    def test_ready_pivots(self):
-        d = ace.decide(rec(), REPORT, self.ce,
+    def test_ready_with_fewer_than_three_facts_keeps_qualifying(self):
+        two_facts = {"condition": True, "timeline": True, "price": False,
+                     "motivation": False, "occupancy": False}
+        d = ace.decide(rec(facts=two_facts), REPORT, self.ce,
+                       last_seller_msg="yes im interested lets do it")
+        self.assertEqual("reply", d["action"])
+
+    def test_ready_at_three_facts_pivots(self):
+        three_facts = {"condition": True, "timeline": True, "price": False,
+                       "motivation": True, "occupancy": False}
+        d = ace.decide(rec(facts=three_facts), REPORT, self.ce,
                        last_seller_msg="yes im interested lets do it")
         self.assertEqual("pivot", d["action"])
-        self.assertIn("classify:", d["reason"])
+        self.assertEqual("classify:READY", d["reason"])
 
     def test_call_ready_state_pivots(self):
         d = ace.decide(rec(state="CALL_READY"), REPORT, self.ce)
