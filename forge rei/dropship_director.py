@@ -321,6 +321,7 @@ class MidasEngine:
     LANE_SKILLS = {
         "product research":      ("dropship-adspy-method.md",),
         "creative & ads":        ("dropship-four-triggers-ad-writer.md",
+                                  "dropship-creative-testing-doctrine.md",
                                   "dropship-meta-ads-diagnostician.md",
                                   "dropship-ad-launch-sop.md",
                                   "dropship-adspy-method.md"),
