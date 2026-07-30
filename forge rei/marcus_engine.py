@@ -11,6 +11,7 @@ No new database: proposals persist to marcus_state/*.jsonl (append log).
 """
 
 import forge_atomic
+import inspect
 import json
 import os
 import re
@@ -23,6 +24,7 @@ import urllib.error
 from pathlib import Path
 
 import forge_heartbeat
+import seller_classify
 import test_mode
 
 HERE = Path(__file__).resolve().parent
@@ -34,23 +36,27 @@ SEEN_CONTACTS_LOG = STATE_DIR / "seen_contacts.jsonl"  # contactIds we've ever p
                                                        # → first-contact = 🆕 new-lead speed ping
 CONFIG_FILE = STATE_DIR / "config.json"  # toggle state, survives restart
 
-# --- locate Marcus's wholesale toolkit so we reuse his real classifier --------
+# The repo module is always the classifier source of truth. The legacy wholesale
+# toolkit may still supply its established voice drafter when installed.
+classify = seller_classify.classify
+draft_reply = seller_classify.draft_reply
+_external_draft_override = False
+
 _SCRIPTS_CANDIDATES = [
     HERE.parent / "marcus-wholesale-agent" / "scripts",
     Path.home() / "Desktop" / "marcus-wholesale-agent" / "scripts",
 ]
-classify = None
-draft_reply = None
 for _sd in _SCRIPTS_CANDIDATES:
     if (_sd / "scan_missed_replies.py").exists():
         sys.path.insert(0, str(_sd))
         try:
             from importlib import import_module
             _m = import_module("scan_missed_replies")
-            classify = _m.classify
-            draft_reply = _m.draft_reply
+            if callable(getattr(_m, "draft_reply", None)):
+                draft_reply = _m.draft_reply
+                _external_draft_override = True
         except Exception:
-            classify = None
+            pass
         break
 
 
@@ -78,6 +84,37 @@ def _fallback_draft(first, cls):
 if classify is None:
     classify = _fallback_classify
     draft_reply = _fallback_draft
+
+
+def _callable_source(fn):
+    try:
+        return str(Path(inspect.getsourcefile(fn)).resolve())
+    except (OSError, TypeError):
+        return None
+
+
+def classifier_source():
+    """Describe the tracked classifier and optional legacy drafting override."""
+    source = _callable_source(classify)
+    return {
+        "classifyModule": classify.__module__,
+        "classifySource": source,
+        "draftModule": draft_reply.__module__,
+        "draftSource": _callable_source(draft_reply),
+        "externalDraftOverride": _external_draft_override,
+        "tracked": bool(source and Path(source).parent == HERE),
+    }
+
+
+_CLASSIFIER_SOURCE = classifier_source()
+print(
+    "[marcus] seller classifier=%s draft=%s%s"
+    % (
+        _CLASSIFIER_SOURCE["classifySource"],
+        _CLASSIFIER_SOURCE["draftSource"],
+        " (legacy override)" if _external_draft_override else "",
+    )
+)
 
 # Map a classification to a recommended action shown on the dashboard.
 ACTION_BY_CLASS = {
@@ -1109,6 +1146,7 @@ class MarcusEngine:
             "breakdown": breakdown,
             "counts": self.counts,
             "lastError": self.last_error,
+            "classifierSource": classifier_source(),
             "task": (f"{len(self.proposals)} seller replies waiting on you"
                      if self.proposals else "Idle — watching GoHighLevel for replies"),
         }
