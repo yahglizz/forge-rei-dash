@@ -3,9 +3,29 @@
 **Goal:** a 24/7 automated Shopify + AutoDS + Meta-ads store where Midas researches products,
 watches competitor ads, finds winners, tells you exactly how to run the ads, and you tap to execute.
 
-**Status as of 2026-07-26:** plumbing is real, data is zero. **0 of 7 systems keyed.**
-`marcus_state/midas.json` does not exist — **Midas has never produced a brief.** The scheduled
-loop is default OFF (`FORGE_DROPSHIP_BRIEF=0`, `/etc/default/forge-reios`).
+**Status as of 2026-07-30:** plumbing is real, **store identity is now real, tokens are not.**
+`forge-dropship/config/dropship.env` **exists** on the box (chmod 600, 404s over HTTP) carrying
+values VERIFIED against the live vendor APIs:
+
+| Fact | Value | How verified |
+|------|-------|--------------|
+| Shopify store | `pt4x1h-mf.myshopify.com` — "My Store", **Basic**, USD, America/New_York | Shopify Admin API (`shop` query) |
+| Storefront launched? | **No — password protection ON** | `onlineStore.passwordProtection.enabled = true` |
+| Storefront MCP | `https://pt4x1h-mf.myshopify.com/api/mcp` — seeded, `configured: true`, currently **401** | direct probe; the 401 IS the password wall |
+| AutoDS store | id **5654075** ("pt4x1h mf"), site 3 = Shopify, active, linked to the store above, 0 listings | AutoDS API `list_stores_api` |
+
+Still **0 of 7 systems CONNECTED** — every health endpoint returns an honest `configured: false`
+because no token is pasted yet. Two blanks are the whole gap: `SHOPIFY_ADMIN_TOKEN` and an AutoDS
+credential. `marcus_state/midas.json` does not exist — **Midas has never produced a brief.** The
+scheduled loop stays default OFF (`FORGE_DROPSHIP_BRIEF=0`, `/etc/default/forge-reios`).
+
+**AutoDS auth — decided 2026-07-30.** Their OAuth metadata is now confirmed live:
+`https://mcp.autods.com/.well-known/oauth-authorization-server` advertises
+`grant_types_supported: [authorization_code, refresh_token]`, PKCE `S256`, an open
+`registration_endpoint`, and `token_endpoint_auth_methods_supported: ["none"]` (public client).
+So the ~1h token expiry is **solvable in code**: register once, one browser PKCE consent, store the
+**refresh token** in `dropship.env`, and mint access tokens on the box on demand. Pasting a raw
+`AUTODS_MCP_TOKEN` by hand is a 1-hour connection and not worth doing twice.
 
 Rule 2 holds throughout: Midas **proposes**, you tap. Nothing below makes an agent spend money,
 launch an ad, order from a supplier, edit a listing, or message a customer on its own.
