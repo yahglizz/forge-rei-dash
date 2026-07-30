@@ -28,6 +28,7 @@ import seller_classify
 import test_mode
 
 HERE = Path(__file__).resolve().parent
+MARCUS_SKILLS_DIR = HERE.parent / "forge-marcus" / "skills"
 STATE_DIR = HERE / "marcus_state"
 STATE_DIR.mkdir(exist_ok=True)
 PROPOSALS_LOG = STATE_DIR / "proposals.jsonl"
@@ -35,6 +36,14 @@ HANDLED_LOG = STATE_DIR / "handled.jsonl"
 SEEN_CONTACTS_LOG = STATE_DIR / "seen_contacts.jsonl"  # contactIds we've ever proposed for
                                                        # → first-contact = 🆕 new-lead speed ping
 CONFIG_FILE = STATE_DIR / "config.json"  # toggle state, survives restart
+
+_REPLY_RUBRIC_SKILL = "seller-reply-playbook.md"
+_PLAYBOOK_SKILLS = (
+    "marcus-playbook.md",
+    "yahjair-voice.md",
+    "wholesale-seller-texter.md",
+)
+_SKILL_CACHE = {}
 
 # The repo module is always the classifier source of truth. The legacy wholesale
 # toolkit may still supply its established voice drafter when installed.
@@ -103,6 +112,67 @@ def classifier_source():
         "draftSource": _callable_source(draft_reply),
         "externalDraftOverride": _external_draft_override,
         "tracked": bool(source and Path(source).parent == HERE),
+    }
+
+
+def _resolved_skill(name):
+    """Return the selected repo seed or matching vault override."""
+    seed = MARCUS_SKILLS_DIR / name
+    selected = seed if seed.is_file() else None
+    source = "repo" if selected else "missing"
+    try:
+        import brain_io
+        vault = brain_io.VAULT / "Skills" / name
+        if vault.is_file():
+            selected = vault
+            source = "vault"
+    except Exception:
+        pass
+    return selected or seed, source
+
+
+def _skill_text(name):
+    """Read one resolved skill, cached by its selected path and mtime."""
+    path, source = _resolved_skill(name)
+    try:
+        resolved = path.resolve()
+        sig = (str(resolved), path.stat().st_mtime_ns)
+        cached = _SKILL_CACHE.get(name)
+        if not cached or cached[0] != sig:
+            cached = (sig, path.read_text(errors="ignore"))
+            _SKILL_CACHE[name] = cached
+        return cached[1], resolved, source
+    except Exception:
+        return "", path.resolve(), "missing"
+
+
+def _without_frontmatter(text):
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            text = text[end + 4:]
+    return text.strip()
+
+
+def _skill_metadata(name, strip_frontmatter=False):
+    text, path, source = _skill_text(name)
+    if strip_frontmatter:
+        text = _without_frontmatter(text)
+    return {
+        "path": str(path),
+        "source": source,
+        "bytes": len(text.encode("utf-8")),
+    }
+
+
+def skill_sources():
+    """Prompt health metadata only; skill contents never cross the status boundary."""
+    return {
+        "replyRubric": _skill_metadata(_REPLY_RUBRIC_SKILL, strip_frontmatter=True),
+        "playbook": {
+            name: _skill_metadata(name)
+            for name in _PLAYBOOK_SKILLS
+        },
     }
 
 
@@ -579,19 +649,11 @@ class MarcusEngine:
         """Load the brain guidance Marcus follows: the weekly review playbook PLUS
         the daily-learned Yahjair voice guide. Cached, reloads on mtime change."""
         try:
-            import brain_io
-            parts, sig = [], []
-            for rel in ("Skills/marcus-playbook.md", "Skills/yahjair-voice.md",
-                        "Skills/wholesale-seller-texter.md"):
-                p = brain_io.VAULT / rel
-                if p.is_file():
-                    parts.append(p.read_text(errors="ignore"))
-                    sig.append(p.stat().st_mtime)
-            sig = tuple(sig)
-            if getattr(self, "_pb_mtime", None) != sig:
-                self._pb_text = "\n\n".join(parts)
-                self._pb_mtime = sig
-            return self._pb_text
+            return "\n\n".join(
+                text for text, _path, _source in
+                (_skill_text(name) for name in _PLAYBOOK_SKILLS)
+                if text
+            )
         except Exception:
             return ""
 
