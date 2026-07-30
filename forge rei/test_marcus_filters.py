@@ -4,9 +4,11 @@ import ast
 import importlib
 import importlib.util
 import inspect
+import json
 import os
 from pathlib import Path
-import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -99,27 +101,44 @@ STANDALONE_DENIALS = (
 
 
 class SellerClassifierTests(unittest.TestCase):
-    def _e2e_harness_helpers(self):
-        harness = Path(__file__).resolve().parent.parent / "forge-test-harness" / "e2e_seller_sim.py"
-        tree = ast.parse(harness.read_text(encoding="utf-8"), filename=str(harness))
-        wanted_functions = {"_copy_marcus_skill_seeds", "_prompt_skill_config"}
-        nodes = []
-        for node in tree.body:
-            if isinstance(node, ast.Assign) and any(
-                isinstance(target, ast.Name) and target.id == "_MARCUS_SKILL_SEEDS"
-                for target in node.targets
-            ):
-                nodes.append(node)
-            elif isinstance(node, ast.FunctionDef) and node.name in wanted_functions:
-                nodes.append(node)
-        found_functions = {
-            node.name for node in nodes if isinstance(node, ast.FunctionDef)
-        }
-        self.assertEqual(wanted_functions, found_functions)
-        module = ast.fix_missing_locations(ast.Module(body=nodes, type_ignores=[]))
-        namespace = {"os": os, "shutil": shutil, "marcus_engine": marcus_engine}
-        exec(compile(module, str(harness), "exec"), namespace)
-        return namespace
+    def _run_e2e_config_only(self, vault, temp_dir):
+        harness = (
+            Path(__file__).resolve().parent.parent
+            / "forge-test-harness"
+            / "e2e_seller_sim.py"
+        )
+        env = os.environ.copy()
+        env.pop("_FORGE_E2E_ISOLATED", None)
+        env.update({
+            "FORGE_E2E_CONFIG_ONLY": "1",
+            "FORGE_VAULT": str(vault),
+            "FORGE_MARCUS": "0",
+            "ANTHROPIC_API_KEY": "",
+            "MARCUS_ANTHROPIC_API_KEY": "",
+            "SCOUT_ANTHROPIC_API_KEY": "",
+            "TEMP": str(temp_dir),
+            "TMP": str(temp_dir),
+            "PYTHONUTF8": "1",
+        })
+        completed = subprocess.run(
+            [sys.executable, str(harness)],
+            cwd=str(harness.parent),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=30,
+        )
+        output = completed.stdout + completed.stderr
+        self.assertEqual(0, completed.returncode, output)
+        self.assertNotIn("TURN ", output, output)
+        self.assertNotIn("PROBE ", output, output)
+        config_lines = [
+            line for line in completed.stdout.splitlines()
+            if line.startswith("CONFIG ")
+        ]
+        self.assertEqual(1, len(config_lines), output)
+        return json.loads(config_lines[0][len("CONFIG "):])
 
     def test_all_real_price_asks_are_price(self):
         for body in PRICE_ASKS:
@@ -308,84 +327,65 @@ class SellerClassifierTests(unittest.TestCase):
                     self.assertEqual({"path", "source", "bytes"}, set(metadata))
 
     def test_e2e_harness_missing_vault_uses_nonempty_scratch_seeds(self):
-        helpers = self._e2e_harness_helpers()
-        source_app = Path(__file__).resolve().parent
         with tempfile.TemporaryDirectory() as td:
-            scratch_root = Path(td)
-            helpers["_copy_marcus_skill_seeds"](source_app, scratch_root)
+            temp_root = Path(td)
+            config = self._run_e2e_config_only(
+                temp_root / "missing-vault",
+                temp_root,
+            )
+            scratch_root = Path(config["runDir"]).resolve().parent
             scratch_skills = scratch_root / "forge-marcus" / "skills"
-            missing_vault = scratch_root / "missing-vault"
-            with (
-                mock.patch.object(marcus_engine, "MARCUS_SKILLS_DIR", scratch_skills),
-                mock.patch.object(marcus_engine, "_SKILL_CACHE", {}),
-                mock.patch.object(brain_io, "VAULT", missing_vault),
-            ):
-                config = helpers["_prompt_skill_config"]()
 
-        entries = {
-            "seller-reply-playbook.md": config["skillSources"]["replyRubric"],
-            **config["skillSources"]["playbook"],
-        }
-        self.assertFalse(config["degradedPrompt"])
-        self.assertGreater(config["replyRubricBytes"], 0)
-        self.assertGreater(config["playbookBytes"], 0)
-        for name, metadata in entries.items():
-            with self.subTest(skill=name):
-                path = Path(metadata["path"])
-                self.assertEqual("seed", metadata["source"])
-                self.assertGreater(metadata["bytes"], 0)
-                self.assertEqual(name, path.name)
-                self.assertIn(scratch_root / "forge-marcus" / "skills", path.parents)
+            entries = {
+                "seller-reply-playbook.md": config["skillSources"]["replyRubric"],
+                **config["skillSources"]["playbook"],
+            }
+            self.assertFalse(config["degradedPrompt"])
+            self.assertGreater(config["replyRubricBytes"], 0)
+            self.assertGreater(config["playbookBytes"], 0)
+            for name, metadata in entries.items():
+                with self.subTest(skill=name):
+                    path = Path(metadata["path"]).resolve()
+                    self.assertEqual("seed", metadata["source"])
+                    self.assertGreater(metadata["bytes"], 0)
+                    self.assertEqual(name, path.name)
+                    self.assertEqual(scratch_skills, path.parent)
+                    self.assertTrue(path.is_file())
 
     def test_e2e_harness_config_reports_vault_override(self):
-        helpers = self._e2e_harness_helpers()
-        source_app = Path(__file__).resolve().parent
         with tempfile.TemporaryDirectory() as td:
-            scratch_root = Path(td)
-            helpers["_copy_marcus_skill_seeds"](source_app, scratch_root)
-            scratch_skills = scratch_root / "forge-marcus" / "skills"
-            vault = scratch_root / "vault"
+            temp_root = Path(td)
+            vault = temp_root / "vault"
             vault_skills = vault / "Skills"
             vault_skills.mkdir(parents=True)
             override = vault_skills / "marcus-playbook.md"
             override.write_text("vault harness override", encoding="utf-8")
-            with (
-                mock.patch.object(marcus_engine, "MARCUS_SKILLS_DIR", scratch_skills),
-                mock.patch.object(marcus_engine, "_SKILL_CACHE", {}),
-                mock.patch.object(brain_io, "VAULT", vault),
-            ):
-                config = helpers["_prompt_skill_config"]()
+            config = self._run_e2e_config_only(vault, temp_root)
 
-        metadata = config["skillSources"]["playbook"]["marcus-playbook.md"]
-        self.assertEqual("vault", metadata["source"])
-        self.assertEqual(str(override.resolve()), metadata["path"])
-        self.assertEqual(len("vault harness override".encode("utf-8")), metadata["bytes"])
-        self.assertFalse(config["degradedPrompt"])
+            metadata = config["skillSources"]["playbook"]["marcus-playbook.md"]
+            self.assertEqual("vault", metadata["source"])
+            self.assertEqual(str(override.resolve()), metadata["path"])
+            self.assertEqual(
+                len("vault harness override".encode("utf-8")),
+                metadata["bytes"],
+            )
+            self.assertFalse(config["degradedPrompt"])
 
     def test_e2e_harness_config_marks_zero_byte_skill_degraded(self):
-        helpers = self._e2e_harness_helpers()
-        source_app = Path(__file__).resolve().parent
         with tempfile.TemporaryDirectory() as td:
-            scratch_root = Path(td)
-            helpers["_copy_marcus_skill_seeds"](source_app, scratch_root)
-            scratch_skills = scratch_root / "forge-marcus" / "skills"
-            vault = scratch_root / "vault"
+            temp_root = Path(td)
+            vault = temp_root / "vault"
             vault_skills = vault / "Skills"
             vault_skills.mkdir(parents=True)
             override = vault_skills / "seller-reply-playbook.md"
             override.write_text("", encoding="utf-8")
-            with (
-                mock.patch.object(marcus_engine, "MARCUS_SKILLS_DIR", scratch_skills),
-                mock.patch.object(marcus_engine, "_SKILL_CACHE", {}),
-                mock.patch.object(brain_io, "VAULT", vault),
-            ):
-                config = helpers["_prompt_skill_config"]()
+            config = self._run_e2e_config_only(vault, temp_root)
 
-        metadata = config["skillSources"]["replyRubric"]
-        self.assertEqual("vault", metadata["source"])
-        self.assertEqual(str(override.resolve()), metadata["path"])
-        self.assertEqual(0, metadata["bytes"])
-        self.assertTrue(config["degradedPrompt"])
+            metadata = config["skillSources"]["replyRubric"]
+            self.assertEqual("vault", metadata["source"])
+            self.assertEqual(str(override.resolve()), metadata["path"])
+            self.assertEqual(0, metadata["bytes"])
+            self.assertTrue(config["degradedPrompt"])
 
     def test_vault_skill_overrides_matching_repo_seed(self):
         with tempfile.TemporaryDirectory() as td:
