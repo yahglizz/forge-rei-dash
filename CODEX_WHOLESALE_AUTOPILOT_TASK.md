@@ -35,6 +35,12 @@ layer: the GoHighLevel HTTP transport. Nothing can text a real person. It copies
 `forge rei/*.py` into a scratch dir first, so every `marcus_state/*.json` write is isolated
 from production.
 
+It also symlinks the out-of-repo classifier toolkit (see B1) into the scratch tree so
+`marcus_engine`'s sibling-directory lookup resolves the same way it does in production, and
+prints `usingProductionClassifier` in its `PROBE` line. **If that flag is `false`, the run is
+using the weaker `_fallback_classify` and its classification results mean nothing** — fix the
+link before drawing conclusions.
+
 Run it (the Windows dev machine has only Microsoft Store python stubs — real python3 is on
 the box):
 
