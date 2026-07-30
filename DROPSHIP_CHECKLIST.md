@@ -76,14 +76,20 @@ agency's token. Meta needs a **token**, not a connector.
 
 ## Phase 2 — Keys into `forge-dropship/config/dropship.env`
 
-That file does **not exist yet** — only `dropship.env.example`. Create it, chmod 600. It is
-git-ignored and must 404 over HTTP (rule 4). Ship it with `./deploy/push.sh` (secrets never go
-through git).
+**Created 2026-07-30** — on the box at `/opt/forge/forge-dropship/config/dropship.env`, chmod 600,
+verified 404 over HTTP (rule 4). Secrets never go through git; ship it with `scp` + a
+`systemctl restart forge-reios` (from the gaming PC: `~/.ssh/forge_droplet`), or `./deploy/push.sh`
+from the Mac.
 
 Required to make anything real:
 
-- [ ] `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_ADMIN_TOKEN`
-- [ ] `AUTODS_API_KEY`, `AUTODS_STORE_ID`
+- [x] `SHOPIFY_STORE_DOMAIN` — `pt4x1h-mf.myshopify.com`, `SHOPIFY_API_VERSION` — `2026-07`
+- [ ] `SHOPIFY_ADMIN_TOKEN` — **the one blocking blank.** dev.shopify.com → Dev Dashboard (the old
+      admin "Develop apps" path was removed 2026-01-01) → custom app on this store → Admin API
+      access token `shpat_...`, scopes `read_orders, read_products, read_inventory`
+- [x] `AUTODS_STORE_ID` — `5654075`
+- [ ] AutoDS auth — **not** `AUTODS_API_KEY` (REST rejected: unpublished activation fee, docs gated
+      behind payment). Wire the MCP OAuth refresh companion instead — see the status table above
 - [ ] `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_MAP`
 - [ ] `APIFY_TOKEN` *(new — competitor ad spy)*
 - [ ] `DROPSHIP_ANTHROPIC_API_KEY` *(optional; falls back to the shared key)*
