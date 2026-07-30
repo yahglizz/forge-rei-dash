@@ -381,6 +381,41 @@ _FACT_REASK_PATTERNS = {
         r"\b(?:are there|do you have)\s+any\s+(?:tenants?|renters?)\b",
     )),
 }
+_FACT_REQUEST_PATTERNS = {
+    "condition": re.compile(
+        r"\b(?:(?:can|could|would)\s+you\s+)?"
+        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        r"(?:condition|shape|repairs?|work|updates?|fix(?:es)?)\b",
+        re.IGNORECASE,
+    ),
+    "timeline": re.compile(
+        r"\b(?:(?:can|could|would)\s+you\s+)?"
+        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        r"(?:timeline|timeframe|deadline|closing date|when\b.{0,35}\b"
+        r"(?:sell|close|move|vacate|wrap))\w*\b",
+        re.IGNORECASE,
+    ),
+    "price": re.compile(
+        r"\b(?:(?:can|could|would)\s+you\s+)?"
+        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        r"(?:asking price|price|number|amount|how much)\b",
+        re.IGNORECASE,
+    ),
+    "motivation": re.compile(
+        r"\b(?:(?:can|could|would)\s+you\s+)?"
+        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        r"(?:reason|motivat\w*|why\b.{0,35}\b(?:sell|move)|"
+        r"what\b.{0,35}\b(?:sell|move))\w*\b",
+        re.IGNORECASE,
+    ),
+    "occupancy": re.compile(
+        r"\b(?:(?:can|could|would)\s+you\s+)?"
+        r"(?:tell\s+me|describe|share|walk\s+me\s+through)\b.{0,70}\b"
+        r"(?:occupancy|vacant|occupied|tenant|renter|"
+        r"who\b.{0,35}\b(?:live|stay|occup))\w*\b",
+        re.IGNORECASE,
+    ),
+}
 
 
 def _known_value(value):
@@ -436,7 +471,11 @@ def _qualification_hint(decision, rec, report, retry=False):
 
 
 def _draft_targets_fact(text, fact):
-    return any(pattern.search(text) for pattern in _FACT_DRAFT_PATTERNS.get(fact, ()))
+    request_pattern = _FACT_REQUEST_PATTERNS.get(fact)
+    return (
+        any(pattern.search(text) for pattern in _FACT_REASK_PATTERNS.get(fact, ()))
+        or bool(request_pattern and request_pattern.search(text))
+    )
 
 
 def _draft_reasks_fact(text, fact):

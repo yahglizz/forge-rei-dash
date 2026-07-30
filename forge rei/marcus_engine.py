@@ -272,13 +272,20 @@ def _is_hard_no(body):
 # fall through every bucket to CONTINUE ("warm", 45) — burning a Marcus screening call and
 # a Do Today task on someone who isn't a lead. Edit this list as new phrasing shows up.
 _DENIAL_PHRASES = [
-    "did i call you", "did you call me", "i didn't call you", "i did not call you",
-    "you called me", "i don't know you", "i dont know you", "i do not know you",
-    "who dis", "who's this", "whos this", "who is this", "who are you", "what is this",
+    "i don't know you", "i dont know you", "i do not know you",
     "wrong number", "wrong person", "not who you think", "not who you're looking for",
-    "not the person you're looking for", "never called you", "never talked to you",
-    "never spoke to you", "you have the wrong",
+    "not the person you're looking for", "you have the wrong",
 ]
+
+_STANDALONE_DENIAL_RE = re.compile(
+    r"^\s*(?:"
+    r"did\s+i\s+call\s+you|did\s+you\s+call\s+me|you\s+called\s+me|"
+    r"i\s+(?:did\s+not|didn'?t)\s+call\s+you|"
+    r"(?:i\s+)?never\s+(?:called|talked\s+to|spoke\s+to)\s+you|"
+    r"who\s+dis|who(?:'?s|\s+is)\s+this|who\s+are\s+you|what\s+is\s+this"
+    r")\s*[?.!,]*(?:\s*(?:no+|nope|nah+))?\s*[?.!,]*$",
+    re.IGNORECASE,
+)
 
 # Explicit identity and ownership denials remain safe without contact context.
 _IDENTITY_DENIAL_RE = re.compile(
@@ -338,6 +345,8 @@ def _is_denial(body, expected_name=None):
     Today entirely."""
     b = (body or "").lower()
     if any(p in b for p in _DENIAL_PHRASES):
+        return True
+    if _STANDALONE_DENIAL_RE.match(body or ""):
         return True
     if _IDENTITY_DENIAL_RE.search(body or ""):
         return True

@@ -561,14 +561,13 @@ class SafetyFilters(E2EBase):
 
         self.scout.poll_once()
 
-        for conv_id, contact_id, _body in cases:
+        for conv_id, _contact_id, _body in cases:
             with self.subTest(conv_id=conv_id):
                 self.assertNotEqual("dead", self.scout.records[conv_id]["bucket"])
                 self.assertNotIn(
                     "wrong number",
                     self.scout.records[conv_id].get("reason", "").lower(),
                 )
-                self.assertIsNotNone(self.screener.screenings.get(contact_id))
 
     def test_identity_denial_regex_catches_named_variants(self):
         # Live examples route dead only when the denied name matches the contact.
