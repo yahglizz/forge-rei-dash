@@ -103,6 +103,26 @@ CANNED_WRONG_NUMBER_REPLY = (
     "sorry about that i have the wrong number, ill remove it from my list"
 )
 
+# The AUTONOMOUS twin of MarcusEngine._PRICE_FALLBACK.
+#
+# Why a second constant instead of reusing the original: `sms_guard._OFFER_RE` matches the
+# bare word "offer", and `sms_guard.guard()` runs that check on every autonomous send
+# (`protected_draft = autonomous or ...`). `_PRICE_FALLBACK` contains "you deserve an
+# accurate offer not a lowball", so as an autonomous send it is rejected with
+# gate="price_offer" and the seller gets SILENCE — the safe fallback was itself unsendable.
+#
+# This wording carries the same doctrine beat (don't throw out a random number, ask for the
+# call, leave the text option open) while avoiding every string in `sms_guard._OFFER_RE`:
+# offer, offering, cash offer, pay, paying, give you, can do, come in at, bring you, net you,
+# purchase price, buy it for. `_PRICE_FALLBACK` stays untouched for OPERATOR-facing proposals,
+# where protected_draft is False and "offer" is perfectly fine.
+# Guarded by test_sms_guard so nobody "simplifies" the twin away later.
+CALL_PIVOT_FALLBACK = (
+    "i hear you, i dont wanna throw out a random number over text and waste your time, "
+    "whats a good time for a quick call today so i can go over the property with you, "
+    "or is text better"
+)
+
 # Phrases that mean "soft no / not selling now" -> force the canned referral reply.
 # DNC ("stop", etc.) is classified first and always wins over this.
 # Clear "not selling" signals only. Removed over-broad matches ("no thanks",
@@ -589,36 +609,48 @@ class MarcusEngine:
         "today so i can get you a real one"
     )
 
-    def _no_price_over_text(self, text, cls=None, seller_said=""):
+    def _no_price_over_text(self, text, cls=None, seller_said="", autonomous=False):
         """Hard boundary enforced in CODE, not just the prompt: an agent NEVER sends a
         price/offer/number by text (operator rule — the offer lives on the call). If a draft
         leaks a figure, swap the whole reply for the call-pivot fallback and log it. Returns
-        (safe_text, leaked_bool)."""
+        (safe_text, leaked_bool).
+
+        `autonomous=True` selects CALL_PIVOT_FALLBACK instead of _PRICE_FALLBACK. The latter
+        contains the word "offer", which `sms_guard._OFFER_RE` rejects on any autonomous
+        send — so on that path the "safe" fallback would itself be gate-blocked and the
+        seller would get nothing. Operator-facing drafts keep the original wording."""
         if not text:
             return text, False
         if (self._PRICE_RE.search(text)
                 or (_SELLER_PRICE_RE.search(seller_said or "")
                     and _PRICE_CONFIRM_RE.search(text))):
+            fallback = CALL_PIVOT_FALLBACK if autonomous else self._PRICE_FALLBACK
             try:
                 self._log("price_guard", f"Blocked a texted number in a {cls or '?'} draft "
                           f"— swapped to call-pivot: \"{text[:80]}\"", {})
             except Exception:
                 pass
-            return self._PRICE_FALLBACK, True
+            return fallback, True
         return text, False
 
-    def _ai_draft(self, first, cls, body, history, hint=None, seller_context=None):
+    def _ai_draft(self, first, cls, body, history, hint=None, seller_context=None, pivot=False):
         """Claude-written reply if a key is present; else Marcus's template.
 
         `hint` (optional) is Scout's recommended re-engage angle for a missed/cold lead;
-        when present Marcus reopens the thread on that angle instead of a generic reply."""
+        when present Marcus reopens the thread on that angle instead of a generic reply.
+
+        `pivot` (ACE) means this text IS the call-pivot: the seller asked for a number or
+        said they're ready, and this one message has to earn the call without naming a
+        figure. It is deliberately NOT folded into `hint` — `hint` is truncated to 300
+        chars, is framed as a cold re-engage angle, and sets proposal["reengage"], all of
+        which are wrong here. It also selects the gate-safe CALL_PIVOT_FALLBACK."""
         seller_said = body or ""
         safety_context = seller_context or seller_said
 
         def _template_reply():
             t = self._scrub_voice(draft_reply(first, cls), seller_said=seller_said)
-            t, _ = self._no_price_over_text(t, cls, safety_context)
-            return t
+            t, _ = self._no_price_over_text(t, cls, safety_context, autonomous=pivot)
+            return CALL_PIVOT_FALLBACK if pivot else t
 
         if not self.anthropic_key:
             return _template_reply(), "template"
