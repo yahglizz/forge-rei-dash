@@ -325,6 +325,51 @@ _FACT_DRAFT_PATTERNS = {
         r"\b(?:living|live|staying|stay)\b",
     )),
 }
+_FACT_REASK_PATTERNS = {
+    "condition": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\bwhat(?:'s| is)?\s+(?:kind of\s+)?(?:condition|shape)\b",
+        r"\bwhat\s+(?:kind of\s+)?(?:repairs?|work|updates?|fixes?)\b",
+        r"\b(?:does|do)\b.{0,20}\b(?:need|require)\b.{0,20}"
+        r"\b(?:repairs?|work|fix(?:es|ing)?|updates?)\b",
+        r"\b(?:is|are)\b.{0,25}\b(?:roof|hvac|foundation)\b.{0,15}"
+        r"\b(?:new|old|working|damaged|updated|replaced)\b",
+        r"\b(?:how|what)\b.{0,20}\b(?:roof|hvac|foundation)\b",
+    )),
+    "timeline": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\bhow soon\s+(?:are|do|would|can|could|will)\s+you\b",
+        r"\bwhat(?:'s| is)?\s+(?:your\s+|the\s+)?(?:timeline|timeframe|deadline|"
+        r"closing date)\b",
+        r"\bwhen\s+(?:do|are|would|can|could|will)\b.{0,35}"
+        r"\b(?:sell|close|move|vacate|wrap)\w*\b",
+        r"\b(?:do|are|would|can|could|will)\s+you\b.{0,35}"
+        r"\b(?:sell|close|move|vacate|done|wrap(?:ped|ping)? up)\b",
+    )),
+    "price": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\bwhat(?:'s| is| are)?\b.{0,20}\b(?:price|asking|number|amount)\b",
+        r"\b(?:do|did)\s+you\b.{0,20}\b(?:have|want|need)\b.{0,20}"
+        r"\b(?:price|number|amount|for it)\b",
+        r"\bhow much\b",
+        r"\b(?:are|were)\s+you\b.{0,20}\b(?:looking|hoping)\b.{0,15}\bget\b",
+    )),
+    "motivation": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\bwhy\s+(?:are|do|did|would|will)\s+you\b.{0,35}"
+        r"\b(?:sell|move|let)\w*\b",
+        r"\bwhat(?:'s| is|s)\b.{0,25}\b(?:got|made|making|driv(?:e|ing)|"
+        r"prompt(?:ed|ing))\b.{0,40}\b(?:sell(?:ing)?|move|moving|this)\b",
+        r"\bwhat(?:'s| is)?\s+(?:your\s+|the\s+)?(?:reason|motivation)\b",
+        r"\bwhat changed\b",
+    )),
+    "occupancy": tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+        r"\b(?:is|are)\s+(?:it|the\s+(?:property|house|home|place))\s+"
+        r"(?:vacant|occupied|rented|owner[- ]occupied)\b",
+        r"\b(?:is|are)\b.{0,20}\b(?:anyone|someone|tenant|renter)\b.{0,20}"
+        r"\b(?:living|staying|there)\b",
+        r"\bwho\b.{0,40}\b(?:live|living|stay|staying|calls?\s+(?:the\s+)?"
+        r"(?:property|place|house)\s+home)\b",
+        r"\bdoes\b.{0,25}\b(?:live|stay)\b.{0,15}\bthere\b",
+        r"\b(?:are there|do you have)\s+any\s+(?:tenants?|renters?)\b",
+    )),
+}
 
 
 def _known_value(value):
@@ -383,6 +428,10 @@ def _draft_targets_fact(text, fact):
     return any(pattern.search(text) for pattern in _FACT_DRAFT_PATTERNS.get(fact, ()))
 
 
+def _draft_reasks_fact(text, fact):
+    return any(pattern.search(text) for pattern in _FACT_REASK_PATTERNS.get(fact, ()))
+
+
 def _draft_adherence_reason(proposal, fact, known_facts=None):
     """Return a stable failure reason when a qualifying draft misses its assigned fact."""
     text = str((proposal or {}).get("suggestedReply")
@@ -393,7 +442,7 @@ def _draft_adherence_reason(proposal, fact, known_facts=None):
     if not _draft_targets_fact(normalized, fact):
         return f"draft does not ask about assigned fact: {fact}"
     for known_fact in sorted(known_facts or ()):
-        if known_fact != fact and _draft_targets_fact(normalized, known_fact):
+        if known_fact != fact and _draft_reasks_fact(normalized, known_fact):
             return f"draft re-asks already-known fact: {known_fact}"
     try:
         import sms_guard
