@@ -300,6 +300,21 @@ def consider(conv_id, rec, report, convo, marcus, last_seller_msg=None):
     try:
         d = decide(rec, report, convo, last_seller_msg=last_seller_msg)
         action = d.get("action")
+        if action == "pivot":
+            # Shadow dress-rehearsal: draft the exact pivot into the approval inbox so the
+            # operator can read real ones before arming supervised/full. Deliberately does
+            # NOT write the callPivotAt ledger — nothing was sent, so the thread must stay
+            # eligible for a real pivot when the mode is flipped.
+            res = {}
+            if marcus is not None:
+                res = marcus.make_proposal_for(
+                    conv_id, contact_id=(rec or {}).get("contactId"),
+                    pivot=True, seller_said=last_seller_msg)
+            ok = bool(res.get("ok"))
+            log_event("shadow_pivot" if ok else "draft_fail", conv_id, d.get("reason"),
+                      {"name": (rec or {}).get("name"), "err": res.get("error")})
+            d["proposed"] = ok
+            return d
         if action == "escalate":
             log_event("escalate", conv_id, d.get("reason"),
                       {"name": (rec or {}).get("name")})
@@ -375,6 +390,109 @@ def _pivot_text(proposal):
     except Exception:
         pass
     return text
+
+
+def _do_pivot(conv_id, rec, report, convo, marcus, d, last_seller_msg=None, deal_prep=None):
+    """Send ONE call-pivot text, then escalate to the operator.
+
+    Ordering here is load-bearing:
+      * reserve the cap slot BEFORE drafting (same race-safety as the reply path);
+      * write the `callPivotAt` ledger ONLY after a confirmed send — a gate block (send
+        hours, legit_check, ledger dedupe) must leave the thread eligible so the next sweep
+        retries, otherwise "blocked at 8:59pm" silently becomes "silent forever";
+      * escalate + build the call card UNCONDITIONALLY, so a blocked text still reaches the
+        operator as a 📞 card rather than vanishing.
+    Never raises — a pivot failure can't be allowed to break the screening sweep."""
+    reserved = False
+    sent = False
+    name = (rec or {}).get("name")
+    try:
+        m = mode()
+        slot = _reserve_send_slot(m, kind="pivot")
+        if not slot.get("ok"):
+            log_event("blocked", conv_id, slot.get("error") or "cap reached",
+                      {"name": name, "pivot": True})
+        else:
+            reserved = True
+            cap = slot.get("cap", cap_for(m))
+            res = marcus.make_proposal_for(
+                conv_id, contact_id=(rec or {}).get("contactId"),
+                pivot=True, seller_said=last_seller_msg) if marcus else {}
+            if not res.get("ok"):
+                _release_send_slot()
+                reserved = False
+                log_event("draft_fail", conv_id, "pivot draft failed",
+                          {"err": res.get("error"), "name": name})
+                d["error"] = res.get("error")
+            else:
+                pid = res.get("proposalId")
+                p = (getattr(marcus, "proposals", {}) or {}).get(pid) if pid else None
+                if p is None:
+                    found = _find_pending_pid(marcus, conv_id)
+                    if found:
+                        pid, p = found
+                if p is None:
+                    _release_send_slot()
+                    reserved = False
+                    log_event("draft_fail", conv_id, "pivot proposal not found after draft",
+                              {"name": name})
+                else:
+                    text = _pivot_text(p)
+                    p["autonomous"] = True     # full sms_guard stack, both modes (locked)
+                    p["ace"] = True
+                    p["acePivot"] = True       # autopilot.maybe_send must skip this
+                    sres = marcus.approve(pid, text) if text else marcus.approve(pid)
+                    if sres.get("ok"):
+                        reserved = False
+                        sent = True
+                        for fn, arg in ((convo.note_call_pivot, d.get("reason") or ""),
+                                        (convo.note_reply, None)):
+                            try:
+                                fn(conv_id, arg) if arg is not None else fn(conv_id)
+                            except Exception:
+                                pass
+                        try:
+                            convo.set_state(conv_id, "CALL_READY")
+                        except Exception:
+                            pass
+                        log_event("call_pivot", conv_id, p.get("sentReply") or text,
+                                  {"name": name, "why": d.get("reason")})
+                        d["pivoted"] = True
+                        try:
+                            import telegram_io
+                            telegram_io.send(
+                                f"📣 <b>ACE call-pivot</b> ({slot.get('sentToday')}/{cap}) → "
+                                f"{name or 'seller'}\n"
+                                f"<i>why: {d.get('reason')}</i>\n"
+                                f"✍️ \"{(p.get('sentReply') or text or '')[:300]}\"",
+                                buttons=[
+                                    [{"text": "⛔ Stop this thread",
+                                      "callback_data": f"acestop:{conv_id}"}],
+                                    [{"text": "↩ Undo (hold + flag)",
+                                      "callback_data": f"aceundo:{conv_id}"}],
+                                ],
+                                dedupe_key=f"acepivot:{conv_id}")
+                        except Exception:
+                            pass
+                    else:
+                        _release_send_slot()
+                        reserved = False
+                        log_event("blocked", conv_id, sres.get("error"),
+                                  {"gate": sres.get("gate"), "name": name, "pivot": True})
+                        d["error"] = sres.get("error")
+                        d["gate"] = sres.get("gate")
+    except Exception as e:  # noqa: BLE001
+        if reserved:
+            _release_send_slot()
+        log_event("error", conv_id, f"pivot: {e}")
+    # Escalate regardless of whether the text made it out.
+    try:
+        log_event("escalate", conv_id, d.get("reason"),
+                  {"name": name, "pivot": bool(sent)})
+        call_ready_upsert(dict(rec or {}, state="CALL_READY"), report, deal_prep)
+    except Exception:
+        pass
+    return d
 
 
 def apply(conv_id, rec, report, convo, marcus, last_seller_msg=None, deal_prep=None):
@@ -617,7 +735,10 @@ def digest(days=1):
         cr = call_ready_list()
         return {"ok": True, "mode": d.get("mode", "off"),
                 "sentToday": int(d.get("sentToday") or 0), "cap": cap_for(d.get("mode")),
+                "questionCap": reply_cap_for(d.get("mode")), "pivotReserve": PIVOT_RESERVE,
                 "summary": {"autoSends": by_kind.get("auto_send", 0),
+                            "callPivots": by_kind.get("call_pivot", 0),
+                            "shadowPivots": by_kind.get("shadow_pivot", 0),
                             "shadowDrafts": by_kind.get("shadow_draft", 0),
                             "escalations": by_kind.get("escalate", 0),
                             "callReady": by_kind.get("call_ready", 0),

@@ -140,6 +140,14 @@ def maybe_send(marcus, scout, proposal):
         # 2. ONLY the re-engage bump followup.py drafts — never first replies
         if proposal.get("reengage") is not True:
             return {"skipped": "not a re-engage bump"}
+        # 2b. Hands off anything ACE owns. followup._scan_no_response finds its proposal by
+        # scanning for the newest pending one on the conversation, so an ACE draft that is
+        # mid-flight between make_proposal_for and approve is briefly reachable by that
+        # lookup. ACE proposals never set reengage, so this is belt-and-braces — but the
+        # failure it prevents (two agents sending on one thread at once) is bad enough that
+        # the redundancy is worth three lines.
+        if proposal.get("ace") or proposal.get("pivot") or proposal.get("acePivot"):
+            return {"skipped": "ACE owns this proposal"}
         # 3. classification allowlist — price/ready/help deserve the operator personally
         if proposal.get("classification") in DENY_CLASSES:
             return {"skipped": f"class {proposal.get('classification')} is operator-only"}
