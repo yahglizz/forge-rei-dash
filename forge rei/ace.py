@@ -477,7 +477,7 @@ def _qualification_hint(decision, rec, report, retry=False):
 
 
 def _draft_requests_fact(text, fact):
-    """Match seller-directed requests whose fact topic stays in the same sentence."""
+    """Match seller-directed requests whose fact topic stays in the same clause."""
     topic_pattern = _FACT_REQUEST_TOPIC_PATTERNS.get(fact)
     if not topic_pattern:
         return False
