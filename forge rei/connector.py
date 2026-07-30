@@ -564,6 +564,11 @@ def api_ace_status(_q):
         return {"ok": False, "error": str(e), "mode": "off"}
 
 
+def api_autopilot_status(_q):
+    """Legacy re-engagement autopilot status, independent from ACE mode."""
+    return autopilot.status()
+
+
 def api_cost_status(_q):
     """Running cost of the OS: Claude tokens, SMS count, fixed monthly, cap alert."""
     try:
@@ -2553,6 +2558,7 @@ ROUTES = {
     "/api/mission-control/brief/overview": lambda q: ORION.overview(),
     "/api/ace/state": api_ace_state,
     "/api/ace/status": api_ace_status,
+    "/api/autopilot/status": api_autopilot_status,
     "/api/cost/status": api_cost_status,
     "/api/spend/status": api_spend_status,
     "/api/skillforge/pending": api_skillforge_pending,
@@ -2671,7 +2677,7 @@ ROUTES = {
 
 # Marcus endpoints are real-time — never serve them from the 45s cache.
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
-NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status",
+NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status", "/api/autopilot/status",
             "/api/cost/status", "/api/spend/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/office/state", "/api/office/job", "/api/office/jobs",
@@ -3011,6 +3017,7 @@ class Handler(BaseHTTPRequestHandler):
                 or parsed.path in ("/api/send", "/api/review/run",
                                    "/api/reply/draft", "/api/reply/send",
                                    "/api/ace/mode",
+                                   "/api/autopilot/toggle",
                                    "/api/cost/manual", "/api/cost/settings",
                                    "/api/spend/save", "/api/spend/delete",
                                    "/api/skillforge/act", "/api/ace/ack", "/api/ace/hold",
@@ -3147,6 +3154,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = handle_reply_send(body)
             elif parsed.path == "/api/ace/mode":
                 result = ace.set_mode(body.get("mode"))
+            elif parsed.path == "/api/autopilot/toggle":
+                if not isinstance(body.get("enabled"), bool):
+                    return self._send_json({"error": "enabled must be a boolean"}, 400)
+                result = autopilot.set_enabled(body["enabled"])
             elif parsed.path == "/api/cost/manual":
                 import cost_tracker
                 result = cost_tracker.set_fixed(body.get("service"),
