@@ -31,6 +31,12 @@ Read the numbers a campaign is already producing and name exactly which lever
 to pull next. Not for writing ad copy or inventing creative from scratch — that
 job is the Four Triggers framework.
 
+Naming the constraint correctly does not mean the constraint should be acted on
+right now. Pair every diagnosis with [[dropship-account-optimization-doctrine]] —
+it sets the time window the numbers must come from, sorts what changed into
+in-our-control vs. not, and covers when "wait" beats any action here (plus why
+turning off a top spender is usually the wrong lever, however bad its CPA looks).
+
 ## Core Philosophy
 
 1. **Ad spend is "buying data."** Every dollar spent is a paid experiment

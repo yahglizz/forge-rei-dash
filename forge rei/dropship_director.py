@@ -172,8 +172,15 @@ def playbook_text(limit=2000):
     return ("\n\n".join(parts))[:limit]
 
 
-def top_skills_text(limit=120000):
+def top_skills_text(limit=200000):
     """EVERY Midas skill, for operator chat grounding. No live instance needed.
+
+    `limit` is a runaway guard, NOT a budget — it must stay comfortably above the real
+    total (~132k chars as of 2026-07-30), because truncation here is silent and always
+    eats the LAST skill in `names` order, which is ON_DEMAND_SKILLS. That is exactly how
+    dropship-store-setup.md went orphan when the creative & ads lane grew: nothing errors,
+    the skill just stops reaching the prompt. test_dropship_skills.py catches it. When
+    adding skills, re-check the headroom rather than raising this after the test goes red.
 
     Chat gets the full set — core + every lane SOP + the on-demand build guides — while
     the scheduled brief gets only its lane (see MidasEngine._load_skills). The asymmetry
