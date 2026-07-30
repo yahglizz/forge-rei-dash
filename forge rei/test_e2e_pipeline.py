@@ -573,6 +573,12 @@ class SafetyFilters(E2EBase):
             ("c18", "ct18", "what is this regarding the house? I may be open to selling"),
             ("c19", "ct19", "I don't know you, but yes, I'm open to selling"),
             ("c20", "ct20", "You have the wrong price, but I would consider selling"),
+            ("c23", "ct23", "100k is the wrong number, but I'd sell for 150k"),
+            (
+                "c24",
+                "ct24",
+                "You have the wrong person listed as owner; I own it with my wife",
+            ),
         )
         for conv_id, contact_id, body in cases:
             self.ghl.add_lead(conv_id, contact_id, "Open Seller", "+15551230016", [

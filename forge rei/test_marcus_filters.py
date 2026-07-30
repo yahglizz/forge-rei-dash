@@ -78,6 +78,8 @@ COMPLETE_SELLER_CONTEXT = (
 AMBIGUOUS_PHRASE_SELLER_CONTEXT = (
     "I don't know you, but yes, I'm open to selling",
     "You have the wrong price, but I would consider selling",
+    "100k is the wrong number, but I'd sell for 150k",
+    "You have the wrong person listed as owner; I own it with my wife",
     "you called me about my house, yes I'm open to selling",
     "who is this about my property? yes, I would consider selling",
     "what is this regarding the house? I may be open to selling",

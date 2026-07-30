@@ -483,6 +483,7 @@ class AceApplyTest(unittest.TestCase):
         drafts = (
             "We can describe our timeline on a call. Are you free today?",
             "Can you share your availability? We can share our timeline on a call",
+            "Can you share your availability, and we can share our timeline on a call?",
         )
         for draft in drafts:
             with self.subTest(draft=draft):
@@ -549,16 +550,16 @@ class AceDraftAdherenceTest(unittest.TestCase):
                 self.assertIsNotNone(reason)
 
     def test_request_lead_cannot_license_fact_topic_in_next_sentence(self):
-        reason = ace._draft_adherence_reason(
-            {
-                "suggestedReply": (
-                    "Can you share your availability? "
-                    "We can share our timeline on a call"
-                )
-            },
-            "timeline",
+        drafts = (
+            "Can you share your availability? We can share our timeline on a call",
+            "Can you share your availability, and we can share our timeline on a call?",
         )
-        self.assertIsNotNone(reason)
+        for draft in drafts:
+            with self.subTest(draft=draft):
+                reason = ace._draft_adherence_reason(
+                    {"suggestedReply": draft}, "timeline"
+                )
+                self.assertIsNotNone(reason)
 
     def test_generic_substring_collisions_do_not_satisfy_assigned_fact(self):
         cases = [
@@ -607,6 +608,7 @@ class AceDraftAdherenceTest(unittest.TestCase):
         drafts = (
             "can you share your timeline",
             "John, please share your timeline",
+            "got it, can you share your timeline",
         )
         for draft in drafts:
             with self.subTest(draft=draft):

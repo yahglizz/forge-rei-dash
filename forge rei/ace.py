@@ -393,6 +393,10 @@ _FACT_REQUEST_IMPERATIVE_RE = re.compile(
     r"share\s+(?:your|the|more\s+about))\b",
     re.IGNORECASE,
 )
+_FACT_REQUEST_CLAUSE_SPLIT_RE = re.compile(
+    r"[.?!;,]+|\b(?:and|but|so|then)\b",
+    re.IGNORECASE,
+)
 _FACT_REQUEST_TOPIC_PATTERNS = {
     "condition": re.compile(
         r"(?:condition|shape|repairs?|work|updates?|fix(?:es)?)\b",
@@ -477,7 +481,7 @@ def _draft_requests_fact(text, fact):
     topic_pattern = _FACT_REQUEST_TOPIC_PATTERNS.get(fact)
     if not topic_pattern:
         return False
-    for clause in re.split(r"[.?!;]+", text):
+    for clause in _FACT_REQUEST_CLAUSE_SPLIT_RE.split(text):
         for lead_pattern in (_FACT_REQUEST_AUX_RE, _FACT_REQUEST_IMPERATIVE_RE):
             for lead in lead_pattern.finditer(clause):
                 if topic_pattern.search(clause, lead.end()):
