@@ -15,6 +15,7 @@ State: {mode, sentToday, day, log[:50]}. Modes: off|shadow|supervised|full.
 """
 import json
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -28,6 +29,7 @@ _LOCK = threading.Lock()
 
 MODES = ("off", "shadow", "supervised", "full")
 MAX_REPLIES = int(os.environ.get("FORGE_ACE_MAX_REPLIES", "5"))
+READY_MIN_FACTS = 3
 _MAX_LOG = 50
 
 # Phase 3 — per-mode daily auto-send caps (separate from autopilot's cap; both share
@@ -269,6 +271,83 @@ def _stop(reason):
     return {"action": "stop", "reason": reason}
 
 
+_FACT_REPORT_FIELDS = {
+    "condition": "conditionNotes",
+    "timeline": "timeline",
+    "price": "askingPrice",
+    "motivation": "motivationLevel",
+    "occupancy": "propertyStatus",
+}
+_UNKNOWN_VALUES = ("", "unknown", "not mentioned", "none", "n/a", "null")
+_FACT_DRAFT_TERMS = {
+    "condition": ("condition", "shape", "repair", "fix", "work", "roof", "hvac",
+                  "foundation", "damage", "updated"),
+    "timeline": ("timeline", "timeframe", "how soon", "when", "close", "sell by",
+                 "looking to sell", "ready to sell"),
+    "price": ("price", "asking", "number in mind", "looking to get", "hoping to get",
+              "want for", "need for", "take for"),
+    "motivation": ("motivation", "why", "reason", "what's got", "whats got",
+                   "thinking about selling", "want to sell", "goal"),
+    "occupancy": ("vacant", "occupied", "occupancy", "living there", "live there",
+                  "tenant", "renter", "rented"),
+}
+
+
+def _known_value(value):
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (dict, list, tuple)):
+        text = json.dumps(value, sort_keys=True)
+    else:
+        text = str(value).strip()
+    return text[:300] if text.lower() not in _UNKNOWN_VALUES else None
+
+
+def _qualification_hint(decision, rec, report, retry=False):
+    """Ground a one-fact draft and make already-known values explicit."""
+    fact = decision.get("fact")
+    known = []
+    fact_flags = (rec or {}).get("facts") or {}
+    report = report or {}
+    for name, report_field in _FACT_REPORT_FIELDS.items():
+        if name == fact:
+            continue
+        conversation_value = _known_value(fact_flags.get(name))
+        report_value = _known_value(report.get(report_field))
+        if fact_flags.get(name) or report_value is not None:
+            value = conversation_value or report_value or "already known (value unavailable)"
+            known.append(f"{name}: {value}")
+    known_context = "; ".join(known) if known else "none"
+    retry_line = (
+        f" REQUIRED RETRY: the prior draft missed {fact}; ask specifically about {fact}."
+        if retry else ""
+    )
+    return (
+        f"Assigned fact: {fact}. Ask the seller, in your voice, ONE short natural question "
+        f"specifically to learn that fact. Suggested question: \"{decision.get('question') or ''}\". "
+        f"Known facts - Do not re-ask any of these: {known_context}. "
+        f"Do not quote a price or make an offer.{retry_line}"
+    )
+
+
+def _draft_adherence_reason(proposal, fact):
+    """Return a stable failure reason when a qualifying draft misses its assigned fact."""
+    text = str((proposal or {}).get("suggestedReply")
+               or (proposal or {}).get("sentReply") or "").strip()
+    if not text:
+        return "draft text unavailable"
+    normalized = re.sub(r"\s+", " ", text.lower().replace("\u2019", "'"))
+    if not any(term in normalized for term in _FACT_DRAFT_TERMS.get(fact, ())):
+        return f"draft does not ask about assigned fact: {fact}"
+    try:
+        import sms_guard
+        if sms_guard._quotes_price_or_offer(text):
+            return "draft quotes price or offer"
+    except Exception:
+        return "price safety check unavailable"
+    return None
+
+
 def decide(rec, report, convo, last_seller_msg=None):
     """Ordered reply/escalate/stop decision for one thread. Pure (no side effects, never
     raises). Phase 2 acts only on 'reply'; 'escalate'/'stop' are logged for later phases."""
@@ -304,7 +383,12 @@ def decide(rec, report, convo, last_seller_msg=None):
             try:
                 import marcus_engine
                 cls = (marcus_engine.classify(last_seller_msg) or "").upper()
-                if cls in ("PRICE", "READY"):
+                known_facts = sum(
+                    1 for value in ((rec or {}).get("facts") or {}).values() if value
+                )
+                if cls == "PRICE":
+                    return {"action": "pivot", "escalate": True, "reason": f"classify:{cls}"}
+                if cls == "READY" and known_facts >= READY_MIN_FACTS:
                     return {"action": "pivot", "escalate": True, "reason": f"classify:{cls}"}
             except Exception:
                 pass
@@ -350,18 +434,18 @@ def consider(conv_id, rec, report, convo, marcus, last_seller_msg=None):
             return d
         # action == "reply": shadow-draft the question as a gated proposal.
         contact_id = (rec or {}).get("contactId")
-        hint = ("Ask the seller, in your voice, ONE short natural question to learn their "
-                f"{d['fact']}: \"{d['question']}\". Do not quote a price or make an offer.")
-        res = {}
-        if marcus is not None:
-            res = marcus.make_proposal_for(conv_id, contact_id=contact_id, hint=hint,
-                                           seller_said=last_seller_msg)
+        res = _draft_qualifying_proposal(
+            marcus, conv_id, contact_id, d, rec, report, last_seller_msg
+        )
         ok = bool(res.get("ok"))
         log_event("shadow_draft" if ok else "draft_fail", conv_id,
                   d.get("question"), {"fact": d.get("fact"),
                                       "name": (rec or {}).get("name"),
                                       "err": res.get("error")})
         d["proposed"] = ok
+        if not ok:
+            d["error"] = res.get("error")
+            d["gate"] = res.get("gate")
         return d
     except Exception as e:  # noqa: BLE001
         log_event("error", conv_id, f"consider: {e}")
@@ -382,6 +466,47 @@ def _find_pending_pid(marcus, conv_id):
         return best
     except Exception:
         return None
+
+
+def _dismiss_draft(marcus, pid, proposal):
+    try:
+        dismiss = getattr(marcus, "dismiss", None)
+        if callable(dismiss):
+            dismiss(pid)
+            return
+        if proposal is not None:
+            proposal["status"] = "dismissed"
+    except Exception:
+        if proposal is not None:
+            proposal["status"] = "dismissed"
+
+
+def _draft_qualifying_proposal(marcus, conv_id, contact_id, decision, rec, report,
+                                last_seller_msg=None):
+    """Draft at most twice, admitting only a question about the assigned fact."""
+    if marcus is None:
+        return {"error": "Marcus unavailable", "gate": "fact_adherence"}
+    last_reason = "draft failed fact adherence"
+    for attempt in range(2):
+        hint = _qualification_hint(decision, rec, report, retry=bool(attempt))
+        res = marcus.make_proposal_for(
+            conv_id, contact_id=contact_id, hint=hint, seller_said=last_seller_msg
+        )
+        if not res.get("ok"):
+            return res
+        pid = res.get("proposalId")
+        proposal = (getattr(marcus, "proposals", {}) or {}).get(pid) if pid else None
+        if proposal is None:
+            found = _find_pending_pid(marcus, conv_id)
+            if found:
+                pid, proposal = found
+        last_reason = _draft_adherence_reason(proposal, decision.get("fact"))
+        if not last_reason:
+            return {"ok": True, "proposalId": pid, "proposal": proposal,
+                    "attempts": attempt + 1}
+        if pid:
+            _dismiss_draft(marcus, pid, proposal)
+    return {"error": last_reason, "gate": "fact_adherence", "attempts": 2}
 
 
 def _pivot_text(proposal):
@@ -555,21 +680,24 @@ def apply(conv_id, rec, report, convo, marcus, last_seller_msg=None, deal_prep=N
         reserved = True
         cap = slot.get("cap", cap_for(m))
         contact_id = (rec or {}).get("contactId")
-        hint = ("Ask the seller, in your voice, ONE short natural question to learn their "
-                f"{d['fact']}: \"{d['question']}\". Do not quote a price or make an offer.")
-        res = marcus.make_proposal_for(conv_id, contact_id=contact_id, hint=hint,
-                                       seller_said=last_seller_msg) if marcus else {}
+        res = _draft_qualifying_proposal(
+            marcus, conv_id, contact_id, d, rec, report, last_seller_msg
+        )
         if not res.get("ok"):
             _release_send_slot()
             reserved = False
-            log_event("draft_fail", conv_id, d.get("question"), {"err": res.get("error")})
+            log_event("draft_fail", conv_id, d.get("question"),
+                      {"err": res.get("error"), "gate": res.get("gate")})
             d["error"] = res.get("error")
+            d["gate"] = res.get("gate")
             return d
         # make_proposal_for RETURNS the proposalId — trust it, and only fall back to the
         # conversation scan if it's missing. (The scan alone is fragile: anything that
         # consumes the proposal between the draft and the lookup makes it vanish.)
         pid = res.get("proposalId")
-        p = (getattr(marcus, "proposals", {}) or {}).get(pid) if pid else None
+        p = res.get("proposal")
+        if p is None:
+            p = (getattr(marcus, "proposals", {}) or {}).get(pid) if pid else None
         if p is None:
             found = _find_pending_pid(marcus, conv_id)
             if not found:
