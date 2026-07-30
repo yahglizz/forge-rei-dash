@@ -209,6 +209,25 @@ class SellerClassifierTests(unittest.TestCase):
         self.assertEqual("vault", metadata["source"])
         self.assertEqual(len("vault-only marker".encode("utf-8")), metadata["bytes"])
 
+    def test_utf8_vault_skill_preserves_prompt_text_and_byte_count(self):
+        expected = "Seller’s timeline — call-ready ✓"
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td)
+            skills = vault / "Skills"
+            skills.mkdir()
+            override = skills / "yahjair-voice.md"
+            override.write_text(expected, encoding="utf-8")
+            with mock.patch.object(brain_io, "VAULT", vault):
+                engine = MarcusEngineStatusStub()
+                playbook = marcus_engine.MarcusEngine._load_playbook(engine)
+                sources = marcus_engine.skill_sources()
+
+        self.assertIn(expected, playbook)
+        self.assertEqual(
+            len(expected.encode("utf-8")),
+            sources["playbook"]["yahjair-voice.md"]["bytes"],
+        )
+
     def test_prompt_health_is_metadata_only_in_marcus_and_ace_status(self):
         with tempfile.TemporaryDirectory() as td:
             missing_vault = Path(td) / "missing-vault"

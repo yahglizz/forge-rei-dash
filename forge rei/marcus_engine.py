@@ -140,7 +140,7 @@ def _skill_text(name):
         sig = (str(resolved), path.stat().st_mtime_ns)
         cached = _SKILL_CACHE.get(name)
         if not cached or cached[0] != sig:
-            cached = (sig, path.read_text(errors="ignore"))
+            cached = (sig, path.read_text(encoding="utf-8", errors="ignore"))
             _SKILL_CACHE[name] = cached
         return cached[1], resolved, source
     except Exception:
