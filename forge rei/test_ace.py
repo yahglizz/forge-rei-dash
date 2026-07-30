@@ -10,51 +10,72 @@ class FakeMarcus:
     def __init__(self):
         self.calls = []
 
-    def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None):
-        self.calls.append({"conv": conv_id, "contact": contact_id, "hint": hint})
+    def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None,
+                          pivot=False):
+        self.calls.append({"conv": conv_id, "contact": contact_id, "hint": hint,
+                           "pivot": pivot})
         return {"ok": True, "conversationId": conv_id}
 
 
 class FakeSendingMarcus(FakeMarcus):
     """P3 fake: drafting creates a pending proposal; approve records what was sent."""
 
-    def __init__(self, approve_ok=True):
+    def __init__(self, approve_ok=True, draft=None):
         super().__init__()
         self.proposals = {}
         self.approved = []
         self.approve_ok = approve_ok
+        self.draft = draft or "how soon are you looking to sell"
         self._n = 0
 
-    def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None):
+    def make_proposal_for(self, conv_id, contact_id=None, hint=None, seller_said=None,
+                          pivot=False):
         super().make_proposal_for(conv_id, contact_id=contact_id, hint=hint,
-                                  seller_said=seller_said)
+                                  seller_said=seller_said, pivot=pivot)
         self._n += 1
         pid = f"p_{conv_id}_{self._n}"
         self.proposals[pid] = {"id": pid, "conversationId": conv_id,
                                "contactId": contact_id, "status": "pending",
-                               "suggestedReply": "how soon are you looking to sell",
+                               "suggestedReply": self.draft,
+                               "pivot": bool(pivot),
                                "ts": self._n}
-        return {"ok": True, "conversationId": conv_id}
+        return {"ok": True, "conversationId": conv_id, "proposalId": pid}
 
     def approve(self, pid, edited=None):
         p = self.proposals.get(pid)
         if not p:
             return {"error": "not found"}
-        self.approved.append({"pid": pid, "autonomous": p.get("autonomous")})
+        self.approved.append({"pid": pid, "autonomous": p.get("autonomous"),
+                              "edited": edited, "acePivot": p.get("acePivot")})
         if not self.approve_ok:
             return {"error": "gate says no", "gate": "send_hours"}
         p["status"] = "sent"
-        p["sentReply"] = p["suggestedReply"]
+        p["sentReply"] = edited or p["suggestedReply"]
         return {"ok": True}
 
 
 def rec(state="QUALIFYING", facts=None, replies=0, held=False, name="Lead", contact="c1",
-        phone="2675550100"):
-    return {"convId": "v1", "contactId": contact, "name": name, "state": state,
-            "phone": phone, "replies": replies, "held": held,
-            "facts": facts if facts is not None else {
-                "condition": True, "timeline": False, "price": False,
-                "motivation": True, "occupancy": True}}
+        phone="2675550100", pivot_at=None, conv="v1"):
+    r = {"convId": conv, "contactId": contact, "name": name, "state": state,
+         "phone": phone, "replies": replies, "held": held,
+         "facts": facts if facts is not None else {
+             "condition": True, "timeline": False, "price": False,
+             "motivation": True, "occupancy": True}}
+    if pivot_at:
+        r["callPivotAt"] = pivot_at
+    return r
+
+
+ALL_FACTS = {"condition": True, "timeline": True, "price": True,
+             "motivation": True, "occupancy": True}
+
+
+def quiet_convo(ce):
+    """Stop a ConversationEngine from touching the real marcus_state store in tests."""
+    ce.note_reply = lambda conv_id: None
+    ce.note_call_pivot = lambda conv_id, reason="": 1
+    ce.set_state = lambda conv_id, state: None
+    return ce
 
 
 REPORT = {"interest": "interested",
@@ -229,10 +250,32 @@ class AceConsiderShadowTest(unittest.TestCase):
         self.assertNotIn("$", m.calls[0]["hint"])
 
     def test_shadow_escalate_makes_no_proposal(self):
+        # An ALREADY-pivoted thread escalates silently — this is the case that still
+        # produces no draft now that a first CALL_READY earns one pivot text.
         ace.set_mode("shadow")
         m = FakeMarcus()
-        ace.consider("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        ace.consider("v1", rec(state="CALL_READY", pivot_at=1), REPORT, self.ce, m)
         self.assertEqual([], m.calls)
+
+    def test_shadow_pivot_drafts_but_never_sends(self):
+        ace.set_mode("shadow")
+        m = FakeSendingMarcus()
+        d = ace.consider("v1", rec(state="CALL_READY"), REPORT, self.ce, m,
+                         last_seller_msg="how much will you give me")
+        self.assertEqual("pivot", d["action"])
+        self.assertEqual(1, len(m.calls))
+        self.assertTrue(m.calls[0]["pivot"])
+        self.assertEqual([], m.approved)          # shadow never sends
+
+    def test_shadow_pivot_does_not_burn_the_ledger(self):
+        # Nothing was sent, so the thread must stay eligible for a real pivot once the
+        # operator arms supervised/full. A shadow run that wrote callPivotAt would
+        # permanently silence the highest-intent moment in the funnel.
+        ace.set_mode("shadow")
+        marked = []
+        self.ce.note_call_pivot = lambda conv_id, reason="": marked.append(conv_id)
+        ace.consider("v1", rec(state="CALL_READY"), REPORT, self.ce, FakeSendingMarcus())
+        self.assertEqual([], marked)
 
 
 class AceApplyTest(unittest.TestCase):
@@ -246,8 +289,7 @@ class AceApplyTest(unittest.TestCase):
         ace.STATE = Path(self._tmp.name) / "ace.json"
         ace.CALL_READY = Path(self._tmp.name) / "call_ready.json"
         ace.forge_ops.paused = lambda: False
-        self.ce = conversation_engine.ConversationEngine()
-        self.ce.note_reply = lambda conv_id: None   # don't touch the real conversations store
+        self.ce = quiet_convo(conversation_engine.ConversationEngine())
 
     def tearDown(self):
         ace.STATE = self._orig_state
@@ -271,16 +313,19 @@ class AceApplyTest(unittest.TestCase):
         self.assertTrue(m.approved[0]["autonomous"])
 
     def test_supervised_cap_enforced(self):
+        # Qualifying questions may only spend cap - PIVOT_RESERVE; the remaining slot is
+        # held for the call-pivot (see test_pivot_reserve_survives_question_exhaustion).
         ace.set_mode("supervised")
+        qcap = ace.reply_cap_for("supervised")
         m = FakeSendingMarcus()
-        for i in range(ace.CAP_SUPERVISED):
+        for i in range(qcap):
             d = ace.apply(f"v{i}", rec(), REPORT, self.ce, m)
             self.assertTrue(d.get("sent"))
         d = ace.apply("vover", rec(), REPORT, self.ce, m)
         self.assertNotIn("sent", d)
         self.assertIn("cap", d.get("reason", ""))
-        self.assertEqual(ace.CAP_SUPERVISED, len(m.approved))
-        self.assertEqual(ace.CAP_SUPERVISED, len(m.calls))   # cap blocks before drafting
+        self.assertEqual(qcap, len(m.approved))
+        self.assertEqual(qcap, len(m.calls))   # cap blocks before drafting
 
     def test_gate_block_does_not_consume_cap(self):
         ace.set_mode("supervised")
@@ -309,9 +354,10 @@ class AceApplyTest(unittest.TestCase):
         self.assertEqual([], m.approved)
 
     def test_escalate_call_ready_builds_queue_entry(self):
+        # Already pivoted → escalation only, still no send. The call card is built either way.
         ace.set_mode("supervised")
         m = FakeSendingMarcus()
-        d = ace.apply("v1", rec(state="CALL_READY"), REPORT, self.ce, m)
+        d = ace.apply("v1", rec(state="CALL_READY", pivot_at=1), REPORT, self.ce, m)
         self.assertEqual("escalate", d["action"])
         self.assertEqual([], m.approved)                  # escalation ≠ send
         lst = ace.call_ready_list()
