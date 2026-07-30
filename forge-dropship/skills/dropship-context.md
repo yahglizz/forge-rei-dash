@@ -44,18 +44,23 @@ fees, and ad spend?**
 
 As of **2026-07-30**, honestly:
 
-- **Still 0 of 7 integrations are keyed.** `SHOPIFY_ADMIN_TOKEN`, `AUTODS_API_KEY`,
-  `AUTODS_MCP_TOKEN`, `META_ACCESS_TOKEN`, `APIFY_TOKEN`, `WINNINGHUNTER_API_KEY` and
-  `WINNINGHUNTER_MCP_TOKEN` are all still blank in `config/dropship.env`. Every read
-  returns a clean "add key" mock. **A brief built on mock data is fabrication** — say so
-  rather than reasoning over it.
-  - **`SHOPIFY_ADMIN_TOKEN` is the one that unblocks the most.** It is what connects the
-    dashboard to the Everaly store: orders, products, inventory, and the Shopify half of
-    the daily reconciliation in §8d. Non-secret values around it are already correct
-    (`SHOPIFY_STORE_DOMAIN`, `SHOPIFY_API_VERSION=2026-07`, `AUTODS_STORE_ID`).
+- **Shopify is keyed. 1 of 7.** `SHOPIFY_ADMIN_TOKEN` was filled and verified on
+  2026-07-30 — `shop { name } = "Everaly"` over the Admin API, with all six scopes the
+  dashboard reads (`products`, `orders`, `customers`, `locations`, `inventory`,
+  `fulfillments`) returning real counts, not mocks. **Shopify reads are now grounded and
+  may be cited with a source and window.**
+  - Still blank: `AUTODS_API_KEY`, `AUTODS_MCP_TOKEN`, `META_ACCESS_TOKEN`, `APIFY_TOKEN`,
+    `WINNINGHUNTER_API_KEY`, `WINNINGHUNTER_MCP_TOKEN`. Those reads still return the "add
+    key" mock. **A brief built on mock data is fabrication** — say so rather than
+    reasoning over it.
+  - **`META_ACCESS_TOKEN` is now the one that unblocks the most.** Without it there is no
+    CPA, no ROAS, and no ad half of the §8d reconciliation — so no scale or kill decision
+    can be underwritten, however good the Shopify data is.
   - `dropship.env` is **gitignored on purpose**, so it does not travel with a `git push`.
-    Filling it on the workstation does **not** fill it on the box — see
-    `/opt/forge/forge-dropship/config/dropship.env` there.
+    Filling it on the workstation does **not** fill it on the box — the same
+    `SHOPIFY_ADMIN_TOKEN=` line still has to be copied to
+    `/opt/forge/forge-dropship/config/dropship.env` and the service restarted, or the box
+    keeps serving mock.
 - **The store exists but has not sold anything.** Live as of 2026-07-30: Everaly on
   everaly.com with SSL, one product listed (The Sunday Set, $49.78, one variant —
   `Large / Dark Blue`, 10 units), and a custom single-product landing page serving both

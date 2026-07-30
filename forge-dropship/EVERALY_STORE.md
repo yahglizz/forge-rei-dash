@@ -67,27 +67,37 @@ SHOPIFY_API_VERSION=2026-07
 AUTODS_STORE_ID=5654075
 ```
 
-**Not done — this is the blocker.** `SHOPIFY_ADMIN_TOKEN` is empty, so every dropship read
-in the dashboard still returns the "add key" mock. Until it is filled, Midas cannot see
-orders, products or inventory, and the Shopify half of the MER reconciliation in
-[[dropship-store-setup]] §8d cannot run. **A brief written over mock data is fabrication.**
+**Done and verified 2026-07-30.** `SHOPIFY_ADMIN_TOKEN` holds a working `shpat_` token.
+Verified against `/admin/api/2026-07/graphql.json`:
 
-### There is no `shpat_` token to copy on this store
+```
+identity      HTTP 200   shop "Everaly", pt4x1h-mf.myshopify.com, USD
+products      OK   productsCount = 1
+orders        OK   ordersCount = 0
+customers     OK   customersCount = 0
+locations     OK   "Shop location"
+inventory     OK   variant 39c5493b-…, inventoryQuantity 10
+fulfillment   OK   orders.displayFulfillmentStatus readable
+```
 
-Checked in the admin on 2026-07-30. **Everaly has no legacy custom-app flow.**
-`Settings → Apps and sales channels → Develop apps` only offers "Build apps in Dev
-Dashboard", and a Dev Dashboard app's Settings page exposes exactly three things:
+All six scopes the dashboard needs are granted. The counts match the live store, so this
+is a real read, not a mock.
 
-| What the Dev Dashboard shows | Prefix | Works on `/admin/api`? |
+### Which tokens do NOT work (all of these were tried and 401'd)
+
+Everaly has **no legacy custom-app flow** — `Settings → Apps and sales channels → Develop
+apps` only offers "Build apps in Dev Dashboard". A Dev Dashboard app's **Settings** page
+shows only these, and none of them authenticate against `/admin/api`:
+
+| Credential | Prefix | Result |
 |---|---|---|
-| Client ID | — | no, it is an OAuth identifier |
-| Secret | — | no, it is the OAuth secret |
-| App automation token ("for CI/CD workflows only") | `atkn_` | **no** |
-| Storefront API access token (elsewhere) | `shpss_` | **no** |
+| Client ID / Secret | — | OAuth identifiers, not bearer tokens |
+| App automation token ("for CI/CD workflows only") | `atkn_` | **401** |
+| Storefront API access token | `shpss_` | **401** |
 
-All three of those were tried against `/admin/api/2026-07/graphql.json` and returned
-`401 Invalid API key or access token`. Do not go hunting for a "reveal token once"
-button — it does not exist here.
+The working Admin token was produced by **creating a new app and installing it on the
+store** — it is a normal `shpat_`, 38 chars. Record the exact click-path here next time
+someone walks it, because the Dev Dashboard's own Settings page never displays it.
 
 ### Filling it — one-time OAuth (operator only; never paste the token into chat)
 
