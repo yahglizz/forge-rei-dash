@@ -20,8 +20,15 @@ fees, and ad spend?**
 
 ## Business Facts
 
-- **Store:** (your Shopify store) — the storefront + system of record for orders,
-  products, inventory. Fill `SHOPIFY_STORE_DOMAIN` in `config/dropship.env`.
+- **Store:** **Everaly** — the storefront + system of record for orders, products,
+  inventory.
+  - Public domain: **everaly.com** (primary domain, SSL on, connected 2026-07-30)
+  - Admin API domain: `pt4x1h-mf.myshopify.com` — this is what `SHOPIFY_STORE_DOMAIN`
+    holds in `config/dropship.env`, and it stays the myshopify one even though the
+    public domain is everaly.com.
+  - AutoDS store id: `5654075`
+  - Storefront is still **password protected**. Take the password off before running
+    traffic; Meta cannot review a gated landing page.
 - **Sourcing / fulfillment:** AutoDS — product sourcing, price/stock monitoring, order
   automation. Supplier costs and stock live here, not in a spreadsheet.
 - **Paid traffic:** Meta (Facebook / Instagram) ads to start. TikTok is a planned add.
@@ -35,14 +42,26 @@ fees, and ad spend?**
 ## Current Status
 *(this section expires fast — update it, don't trust it blindly)*
 
-As of **2026-07-26**, honestly:
+As of **2026-07-30**, honestly:
 
-- **0 of 7 integrations are keyed.** Shopify (`SHOPIFY_ADMIN_TOKEN`), AutoDS
-  (`AUTODS_API_KEY`), Meta (`META_ACCESS_TOKEN`), PiPiAds (`PIPIADS_API_KEY`), and the ad-spy
-  / MCP sources are all blank in `config/dropship.env`. Every read returns a clean "add key"
-  mock. **A brief built on mock data is fabrication** — say so rather than reasoning over it.
-- **The store is not live.** No products listed, no orders, no ad spend, no winners, no
-  testing pipeline. There is nothing to scale yet.
+- **Still 0 of 7 integrations are keyed.** `SHOPIFY_ADMIN_TOKEN`, `AUTODS_API_KEY`,
+  `AUTODS_MCP_TOKEN`, `META_ACCESS_TOKEN`, `APIFY_TOKEN`, `WINNINGHUNTER_API_KEY` and
+  `WINNINGHUNTER_MCP_TOKEN` are all still blank in `config/dropship.env`. Every read
+  returns a clean "add key" mock. **A brief built on mock data is fabrication** — say so
+  rather than reasoning over it.
+  - **`SHOPIFY_ADMIN_TOKEN` is the one that unblocks the most.** It is what connects the
+    dashboard to the Everaly store: orders, products, inventory, and the Shopify half of
+    the daily reconciliation in §8d. Non-secret values around it are already correct
+    (`SHOPIFY_STORE_DOMAIN`, `SHOPIFY_API_VERSION=2026-07`, `AUTODS_STORE_ID`).
+  - `dropship.env` is **gitignored on purpose**, so it does not travel with a `git push`.
+    Filling it on the workstation does **not** fill it on the box — see
+    `/opt/forge/forge-dropship/config/dropship.env` there.
+- **The store exists but has not sold anything.** Live as of 2026-07-30: Everaly on
+  everaly.com with SSL, one product listed (The Sunday Set, $49.78, one variant —
+  `Large / Dark Blue`, 10 units), and a custom single-product landing page serving both
+  the homepage and the product URL. Still true: **no orders, no ad spend, no winners, no
+  testing pipeline, and the storefront is password protected.** There is nothing to scale
+  yet, and one variant cannot absorb paid traffic — every non-Large buyer bounces.
 - **Midas has never produced a brief.** No `learn()` has run, so there is no vault playbook
   (`Skills/midas-playbook.md` does not exist yet) — the seed
   `forge-dropship/skills/midas-playbook.md` IS the live playbook until his first reflection
@@ -105,13 +124,23 @@ the honest answer to most questions is Unknown. Each one is a minute of typing. 
 `_______` with the real answer and delete the guidance line; Midas mtime-reloads on his next
 run.
 
-**1. Niche / brand + ICP.** What does the store sell, and to whom?
+**1. Niche / brand + ICP.** ✅ **Filled 2026-07-30.**
 
-> Niche: `_______`
-> Brand name / positioning: `_______`
-> ICP (one specific person — age range, situation, what they're trying to solve): `_______`
+> Niche: Women's sleepwear and loungewear. First listing is a two-piece button-down
+> pajama set ("The Sunday Set", supplier brand Ekouaer) at $49.78.
+> Brand name / positioning: **Everaly** — everaly.com. Quiet, considered loungewear for
+> the hours that belong to you; editorial rather than discount-bin. Positioning comes
+> through in the page voice, not in claims the supplier sheet cannot back.
+> ICP: **working assumption, derived from the first product, not yet confirmed by the
+> operator or by any sales data** — women roughly 25–45 who live in loungewear after
+> 7pm: work-from-home, pregnant / postpartum / nursing, and shared-house or dorm
+> households. They already own pajamas; the ones they own ride up, mark the waist, pill
+> after three washes, or have no pockets. What they want is a set they would still be
+> wearing when someone knocks on the door.
 
 *Why it matters: the Four-Triggers ad writer opens on the Avatar. Blank = generic copy.*
+*Confirm or correct the ICP before it is used to underwrite ad spend — it is inferred,
+not given.*
 
 **2. Target margin + price bands.** What are you underwriting to?
 
