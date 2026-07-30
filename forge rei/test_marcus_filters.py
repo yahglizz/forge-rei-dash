@@ -48,14 +48,20 @@ TRUE_DENIALS = (
 )
 
 NAMED_IDENTITY_DENIALS = (
-    "THIS IS NOT KRISTEN. I've had this number for 5 years.",
-    "I am not geraldine",
+    ("THIS IS NOT KRISTEN. I've had this number for 5 years.", "Kristen Moffett"),
+    ("I am not geraldine", "Geraldine Brown"),
 )
 
 DENIAL_PHRASE_CONTINUATIONS = (
     "I don't own it outright; there is a mortgage",
     "I've never owned an investment property; this is my primary home",
     "That's not me refusing; I need time",
+)
+
+COMPLETE_SELLER_CONTEXT = (
+    "I'm not home.",
+    "I am not local.",
+    "I'm not there.",
 )
 
 
@@ -109,12 +115,19 @@ class SellerClassifierTests(unittest.TestCase):
                 self.assertTrue(marcus_engine._is_denial(body))
 
     def test_named_identity_denials_are_denials(self):
-        for body in NAMED_IDENTITY_DENIALS:
+        for body, expected_name in NAMED_IDENTITY_DENIALS:
             with self.subTest(body=body):
-                self.assertTrue(marcus_engine._is_denial(body))
+                self.assertTrue(marcus_engine._is_denial(body, expected_name))
+
+    def test_named_identity_denials_require_matching_contact_context(self):
+        for body, expected_name in NAMED_IDENTITY_DENIALS:
+            with self.subTest(body=body, context="missing"):
+                self.assertFalse(marcus_engine._is_denial(body))
+            with self.subTest(body=body, context="mismatched"):
+                self.assertFalse(marcus_engine._is_denial(body, "Jordan Reed"))
 
     def test_denial_phrases_inside_seller_context_are_not_denials(self):
-        for body in DENIAL_PHRASE_CONTINUATIONS:
+        for body in DENIAL_PHRASE_CONTINUATIONS + COMPLETE_SELLER_CONTEXT:
             with self.subTest(body=body):
                 self.assertFalse(marcus_engine._is_denial(body))
 

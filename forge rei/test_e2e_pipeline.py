@@ -540,8 +540,7 @@ class SafetyFilters(E2EBase):
         self.assertIsNone(self.screener.screenings.get("ct8"))
 
     def test_identity_denial_regex_catches_named_variants(self):
-        # Live examples: "THIS IS NOT KRISTEN..." and "I am not geraldine" — a fixed
-        # phrase list can't cover an arbitrary name, so this needs the regex path.
+        # Live examples route dead only when the denied name matches the contact.
         self.ghl.add_lead("c9", "ct9", "Kristen Moffett", "+15551230009", [
             ("outbound", "Hi Kristen, still buying as-is for cash on 3140 Maeterlinck Ave?"),
             ("inbound", "THIS IS NOT KRISTEN. I've had this number for 5 years."),
@@ -550,11 +549,17 @@ class SafetyFilters(E2EBase):
             ("outbound", "hi, reaching out about the property"),
             ("inbound", "I am not geraldine"),
         ])
+        self.ghl.add_lead("c12", "ct12", "Jordan Reed", "+15551230012", [
+            ("outbound", "hi, reaching out about the property"),
+            ("inbound", "I am not geraldine"),
+        ])
         self.scout.poll_once()
         self.assertEqual("dead", self.scout.records["c9"]["bucket"])
         self.assertEqual("rule", self.scout.records["c9"]["scoreSource"])
         self.assertEqual("dead", self.scout.records["c10"]["bucket"])
         self.assertEqual("rule", self.scout.records["c10"]["scoreSource"])
+        self.assertNotEqual("dead", self.scout.records["c12"]["bucket"])
+        self.assertIn("skipped", self.screener.screen(contact_id="ct10"))
         # sanity: real seller replies with "not" mid-sentence must NOT be caught
         self.assertFalse(marcus_engine._is_denial("I'm not interested in selling, thanks"))
         self.assertFalse(marcus_engine._is_denial("I am not selling right now"))
