@@ -42,6 +42,7 @@ _PLAYBOOK_SKILLS = (
     "marcus-playbook.md",
     "yahjair-voice.md",
     "wholesale-seller-texter.md",
+    "closing-plays.md",
 )
 _SKILL_CACHE = {}
 

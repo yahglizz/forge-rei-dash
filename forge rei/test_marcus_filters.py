@@ -175,6 +175,7 @@ class SellerClassifierTests(unittest.TestCase):
                 "marcus-playbook.md",
                 "yahjair-voice.md",
                 "wholesale-seller-texter.md",
+                "closing-plays.md",
             ),
         }
         for group, names in required.items():
