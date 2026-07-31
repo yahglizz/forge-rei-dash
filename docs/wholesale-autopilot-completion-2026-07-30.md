@@ -192,6 +192,13 @@ too low, during screening, drafting, and `legit_check`. Safety failed closed:
 SENT_COUNT 0
 ```
 
+Fresh continuation recheck at 8 PM ET produced the same Anthropic HTTP 400.
+Because the run was outside the configured 9 AM-8 PM send window, the final
+pivot gate reported `send_hours` before `legit_check`; this is expected
+fail-closed behavior and is not scenario acceptance. The deterministic probe
+remained `priceMissed=0/14`, `denialFalsePositives=0`, with non-degraded vault
+skills.
+
 The deterministic decision layer did classify both scenario price turns as
 `PRICE` and chose `pivot`, but the guard rejected those pivots when `legit_check`
 could not run. Therefore this run is not acceptance evidence for:
