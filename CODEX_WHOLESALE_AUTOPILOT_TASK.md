@@ -7,6 +7,84 @@
 
 ---
 
+## Codex implementation handoff — 2026-07-30
+
+**Current verdict: NO-GO for enabling ACE full.** The implementation work that
+does not require an operator policy decision or funded Anthropic calls is
+complete, deployed, tested, and independently reviewed.
+
+### What Codex changed
+
+- **B1:** moved the source-of-truth seller classifier into tracked
+  `forge rei/seller_classify.py`; startup and `/api/marcus/status` expose
+  classifier/draft provenance.
+- **B2:** fixed all 14 required price-ask classifications and added
+  false-positive regressions.
+- **B3:** implemented option (b): READY needs 3 known facts; explicit PRICE still
+  pivots immediately. Operator ratification is still pending.
+- **B4:** replaced blanket denial matching with contextual identity/ownership
+  denial clauses and hardened Scout batch/name handling.
+- **B5:** added tracked-seed fallback, vault precedence, source/path/UTF-8-byte
+  metadata, `degradedPrompt`, and the `DEGRADED PROMPT` UI chip. The actual
+  isolated harness bootstrap/CONFIG path is mutation-tested.
+- **B6:** added known-fact grounding, one bounded draft retry, assigned-fact
+  adherence, and already-known-fact re-ask rejection.
+- **B7:** intentionally not implemented. Recommendation remains an
+  operator-only Telegram re-ping after 2 hours of unacknowledged post-pivot
+  inbound, with no further seller text. This section requires explicit operator
+  approval before code changes.
+- **B8:** added exact real-engine send-ledger integration and generated
+  receipt-to-production-callback/hold integration. Both received independent
+  Spec PASS / APPROVED reviews.
+- **B9:** verified/finished protected autopilot status/toggle routes, separate UI
+  toggle, approval-only nurture check-back behavior, and prompt-health wiring.
+
+### Verification and deployment evidence
+
+```text
+full local discovery       310/310 passed
+test_ace.py                 76/76 passed
+test_sms_guard.py           26/26 passed
+tracked Python AST          135 files parsed
+ace.jsx validation          passed
+git diff --check            clean
+forge-reios                 active
+required live APIs          HTTP 200
+secret HTTP paths           HTTP 404
+ace.mode                    off
+autopilot.enabled           false
+test_mode.enabled           false
+test-mode phone lists       empty
+```
+
+The post-fix isolated probe is deterministic and green:
+
+```text
+tracked classifier         true
+price asks                 14/14 PRICE
+denial false positives     0
+vault prompt health        non-degraded
+missing-vault fallback     5/5 tracked seeds, non-degraded
+```
+
+The full model-dependent scenario is **not accepted**. Anthropic still returns
+HTTP 400 `credit balance is too low`; the most recent recheck also ran outside
+the 9 AM-8 PM ET send window. Safety failed closed and `SENT_COUNT` remained 0.
+Restore credits and rerun this harness during the send window before considering
+ACE full.
+
+Claude Code was consulted read-only with plan-only permissions (Sonnet session
+`18c1e583-9ff7-45b2-bf01-e49003d55330`). It agreed the implemented B1-B6/B9
+work was present and identified the same B3/B7 policy and live-model acceptance
+gaps.
+
+**Do not redo or infer the missing acceptance.** The authoritative detailed
+evidence, file/line map, 16-hop audit, first-week monitoring list, and exact
+remaining gates are in
+`docs/wholesale-autopilot-completion-2026-07-30.md`.
+
+---
+
 ## 0. What the operator actually wants
 
 > "My only job is to make phone calls."
