@@ -157,7 +157,7 @@ Solomon additionally carries two **top skills** above his playbook (loaded by
 | **`solomon-decision-loop`** | Frame → Ground → Hypothesize → Decide → **Close**. The exit condition that kills analysis paralysis. |
 | **`solomon-director-craft`** | The 50 years: triage order (safety/ratio → compliance → cash → enrollment), funnel-leak vs. lead-volume, speed-to-lead, vacancy as a spoiled good, retention math, discount last. |
 
-Midas carries nine skills above his playbook, all isolated from `learn()` via
+Midas carries eleven skills above his playbook, all isolated from `learn()` via
 `_playbook_only`. Unlike Solomon's flat set, Midas's are **lane-gated** — see below.
 
 **Always on** (`MidasEngine.TOP_SKILLS`, in every prompt including the scheduled brief):
@@ -174,14 +174,14 @@ Midas carries nine skills above his playbook, all isolated from `learn()` via
 | Lane | Skills added |
 |------|--------------|
 | `product research` | `dropship-adspy-method` |
-| `creative & ads` | `dropship-four-triggers-ad-writer`, `dropship-meta-ads-diagnostician`, `dropship-ad-launch-sop`, `dropship-adspy-method` |
+| `creative & ads` | `dropship-four-triggers-ad-writer`, `dropship-creative-testing-doctrine`, `dropship-account-optimization-doctrine`, `dropship-meta-ads-diagnostician`, `dropship-ad-launch-sop`, `dropship-adspy-method` |
 | `fulfillment & support` | `dropship-support-macros` |
 
 **On demand** (`ON_DEMAND_SKILLS`): `dropship-store-setup` — one-time build guidance
 (theme, offer/AOV, **pixel + CAPI**), reachable to the operator in chat, never worth a
 scheduled tick.
 
-**Why gated, and don't undo it.** These SOPs are ~13–15KB each. Declaring all nine as
+**Why gated, and don't undo it.** These SOPs are ~13–15KB each. Declaring all eleven as
 always-on costs **~24k tokens on every call**; the daily brief runs unattended forever, so
 that is a recurring bill for pages that call never reads. Gated, the brief carries ~12.5k
 and each lane gets exactly its own. **Operator chat is deliberately NOT gated** —

@@ -4817,11 +4817,13 @@ def main():
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work
         # (research / analyze_ads / fulfillment_check) runs on-demand from the routes.
         #
-        # The scheduled brief is OFF while the store has nothing wired: with 0 of 7
-        # systems connected a brief is Claude reasoning over empty data, which is the
-        # one thing the creed forbids — and it bills for it daily. Everything on-demand
-        # still works (chat, /task, /api/dropship/director/run, all three lanes).
-        # FORGE_DROPSHIP_BRIEF=1 turns the loop back on the day Shopify connects.
+        # The scheduled brief is OFF by default: Shopify is keyed (1 of 7 systems —
+        # see forge-dropship/skills/dropship-context.md "Current Status") but AutoDS/
+        # Meta/adspy are still blank, so a brief today is Claude reasoning over mostly
+        # empty data, which is the one thing the creed forbids — and it bills for it
+        # daily. Everything on-demand still works (chat, /task,
+        # /api/dropship/director/run, all three lanes).
+        # FORGE_DROPSHIP_BRIEF=1 turns the loop back on once enough systems are keyed.
         if os.environ.get("FORGE_DROPSHIP_BRIEF", "0") != "0":
             print(f"   Midas: dropship e-com director · brief every {dropship_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
             tmid = threading.Thread(target=MIDAS.run_forever, daemon=True, name="midas")

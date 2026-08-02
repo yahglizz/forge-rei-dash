@@ -18,11 +18,13 @@ playbook into the Obsidian vault (`vault/Skills/midas-playbook.md`), git-committ
 and Midas mtime-reloads from the vault on every run. To see what an agent currently "knows,"
 read the vault copy, not the seed here.
 
-The **creed** (`dropship-evidence-discipline.md`) and Midas's **top skills**
-(`midas-decision-loop.md`, `midas-craft.md`, `dropship-four-triggers-ad-writer.md`,
-`dropship-meta-ads-diagnostician.md`) are human-owned and NEVER rewritten by
-`learn()` — the creed is injected via `agent_creed.block("dropship")` (invisible to
-learn), the top skills load via `_load_skills()` while `_playbook_only()` feeds learn.
+The **creed** (`dropship-evidence-discipline.md`) and Midas's **top skills** — always-on
+(`midas-decision-loop.md`, `midas-craft.md`, `dropship-account-health.md`) plus 7 more
+lane-gated SOPs (`MidasEngine.LANE_SKILLS`) and 1 on-demand (`dropship-store-setup.md`,
+chat only) — are human-owned and NEVER rewritten by `learn()` — the creed is injected via
+`agent_creed.block("dropship")` (invisible to learn), the top/lane/on-demand skills load
+via `_load_skills()`/`top_skills_text()` while `_playbook_only()` feeds learn. Self-check:
+`cd "forge rei" && python3 test_dropship_skills.py`.
 
 ## If stuck
 
