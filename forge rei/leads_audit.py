@@ -382,8 +382,10 @@ def main():
                 "name": contact_name(c),
                 "phone": c.get("phone") or "",
                 "email": c.get("email") or "",
+                "address1": c.get("address1") or "",
                 "city": c.get("city") or "",
                 "state": c.get("state") or "",
+                "postal_code": c.get("postalCode") or "",
                 "current_tags": ";".join(c.get("tags") or []),
                 "last_message_date_iso": iso(last_date_ms),
                 "last_message_direction": last_dir,
@@ -403,13 +405,58 @@ def main():
 
     with open(OUT_CSV, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=[
-            "contact_id", "name", "phone", "email", "city", "state", "current_tags",
+            "contact_id", "name", "phone", "email", "address1", "city", "state",
+            "postal_code", "current_tags",
             "last_message_date_iso", "last_message_direction", "status_category",
             "last_inbound_snippet", "last_outbound_snippet",
             "total_inbound_count", "total_outbound_count",
         ])
         w.writeheader()
         w.writerows(rows)
+
+    # ---- Dedup pass: same property/seller often has 2 GHL contacts (2 phone numbers
+    # imported separately, e.g. "ohio 1 st number" / "ohio second number" tags). Group by
+    # normalized property address (falls back to name when address is blank) and collapse
+    # to ONE row per real-world lead, keeping the strongest signal across duplicates.
+    STATUS_RANK = {"active_pending_us": 3, "replied_then_cold": 2, "never_replied": 1,
+                   "no_outbound_yet": 0}
+
+    def dedup_key(row):
+        addr = (row["address1"] or "").strip().lower()
+        if addr:
+            return f"addr:{addr}|{row['postal_code']}"
+        return f"name:{row['name'].strip().lower()}"
+
+    groups = {}
+    for row in rows:
+        groups.setdefault(dedup_key(row), []).append(row)
+
+    deduped = []
+    for key, group in groups.items():
+        best = max(group, key=lambda r: STATUS_RANK.get(r["status_category"], -1))
+        merged = dict(best)
+        merged["duplicate_contact_ids"] = ";".join(
+            r["contact_id"] for r in group if r["contact_id"] != best["contact_id"])
+        merged["duplicate_count"] = len(group) - 1
+        deduped.append(merged)
+
+    dedup_csv = os.path.join(OUT_DIR, "ohio_leads_audit_deduped.csv")
+    with open(dedup_csv, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=[
+            "contact_id", "name", "phone", "email", "address1", "city", "state",
+            "postal_code", "current_tags",
+            "last_message_date_iso", "last_message_direction", "status_category",
+            "last_inbound_snippet", "last_outbound_snippet",
+            "total_inbound_count", "total_outbound_count",
+            "duplicate_contact_ids", "duplicate_count",
+        ])
+        w.writeheader()
+        w.writerows(deduped)
+
+    dedup_status_counts = {}
+    for row in deduped:
+        dedup_status_counts[row["status_category"]] = (
+            dedup_status_counts.get(row["status_category"], 0) + 1)
 
     elapsed = time.time() - t0
     print("\n===== SUMMARY =====")
@@ -424,13 +471,22 @@ def main():
         print(f"  ERROR contact={cid} name={name!r}: {err}")
     print(f"API calls made: {api_call_count}")
     print(f"Elapsed: {elapsed:.1f}s")
-    print(f"CSV written: {OUT_CSV}")
+    print(f"Raw CSV written: {OUT_CSV}")
+    print()
+    print(f"===== DEDUPED (by property address, name fallback) =====")
+    print(f"Unique leads after collapsing duplicate contacts: {len(deduped)} "
+          f"(raw rows: {len(rows)}, {len(rows) - len(deduped)} were duplicates)")
+    for k, v in sorted(dedup_status_counts.items(), key=lambda kv: -kv[1]):
+        print(f"  {k}: {v}")
+    print(f"Deduped CSV written: {dedup_csv}")
 
     return {
         "total_contacts": len(all_contacts),
         "target_contacts": len(target_contacts),
         "unknown_state": unknown_state_count,
         "status_counts": status_counts,
+        "dedup_status_counts": dedup_status_counts,
+        "dedup_total": len(deduped),
         "errors": errors,
         "api_calls": api_call_count,
         "elapsed": elapsed,
