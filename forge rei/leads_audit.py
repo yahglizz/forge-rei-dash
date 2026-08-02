@@ -282,7 +282,8 @@ def snippet(body, n=120):
     return b[:n]
 
 
-def iso(ms):
+def iso(v):
+    ms = _to_ms(v)
     if not ms:
         return ""
     try:
