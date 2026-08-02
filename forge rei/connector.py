@@ -4860,7 +4860,7 @@ def main():
         # Optional dedicated agent bot — talk to the agents in its own DM.
         if telegram_io.agent_bot_configured():
             print("   Telegram agent bot: on — DM it to talk to the whole crew")
-            at = threading.Thread(target=telegram_io.run_agent_bot_forever, daemon=True, name="telegram")
+            at = threading.Thread(target=telegram_io.run_agent_bot_forever, daemon=True, name="telegram_agent")
             at.start()
         # Watchdog — watches every loop's heartbeat; one Telegram+bus alert on silent death.
         print(f"   Watchdog: loop heartbeat monitor · checks every "

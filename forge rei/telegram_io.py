@@ -1071,6 +1071,10 @@ def run_agent_bot_forever():
         if not isinstance(results, list):
             time.sleep(3)
             continue
+        # A successful round-trip clears the latched error — otherwise one transient
+        # blip (a boot-time blip, a momentary network hiccup) pins the heartbeat red
+        # forever even after polling has long since recovered.
+        _AGENT_LOOP["lastError"] = None
 
         for update in results:
             if not isinstance(update, dict):
