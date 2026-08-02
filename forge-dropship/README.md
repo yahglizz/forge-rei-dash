@@ -33,25 +33,35 @@ forge-dropship/
 │  ├─ dropship.env          # real keys + knobs (git-ignored, 404 over HTTP)
 │  └─ dropship.env.example  # committed template
 ├─ data/                    # local scratch (git-ignored)
-└─ skills/
+├─ products/
+│  └─ the-sunday-set.md     # real product packet (first live listing)
+├─ scripts/                 # get-shopify-token.mjs / .py — one-off admin-token helpers
+├─ EVERALY_STORE.md         # store/dashboard wiring notes
+├─ PLUG_AND_PLAY.md         # setup guide (cross-references DROPSHIP_CHECKLIST.md)
+├─ README.md                # this file
+└─ skills/                  # 11 skills — always-on (3) + lane-gated (7) + on-demand (1)
    ├─ dropship-context.md               # business brief — read FIRST (owner-edited)
    ├─ dropship-evidence-discipline.md   # the CREED (outranks the playbook)
-   ├─ midas-decision-loop.md            # Midas top skill — how he reasons
-   ├─ midas-craft.md                    # Midas top skill — e-com operating judgment
-   ├─ dropship-four-triggers-ad-writer.md    # Midas top skill — ad-copy framework (was Blaze's)
-   ├─ dropship-meta-ads-diagnostician.md     # Midas top skill — the 12 sliders (was Blaze's)
-   ├─ dropship-adspy-method.md          # SOP — competitor ad research (Ad Library + PiPiAds)
-   ├─ dropship-ad-launch-sop.md         # SOP — test/scale/kill numbers for Meta
-   ├─ dropship-store-setup.md           # SOP — Shopify build, CRO, AOV, pixel/CAPI
-   ├─ dropship-account-health.md        # SOP — chargeback/refund bands, ban survival
-   ├─ dropship-support-macros.md        # SOP — approved support language + refund tree
+   ├─ midas-decision-loop.md            # always-on — how he reasons
+   ├─ midas-craft.md                    # always-on — e-com operating judgment
+   ├─ dropship-account-health.md        # always-on — chargeback/refund bands, ban survival
+   ├─ dropship-adspy-method.md          # lane: product research + creative & ads — competitor ad research (Ad Library + PiPiAds)
+   ├─ dropship-four-triggers-ad-writer.md    # lane: creative & ads — ad-copy framework (was Blaze's)
+   ├─ dropship-meta-ads-diagnostician.md     # lane: creative & ads — the 12 sliders (was Blaze's)
+   ├─ dropship-ad-launch-sop.md         # lane: creative & ads — test/scale/kill numbers for Meta
+   ├─ dropship-creative-testing-doctrine.md      # lane: creative & ads — what goes in the test queue, why a winner died
+   ├─ dropship-account-optimization-doctrine.md  # lane: creative & ads — act-or-wait restraint, account structure/scaling
+   ├─ dropship-support-macros.md        # lane: fulfillment & support — approved support language + refund tree
+   ├─ dropship-store-setup.md           # on-demand (chat only) — Shopify build, CRO, AOV, pixel/CAPI
    └─ midas-playbook.md                 # seed operating rubric + the three lane sections
                                         #   (absorbed hawk/blaze/otto-playbook.md)
 ```
 
-The five `dropship-*` SOPs are operating references, not top skills — they load through
-`_load_skills()` only once declared in `MidasEngine.TOP_SKILLS`
-(`forge rei/dropship_director.py`). The glob there picks up `midas-*.md`, not `dropship-*.md`.
+The 8 `dropship-*` SOPs (minus the creed + context) are operating references, not top
+skills — they load through `_load_skills()` only once declared in
+`MidasEngine.TOP_SKILLS`/`LANE_SKILLS`/`ON_DEMAND_SKILLS`
+(`forge rei/dropship_director.py`). Self-check that every skill file reaches a prompt and
+none are orphaned: `cd "forge rei" && python3 test_dropship_skills.py`.
 
 Engine: `forge rei/dropship_director.py` (Midas — all lanes). Integration clients:
 `forge rei/dropship_shopify.py`,

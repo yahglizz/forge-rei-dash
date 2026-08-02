@@ -188,8 +188,10 @@ it's blank, he says "let me confirm your shipping timeline," never a number.*
 
 ## Related skills
 
-The creed [[dropship-evidence-discipline]] outranks everything below it. Midas's top skills:
-[[midas-decision-loop]], [[midas-craft]], [[dropship-four-triggers-ad-writer]],
-[[dropship-meta-ads-diagnostician]], plus the operating SOPs
-[[dropship-adspy-method]], [[dropship-ad-launch-sop]], [[dropship-store-setup]],
-[[dropship-account-health]], [[dropship-support-macros]].
+The creed [[dropship-evidence-discipline]] outranks everything below it. Midas's always-on
+top skills: [[midas-decision-loop]], [[midas-craft]], [[dropship-account-health]]. Lane-gated
+SOPs: [[dropship-adspy-method]] (research + ads), [[dropship-four-triggers-ad-writer]],
+[[dropship-meta-ads-diagnostician]], [[dropship-ad-launch-sop]],
+[[dropship-creative-testing-doctrine]], [[dropship-account-optimization-doctrine]] (ads),
+[[dropship-support-macros]] (fulfillment). On-demand (chat only):
+[[dropship-store-setup]].

@@ -204,7 +204,7 @@ directly, not stuffed into every agent's live prompt (the loader in
 | Agency | Dyson | `forge rei/agency_agents.py` (`agent_id="dyson"`) | `forge-agency/skills/` | `Skills/dyson-playbook.md` | `agency-evidence-discipline.md` |
 | Agency | Eco | `forge rei/agency_agents.py` (`agent_id="eco"`) | `forge-agency/skills/` | `Skills/eco-playbook.md` | `agency-evidence-discipline.md` |
 | Daycare | Solomon (director + roster/family-comms + ad ops) | `forge rei/daycare_director.py` | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md`, `solomon-roster-craft.md`, `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
-| Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` (top skills: `midas-decision-loop.md`, `midas-craft.md`, `dropship-four-triggers-ad-writer.md`, `dropship-meta-ads-diagnostician.md`) | *(none yet — `Skills/midas-playbook.md` is written by Midas's FIRST `learn()`; until then the seed `forge-dropship/skills/midas-playbook.md` IS the live playbook)* | `dropship-evidence-discipline.md` |
+| Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` — 11 skills total: always-on `midas-decision-loop.md`, `midas-craft.md`, `dropship-account-health.md`; lane-gated `dropship-adspy-method.md` (research), `dropship-four-triggers-ad-writer.md`/`dropship-meta-ads-diagnostician.md`/`dropship-ad-launch-sop.md`/`dropship-creative-testing-doctrine.md`/`dropship-account-optimization-doctrine.md`/`dropship-adspy-method.md` (creative & ads), `dropship-support-macros.md` (fulfillment); on-demand `dropship-store-setup.md` (chat only) | *(none yet — `Skills/midas-playbook.md` is written by Midas's FIRST `learn()`; until then the seed `forge-dropship/skills/midas-playbook.md` IS the live playbook)* | `dropship-evidence-discipline.md` |
 
 Shared infra used by every agent above: `review_agent._claude`/`review_agent.MODEL`
 (the actual Claude calls), `brain_io.py` (vault read/write + git history),
@@ -250,9 +250,19 @@ filled): `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_ADMIN_TOKEN`, `SHOPIFY_API_VERSION`,
 `AUTODS_API_KEY`, `AUTODS_STORE_ID`, `META_ACCESS_TOKEN`, `META_AD_ACCOUNT_MAP`
 (same var names as agency/daycare, separate file/account — read only through a
 per-call env-swap so they never leak across workspaces),
-`DROPSHIP_ANTHROPIC_API_KEY` (optional, falls back to shared). Not-yet stubs:
-`TIKTOK_*`, `KLAVIYO_API_KEY`, `GA4_*`, `AFTERSHIP_API_KEY`, `GHL_API_KEY`/
-`GHL_LOCATION_ID`, `HIGGSFIELD_*`, `METRICOOL_USER_TOKEN`.
+`WINNINGHUNTER_API_KEY` (+ override vars), `EVERBEE_CLIENT_ID`/
+`EVERBEE_CLIENT_SECRET`, `APIFY_TOKEN`, `DROPSHIP_ADSPY_ACTOR`/
+`DROPSHIP_ADSPY_MAX_ADS`/`DROPSHIP_ADSPY_COUNTRY`, `PIPIADS_API_KEY` (+
+overrides), `HIGGSFIELD_API_KEY`/`HIGGSFIELD_SECRET` (wired — Higgsfield
+creative gen is live via `dropship_creative.py`, not a stub),
+`FORGE_DROPSHIP_BRIEF` (0/1 — gates whether Midas's scheduled brief loop
+runs at all; default 0 until enough systems are wired),
+`FORGE_DROPSHIP_BRIEF_EVERY_H` (brief cadence once on),
+`FORGE_DROPSHIP_LEARN_EVERY`/`FORGE_DROPSHIP_LEARN_GAP_MIN` (self-improve
+cadence), `DROPSHIP_ANTHROPIC_API_KEY` (optional, falls back to shared).
+Not-yet stubs: `TIKTOK_*`, `KLAVIYO_API_KEY`, `GA4_*`, `AFTERSHIP_API_KEY`,
+`GHL_API_KEY`/`GHL_LOCATION_ID`, `METRICOOL_USER_TOKEN`. Full names/defaults:
+`forge-dropship/config/dropship.env.example`.
 
 **Telegram (cross-cutting alerts, not a business):** `TELEGRAM_BOT_TOKEN`,
 `TELEGRAM_CHAT_ID`, `TELEGRAM_ALLOWED_IDS`.
