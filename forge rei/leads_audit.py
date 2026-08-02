@@ -171,6 +171,27 @@ def _is_seller_message(body):
     )
 
 
+def _to_ms(v):
+    """Normalize a GHL timestamp (epoch int/str OR ISO-8601 string) to epoch ms, or None.
+    Ported from scout_triage.py:_to_ms — GHL is inconsistent: conversation
+    lastMessageDate is epoch-ms, but message dateAdded (what /messages actually
+    returns) is an ISO-8601 string. Ignoring this would silently sort/format wrong."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return int(v)
+    s = str(v).strip()
+    if s.isdigit():
+        return int(s)
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return int(dt.timestamp() * 1000)
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # GHL pulls
 # ---------------------------------------------------------------------------
@@ -240,11 +261,7 @@ def full_thread(contact_id):
             continue
         msgs = get_messages(conv_id)
         all_msgs.extend(msgs)  # GHL returns newest-first per conversation
-    # sort by dateAdded ascending (ms epoch); fall back to 0 if missing
-    def _key(m):
-        d = m.get("dateAdded")
-        return d if isinstance(d, (int, float)) else 0
-    all_msgs.sort(key=_key)
+    all_msgs.sort(key=lambda m: _to_ms(m.get("dateAdded")) or 0)
     return all_msgs
 
 
