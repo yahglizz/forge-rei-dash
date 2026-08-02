@@ -737,7 +737,11 @@ class MarcusEngine:
         r"\$\s*\d[\d,]*(\.\d+)?\s*(k|grand|thousand)?"
         r"|\b\d{1,3}(,\d{3})+\b"
         r"|\b\d{1,4}\s*(k\b|grand|thousand)"
-        r"|\b(offer|offering|give you|gave you|pay you|get you|can do|could do)\s+\$?\s*\d{2,}",
+        r"|\b\d{1,3}\s*cents?\s+on\s+the\s+dollar\b"
+        r"|\b(ten|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|"
+        r"one|two|three|four|five|six|seven|eight|nine)[\s-]*(thousand|hundred|grand)\b"
+        r"|\b(offer|offering|give you|gave you|pay you|get you|can do|could do|"
+        r"come up to|go up to|land at|land around|meet you at)\s+\$?\s*\d{2,}",
         re.IGNORECASE,
     )
     # A safe, on-voice fallback that pivots any price talk back to the call — no number.
