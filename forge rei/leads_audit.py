@@ -252,15 +252,22 @@ def get_messages(conversation_id):
     return msgs or []
 
 
+REAL_MESSAGE_TYPES = {"TYPE_SMS"}  # GHL also returns TYPE_ACTIVITY_CONTACT etc. (system
+# log lines like "DnD enabled by customer" / "Opportunity created" / "Tag added") mixed
+# into /messages with real direction+body fields — those are NOT texts and must be
+# dropped before classification, confirmed via live sample pull 2026-08-01.
+
+
 def full_thread(contact_id):
-    """All messages across all conversations for a contact, chronological (oldest first)."""
+    """All real SMS messages across all conversations for a contact, chronological
+    (oldest first). Non-SMS system activity-log entries are filtered out."""
     all_msgs = []
     for conv in list_conversations(contact_id):
         conv_id = conv.get("id")
         if not conv_id:
             continue
         msgs = get_messages(conv_id)
-        all_msgs.extend(msgs)  # GHL returns newest-first per conversation
+        all_msgs.extend(m for m in msgs if m.get("messageType") in REAL_MESSAGE_TYPES)
     all_msgs.sort(key=lambda m: _to_ms(m.get("dateAdded")) or 0)
     return all_msgs
 
