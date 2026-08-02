@@ -166,8 +166,11 @@ def live_tags(contact_id):
 
 
 def opportunities_for(contact_id):
+    # GHL's /opportunities/search validates strictly: both params must be snake_case
+    # (locationId/contactId are REJECTED with 422 "property X should not exist") —
+    # confirmed live 2026-08-02, differs from every other GHL endpoint in this codebase.
     data = ghl_get("/opportunities/search",
-                    {"location_id": LOCATION_ID, "contactId": contact_id, "limit": 20})
+                    {"location_id": LOCATION_ID, "contact_id": contact_id, "limit": 20})
     return data.get("opportunities") or []
 
 
