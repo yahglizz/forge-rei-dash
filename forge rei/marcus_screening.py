@@ -785,6 +785,11 @@ class Screener:
         user = ("CURRENT PLAYBOOK:\n" + current[:4000]
                 + "\n\nRECENT REAL SCREENINGS (learn from these):\n" + "\n".join(lines))
         try:
+            import agent_coach
+            user += agent_coach.insights_block("marcus", "wholesale")
+        except Exception:
+            pass
+        try:
             new_md = review_agent._claude(key, system, user, max_tokens=2400)
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
