@@ -278,6 +278,15 @@ money. `DROPSHIP_ADSPY_MAX_ADS` is the hard ceiling applied to every call (the U
 is clamped down to it); raise it deliberately. Pulls are manual-only, nothing polls on a
 timer.
 
+### 8g. GetHooked
+
+Product/ad-spy research tool, same class as WinningHunter/PiPiAds. In active use by the
+operator, but **no client file exists yet** (`dropship_gethooked.py` — doesn't exist) and
+no route reads `GETHOOKED_API_KEY`, so Midas cannot see this data today; it's manual/
+outside-the-agent for now. The key slot is live in `dropship.env.example` so it's ready
+the moment a client + route get built. Building that wiring is a separate task — flag it
+if you want Midas reading GetHooked signal directly.
+
 ### 8e. Not-wired-yet stubs
 
 Drop a value in `dropship.env` and the matching integration lights up on next deploy;
