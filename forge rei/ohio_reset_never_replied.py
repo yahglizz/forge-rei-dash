@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 
 # ---------------------------------------------------------------------------
-DRY_RUN = True   # flip to False only after a human reviews the dry-run report
+DRY_RUN = False   # flipped live after human review of dry-run report 2026-08-02
 # ---------------------------------------------------------------------------
 
 HERE = os.path.dirname(os.path.abspath(__file__))
