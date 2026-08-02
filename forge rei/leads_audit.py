@@ -175,7 +175,14 @@ def _is_seller_message(body):
 # GHL pulls
 # ---------------------------------------------------------------------------
 def list_all_contacts():
-    """Cursor-paginate /contacts/ for the location. Returns list of raw contact dicts."""
+    """Cursor-paginate /contacts/ for the location. Returns list of raw contact dicts.
+
+    GHL's `dateAdded` on each contact is an ISO string, not the epoch-ms cursor the
+    pagination actually wants — the real cursor comes back in the response's `meta`
+    block (`meta.startAfter` epoch ms + `meta.startAfterId`). Fall back to the last
+    contact's own `startAfter` field (a [epoch_ms, id] pair GHL attaches) if meta is
+    ever missing.
+    """
     contacts = []
     start_after = None
     start_after_id = None
@@ -191,9 +198,16 @@ def list_all_contacts():
         contacts.extend(page)
         if len(page) < PAGE_LIMIT:
             break
-        last = page[-1]
-        start_after = last.get("dateAdded")
-        start_after_id = last.get("id")
+        meta = data.get("meta") or {}
+        start_after = meta.get("startAfter")
+        start_after_id = meta.get("startAfterId")
+        if start_after is None or start_after_id is None:
+            last = page[-1]
+            cursor = last.get("startAfter")
+            if isinstance(cursor, list) and len(cursor) == 2:
+                start_after, start_after_id = cursor
+            else:
+                start_after, start_after_id = None, None
         if start_after is None or start_after_id is None:
             break
     return contacts
