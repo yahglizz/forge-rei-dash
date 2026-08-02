@@ -438,7 +438,13 @@ def iso(v):
 def classify(messages):
     """messages: chronological list of dicts with 'direction' + 'body'.
     Returns (status_category, last_inbound, last_outbound, total_inbound, total_outbound,
-             last_msg_direction, last_msg_date_ms).
+             last_msg_direction, last_msg_date_ms, dead_end_reason).
+
+    dead_end_reason is checked against the seller's MOST RECENT genuine reply (not
+    necessarily the last message overall — we may have sent one more follow-up after
+    a "not interested"). When set, status_category becomes "dead_end" regardless of
+    what the reply-recency logic below would otherwise say: never re-engage a DNC/
+    opt-out/hard-no/sold/wrong-number lead just because we happened to text last.
     """
     inbound_seller_msgs = [m for m in messages if m.get("direction") == "inbound"
                             and _is_seller_message(m.get("body"))]
@@ -448,21 +454,29 @@ def classify(messages):
 
     last_inbound = inbound_seller_msgs[-1] if inbound_seller_msgs else None
     last_outbound = outbound_msgs[-1] if outbound_msgs else None
+    dead_end_reason = _dead_end_reason(last_inbound.get("body")) if last_inbound else None
 
     if not messages:
         return ("no_outbound_yet", last_inbound, last_outbound, total_inbound,
-                 total_outbound, "", None)
+                 total_outbound, "", None, dead_end_reason)
 
     if total_outbound == 0:
         # never messaged them at all (edge case)
         return ("no_outbound_yet", last_inbound, last_outbound, total_inbound,
-                 total_outbound, messages[-1].get("direction", ""), messages[-1].get("dateAdded"))
+                 total_outbound, messages[-1].get("direction", ""), messages[-1].get("dateAdded"),
+                 dead_end_reason)
 
     if total_inbound == 0:
         return ("never_replied", last_inbound, last_outbound, total_inbound,
-                 total_outbound, messages[-1].get("direction", ""), messages[-1].get("dateAdded"))
+                 total_outbound, messages[-1].get("direction", ""), messages[-1].get("dateAdded"),
+                 dead_end_reason)
 
-    # We have both outbound + at least one genuine seller reply somewhere.
+    if dead_end_reason:
+        last_msg = messages[-1]
+        return ("dead_end", last_inbound, last_outbound, total_inbound, total_outbound,
+                 last_msg.get("direction", ""), last_msg.get("dateAdded"), dead_end_reason)
+
+    # We have both outbound + at least one genuine, non-dead-end seller reply somewhere.
     last_msg = messages[-1]
     last_is_seller_reply = (last_msg.get("direction") == "inbound"
                              and _is_seller_message(last_msg.get("body")))
@@ -472,7 +486,7 @@ def classify(messages):
         status = "replied_then_cold"
 
     return (status, last_inbound, last_outbound, total_inbound, total_outbound,
-            last_msg.get("direction", ""), last_msg.get("dateAdded"))
+            last_msg.get("direction", ""), last_msg.get("dateAdded"), dead_end_reason)
 
 
 # ---------------------------------------------------------------------------
@@ -509,7 +523,7 @@ def main():
         try:
             messages = full_thread(cid)
             (status, last_in, last_out, n_in, n_out,
-             last_dir, last_date_ms) = classify(messages)
+             last_dir, last_date_ms, dead_end_reason) = classify(messages)
 
             status_counts[status] = status_counts.get(status, 0) + 1
 
@@ -526,6 +540,7 @@ def main():
                 "last_message_date_iso": iso(last_date_ms),
                 "last_message_direction": last_dir,
                 "status_category": status,
+                "dead_end_reason": dead_end_reason or "",
                 "last_inbound_snippet": snippet(last_in.get("body")) if last_in else "",
                 "last_outbound_snippet": snippet(last_out.get("body")) if last_out else "",
                 "total_inbound_count": n_in,
@@ -539,23 +554,37 @@ def main():
             print(f"[leads_audit] processed {i}/{len(target_contacts)} contacts "
                   f"({api_call_count} api calls so far)...")
 
+    CSV_FIELDS = [
+        "contact_id", "name", "phone", "email", "address1", "city", "state",
+        "postal_code", "current_tags",
+        "last_message_date_iso", "last_message_direction", "status_category",
+        "dead_end_reason", "last_inbound_snippet", "last_outbound_snippet",
+        "total_inbound_count", "total_outbound_count",
+    ]
+
     with open(OUT_CSV, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=[
-            "contact_id", "name", "phone", "email", "address1", "city", "state",
-            "postal_code", "current_tags",
-            "last_message_date_iso", "last_message_direction", "status_category",
-            "last_inbound_snippet", "last_outbound_snippet",
-            "total_inbound_count", "total_outbound_count",
-        ])
+        w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
         w.writeheader()
         w.writerows(rows)
 
     # ---- Dedup pass: same property/seller often has 2 GHL contacts (2 phone numbers
     # imported separately, e.g. "ohio 1 st number" / "ohio second number" tags). Group by
     # normalized property address (falls back to name when address is blank) and collapse
-    # to ONE row per real-world lead, keeping the strongest signal across duplicates.
-    STATUS_RANK = {"active_pending_us": 3, "replied_then_cold": 2, "never_replied": 1,
-                   "no_outbound_yet": 0}
+    # to ONE row per real-world lead.
+    #
+    # Merge priority is NOT "most active wins" — compliance-grade dead ends (dnc/opt_out)
+    # on ANY duplicate contact record must win over every other signal: if one of this
+    # person's two phone numbers ever said "STOP", the whole person is off-limits, even if
+    # their other number looks like a live pending reply. Below that, pick the most
+    # actionable status.
+    COMPLIANCE_DEAD_END = {"dnc", "opt_out"}
+    STATUS_RANK = {"active_pending_us": 4, "replied_then_cold": 3, "dead_end": 2,
+                   "never_replied": 1, "no_outbound_yet": 0}
+
+    def merge_rank(row):
+        if row["status_category"] == "dead_end" and row["dead_end_reason"] in COMPLIANCE_DEAD_END:
+            return 100  # unbeatable — compliance
+        return STATUS_RANK.get(row["status_category"], -1)
 
     def dedup_key(row):
         addr = (row["address1"] or "").strip().lower()
@@ -569,7 +598,7 @@ def main():
 
     deduped = []
     for key, group in groups.items():
-        best = max(group, key=lambda r: STATUS_RANK.get(r["status_category"], -1))
+        best = max(group, key=merge_rank)
         merged = dict(best)
         merged["duplicate_contact_ids"] = ";".join(
             r["contact_id"] for r in group if r["contact_id"] != best["contact_id"])
@@ -578,21 +607,20 @@ def main():
 
     dedup_csv = os.path.join(OUT_DIR, "ohio_leads_audit_deduped.csv")
     with open(dedup_csv, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=[
-            "contact_id", "name", "phone", "email", "address1", "city", "state",
-            "postal_code", "current_tags",
-            "last_message_date_iso", "last_message_direction", "status_category",
-            "last_inbound_snippet", "last_outbound_snippet",
-            "total_inbound_count", "total_outbound_count",
+        w = csv.DictWriter(f, fieldnames=CSV_FIELDS + [
             "duplicate_contact_ids", "duplicate_count",
         ])
         w.writeheader()
         w.writerows(deduped)
 
     dedup_status_counts = {}
+    dedup_reason_counts = {}
     for row in deduped:
         dedup_status_counts[row["status_category"]] = (
             dedup_status_counts.get(row["status_category"], 0) + 1)
+        if row["status_category"] == "dead_end":
+            reason = row["dead_end_reason"] or "unknown"
+            dedup_reason_counts[reason] = dedup_reason_counts.get(reason, 0) + 1
 
     elapsed = time.time() - t0
     print("\n===== SUMMARY =====")
@@ -614,6 +642,10 @@ def main():
           f"(raw rows: {len(rows)}, {len(rows) - len(deduped)} were duplicates)")
     for k, v in sorted(dedup_status_counts.items(), key=lambda kv: -kv[1]):
         print(f"  {k}: {v}")
+    if dedup_reason_counts:
+        print("  dead_end breakdown:")
+        for k, v in sorted(dedup_reason_counts.items(), key=lambda kv: -kv[1]):
+            print(f"    {k}: {v}")
     print(f"Deduped CSV written: {dedup_csv}")
 
     return {
