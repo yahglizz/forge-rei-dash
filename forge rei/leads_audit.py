@@ -171,6 +171,142 @@ def _is_seller_message(body):
     )
 
 
+# ---------------------------------------------------------------------------
+# Dead-end classifiers — ported verbatim from marcus_engine.py (DNC keywords:
+# _fallback_classify lines 76; soft_no: 238-250; hard_no: 257-267; opt_out: 328-371;
+# denial: 272-363). A "STOP"/"not interested"/"sold"/wrong-number reply is a genuine
+# seller message but must NEVER be treated as a re-engage-worthy or pending-response
+# lead — re-texting these is a compliance risk (DNC) or just wasted/annoying outreach.
+# ---------------------------------------------------------------------------
+_DNC_PHRASES = ["stop", "unsubscribe", "remove me", "do not text"]
+
+_SOFT_NO_PHRASES = [
+    "not for sale", "not selling", "not interested", "no longer selling",
+    "not looking to sell", "not gonna sell", "not going to sell", "won't sell",
+    "wont sell", "not right now", "not at this time",
+    "not at the moment", "maybe later", "not the right time",
+    "not ready to sell", "decided not to sell", "changed my mind",
+    "keeping the house", "keeping the property",
+]
+
+_HARD_NO_RE = re.compile(
+    r"^\s*(no+|nope|nah+|no\s*thanks?|no\s*thank\s*you|not\s*interested"
+    r"|no\s*i'?m?\s*good|no\s*sorry|sorry\s*no|not\s*for\s*me|no\s*thx)"
+    r"[\s.!?,'\"\-]*$",
+    re.IGNORECASE,
+)
+
+_OPT_OUT_PHRASES = [
+    "remove my number", "take me off", "off your list", "off your website",
+    "leave me alone", "stop bothering", "stop contacting", "stop messaging",
+    "stop texting me", "quit texting", "quit calling", "quit contacting",
+    "harassing me", "this is harassment",
+]
+
+_DENIAL_CLAUSE = (
+    r"(?:"
+    r"i\s+(?:do\s+not|don'?t)\s+know\s+you"
+    r"|(?:(?:(?:i\s+(?:think|believe)\s+)?you\s+(?:have|got)"
+    r"|you(?:'ve|ve)\s+got|this\s+is|it(?:'?s|\s+is))\s+)?"
+    r"(?:the\s+)?wrong\s+"
+    r"(?:number|person|contact|recipient|owner|seller)"
+    r"|(?:i(?:'?m|\s+am)\s+)?not\s+who\s+you\s+think(?:\s+i\s+am)?"
+    r"|(?:i(?:'?m|\s+am)\s+)?not\s+(?:the\s+person\s+)?"
+    r"who\s+you(?:'?re|\s+are)\s+looking\s+for"
+    r")"
+)
+_DENIAL_MESSAGE_RE = re.compile(
+    rf"^\s*(?:sorry(?:\s*[,;:-]\s*(?:but\s+)?|\s+but\s+|\s+))?"
+    rf"{_DENIAL_CLAUSE}"
+    rf"(?:\s*[,;.!-]+\s*{_DENIAL_CLAUSE})*\s*[.!?]*\s*$",
+    re.IGNORECASE,
+)
+_STANDALONE_DENIAL_RE = re.compile(
+    r"^\s*(?:"
+    r"did\s+i\s+call\s+you|did\s+you\s+call\s+me|you\s+called\s+me|"
+    r"i\s+(?:did\s+not|didn'?t)\s+call\s+you|"
+    r"(?:i\s+)?never\s+(?:called|talked\s+to|spoke\s+to)\s+you|"
+    r"who\s+dis|who(?:'?s|\s+is)\s+this|who\s+are\s+you|what\s+is\s+this"
+    r")\s*[?.!,]*(?:\s*(?:no+|nope|nah+))?\s*[?.!,]*$",
+    re.IGNORECASE,
+)
+_IDENTITY_DENIAL_RE = re.compile(
+    r"^\s*(?:"
+    r"(?:i\s*am|i'?m)\s+not\s+(?:the\s+)?(?:owner|seller)(?:\s+anymore)?"
+    r"|i\s+(?:do\s+not|don'?t)\s+own\s+"
+    r"(?:it|this|that|the\s+(?:house|home|property))(?:\s+anymore)?"
+    r"|(?:i(?:'ve|\s+have)?\s+)?never\s+owned\s+"
+    r"(?:it|this|that|the\s+(?:house|home|property))"
+    r"|(?:this|that)(?:\s+is\s+not|\s+isn'?t|'?s\s+not)\s+"
+    r"(?:me|my\s+(?:house|home|property))(?:\s+anymore)?"
+    r")(?=\s*(?:[.!?]+(?:\s|$)|$))",
+    re.IGNORECASE,
+)
+
+
+def _is_dnc(body):
+    b = (body or "").lower()
+    return any(p in b for p in _DNC_PHRASES)
+
+
+def _is_opt_out(body):
+    b = (body or "").lower()
+    return any(p in b for p in _OPT_OUT_PHRASES)
+
+
+def _is_soft_no(body):
+    b = (body or "").lower()
+    return any(p in b for p in _SOFT_NO_PHRASES)
+
+
+def _is_hard_no(body):
+    return bool(_HARD_NO_RE.match(body or ""))
+
+
+def _is_denial(body):
+    if _DENIAL_MESSAGE_RE.match(body or ""):
+        return True
+    if _STANDALONE_DENIAL_RE.match(body or ""):
+        return True
+    if _IDENTITY_DENIAL_RE.search(body or ""):
+        return True
+    return False
+
+
+# NOT ported from existing code — no "already sold" classifier exists anywhere in
+# marcus_engine.py/scout_triage.py today (verified by grep). Added here for this audit
+# only, narrow standalone-message match so it can't misfire inside a longer reply. Flag
+# to the operator: worth backporting into marcus_engine.py's real dead-end detection.
+_SOLD_RE = re.compile(
+    r"^\s*(?:(?:it'?s|its|already|house\s+is|home\s+is|property\s+is)\s+)?sold[\s.!?]*$",
+    re.IGNORECASE,
+)
+
+
+def _is_sold(body):
+    return bool(_SOLD_RE.match((body or "").strip()))
+
+
+def _dead_end_reason(body):
+    """Priority order: compliance-grade first (DNC/opt-out never expire), then
+    content-based dead ends. None means the message is a live, actionable seller reply."""
+    if body is None:
+        return None
+    if _is_dnc(body):
+        return "dnc"
+    if _is_opt_out(body):
+        return "opt_out"
+    if _is_denial(body):
+        return "wrong_number"
+    if _is_sold(body):
+        return "sold"
+    if _is_hard_no(body):
+        return "hard_no"
+    if _is_soft_no(body):
+        return "soft_no"
+    return None
+
+
 def _to_ms(v):
     """Normalize a GHL timestamp (epoch int/str OR ISO-8601 string) to epoch ms, or None.
     Ported from scout_triage.py:_to_ms — GHL is inconsistent: conversation
