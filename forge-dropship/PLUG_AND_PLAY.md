@@ -195,3 +195,115 @@ unanswerable by construction. See `../DROPSHIP_CHECKLIST.md` Phase 0.
 | **WinningHunter `401` right after setting `WINNINGHUNTER_AUTH_PREFIX=Bearer`** | The env loader strips whitespace, so the header became `Bearer<key>` with no space. | Comment the var out — the built-in default is `"Bearer "` and is correct. Set it only for a no-space scheme. |
 | **Health 200 but every number is Unknown** | Working as designed — the creed refuses to invent. | Check which input is missing; the packet names it. |
 | **Secrets path returns anything but 404** | `dropship.env` is reachable over HTTP. | Stop. Fix the web root before deploying anything else. |
+
+---
+
+## 8. Full key reference
+
+`dropship.env.example` is keys-only now — every trap, cost, and accuracy note that used
+to sit next to a key lives here instead, same section letters as the file's comments.
+
+### 8a. WinningHunter
+
+Powers `dropship_winninghunter.py`: which ads are running, **how long each creative has
+been live** (proof-of-profit proxy — nobody funds a losing ad for 90 days), which stores
+sell it, at what price.
+
+**Why paid at all:** Meta's free Ad Library API returns non-EU ads only when they're about
+social issues, elections, or politics. US commercial dropship ads are visible in the
+browser UI but not returned by the free API — that gap is the whole justification for
+this line item.
+
+**Shape unverified:** paths/auth are best-guess until an account exists (their docs sit
+behind login). Every path below is env-overridable on purpose so one edit fixes the shape
+with no code change and no redeploy — the mistake already made once in
+`dropship_pipiads.py` was hardcoding a guessed shape.
+
+Limits: 60 req/min, 20,000 credits/calendar month. Accuracy: sales counts 70-98%, revenue
+±20-40%.
+
+**`WINNINGHUNTER_AUTH_PREFIX` trap:** the env loader strips whitespace off every value, so
+a prefix ending in a space cannot be expressed here. The built-in default is `"Bearer "`
+(with the space) and is correct when the var is left unset. Only set it for a no-space
+scheme — e.g. a bare key in a custom header:
+```
+WINNINGHUNTER_AUTH_HEADER=X-API-Key
+WINNINGHUNTER_AUTH_PREFIX=
+```
+Setting it to `Bearer` (no trailing space) produces `Bearer<key>` and 401s.
+
+### 8b. Higgsfield
+
+Powers `dropship_creative.py`: turns a packet's Higgsfield prompt into the actual ad
+image. Generation is internal + reversible (a file, deletable, nobody outside sees it), so
+it runs ungated — launching, boosting, or spending against the asset stays a one-tap
+approval.
+
+`higgsfield_io` resolves the key `os.environ` → passed creds → a scan of
+`daycare.env`/`agency.env`/`dropship.env`, so the paste already sitting in
+`forge-daycare/config/daycare.env` is found from here with no duplication. Add a dropship
+copy only to bill this workspace separately — a value here wins for dropship and changes
+nothing for the others.
+
+Two hard lines enforced in **code**, not by prompt (`dropship_creative._reject_asset_reuse`):
+a prompt asking to recreate/copy a competitor's actual asset is refused before spending a
+credit, and so is one naming a protected brand. Every returned asset carries an
+AI-disclosure string (Meta and Etsy both require it).
+
+### 8c. AutoDS
+
+API key from AutoDS (Settings → API). `AUTODS_STORE_ID` is the AutoDS store id.
+
+**The REST API is not recommended** (2026-07-28 review): access requires approval plus a
+one-time activation fee whose amount is unpublished, there's no trial, and per their own
+help center *"You must commit to the activation fee before receiving access to the API
+documentation."* You cannot evaluate it before buying. (A "$5,000" figure circulating
+online is fabricated — the raw HTML of every page cited for it was grepped and contains no
+such number. Don't budget against it.)
+
+Their **MCP server**, by contrast, is real, first-party, and free on every plan
+(`https://mcp.autods.com/mcp`, OAuth 2.1 + PKCE, ~1h token expiry — `AUTODS_MCP_TOKEN`
+below needs a refresh companion or it silently 401s). Worth taking only if you subscribe
+to AutoDS for **fulfillment**; skip the $14.97/mo Product Finding Hub (`AUTODS_MARKETPLACE_PATH`)
+— it's rebranded ad-library scraping, unreachable by agent, no CSV export.
+
+### 8d. Apify → Meta Ad Library (competitor-ad watcher)
+
+Pulls the ads competitors are actually running, with how long each has run — longevity as
+the "it converts" proxy. Token: apify.com → Settings → Integrations → Personal API token.
+Blank = the panel reads "add key," spends $0.
+
+**Cost:** bills per ad scraped (~$0.00075/ad) plus Apify compute — a careless pull is real
+money. `DROPSHIP_ADSPY_MAX_ADS` is the hard ceiling applied to every call (the UI/API limit
+is clamped down to it); raise it deliberately. Pulls are manual-only, nothing polls on a
+timer.
+
+### 8e. Not-wired-yet stubs
+
+Drop a value in `dropship.env` and the matching integration lights up on next deploy;
+until then that channel reads mock / "add key."
+
+- **PiPiAds** — the "watch new trending things" source: real winning TikTok/FB products +
+  TikTok Shop revenue trend, so scoring reflects products actually moving, not guesses.
+  Key + billing: pipispy.com.
+- **MCP servers** (Connections & MCP tab) — the dashboard talks to MCP servers over
+  Streamable HTTP; a server's URL is edited in that tab, these env vars are its defaults,
+  and any token stays here (the UI only ever references a variable *name*). Shopify
+  Storefront MCP defaults to `https://<SHOPIFY_STORE_DOMAIN>/api/mcp` if left blank.
+  WinningHunter MCP URL is verified and already seeded — only the token is needed.
+  AutoDS MCP URL is verified and seeded too, same $-and-fulfillment caveat as §8c. The
+  Shopify Dev MCP (`npx -y @shopify/dev-mcp@latest`) is stdio — runs in your Claude/operator
+  session, the box can't reach it, listed for reference only.
+- **TikTok, Klaviyo, GA4, AfterShip, GHL, Metricool** — no research or build time spent
+  yet; add keys when the channel is actually prioritized.
+
+### 8f. EverBee accuracy note
+
+Etsy never exposes per-listing sales, so `est_mo_sales`/`est_mo_revenue` are modelled, not
+measured (the schema carries `cpc` beside `vol` — the Google Keyword Planner field set).
+Ground truth is Etsy Marketplace Insights (Etsy Plus, $10/mo, dashboard-only, no API) — use
+it to calibrate this feed, not replace it.
+
+We deliberately don't call Etsy's own API: its Terms (2025-06-16) prohibit use "for
+purposes of analytics, machine learning, training artificial intelligence models."
+Routing through EverBee leaves that exposure with EverBee.
