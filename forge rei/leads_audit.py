@@ -201,6 +201,11 @@ _OPT_OUT_PHRASES = [
     "leave me alone", "stop bothering", "stop contacting", "stop messaging",
     "stop texting me", "quit texting", "quit calling", "quit contacting",
     "harassing me", "this is harassment",
+    # Added for this audit (same "remove me" family, not yet in marcus_engine.py's
+    # list — found live in the Ohio data: "please delete my contact info"). Worth
+    # backporting.
+    "delete my contact", "delete my info", "delete my number", "remove my info",
+    "remove my contact",
 ]
 
 _DENIAL_CLAUSE = (
@@ -243,6 +248,27 @@ _IDENTITY_DENIAL_RE = re.compile(
     re.IGNORECASE,
 )
 
+_NAMED_IDENTITY_DENIAL_RE = re.compile(
+    r"^\s*(?:(?:i\s*am|i'?m)\s+not"
+    r"|(?:this|that)(?:\s+is\s+not|\s+isn'?t|'?s\s+not))\s+"
+    r"(?P<name>[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)*)"
+    r"(?=\s*(?:[.!?]+(?:\s|$)|$))",
+    re.IGNORECASE,
+)
+
+
+def _named_identity_match(body, expected_name=None):
+    """Return True/False for a named identity statement, or None when absent.
+    Ported from marcus_engine.py:336-345."""
+    named = _NAMED_IDENTITY_DENIAL_RE.search(body or "")
+    if not named:
+        return None
+    expected_tokens = re.findall(r"[a-z][a-z'-]*", (expected_name or "").lower())
+    if not expected_tokens or expected_tokens[0] == "unknown":
+        return False
+    denied_name = " ".join(re.findall(r"[a-z][a-z'-]*", named.group("name").lower()))
+    return denied_name in (expected_tokens[0], " ".join(expected_tokens))
+
 
 def _is_dnc(body):
     b = (body or "").lower()
@@ -263,14 +289,14 @@ def _is_hard_no(body):
     return bool(_HARD_NO_RE.match(body or ""))
 
 
-def _is_denial(body):
+def _is_denial(body, expected_name=None):
     if _DENIAL_MESSAGE_RE.match(body or ""):
         return True
     if _STANDALONE_DENIAL_RE.match(body or ""):
         return True
     if _IDENTITY_DENIAL_RE.search(body or ""):
         return True
-    return False
+    return _named_identity_match(body, expected_name) is True
 
 
 # NOT ported from existing code — no "already sold" classifier exists anywhere in
@@ -287,7 +313,7 @@ def _is_sold(body):
     return bool(_SOLD_RE.match((body or "").strip()))
 
 
-def _dead_end_reason(body):
+def _dead_end_reason(body, expected_name=None):
     """Priority order: compliance-grade first (DNC/opt-out never expire), then
     content-based dead ends. None means the message is a live, actionable seller reply."""
     if body is None:
@@ -296,7 +322,7 @@ def _dead_end_reason(body):
         return "dnc"
     if _is_opt_out(body):
         return "opt_out"
-    if _is_denial(body):
+    if _is_denial(body, expected_name):
         return "wrong_number"
     if _is_sold(body):
         return "sold"
@@ -435,7 +461,7 @@ def iso(v):
         return ""
 
 
-def classify(messages):
+def classify(messages, expected_name=None):
     """messages: chronological list of dicts with 'direction' + 'body'.
     Returns (status_category, last_inbound, last_outbound, total_inbound, total_outbound,
              last_msg_direction, last_msg_date_ms, dead_end_reason).
@@ -454,7 +480,8 @@ def classify(messages):
 
     last_inbound = inbound_seller_msgs[-1] if inbound_seller_msgs else None
     last_outbound = outbound_msgs[-1] if outbound_msgs else None
-    dead_end_reason = _dead_end_reason(last_inbound.get("body")) if last_inbound else None
+    dead_end_reason = (_dead_end_reason(last_inbound.get("body"), expected_name)
+                        if last_inbound else None)
 
     if not messages:
         return ("no_outbound_yet", last_inbound, last_outbound, total_inbound,
@@ -523,7 +550,7 @@ def main():
         try:
             messages = full_thread(cid)
             (status, last_in, last_out, n_in, n_out,
-             last_dir, last_date_ms, dead_end_reason) = classify(messages)
+             last_dir, last_date_ms, dead_end_reason) = classify(messages, contact_name(c))
 
             status_counts[status] = status_counts.get(status, 0) + 1
 
