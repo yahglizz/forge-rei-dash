@@ -1,0 +1,651 @@
+<title>Deal Desk — Wholesale Underwriting</title>
+
+<style>
+  :root {
+    --ground:   #0D1012;
+    --panel:    #14181B;
+    --panel-2:  #1A1F23;
+    --rule:     #262D32;
+    --rule-soft:#1E2427;
+    --ink:      #DCE3E6;
+    --ink-dim:  #A8B4BA;
+    --muted:    #86949B;
+    --accent:   #E8933A;
+    --accent-dim:#8A5A22;
+    --pass:     #5FA97F;
+    --thin:     #C99A46;
+    --fail:     #C9584A;
+    --grid-line: rgba(220,227,230,.028);
+
+    --step--1: .735rem;
+    --step-0:  .875rem;
+    --step-1:  1.0625rem;
+    --step-2:  1.5rem;
+    --step-3:  2.25rem;
+    --step-4:  clamp(2.75rem, 7vw, 4.25rem);
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Mono", "Roboto Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground:   #F1EEE7;
+      --panel:    #FBFAF7;
+      --panel-2:  #EAE6DC;
+      --rule:     #D3CCBE;
+      --rule-soft:#E2DCD0;
+      --ink:      #14181A;
+      --ink-dim:  #3D464B;
+      --muted:    #6E6357;
+      --accent:   #A85E17;
+      --accent-dim:#D8B78C;
+      --pass:     #2F7A56;
+      --thin:     #8A6520;
+      --fail:     #A33B2A;
+      --grid-line: rgba(20,24,26,.035);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --ground:   #F1EEE7;
+    --panel:    #FBFAF7;
+    --panel-2:  #EAE6DC;
+    --rule:     #D3CCBE;
+    --rule-soft:#E2DCD0;
+    --ink:      #14181A;
+    --ink-dim:  #3D464B;
+    --muted:    #6E6357;
+    --accent:   #A85E17;
+    --accent-dim:#D8B78C;
+    --pass:     #2F7A56;
+    --thin:     #8A6520;
+    --fail:     #A33B2A;
+    --grid-line: rgba(20,24,26,.035);
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #0D1012;
+    --panel:    #14181B;
+    --panel-2:  #1A1F23;
+    --rule:     #262D32;
+    --rule-soft:#1E2427;
+    --ink:      #DCE3E6;
+    --ink-dim:  #A8B4BA;
+    --muted:    #86949B;
+    --accent:   #E8933A;
+    --accent-dim:#8A5A22;
+    --pass:     #5FA97F;
+    --thin:     #C99A46;
+    --fail:     #C9584A;
+    --grid-line: rgba(220,227,230,.028);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background-color: var(--ground);
+    background-image:
+      repeating-linear-gradient(to right,  var(--grid-line) 0 1px, transparent 1px 64px),
+      repeating-linear-gradient(to bottom, var(--grid-line) 0 1px, transparent 1px 64px);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--step-0);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .desk { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 20px 28px;
+    padding-bottom: 18px; border-bottom: 1px solid var(--rule);
+  }
+  .masthead-id { flex: 1 1 320px; display: flex; flex-direction: column; gap: 6px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: var(--step--1); letter-spacing: .16em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .eyebrow b { color: var(--accent); font-weight: 500; }
+  h1 {
+    margin: 0; font-family: var(--mono); font-size: var(--step-3);
+    font-weight: 700; letter-spacing: -.02em; line-height: 1; text-wrap: balance;
+  }
+  .strap { margin: 0; color: var(--ink-dim); max-width: 62ch; }
+
+  .verdict {
+    flex: 0 0 auto; min-width: 240px;
+    border: 1px solid var(--rule); background: var(--panel);
+    padding: 12px 16px; display: flex; flex-direction: column; gap: 3px;
+    border-left: 3px solid var(--v-color, var(--muted));
+  }
+  .verdict-word {
+    font-family: var(--mono); font-size: var(--step-2); font-weight: 700;
+    letter-spacing: .04em; color: var(--v-color, var(--ink)); line-height: 1.1;
+  }
+  .verdict-note { font-size: var(--step--1); color: var(--muted); }
+
+  /* ---------- layout ---------- */
+  .grid {
+    display: grid; gap: 20px; margin-top: 24px;
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    align-items: start;
+  }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .rail { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 16px; }
+  @media (max-width: 860px) { .rail { position: static; } }
+  .readout { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+  .panel { background: var(--panel); border: 1px solid var(--rule); }
+  .panel-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 9px 14px; border-bottom: 1px solid var(--rule); background: var(--panel-2);
+  }
+  .panel-title {
+    font-family: var(--mono); font-size: var(--step--1); letter-spacing: .18em;
+    text-transform: uppercase; color: var(--ink-dim); font-weight: 600;
+  }
+  .panel-meta { font-family: var(--mono); font-size: var(--step--1); color: var(--muted); }
+  .panel-body { padding: 14px; display: flex; flex-direction: column; gap: 13px; }
+
+  /* ---------- fields ---------- */
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: var(--step--1); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .money { display: flex; align-items: stretch; border: 1px solid var(--rule); background: var(--ground); }
+  .money span {
+    display: grid; place-items: center; width: 30px; flex: 0 0 30px;
+    font-family: var(--mono); color: var(--muted); font-size: var(--step-0);
+    border-right: 1px solid var(--rule-soft); background: var(--panel-2);
+  }
+  .money input {
+    flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--ink);
+    font-family: var(--mono); font-size: var(--step-1); font-variant-numeric: tabular-nums;
+    padding: 8px 10px; letter-spacing: -.01em;
+  }
+  .money input:focus { outline: none; }
+  .money:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .hint { font-size: var(--step--1); color: var(--muted); line-height: 1.4; }
+
+  .slider-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .slider-val {
+    font-family: var(--mono); font-size: var(--step-1); font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); margin: 2px 0 0; }
+  input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .ticks {
+    display: flex; justify-content: space-between; font-family: var(--mono);
+    font-size: var(--step--1); color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+
+  .btn {
+    font-family: var(--mono); font-size: var(--step--1); letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-dim); background: var(--panel-2);
+    border: 1px solid var(--rule); padding: 9px 12px; cursor: pointer; text-align: center;
+  }
+  .btn:hover { color: var(--accent); border-color: var(--accent-dim); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { flex: 1 1 0; }
+
+  /* ---------- ceiling ---------- */
+  .ceiling { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(0,1fr); }
+  @media (max-width: 620px) { .ceiling { grid-template-columns: minmax(0,1fr); } }
+  .ceiling-main { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 4px; position: relative; }
+  .ceiling-main::before,
+  .ceiling-main::after {
+    content: ""; position: absolute; width: 9px; height: 9px; border: 1px solid var(--accent-dim);
+  }
+  .ceiling-main::before { top: 8px; left: 8px; border-right: 0; border-bottom: 0; }
+  .ceiling-main::after { bottom: 8px; left: 8px; border-right: 0; border-top: 0; }
+  .big {
+    font-family: var(--mono); font-size: var(--step-4); font-weight: 700; line-height: .95;
+    letter-spacing: -.035em; font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .big.is-neg { color: var(--fail); }
+  .ceiling-side {
+    border-left: 1px solid var(--rule); display: grid;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 620px) { .ceiling-side { border-left: 0; border-top: 1px solid var(--rule); } }
+  .stat { padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; }
+  .stat + .stat { border-top: 1px solid var(--rule); }
+  .stat-k {
+    font-size: var(--step--1); letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  .stat-v {
+    font-family: var(--mono); font-size: var(--step-2); font-weight: 700;
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .stat-n { font-size: var(--step--1); color: var(--muted); }
+
+  /* ---------- waterfall ---------- */
+  .bar { display: flex; width: 100%; height: 46px; border: 1px solid var(--rule); overflow: hidden; }
+  .seg { transition: width .28s ease; min-width: 0; position: relative; }
+  .seg-seller  { background: var(--accent); }
+  .seg-repairs { background: color-mix(in srgb, var(--accent) 34%, var(--panel-2)); }
+  .seg-costs   { background: color-mix(in srgb, var(--accent) 16%, var(--panel-2)); }
+  .seg-fee     { background: var(--pass); }
+  .seg-margin  { background: var(--panel-2); border-left: 1px solid var(--rule); }
+  .seg-over    { background: repeating-linear-gradient(135deg, var(--fail) 0 6px, transparent 6px 12px); }
+
+  .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 10px; }
+  .leg { display: flex; flex-direction: column; gap: 2px; padding-left: 10px; border-left: 3px solid var(--l, var(--rule)); }
+  .leg-k { font-size: var(--step--1); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .leg-v { font-family: var(--mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .leg-p { font-family: var(--mono); font-size: var(--step--1); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 10px 14px; border-bottom: 1px solid var(--rule-soft); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-family: var(--sans); font-size: var(--step--1); letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  .rung-name { font-family: var(--mono); font-weight: 700; letter-spacing: .04em; }
+  .rung-note { display: block; font-family: var(--sans); font-weight: 400; letter-spacing: 0; color: var(--muted); font-size: var(--step--1); white-space: normal; max-width: 46ch; }
+  .num { font-family: var(--mono); font-weight: 700; }
+  .num-sm { font-family: var(--mono); color: var(--ink-dim); }
+  tr.is-walk td { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+
+  .matrix td, .matrix th { padding: 9px 12px; font-family: var(--mono); }
+  .matrix td { color: var(--ink-dim); }
+  .matrix td.c-pass { color: var(--pass); }
+  .matrix td.c-thin { color: var(--thin); }
+  .matrix td.c-fail { color: var(--fail); }
+  .matrix td.is-base { color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
+
+  .footnote {
+    padding: 12px 14px; border-top: 1px solid var(--rule); background: var(--panel-2);
+    font-size: var(--step--1); color: var(--muted); line-height: 1.5;
+  }
+  .footnote b { color: var(--accent); font-weight: 600; }
+
+  .colophon {
+    margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--rule);
+    font-size: var(--step--1); color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px;
+  }
+  .colophon code { font-family: var(--mono); color: var(--ink-dim); }
+
+  .flash { animation: tick .22s ease-out; }
+  @keyframes tick { from { opacity: .45; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .flash { animation: none; }
+    .seg { transition: none; }
+  }
+</style>
+
+<main class="desk">
+  <header class="masthead">
+    <div class="masthead-id">
+      <p class="eyebrow">Wholesale underwriting · <b>internal</b></p>
+      <h1>Deal Desk</h1>
+      <p class="strap">Type the four numbers you actually have. Get the ceiling you cannot cross, the ladder you walk the call down, and the point where you hang up.</p>
+    </div>
+    <div class="verdict" id="verdict">
+      <div class="verdict-word" id="verdictWord">—</div>
+      <div class="verdict-note" id="verdictNote">Enter an ARV to start.</div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ─────────── INPUT RAIL ─────────── -->
+    <form class="rail" id="form" autocomplete="off">
+      <section class="panel">
+        <div class="panel-head"><span class="panel-title">The house</span></div>
+        <div class="panel-body">
+          <div class="field">
+            <label for="arv">After-repair value</label>
+            <div class="money"><span>$</span><input type="number" id="arv" value="285000" min="0" step="1000" inputmode="numeric"></div>
+            <p class="hint">What it sells for fixed, from comps — not the tax card, not Zestimate.</p>
+          </div>
+          <div class="field">
+            <label for="repairs">Repair estimate</label>
+            <div class="money"><span>$</span><input type="number" id="repairs" value="45000" min="0" step="1000" inputmode="numeric"></div>
+            <p class="hint">Your buyer's number, not the seller's. Roof, mechanicals, kitchen, bath.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span class="panel-title">The exit</span></div>
+        <div class="panel-body">
+          <div class="field">
+            <div class="slider-head">
+              <label for="rule">Buyer's rule</label>
+              <span class="slider-val" id="ruleVal">70%</span>
+            </div>
+            <input type="range" id="rule" min="55" max="85" step="1" value="70" aria-describedby="ruleHint">
+            <div class="ticks"><span>55</span><span>70</span><span>85</span></div>
+            <p class="hint" id="ruleHint">Share of ARV your cash buyer will go all-in to. Hot market buyers stretch to 75–80; tired ones sit at 65.</p>
+          </div>
+          <div class="field">
+            <label for="fee">Your assignment fee</label>
+            <div class="money"><span>$</span><input type="number" id="fee" value="12000" min="0" step="500" inputmode="numeric"></div>
+          </div>
+          <div class="field">
+            <label for="costs">Closing &amp; holding</label>
+            <div class="money"><span>$</span><input type="number" id="costs" value="4500" min="0" step="250" inputmode="numeric"></div>
+            <p class="hint">Title, doc stamps, the two weeks you carry it if the buyer drags.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span class="panel-title">The seller</span></div>
+        <div class="panel-body">
+          <div class="field">
+            <label for="ask">Their stated ask</label>
+            <div class="money"><span>$</span><input type="number" id="ask" value="180000" min="0" step="1000" inputmode="numeric"></div>
+            <p class="hint">What they said on the phone. Leave 0 if they haven't named one — the ladder builds off your ceiling instead.</p>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn" id="copyBtn">Copy call card</button>
+            <button type="reset" class="btn" id="resetBtn">Reset</button>
+          </div>
+        </div>
+      </section>
+    </form>
+
+    <!-- ─────────── READOUT ─────────── -->
+    <div class="readout">
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Ceiling</span>
+          <span class="panel-meta" id="maoFormula">ARV × 70% − repairs − fee − costs</span>
+        </div>
+        <div class="ceiling">
+          <div class="ceiling-main">
+            <div class="stat-k">Max allowable offer</div>
+            <div class="big" id="maoVal">$0</div>
+            <div class="stat-n" id="maoNote">The most you can pay and still get paid.</div>
+          </div>
+          <div class="ceiling-side">
+            <div class="stat">
+              <div class="stat-k">Gap to their ask</div>
+              <div class="stat-v" id="gapVal">$0</div>
+              <div class="stat-n" id="gapNote">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-k">Your take at target</div>
+              <div class="stat-v" id="takeVal">$0</div>
+              <div class="stat-n" id="takeNote">Fee plus whatever you buy under the ceiling.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Where the ARV goes</span>
+          <span class="panel-meta" id="barMeta">at target price</span>
+        </div>
+        <div class="panel-body">
+          <div class="bar" id="bar" role="img" aria-label="Stacked breakdown of after-repair value" aria-describedby="legend"></div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Anchor ladder</span>
+          <span class="panel-meta">internal only</span>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th scope="col">Rung</th><th scope="col">Price</th><th scope="col">Your spread</th><th scope="col">Buyer's margin</th></tr>
+            </thead>
+            <tbody id="ladder"></tbody>
+          </table>
+        </div>
+        <p class="footnote"><b>These numbers never leave this screen.</b> No price, no range, no "somewhere around" goes out in a text. The offer gets said out loud, on the phone, by you.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="panel-title">If you're wrong</span>
+          <span class="panel-meta">ceiling under stress</span>
+        </div>
+        <div class="scroll">
+          <table class="matrix">
+            <thead><tr id="matrixHead"></tr></thead>
+            <tbody id="matrix"></tbody>
+          </table>
+        </div>
+        <p class="footnote" id="matrixNote">Repairs run down the side, your buyer's rule across the top. Coloring is against their ask.</p>
+      </section>
+    </div>
+  </div>
+
+  <p class="colophon">
+    <span>Ceiling <code>= ARV × rule − repairs − fee − closing</code></span>
+    <span>Spread <code>= fee + (ceiling − price paid)</code></span>
+    <span>Anchors round to the nearest <code>$500</code></span>
+  </p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  var money = function (n) { return (n < 0 ? "−" : "") + usd.format(Math.abs(Math.round(n))); };
+  var pct = function (n) { return (Math.round(n * 1000) / 10).toFixed(1) + "%"; };
+  var to500 = function (n) { return Math.max(0, Math.round(n / 500) * 500); };
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (id) { var v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : 0; };
+
+  // ── the model ────────────────────────────────────────────────────────────
+  function model(i) {
+    var mao = i.arv * i.rule - i.repairs - i.fee - i.costs;
+    var gap = mao - i.ask;                       // positive = room, negative = they want too much
+    var rungs;
+
+    if (i.ask <= 0) {
+      rungs = [
+        { name: "Open",     price: to500(mao * 0.80), note: "No ask on the table. Open low, let them counter — the first number they say is the real one." },
+        { name: "Target",   price: to500(mao * 0.90), note: "Where this should land if the call goes normally." },
+        { name: "Walk away",price: Math.max(0, Math.round(mao)), note: "Your ceiling. One dollar past it you are working for free." }
+      ];
+    } else if (gap >= 0) {
+      rungs = [
+        { name: "Open",     price: to500(i.ask * 0.85), note: "Their ask already clears your ceiling. Open under it anyway — nobody regrets the low open." },
+        { name: "Target",   price: to500(i.ask * 0.93), note: "Close here and you keep " + money(i.fee + mao - to500(i.ask * 0.93)) + "." },
+        { name: "Walk away",price: Math.max(0, Math.round(mao)), note: "Ceiling sits " + money(gap) + " above their ask. That headroom is your negotiating room, not a raise." }
+      ];
+    } else {
+      rungs = [
+        { name: "Open",     price: to500(mao * 0.78), note: "They are " + money(-gap) + " over your ceiling. Open here and make the gap theirs to close." },
+        { name: "Target",   price: to500(mao * 0.90), note: "Only reachable if the call moves them off their number." },
+        { name: "Walk away",price: Math.max(0, Math.round(mao)), note: "Ceiling. They must come down " + money(-gap) + " or this is a nurture lead, not a deal." }
+      ];
+    }
+
+    rungs.forEach(function (r) {
+      r.spread = i.fee + (mao - r.price);        // fee plus everything bought under the ceiling
+      r.margin = i.arv - r.price - r.repairs - i.costs - r.spread;
+    });
+
+    var verdict;
+    if (i.arv <= 0)                        verdict = { word: "NO ARV",  color: "var(--muted)", note: "Pull comps first. Everything below is guesswork without it." };
+    else if (mao <= 0)                     verdict = { word: "DEAD",    color: "var(--fail)",  note: "Repairs plus your fee eat the whole spread. There is no price that works." };
+    else if (i.ask <= 0)                   verdict = { word: "NO ASK",  color: "var(--accent)",note: "Ceiling is " + money(mao) + ". Get them to name a number." };
+    else if (gap >= 0)                     verdict = { word: "CLEAR",   color: "var(--pass)",  note: money(gap) + " of room under your ceiling. Go get it signed." };
+    else if (-gap <= i.arv * 0.06)         verdict = { word: "THIN",    color: "var(--thin)",  note: money(-gap) + " apart — one motivated conversation, or trim your fee." };
+    else                                   verdict = { word: "DEAD",    color: "var(--fail)",  note: money(-gap) + " over your ceiling. Nurture it; don't chase it." };
+
+    return { mao: mao, gap: gap, rungs: rungs, target: rungs[1], verdict: verdict };
+  }
+
+  // ── render ───────────────────────────────────────────────────────────────
+  var lastMao = null;
+
+  function render() {
+    var i = {
+      arv: num("arv"), repairs: num("repairs"), fee: num("fee"),
+      costs: num("costs"), ask: num("ask"), rule: parseInt($("rule").value, 10) / 100
+    };
+    var m = model(i);
+    var t = m.target;
+
+    $("ruleVal").textContent = Math.round(i.rule * 100) + "%";
+    $("maoFormula").textContent = "ARV × " + Math.round(i.rule * 100) + "% − repairs − fee − closing";
+
+    var maoEl = $("maoVal");
+    maoEl.textContent = money(Math.max(m.mao, 0));
+    maoEl.classList.toggle("is-neg", m.mao <= 0);
+    if (lastMao !== null && Math.round(lastMao) !== Math.round(m.mao)) {
+      maoEl.classList.remove("flash"); void maoEl.offsetWidth; maoEl.classList.add("flash");
+    }
+    lastMao = m.mao;
+    $("maoNote").textContent = m.mao > 0
+      ? "The most you can pay and still clear " + money(i.fee) + "."
+      : "Nothing left after repairs, fee and closing.";
+
+    $("gapVal").textContent = i.ask > 0 ? money(m.gap) : "—";
+    $("gapVal").style.color = i.ask <= 0 ? "var(--muted)" : (m.gap >= 0 ? "var(--pass)" : "var(--fail)");
+    $("gapNote").textContent = i.ask <= 0 ? "No stated ask yet."
+      : m.gap >= 0 ? "Under your ceiling — room to work." : "Over your ceiling — they have to move.";
+
+    $("takeVal").textContent = money(Math.max(t.spread, 0));
+    $("takeNote").textContent = "At " + money(t.price) + ", your target rung.";
+
+    var v = m.verdict;
+    $("verdict").style.setProperty("--v-color", v.color);
+    $("verdictWord").textContent = v.word;
+    $("verdictNote").textContent = v.note;
+
+    // waterfall — segments sum to ARV exactly when the deal is solvent
+    var segs = [
+      { k: "Seller",         v: t.price,   cls: "seg-seller" },
+      { k: "Repairs",        v: i.repairs, cls: "seg-repairs" },
+      { k: "Closing",        v: i.costs,   cls: "seg-costs" },
+      { k: "You",            v: Math.max(t.spread, 0), cls: "seg-fee" },
+      { k: "Buyer's margin", v: Math.max(t.margin, 0), cls: "seg-margin" }
+    ];
+    var total = segs.reduce(function (s, x) { return s + x.v; }, 0);
+    var over = t.spread < 0 || t.margin < 0;
+    $("barMeta").textContent = over ? "underwater at target" : "at " + money(t.price) + " to the seller";
+
+    $("bar").innerHTML = total > 0
+      ? segs.map(function (s) {
+          return '<div class="seg ' + (over && s.k === "You" ? "seg-over" : s.cls) +
+                 '" style="width:' + (s.v / total * 100) + '%"></div>';
+        }).join("")
+      : "";
+
+    var legColors = { "Seller": "var(--accent)", "Repairs": "color-mix(in srgb, var(--accent) 34%, var(--panel-2))",
+                      "Closing": "color-mix(in srgb, var(--accent) 16%, var(--panel-2))",
+                      "You": over ? "var(--fail)" : "var(--pass)", "Buyer's margin": "var(--rule)" };
+    $("legend").innerHTML = segs.map(function (s) {
+      return '<div class="leg" style="--l:' + legColors[s.k] + '">' +
+             '<span class="leg-k">' + s.k + '</span>' +
+             '<span class="leg-v">' + money(s.v) + '</span>' +
+             '<span class="leg-p">' + (total > 0 ? pct(s.v / total) + " of ARV" : "—") + '</span></div>';
+    }).join("");
+
+    $("ladder").innerHTML = m.rungs.map(function (r) {
+      return '<tr' + (r.name === "Walk away" ? ' class="is-walk"' : '') + '>' +
+             '<td><span class="rung-name">' + r.name + '</span><span class="rung-note">' + r.note + '</span></td>' +
+             '<td class="num">' + money(r.price) + '</td>' +
+             '<td class="num" style="color:' + (r.spread > 0 ? "var(--pass)" : "var(--fail)") + '">' + money(r.spread) + '</td>' +
+             '<td class="num-sm">' + money(r.margin) + '</td></tr>';
+    }).join("");
+
+    // sensitivity: repairs down the side, buyer's rule across the top
+    var rules = [i.rule - 0.05, i.rule, i.rule + 0.05];
+    var reps  = [{ l: "Repairs −25%", f: 0.75 }, { l: "Your estimate", f: 1 }, { l: "Repairs +25%", f: 1.25 }];
+    $("matrixHead").innerHTML = '<th scope="col">Ceiling</th>' + rules.map(function (r) {
+      return '<th scope="col">' + Math.round(r * 100) + '% rule</th>';
+    }).join("");
+    $("matrix").innerHTML = reps.map(function (rep) {
+      return "<tr><th scope=\"row\" style=\"text-align:left;font-family:var(--sans);font-weight:600;color:var(--ink-dim)\">" + rep.l + "</th>" +
+        rules.map(function (r) {
+          var val = i.arv * r - i.repairs * rep.f - i.fee - i.costs;
+          var cls = i.ask <= 0 ? "" : val >= i.ask ? "c-pass" : (i.ask - val <= i.arv * 0.06 ? "c-thin" : "c-fail");
+          if (rep.f === 1 && Math.abs(r - i.rule) < 1e-9) cls += " is-base";
+          return '<td class="' + cls.trim() + '">' + money(Math.max(val, 0)) + "</td>";
+        }).join("") + "</tr>";
+    }).join("");
+    $("matrixNote").textContent = i.ask > 0
+      ? "Green clears their " + money(i.ask) + " ask, bronze is within " + money(i.arv * 0.06) + " of it, rust is not a deal. Your live numbers are boxed."
+      : "No ask entered, so nothing is colored. Your live numbers are boxed.";
+
+    return { i: i, m: m };
+  }
+
+  function callCard() {
+    var s = render(), i = s.i, m = s.m;
+    return [
+      "DEAL DESK — INTERNAL",
+      "ARV " + money(i.arv) + "  ·  repairs " + money(i.repairs) + "  ·  rule " + Math.round(i.rule * 100) + "%",
+      "Fee " + money(i.fee) + "  ·  closing " + money(i.costs) + "  ·  their ask " + (i.ask > 0 ? money(i.ask) : "none stated"),
+      "",
+      "CEILING (MAO): " + money(Math.max(m.mao, 0)),
+      "VERDICT: " + m.verdict.word + " — " + m.verdict.note,
+      "",
+      "LADDER",
+      m.rungs.map(function (r) {
+        return "  " + r.name.padEnd(10) + money(r.price).padStart(10) + "   your spread " + money(r.spread);
+      }).join("\n"),
+      "",
+      "Anchors are internal. Offer goes out on the phone, never in a text."
+    ].join("\n");
+  }
+
+  function copyCard() {
+    var text = callCard(), btn = $("copyBtn"), done = function (ok) {
+      btn.textContent = ok ? "Copied" : "Press ⌘C";
+      setTimeout(function () { btn.textContent = "Copy call card"; }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { fallback(text, done); });
+    } else { fallback(text, done); }
+  }
+
+  function fallback(text, done) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    done(ok);
+  }
+
+  $("form").addEventListener("input", render);
+  $("copyBtn").addEventListener("click", copyCard);
+  $("resetBtn").addEventListener("click", function () { setTimeout(render, 0); });
+  render();
+
+  // self-check: the waterfall must reconstruct ARV exactly, and paying the
+  // ceiling must leave the buyer precisely their (1 − rule) margin.
+  (function selfCheck() {
+    var i = { arv: 300000, repairs: 50000, fee: 10000, costs: 5000, ask: 150000, rule: 0.7 };
+    var m = model(i), t = m.target;
+    var sum = t.price + i.repairs + i.costs + t.spread + t.margin;
+    console.assert(Math.abs(sum - i.arv) < 1e-6, "waterfall must sum to ARV", sum, i.arv);
+    console.assert(Math.abs(m.mao - 145000) < 1e-6, "MAO formula", m.mao);
+    var atCeiling = i.arv - m.mao - i.repairs - i.costs - i.fee;
+    console.assert(Math.abs(atCeiling - i.arv * (1 - i.rule)) < 1e-6, "paying the ceiling leaves the buyer exactly (1-rule)·ARV", atCeiling);
+  })();
+})();
+</script>
