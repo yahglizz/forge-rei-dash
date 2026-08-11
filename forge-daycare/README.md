@@ -1,5 +1,10 @@
 # Forge Daycare — "A Touch of Blessings" config + Supabase schema
 
+> **Website work moved out (2026-08-11).** The marketing site, family forms, brand kit, and
+> web deploy docs now live in `~/Desktop/A Touch of Blessings — Brand Kit/`. Edit the site
+> from there. `skills/daycare-context.md` + `skills/enrollment-ad-agent.md` here stay the
+> LIVE copies the agents load — the brand-kit `context/` copies are mirrors; sync changes back.
+
 This folder is the Daycare business's own home, a sibling of the dashboard
 (`forge rei/`), so nothing in here is ever served over HTTP — config, business
 context, and the Supabase schema live here safely.

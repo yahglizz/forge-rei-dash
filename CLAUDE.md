@@ -388,6 +388,15 @@ update that skill if you improved the pattern.
 
 ## 10. Daycare OS (the third workspace — full daycare operating system)
 
+> **🌐 The daycare WEBSITE is not built here anymore.** As of 2026-08-11 the marketing site
+> (`atouchofblessing.com`), the family contact forms, the brand kit, and the web deploy docs
+> live in **`~/Desktop/A Touch of Blessings — Brand Kit/`** (`website/`, `forms/`, `brand/`,
+> `context/`, `docs/`, plus its own `CLAUDE.md`). Open a session in THAT folder for any site
+> or form edit. This dashboard still owns the operating system — Solomon, Supabase, roster,
+> billing, GHL family messaging, and the ads engine. `forge-daycare/skills/daycare-context.md`
+> and `enrollment-ad-agent.md` remain the LIVE copies the agents load; the brand-kit `context/`
+> versions are mirrors, so a business-fact change gets copied back here and deployed.
+
 The **Daycare** workspace is the owner's management OS for "A Touch of Blessings"
 (Supabase project `eqblpbeqothkpyqiafzs`). It is the **management lens**; the separate
 Next.js app at `~/Desktop/the main daycare app` is the parent/staff lens. **Both are two
