@@ -217,10 +217,8 @@ class SolomonEngine:
     # --- brain skills (mtime-cached seed + vault) ----------------------------
     # Prompt order: CREED (daycare-evidence-discipline, via agent_creed — never
     # reachable from learn()) → TOP SKILLS below → the learned playbook last.
-    # decision loop (how Solomon reasons) → director craft (what 50 years knows)
-    # → systems craft (what is actually wired, verified, and broken).
+    # decision loop (how Solomon reasons) → director craft (what 50 years knows).
     TOP_SKILLS = ("solomon-decision-loop.md", "solomon-director-craft.md",
-                  "solomon-systems-craft.md",
                   "solomon-roster-craft.md", "solomon-adops-craft.md")
     PLAYBOOK_MD = "solomon-playbook.md"
 
