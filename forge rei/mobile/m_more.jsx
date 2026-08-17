@@ -1075,7 +1075,9 @@ function MMBriefSheet(props) {
       const r = await window.apiPostM("/api/brief/send", {});
       setMsg(r && r.sent
         ? { ok: true, text: "Sent to Telegram ✓" }
-        : { ok: false, text: (r && r.note) ? ("Not sent: " + r.note) : "Not sent — check Telegram config" });
+        : r && r.skipped
+          ? { ok: false, text: "Already sent today — nothing new went out." }
+          : { ok: false, text: (r && r.note) ? ("Not sent: " + r.note) : "Not sent — check Telegram config" });
       refresh();
     } catch (e) { setMsg({ ok: false, text: "Send failed: " + (e.message || "error") }); }
     setBusy(null);
@@ -1167,7 +1169,9 @@ function MMRecapSheet(props) {
       const r = await window.apiPostM("/api/recap/send", {});
       setMsg(r && r.sent
         ? { ok: true, text: "Sent to Telegram ✓" }
-        : { ok: false, text: (r && r.note) ? ("Not sent: " + r.note) : "Not sent — check Telegram config" });
+        : r && r.skipped
+          ? { ok: false, text: "Already sent today — nothing new went out." }
+          : { ok: false, text: (r && r.note) ? ("Not sent: " + r.note) : "Not sent — check Telegram config" });
       refresh();
     } catch (e) { setMsg({ ok: false, text: "Send failed: " + (e.message || "error") }); }
     setBusy(null);

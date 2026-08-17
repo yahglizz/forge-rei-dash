@@ -1912,20 +1912,24 @@ def _maybe_daily_brief(force=False):
         return {"sent": False, "reason": "not due"}
     stats = _gather_brief_stats()
     text = daily_brief.build_text(stats)
-    sent, note = False, ""
+    sent, skipped, note = False, False, ""
     try:
         res = telegram_io.send(text, dedupe_key="daily_brief:" + daily_brief.today_key())
-        if isinstance(res, dict) and (res.get("ok") or res.get("skipped")):
+        if isinstance(res, dict) and res.get("skipped"):
+            # Dedupe hit — it already went out. Still "done for today", but NOTHING
+            # was sent just now, so never report this to the operator as a send.
+            skipped = True
+        elif isinstance(res, dict) and res.get("ok"):
             sent = True
         else:
             note = (res or {}).get("error") if isinstance(res, dict) else "send failed"
     except Exception as e:  # noqa: BLE001
         note = str(e)
-    # Mark the day done on a real send, or when there's no bot to send through
-    # (don't hammer a missing config every cycle). Transient errors stay unmarked.
-    if sent or (note and "not configured" in note):
+    # Mark the day done on a real send, a dedupe skip, or when there's no bot to send
+    # through (don't hammer a missing config every cycle). Transient errors stay unmarked.
+    if sent or skipped or (note and "not configured" in note):
         daily_brief.mark_sent()
-    return {"sent": sent, "text": text, "note": note, "stats": stats}
+    return {"sent": sent, "skipped": skipped, "text": text, "note": note, "stats": stats}
 
 
 def _maybe_daily_recap(force=False):
@@ -1935,18 +1939,20 @@ def _maybe_daily_recap(force=False):
         return {"sent": False, "reason": "not due"}
     stats = _gather_brief_stats()
     text = daily_recap.build_text(stats)
-    sent, note = False, ""
+    sent, skipped, note = False, False, ""
     try:
         res = telegram_io.send(text, dedupe_key="daily_recap:" + daily_recap.today_key())
-        if isinstance(res, dict) and (res.get("ok") or res.get("skipped")):
+        if isinstance(res, dict) and res.get("skipped"):
+            skipped = True          # already went out — done for today, but not sent now
+        elif isinstance(res, dict) and res.get("ok"):
             sent = True
         else:
             note = (res or {}).get("error") if isinstance(res, dict) else "send failed"
     except Exception as e:  # noqa: BLE001
         note = str(e)
-    if sent or (note and "not configured" in note):
+    if sent or skipped or (note and "not configured" in note):
         daily_recap.mark_sent()
-    return {"sent": sent, "text": text, "note": note, "stats": stats}
+    return {"sent": sent, "skipped": skipped, "text": text, "note": note, "stats": stats}
 
 
 def _maybe_ceo_brief():
