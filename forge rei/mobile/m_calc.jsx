@@ -317,7 +317,7 @@ function MCalcPage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {MKRow("ARV", M(arvN))}
-              {MKRow(`× ${pctN || 70}%`, M(arvN * (pctN / 100)))}
+              {MKRow(`× ${pctN}%`, M(arvN * (pctN / 100)))}
               {MKRow("− repairs", "−" + M(repN), { color: "var(--red, #EF4444)" })}
               {MKRow("− assignment fee", "−" + M(feeN), { color: "var(--red, #EF4444)" })}
               {MKRow("Max offer", M(mao), { bold: true, color: "var(--green, #22C55E)", top: true })}
