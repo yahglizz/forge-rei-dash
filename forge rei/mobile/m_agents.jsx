@@ -186,6 +186,10 @@ function MAgentsPage() {
       await window.apiPostM(a.ep, body);
       hist.refresh();               // server recorded both turns — pull them in
     } catch (e) {
+      // The server writes history only on a real reply, so on any error there is
+      // nothing to refresh into view — put the message back in the box instead of
+      // dropping what was typed.
+      setDrafts((d) => Object.assign({}, d, { [a.id]: q }));
       setSendErr("Couldn't reach " + a.name + " (" + ((e && e.message) || "connection error") + "). Try again.");
     }
     setPending(null);

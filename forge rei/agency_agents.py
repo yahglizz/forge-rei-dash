@@ -428,7 +428,10 @@ def chat(agent_id, message, history_in=None):
     try:
         reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=700)
     except Exception as e:  # noqa: BLE001
-        return {"connected": True, "reply": f"Hit an error reaching my brain: {e}"}
+        # ok:False so the caller can tell this apart from a real reply — nothing was
+        # written to history on this path, so a blind refresh would lose the message.
+        return {"ok": False, "error": str(e), "connected": True,
+                "reply": f"Hit an error reaching my brain: {e}"}
 
     now = int(time.time() * 1000)
     with _LOCK:
