@@ -124,7 +124,9 @@ function CTQuickSend({ onSent }) {
   const [note, setNote] = useStateCT(null);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const activeTpl = templates.find((t) => t.id === picked) || null;
-  const canSend = activeTpl && form.sellerName.trim() && form.sellerEmail.includes("@") && !sending;
+  // Same DocuSign gate as the mobile card — without it the button round-trips to a failure.
+  const dsReadyCT = tpl.data ? !!tpl.data.configured : false;
+  const canSend = dsReadyCT && activeTpl && form.sellerName.trim() && form.sellerEmail.includes("@") && !sending;
 
   function onFile(files) {
     const f = (files || [])[0];
