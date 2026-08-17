@@ -247,7 +247,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
             reply = review_agent._claude(key, system + _tasks(agent_id) + caveman.block(),
                                          user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
-            return {"reply": f"Hit an error reaching my brain: {e}"}
+            return {"ok": False, "error": str(e), "reply": f"Hit an error reaching my brain: {e}"}
         # One consult round: Scout may [ASK MARCUS] mid-answer (agent_collab logs
         # both sides on the bus). Guarded — collab errors never break a normal reply.
         try:
@@ -288,7 +288,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
             reply = review_agent._claude(key, system + _tasks(agent_id) + caveman.block(),
                                          user, max_tokens=600)
         except Exception as e:  # noqa: BLE001
-            return {"reply": f"Hit an error reaching my brain: {e}"}
+            return {"ok": False, "error": str(e), "reply": f"Hit an error reaching my brain: {e}"}
         try:
             reply2 = agent_collab.consult_round(
                 "atlas", system, user, reply, key, ghl_get=ghl_get,
@@ -305,7 +305,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         name = a.get("agentName") or "Agent"
         prompt = (a.get("generalPrompt") or "").strip()
     except Exception as e:  # noqa: BLE001
-        return {"reply": f"Couldn't load that agent's config: {e}"}
+        return {"ok": False, "error": str(e), "reply": f"Couldn't load that agent's config: {e}"}
 
     system = (
         f"You are '{name}', an AI voice agent for a real-estate wholesaling company. "
@@ -320,5 +320,5 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
     try:
         reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=500)
     except Exception as e:  # noqa: BLE001
-        return {"reply": f"Hit an error reaching my brain: {e}"}
+        return {"ok": False, "error": str(e), "reply": f"Hit an error reaching my brain: {e}"}
     return {"reply": reply or "On it.", "agent": name}
