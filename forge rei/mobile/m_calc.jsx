@@ -83,7 +83,11 @@ function MCalcPage() {
   const hints = (cfg.data && cfg.data.hints) || {};
 
   // ---- MAO math — EXACT desktop formula + verdict thresholds ----
-  const arvN = MKNum(arv), repN = MKNum(repairs), feeN = MKNum(fee), pctN = MKNum(pct), askN = MKNum(asking);
+  // Same clamp/floor rules as toolkit_calc.internal_view — a blank percent means 70
+  // on BOTH sides, otherwise this card and the deal-views card show different MAOs.
+  const arvN = Math.max(0, MKNum(arv)), repN = Math.max(0, MKNum(repairs));
+  const feeN = Math.max(0, MKNum(fee)), askN = Math.max(0, MKNum(asking));
+  const pctN = Math.min(100, Math.max(0, MKNum(pct) || 70));
   const mao = Math.max(0, arvN * (pctN / 100) - repN - feeN);
   const spread = askN > 0 ? mao - askN : null;
 

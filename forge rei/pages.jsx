@@ -696,7 +696,9 @@ function AgentThread({ agent }) {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || ("HTTP " + res.status));
       reply = j.reply;
-      sentOk = true;
+      // ok:false means the reply is an error notice the server never stored, so
+      // refreshing history would wipe both it and the operator's message.
+      sentOk = j.ok !== false;
     } catch (e) {
       reply = "Couldn't reach me just now (" + (e.message || "connection error") + "). Make sure the connector is running.";
     }

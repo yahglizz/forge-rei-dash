@@ -143,8 +143,11 @@ def novation(arv, repairs, seller_price, sell_cost_pct=8.0, wholesale_fee=None):
 def internal_view(arv, repairs, fee, pct, asking=None):
     """YOUR side of the deal: MAO (same formula as the Deal Calc UI), spread,
     and what the buyer pays (contract + fee)."""
-    arv_n, rep = _num(arv), _num(repairs)
-    fee_n, pct_n = _num(fee), _num(pct, 70.0) or 70.0
+    # Clamp/floor here AND in the mobile card (m_calc.jsx) with the same rules —
+    # a blank percent must mean 70 on both sides or the two MAO cards disagree.
+    arv_n, rep = max(0.0, _num(arv)), max(0.0, _num(repairs))
+    fee_n = max(0.0, _num(fee))
+    pct_n = min(100.0, max(0.0, _num(pct, 70.0) or 70.0))
     mao = max(0.0, arv_n * pct_n / 100.0 - rep - fee_n)
     out = {"arv": arv_n, "repairs": rep, "fee": fee_n, "pct": pct_n,
            "mao": round(mao, 2), "buyerPrice": round(mao + fee_n, 2)}
