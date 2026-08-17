@@ -811,7 +811,9 @@ function MMSendContractSheet(props) {
   const [done, setDone] = useStateMM(null);          // {ok, text}
 
   const activeTpl = templates.find((t) => t.id === picked) || null;
-  const canSend = activeTpl && sName.trim() && sEmail.includes("@") && !sending;
+  // dsReady gates the tap: without DocuSign configured the round-trip can only fail,
+  // and the banner above already says so.
+  const canSend = dsReady && activeTpl && sName.trim() && sEmail.includes("@") && !sending;
 
   function onFile(fileList) {
     const f = (fileList || [])[0];

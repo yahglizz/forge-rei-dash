@@ -587,6 +587,14 @@ def _handle_callback(cq, token=None, agent_chat=False):
     # A shared group chat id alone is NOT enough (see _authorized). Otherwise refuse.
     authorized = _msg_authorized(from_id) if agent_chat else _authorized(from_id, chat_id)
     if not authorized:
+        # Say WHY. With TELEGRAM_ALLOWED_IDS empty the DM fallback needs
+        # chat_id == from_id == TELEGRAM_CHAT_ID, which can never hold in a group — so
+        # the day this chat becomes a group every button dies. Without this line that
+        # failure is completely silent. Ids only; no token, no message text.
+        print(f"[telegram] tap REFUSED from_id={from_id or '?'} chat_id={chat_id or '?'} "
+              f"configured_chat={_chat_id() or '(unset)'} "
+              f"allowlist={'set' if _allowed_ids() else 'EMPTY — DM-only fallback'}",
+              flush=True)
         try:
             _api("answerCallbackQuery",
                  {"callback_query_id": cq_id, "text": "Not authorized", "show_alert": True},

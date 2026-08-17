@@ -210,8 +210,12 @@ function MPipelinePage() {
   async function loadReminders() {
     try {
       const r = await fetch("/api/toolkit/pipeline/reminders");
+      // A 500 or an error payload must never clear the list — an empty setRems here
+      // reverts every chip to "Remind" and reads as "my reminders were deleted".
+      if (!r.ok) return;
       const j = await r.json();
-      setRems((j && j.reminders) || []);
+      if (!j || j.error || !Array.isArray(j.reminders)) return;
+      setRems(j.reminders);
     } catch (e) { /* keep last known reminders */ }
   }
   useEffectMP(() => { loadReminders(); }, []);
