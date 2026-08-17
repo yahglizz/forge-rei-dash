@@ -251,6 +251,16 @@ _CACHE_TTL = 45  # seconds — softens GHL rate limits under auto-refresh
 _CACHE_MAX = 200  # cap entries so a long-running 24/7 process can't leak memory
 _CACHE_LOCK = threading.Lock()
 _MAX_JSON_BODY_BYTES = 64 * 1024
+# Routes that carry a base64 data-URL file in the JSON body. 64 KB of JSON is
+# ~47 KB of file after base64 overhead, so a real contract or PDF 413'd before
+# it ever reached the handler's own size check. These three are the only upload
+# routes; everything else stays on the small cap.
+_MAX_UPLOAD_BODY_BYTES = 14 * 1024 * 1024
+_UPLOAD_PATHS = frozenset({
+    "/api/toolkit/contracts/template/upload",
+    "/api/agency/callsheet/import-pdf",
+    "/api/toolkit/blast/photos",
+})
 
 
 def _client_networks():
@@ -3138,7 +3148,9 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/test-mode")):
             return self._send_json({"error": "unknown endpoint"}, 404)
         try:
-            body = self._read_json_body()
+            body = self._read_json_body(
+                limit=_MAX_UPLOAD_BODY_BYTES if parsed.path in _UPLOAD_PATHS
+                else _MAX_JSON_BODY_BYTES)
         except OverflowError:
             return self._send_json({"error": "request body is too large"}, 413)
         except ValueError as error:
