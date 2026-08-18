@@ -1,0 +1,466 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - generic [ref=f2e3]: Ending Soon
+    - generic [ref=f2e4]:
+      - text: Enroll by
+      - strong [ref=f2e5]: September 12, 2026
+      - text: — get a
+      - strong [ref=f2e6]: $100 Gift Card OR $100 Off Tuition
+    - link "Claim Now →" [ref=f2e7] [cursor=pointer]:
+      - /url: "#enroll"
+    - button "Close announcement" [ref=f2e8] [cursor=pointer]: ×
+  - navigation [ref=f2e9]:
+    - generic [ref=f2e10]:
+      - link [ref=f2e11] [cursor=pointer]:
+        - /url: "#home"
+        - img "A Touch of Blessings Daycare Logo" [ref=f2e12]
+      - link "Enroll Now" [ref=f2e14] [cursor=pointer]:
+        - /url: "#enroll"
+      - button "Open menu" [ref=f2e15] [cursor=pointer]
+  - generic [ref=f2e23]:
+    - generic [ref=f2e27]:
+      - text: ENDING SOON — Enroll & stay 60 days →
+      - strong [ref=f2e28]: $100 Gift Card OR $100 Off!
+    - generic [ref=f2e29]: "#1 Trusted Childcare in North Philadelphia"
+    - heading [level=1] [ref=f2e32]:
+      - text: Trusted Childcare & Early Learning in
+      - emphasis [ref=f2e33]: North Philadelphia
+    - paragraph [ref=f2e34]:
+      - emphasis [ref=f2e35]: A Mother's Touch
+      - text: "&"
+      - emphasis [ref=f2e36]: A Touch of Blessings
+      - text: have joined together — same love, same team, now one family where every child is nurtured & treated like family.
+    - paragraph [ref=f2e37]: 3 Locations Across Philadelphia — Ages 6 Weeks to 12 Years — CCIS & Private Pay Accepted
+    - paragraph [ref=f2e38]: After School Program Available — Pick-Up & Drop-Off at All Locations
+    - generic [ref=f2e39]:
+      - generic [ref=f2e40]: Licensed & Insured
+      - generic [ref=f2e43]: Open 6 AM – 6 PM
+      - generic [ref=f2e47]: 3 Locations
+    - generic [ref=f2e53]:
+      - link "Enroll Now — Spots Filling Fast" [ref=f2e54] [cursor=pointer]:
+        - /url: "#enroll"
+      - link "Our 3 Locations" [ref=f2e57] [cursor=pointer]:
+        - /url: "#locations"
+      - link "Call Now" [ref=f2e61] [cursor=pointer]:
+        - /url: tel:2152365439
+    - generic [ref=f2e64]:
+      - generic [ref=f2e65]:
+        - generic [ref=f2e66]: "25"
+        - generic [ref=f2e67]: Days
+      - generic [ref=f2e68]:
+        - generic [ref=f2e69]: "06"
+        - generic [ref=f2e70]: Hours
+      - generic [ref=f2e71]:
+        - generic [ref=f2e72]: "59"
+        - generic [ref=f2e73]: Mins
+      - generic [ref=f2e74]:
+        - generic [ref=f2e75]: "24"
+        - generic [ref=f2e76]: Secs
+      - generic [ref=f2e77]: Bonus expires September 12, 2026
+    - link "Scroll to see our app" [ref=f2e78] [cursor=pointer]:
+      - /url: "#app"
+      - generic [ref=f2e79]: See Our Parent App in Action
+  - generic [ref=f2e86]:
+    - generic [ref=f2e87]:
+      - generic [ref=f2e88]: The App Parents Love
+      - heading "See What Your Family Gets" [level=2] [ref=f2e89]
+      - paragraph [ref=f2e90]: Real-time photos, daily updates, and messages from your child’s classroom — right on your phone.
+    - generic [ref=f2e91]: Your browser does not support the video tag.
+  - generic [ref=f2e93]:
+    - generic [ref=f2e94]:
+      - generic [ref=f2e95]: Our Locations
+      - heading "3 Centers Across Philadelphia" [level=2] [ref=f2e96]
+      - paragraph [ref=f2e97]: Each location offers the same high standard of care, warmth, and enrichment your child deserves.
+    - generic [ref=f2e98]:
+      - generic [ref=f2e99]:
+        - generic [ref=f2e100]:
+          - generic [ref=f2e101]:
+            - generic [ref=f2e102]: Completely Revamped
+            - generic [ref=f2e103]: A Whole NewExperience Awaits
+            - generic [ref=f2e104]: Now Enrolling — Limited Spots
+          - generic [ref=f2e107]: A Touch of Blessings
+        - generic [ref=f2e108]:
+          - heading "A Touch of Blessings" [level=3] [ref=f2e109]
+          - generic [ref=f2e110]: Childcare Center — Fully Revamped
+          - link "921 N 18th St., Philadelphia, PA 19130" [ref=f2e116] [cursor=pointer]:
+            - /url: /locations/921-n-18th-st
+          - link "(215) 236-5439" [ref=f2e120] [cursor=pointer]:
+            - /url: tel:2152365439
+          - generic [ref=f2e121]: Ages 6 Weeks – 12 Years
+          - generic [ref=f2e128]:
+            - generic [ref=f2e129]: CCIS Accepted
+            - generic [ref=f2e130]: Private Pay
+            - generic [ref=f2e131]: Pick-Up & Drop-Off
+          - generic [ref=f2e132]:
+            - link "Take a Virtual Tour" [ref=f2e133] [cursor=pointer]:
+              - /url: "#tours"
+            - generic [ref=f2e136]:
+              - link "Directions" [ref=f2e137] [cursor=pointer]:
+                - /url: https://www.google.com/maps/dir/?api=1&destination=921+N+18th+St+Philadelphia+PA
+              - link "Call Now" [ref=f2e138] [cursor=pointer]:
+                - /url: tel:2152365439
+      - generic [ref=f2e139]:
+        - generic [ref=f2e140]:
+          - generic [ref=f2e141]:
+            - generic [ref=f2e142]: NEW LOCATION
+            - generic [ref=f2e143]: NOW OPEN& ENROLLING
+            - generic [ref=f2e144]: Now Enrolling — Limited Spots
+          - generic [ref=f2e147]: A Touch of Blessings 2 & 3
+        - generic [ref=f2e148]:
+          - heading "A Touch of Blessings 2 & 3" [level=3] [ref=f2e149]
+          - generic [ref=f2e150]: Brand New Location — Now Enrolling
+          - link "2318 Cecil B. Moore Ave., Philadelphia, PA 19121 — near Temple University" [ref=f2e156] [cursor=pointer]:
+            - /url: /locations/2318-cecil-b-moore
+          - generic [ref=f2e157]: Pick-Up & Drop-Off Available
+          - generic [ref=f2e161]:
+            - text: Contact
+            - link "(215) 236-5439" [ref=f2e164] [cursor=pointer]:
+              - /url: tel:2152365439
+            - text: until further notice
+          - generic [ref=f2e165]: Ages 6 Weeks – 12 Years
+          - generic [ref=f2e172]:
+            - generic [ref=f2e173]: CCIS Accepted
+            - generic [ref=f2e174]: Private Pay
+            - generic [ref=f2e175]: Pick-Up & Drop-Off
+          - generic [ref=f2e176]:
+            - link "Take a Virtual Tour" [ref=f2e177] [cursor=pointer]:
+              - /url: "#tours"
+            - generic [ref=f2e180]:
+              - link "Directions" [ref=f2e181] [cursor=pointer]:
+                - /url: https://www.google.com/maps/dir/?api=1&destination=2318+Cecil+B+Moore+Ave+Philadelphia+PA
+              - link "Call Now" [ref=f2e182] [cursor=pointer]:
+                - /url: tel:2152365439
+      - generic [ref=f2e183]:
+        - generic [ref=f2e184]:
+          - generic [ref=f2e185]:
+            - generic [ref=f2e186]: UNDER NEW MANAGEMENT
+            - generic [ref=f2e187]: A Fresh Startfor Your Family
+            - generic [ref=f2e188]: Now Enrolling — Claim Your $100 Bonus
+          - generic [ref=f2e191]: A Mother's Touch Inc.
+        - generic [ref=f2e192]:
+          - heading "A Mother's Touch Inc." [level=3] [ref=f2e193]
+          - generic [ref=f2e194]: Learning Academy — Under New Management
+          - link "1923 Cecil B. Moore Ave., Philadelphia, PA 19121 — near Temple University" [ref=f2e200] [cursor=pointer]:
+            - /url: /locations/1923-cecil-b-moore
+          - link "(215) 787-0100" [ref=f2e204] [cursor=pointer]:
+            - /url: tel:2157870100
+          - generic [ref=f2e205]: Ages 6 Weeks – 12 Years
+          - generic [ref=f2e212]:
+            - generic [ref=f2e213]: CCIS Accepted
+            - generic [ref=f2e214]: Private Pay
+            - generic [ref=f2e215]: Pick-Up & Drop-Off
+          - generic [ref=f2e216]:
+            - link "Take a Virtual Tour" [ref=f2e217] [cursor=pointer]:
+              - /url: "#tours"
+            - generic [ref=f2e220]:
+              - link "Directions" [ref=f2e221] [cursor=pointer]:
+                - /url: https://www.google.com/maps/dir/?api=1&destination=1923+Cecil+B+Moore+Ave+Philadelphia+PA
+              - link "Call Now" [ref=f2e222] [cursor=pointer]:
+                - /url: tel:2157870100
+  - generic [ref=f2e224]:
+    - generic [ref=f2e225]:
+      - generic [ref=f2e226]: Step Inside
+      - heading "Take a Virtual Tour" [level=2] [ref=f2e227]
+      - paragraph [ref=f2e228]: See where your child will learn, play, and grow — right from your phone or computer.
+    - generic [ref=f2e229]:
+      - generic [ref=f2e230]:
+        - generic [ref=f2e231] [cursor=pointer]:
+          - img "The front of A Touch of Blessings at 921 N 18th St." [ref=f2e232]
+          - button "Play the virtual tour of A Touch of Blessings at 921 N 18th St." [ref=f2e233]
+          - generic [ref=f2e236]: Watch the Tour · 1:19
+        - generic [ref=f2e237]: A Touch of Blessings — 921 N 18th St.
+      - generic [ref=f2e238]:
+        - generic [ref=f2e239] [cursor=pointer]:
+          - img "The front of A Touch of Blessings 2 & 3 at 2318 Cecil B. Moore Ave." [ref=f2e240]
+          - button "Play the virtual tour of A Touch of Blessings 2 & 3" [ref=f2e241]
+          - generic [ref=f2e244]: Watch the Tour · 1:29
+        - generic [ref=f2e245]: A Touch of Blessings 2 & 3 — 2318 Cecil B. Moore Ave.
+      - generic [ref=f2e246]:
+        - generic [ref=f2e247]: Virtual Tour Coming Soon
+        - generic [ref=f2e252]: A Mother's Touch Inc. — Cecil B. Moore Ave.
+  - generic [ref=f2e254]:
+    - generic [ref=f2e255]:
+      - generic [ref=f2e256]:
+        - generic [ref=f2e257]: Limited Time Only
+        - heading "Enrollment Bonus" [level=3] [ref=f2e258]
+        - generic [ref=f2e259]: $100 Gift Card or $100 Off
+        - paragraph [ref=f2e260]:
+          - text: Enroll your child and stay 60 days to receive a
+          - strong [ref=f2e261]: $100 Gift Card
+          - text: or
+          - strong [ref=f2e262]: $100 off tuition
+          - text: . Give your child the best start — and save while doing it.
+        - link "Claim Before It's Gone →" [ref=f2e263] [cursor=pointer]:
+          - /url: "#enroll"
+      - generic [ref=f2e266]:
+        - generic [ref=f2e267]: Limited Slots Available
+        - heading "Tell a Friend Bonus" [level=3] [ref=f2e268]
+        - generic [ref=f2e269]: You Both Get $100
+        - paragraph [ref=f2e270]:
+          - text: Refer a friend and you
+          - strong [ref=f2e271]: both
+          - text: get $100 cash toward tuition. Once the family you refer enrolls and stays 60 days, you each receive
+          - strong [ref=f2e272]: $100 cash toward tuition
+          - text: .
+        - link "Refer a Friend — You Both Get $100 →" [ref=f2e273] [cursor=pointer]:
+          - /url: "#enroll"
+        - generic [ref=f2e276]: "*Some conditions apply"
+    - generic [ref=f2e277]: Bonuses available for a limited time only. New enrollments only. Some conditions apply.
+  - generic [ref=f2e279]:
+    - generic [ref=f2e280]:
+      - generic [ref=f2e281]: Our Programs
+      - heading "Age-Appropriate Care for Every Stage" [level=2] [ref=f2e282]
+      - paragraph [ref=f2e283]: From gentle infant care to engaging school-age programs, every child gets the attention they deserve.
+    - generic [ref=f2e284]:
+      - generic [ref=f2e286]:
+        - generic [ref=f2e287]: 6 Weeks – 12 Months
+        - heading "Infants" [level=3] [ref=f2e288]
+        - paragraph [ref=f2e289]: Gentle care in a safe, loving environment designed for your baby's earliest milestones.
+      - generic [ref=f2e291]:
+        - generic [ref=f2e292]: 1 – 3 Years
+        - heading "Toddlers" [level=3] [ref=f2e293]
+        - paragraph [ref=f2e294]: Exploring, playing, and building early skills through hands-on discovery and social interaction.
+      - generic [ref=f2e296]:
+        - generic [ref=f2e297]: 3 – 5 Years
+        - heading "Preschool" [level=3] [ref=f2e298]
+        - paragraph [ref=f2e299]: Preparing young minds for kindergarten and beyond with structured learning and creative play.
+      - generic [ref=f2e301]:
+        - generic [ref=f2e302]: 5 – 12 Years
+        - heading "School-Age" [level=3] [ref=f2e303]
+        - paragraph [ref=f2e304]: Before & after school care with homework help, enrichment activities, and safe supervision.
+    - paragraph [ref=f2e305]:
+      - text: For pricing, please
+      - link "call us" [ref=f2e306] [cursor=pointer]:
+        - /url: tel:2152365439
+      - text: or
+      - link "submit an enrollment inquiry" [ref=f2e307] [cursor=pointer]:
+        - /url: "#enroll"
+      - text: .
+  - generic [ref=f2e309]:
+    - generic [ref=f2e310]:
+      - generic [ref=f2e311]: Special Offers
+      - heading "Save When You Enroll or Refer" [level=2] [ref=f2e312]
+      - paragraph [ref=f2e313]:
+        - text: These bonuses are
+        - strong [ref=f2e314]: running for a limited time only.
+        - text: Spots are filling fast — don't miss out.
+    - generic [ref=f2e315]:
+      - generic [ref=f2e316]:
+        - generic [ref=f2e323]: Offer Ends September 12, 2026
+        - heading "Enrollment Bonus" [level=3] [ref=f2e326]
+        - paragraph [ref=f2e327]: Enroll your child and stay for 60 days
+        - generic [ref=f2e328]: $100 Gift CardOR$100 Off Tuition
+        - link "Claim This Offer" [ref=f2e329] [cursor=pointer]:
+          - /url: "#enroll"
+      - generic [ref=f2e332]:
+        - generic [ref=f2e339]: Referral Slots Going Fast
+        - heading "Tell a Friend Bonus" [level=3] [ref=f2e345]
+        - paragraph [ref=f2e346]: Refer a friend — they enroll and stay 60 days
+        - generic [ref=f2e347]: You BOTH Get $100CASH TOWARD TUITION
+        - link "Refer a Friend" [ref=f2e348] [cursor=pointer]:
+          - /url: "#enroll"
+        - generic [ref=f2e351]: "*Some conditions apply"
+  - generic [ref=f2e353]:
+    - generic [ref=f2e354]:
+      - generic [ref=f2e355]: Parent Voices
+      - heading "What Parents Are Saying" [level=2] [ref=f2e356]
+    - generic [ref=f2e357]:
+      - generic [ref=f2e358]:
+        - text: “
+        - blockquote [ref=f2e370]: This daycare changed our family's life. My kids love going every day and I can see how much they're learning. The staff truly treats them like family.
+        - generic [ref=f2e371]: — Sarah M., Parent
+      - generic [ref=f2e372]:
+        - text: “
+        - blockquote [ref=f2e384]: I was nervous about leaving my infant, but the moment I walked in I felt safe. The caregivers are so warm and attentive. I wouldn't trust anyone else.
+        - generic [ref=f2e385]: — Marcus T., Parent
+      - generic [ref=f2e386]:
+        - text: “
+        - blockquote [ref=f2e398]: Affordable, reliable, and my daughter is thriving. The new management has been a breath of fresh air. Highly recommend to any parent in the area.
+        - generic [ref=f2e399]: — Keisha L., Parent
+  - generic [ref=f2e402]:
+    - generic [ref=f2e403]:
+      - generic [ref=f2e404]: Get Started
+      - heading "Enroll Your Child Today — Spots Are Filling Fast" [level=2] [ref=f2e405]
+      - generic [ref=f2e406]: Bonus ending September 12, 2026 — enroll now to lock in your $100!
+      - paragraph [ref=f2e409]: Fill out the form and our team will contact you within 24 hours to discuss enrollment, schedule a tour, and answer any questions.
+      - list [ref=f2e410]:
+        - listitem [ref=f2e411]: No enrollment fee for a limited time
+        - listitem [ref=f2e415]: CCIS subsidy & private pay accepted
+        - listitem [ref=f2e419]: Ages 6 weeks through 12 years
+        - listitem [ref=f2e423]: 3 convenient Philadelphia locations
+        - listitem [ref=f2e427]: Open Monday–Friday, 6 AM – 6 PM
+        - listitem [ref=f2e431]: Pick-up & drop-off available
+      - generic [ref=f2e441]:
+        - text: "Remember: Enroll & stay 60 days to receive your $100 Gift Card or $100 Off Tuition!"
+        - strong [ref=f2e442]: — Offer ends September 12, 2026. Don't wait!
+    - generic [ref=f2e443]:
+      - generic [ref=f2e445]:
+        - text: "Don't fill this out if you're human:"
+        - textbox [ref=f2e446]
+      - generic [ref=f2e447]:
+        - generic [ref=f2e448]:
+          - generic [ref=f2e449]: Parent / Guardian Full Name *
+          - textbox "Parent / Guardian Full Name *" [ref=f2e450]:
+            - /placeholder: Your full name
+            - text: ZZTest Preflight
+        - generic [ref=f2e451]:
+          - generic [ref=f2e452]: Phone Number *
+          - textbox "Phone Number *" [ref=f2e453]:
+            - /placeholder: (215) 000-0000
+            - text: (215) 236-5439
+      - generic [ref=f2e454]:
+        - generic [ref=f2e455]:
+          - generic [ref=f2e456]: Email Address *
+          - textbox "Email Address *" [ref=f2e457]:
+            - /placeholder: you@email.com
+            - text: yahjair@atouchofblessing.com
+        - generic [ref=f2e458]:
+          - generic [ref=f2e459]: Child's Name *
+          - textbox "Child's Name *" [active] [ref=f2e460]:
+            - /placeholder: Child's full name
+            - text: ZZTest Probe
+      - generic [ref=f2e461]:
+        - generic [ref=f2e462]:
+          - generic [ref=f2e463]: Child's Age *
+          - combobox "Child's Age *" [ref=f2e464]:
+            - option "Select age range" [disabled]
+            - option "6 Weeks – 12 Months"
+            - option "1–2 Years" [selected]
+            - option "2–3 Years"
+            - option "3–4 Years"
+            - option "4–5 Years"
+            - option "5–8 Years"
+            - option "8–12 Years"
+        - generic [ref=f2e465]:
+          - generic [ref=f2e466]: Preferred Location *
+          - combobox "Preferred Location *" [ref=f2e467]:
+            - option "Select a location" [disabled]
+            - option "921 N 18th St. — A Touch of Blessings"
+            - option "2318 Cecil B. Moore Ave. — A Touch of Blessings 2 & 3" [selected]
+            - option "1923 Cecil B. Moore Ave. — A Mother's Touch Inc."
+      - generic [ref=f2e468]:
+        - generic [ref=f2e469]:
+          - generic [ref=f2e470]: Start Date Preference
+          - textbox "Start Date Preference" [ref=f2e471]
+        - generic [ref=f2e472]:
+          - generic [ref=f2e473]: Payment Type *
+          - combobox "Payment Type *" [ref=f2e474]:
+            - option "Select payment type" [disabled]
+            - option "CCIS Subsidy"
+            - option "Private Pay" [selected]
+      - generic [ref=f2e476]:
+        - generic [ref=f2e477]: How Did You Hear About Us?
+        - combobox "How Did You Hear About Us?" [ref=f2e478]:
+          - option "Select one" [disabled] [selected]
+          - option "Flyer"
+          - option "Social Media"
+          - option "Referral from Friend/Family"
+          - option "Google Search"
+          - option "Drive-By / Walk-In"
+          - option "Other"
+      - generic [ref=f2e479]:
+        - generic [ref=f2e480]: Additional Notes
+        - textbox "Additional Notes" [ref=f2e481]:
+          - /placeholder: Any questions or special requirements...
+      - generic [ref=f2e483] [cursor=pointer]:
+        - 'checkbox "Optional: I agree to receive text messages from A Touch of Blessings Learning Academy about enrollment, my child''s care, scheduling, and important announcements. Message frequency varies. Message and data rates may apply. Reply HELP for help, STOP to cancel. Consent is not a condition of enrollment or of any purchase. See our Privacy Policy and SMS Terms." [ref=f2e484]'
+        - generic [ref=f2e485]:
+          - strong [ref=f2e486]: "Optional:"
+          - text: I agree to receive text messages from A Touch of Blessings Learning Academy about enrollment, my child's care, scheduling, and important announcements. Message frequency varies. Message and data rates may apply. Reply HELP for help, STOP to cancel.
+          - strong [ref=f2e487]: Consent is not a condition of enrollment or of any purchase.
+          - text: See our
+          - link "Privacy Policy" [ref=f2e488]:
+            - /url: /privacy-policy
+          - text: and
+          - link "SMS Terms" [ref=f2e489]:
+            - /url: /sms-terms
+          - text: .
+      - button "Claim My Spot & $100 Bonus" [ref=f2e490] [cursor=pointer]
+  - generic [ref=f2e494]:
+    - generic [ref=f2e495]:
+      - generic [ref=f2e496]: Why Families Choose Us
+      - heading "Now Under New Management — A Fresh Start Built on Love" [level=2] [ref=f2e497]
+      - paragraph [ref=f2e498]: At A Touch of Blessings and A Mother's Touch, your child will be loved, nurtured, and treated like one of our own. We provide a safe, structured, and enriching environment where children grow, learn, and thrive every single day.
+    - generic [ref=f2e499]:
+      - generic [ref=f2e506]:
+        - heading "Hassle-Free Paperwork & Transfers" [level=4] [ref=f2e507]
+        - paragraph [ref=f2e508]: Switching daycares? We handle all the paperwork — CCIS transfers, subsidy forms, and everything in between — so joining us is easy, smooth, and stress-free.
+      - generic [ref=f2e514]:
+        - heading "Ages 6 Weeks – 12 Years" [level=4] [ref=f2e515]
+        - paragraph [ref=f2e516]: From infants to school-age, we serve every stage of early childhood.
+      - generic [ref=f2e523]:
+        - heading "Pick-Up & Drop-Off Available" [level=4] [ref=f2e524]
+        - paragraph [ref=f2e525]: Convenient transportation options for busy families.
+      - generic [ref=f2e530]:
+        - heading "Safe & Nurturing Environment" [level=4] [ref=f2e531]
+        - paragraph [ref=f2e532]: Your child's safety and wellbeing is our highest priority.
+      - generic [ref=f2e538]:
+        - heading "Affordable Full-Day Care" [level=4] [ref=f2e539]
+        - paragraph [ref=f2e540]: Quality childcare that fits your family's budget.
+      - generic [ref=f2e546]:
+        - heading "CCIS & Private Pay Accepted" [level=4] [ref=f2e547]
+        - paragraph [ref=f2e548]: Flexible payment options including CCIS subsidy.
+      - generic [ref=f2e554]:
+        - heading "Mon–Fri, 6 AM – 6 PM" [level=4] [ref=f2e555]
+        - paragraph [ref=f2e556]: Extended hours available to fit your work schedule.
+      - generic [ref=f2e564]:
+        - heading "Enrollment & Referral Bonuses" [level=4] [ref=f2e565]
+        - paragraph [ref=f2e566]: Earn rewards when you enroll or refer a friend.
+  - contentinfo [ref=f2e567]:
+    - generic [ref=f2e568]:
+      - generic [ref=f2e569]:
+        - generic [ref=f2e570]:
+          - heading "A Touch of Blessings & A Mother's Touch" [level=3] [ref=f2e571]
+          - paragraph [ref=f2e572]:
+            - text: Childcare & early learning in North Philadelphia, near Temple University. Where every child is loved, nurtured, and treated like family.
+            - link "Child Care Works (CCIS)" [ref=f2e573] [cursor=pointer]:
+              - /url: /child-care-works
+            - text: "& Private Pay accepted at all locations."
+          - paragraph [ref=f2e574]: Monday – Friday, 6:00 AM – 6:00 PMExtended Hours Available Upon Request
+          - link "Facebook" [ref=f2e576] [cursor=pointer]:
+            - /url: https://www.facebook.com/profile.php?id=939494549239823
+        - generic [ref=f2e579]:
+          - heading "Location 1" [level=4] [ref=f2e580]
+          - paragraph [ref=f2e581]:
+            - link "A Touch of Blessings" [ref=f2e582] [cursor=pointer]:
+              - /url: /locations/921-n-18th-st
+          - paragraph [ref=f2e583]: 921 N 18th St.
+          - paragraph [ref=f2e584]: Philadelphia, PA 19130
+          - link "(215) 236-5439" [ref=f2e585] [cursor=pointer]:
+            - /url: tel:2152365439
+        - generic [ref=f2e586]:
+          - heading "Location 2" [level=4] [ref=f2e587]
+          - paragraph [ref=f2e588]:
+            - link "A Touch of Blessings 2 & 3" [ref=f2e589] [cursor=pointer]:
+              - /url: /locations/2318-cecil-b-moore
+          - paragraph [ref=f2e590]: 2318 Cecil B. Moore Ave.
+          - paragraph [ref=f2e591]: Philadelphia, PA 19121 — near Temple University
+          - text: Contact
+          - link "(215) 236-5439" [ref=f2e592] [cursor=pointer]:
+            - /url: tel:2152365439
+          - text: until further notice
+        - generic [ref=f2e593]:
+          - heading "Location 3" [level=4] [ref=f2e594]
+          - paragraph [ref=f2e595]:
+            - link "A Mother's Touch Inc." [ref=f2e596] [cursor=pointer]:
+              - /url: /locations/1923-cecil-b-moore
+          - paragraph [ref=f2e597]: 1923 Cecil B. Moore Ave.
+          - paragraph [ref=f2e598]: Philadelphia, PA 19121 — near Temple University
+          - link "(215) 787-0100" [ref=f2e599] [cursor=pointer]:
+            - /url: tel:2157870100
+      - generic [ref=f2e600]:
+        - link "Privacy Policy" [ref=f2e601] [cursor=pointer]:
+          - /url: /privacy-policy
+        - link "SMS Terms" [ref=f2e602] [cursor=pointer]:
+          - /url: /sms-terms
+      - generic [ref=f2e603]:
+        - paragraph [ref=f2e604]: © 2026 A Touch of Blessings. All Rights Reserved.
+        - paragraph [ref=f2e605]:
+          - link "management@atouchofblessing.com" [ref=f2e606] [cursor=pointer]:
+            - /url: mailto:management@atouchofblessing.com
+        - paragraph [ref=f2e607]: Website by A Touch of Blessings
+  - generic [ref=f2e609]:
+    - link "Call Now" [ref=f2e610] [cursor=pointer]:
+      - /url: tel:2152365439
+    - link "Enroll Now" [ref=f2e613] [cursor=pointer]:
+      - /url: "#enroll"
