@@ -452,12 +452,21 @@ class SolomonEngine:
         except Exception as e:  # noqa: BLE001 — brief still works from the context brief
             return {}, str(e)
         connection = ads.get("connection") or {}
-        return {
-            "connected": bool(connection.get("connected") or connection.get("source") == "live"),
+        connected = bool(connection.get("connected") or connection.get("source") == "live")
+        data = {
+            "connected": connected,
             "source": connection.get("source"),
             "accounts": ads.get("accounts") or [],
             "analytics": ads.get("analytics") or {},
-        }, None
+        }
+        if not connected:
+            # Not an outage — there is genuinely no campaign data for this center yet.
+            # Surface it as an err so the prompt's "do not fabricate ad performance
+            # numbers" rail fires; silence here previously let the brief fill the gap.
+            return data, (ads.get("detail")
+                          or "Meta is not connected for the daycare — no campaign "
+                             "numbers exist for this center.")
+        return data, None
 
     def _gather_competitor(self, key):
         """Daycare-scoped competitor read (best-effort — never blocks the brief)."""
@@ -572,7 +581,7 @@ class SolomonEngine:
             + ("\n\n(Live roster detail was unavailable this run — leave roster empty or "
                "reason from the blast log only; do not fabricate roster counts.)"
                if roster_err else "")
-            + ("\n\n(Campaign data was unavailable this run — say so plainly in "
+            + ("\n\n(No campaign data for this center this run — say so plainly in "
                "campaignHealth; do not fabricate ad performance numbers.)"
                if campaign_err else "")
             + "\n\nProduce the operating brief now."
