@@ -14,6 +14,7 @@ from pathlib import Path
 import agency_io
 import agency_messages_io
 import agency_portal_io
+import agent_bus
 
 
 class MessagesStoreTest(unittest.TestCase):
@@ -23,10 +24,14 @@ class MessagesStoreTest(unittest.TestCase):
         self._orig_clients = agency_io.STATE
         agency_messages_io.STATE = Path(self._tmp.name) / "agency_messages.json"
         agency_io.STATE = Path(self._tmp.name) / "agency.json"
+        # send() broadcasts client messages on the bus — keep that off the live store.
+        self._orig_bus = agent_bus.STATE
+        agent_bus.STATE = Path(self._tmp.name) / "agent_bus.json"
 
     def tearDown(self):
         agency_messages_io.STATE = self._orig_msgs
         agency_io.STATE = self._orig_clients
+        agent_bus.STATE = self._orig_bus
         self._tmp.cleanup()
 
     # --- store ------------------------------------------------------------
@@ -64,6 +69,18 @@ class MessagesStoreTest(unittest.TestCase):
         op = agency_messages_io.send("c1", "operator", "hi back")["message"]
         self.assertTrue(op["readByOperator"])
         self.assertFalse(op["readByClient"])
+
+    def test_client_message_hits_the_bus_operator_message_does_not(self):
+        """The bus note is what makes Telegram ping — it must fire inbound only."""
+        agency_messages_io.send("c1", "operator", "outbound")
+        self.assertEqual([], agent_bus.recent()["messages"])
+        agency_messages_io.send("c1", "client", "inbound", "Bloom Dental")
+        notes = agent_bus.recent()["messages"]
+        self.assertEqual(1, len(notes))
+        self.assertEqual("portal", notes[0]["from"])
+        self.assertIn("Bloom Dental", notes[0]["text"])
+        self.assertEqual({"type": "client_message", "clientId": "c1"},
+                         notes[0]["data"])
 
     def test_mark_read_operator_zeroes_the_unread_count(self):
         agency_messages_io.send("c1", "client", "one")
@@ -119,6 +136,9 @@ class PortalScopingTest(unittest.TestCase):
         self._orig_clients = agency_io.STATE
         agency_messages_io.STATE = Path(self._tmp.name) / "agency_messages.json"
         agency_io.STATE = Path(self._tmp.name) / "agency.json"
+        # send() broadcasts client messages on the bus — keep that off the live store.
+        self._orig_bus = agent_bus.STATE
+        agent_bus.STATE = Path(self._tmp.name) / "agent_bus.json"
         self.a = agency_io.save_client({"name": "Client A"})["client"]
         self.b = agency_io.save_client({"name": "Client B"})["client"]
         self.tok_a = agency_io.ensure_portal_token(self.a["id"])["portalToken"]
@@ -127,6 +147,7 @@ class PortalScopingTest(unittest.TestCase):
     def tearDown(self):
         agency_messages_io.STATE = self._orig_msgs
         agency_io.STATE = self._orig_clients
+        agent_bus.STATE = self._orig_bus
         self._tmp.cleanup()
 
     def test_wrong_token_writes_nothing(self):

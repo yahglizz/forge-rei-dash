@@ -31,6 +31,7 @@ const REI_PAGES = {
 const AGENCY_PAGES = {
   Dashboard:  () => <window.AgencyDashboard />,
   Clients:    () => <window.AgencyClients />,
+  Messages:   () => <window.AgencyMessages />,
   ClientView: () => <window.AgencyClientView />,
   Requests:   () => <window.AgencyRequests />,
   Agents:     () => <window.HubAgentsPage ws="agency" />,
