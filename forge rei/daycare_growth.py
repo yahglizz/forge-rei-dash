@@ -73,16 +73,54 @@ def _int(value, default: int) -> int:
         return default
 
 
+def _is_demo_account(acct: dict | None) -> bool:
+    """True when this is one of agency_ads' built-in demo accounts.
+
+    agency_ads ships mock accounts (Bloom Dental, Peak Fitness) for the AGENCY
+    workspace. Its analytics() falls back to _ACCOUNTS[0] whenever it cannot resolve
+    a real account for the caller — so an unmapped daycare lands on Bloom Dental.
+    """
+    if not isinstance(acct, dict):
+        return False
+    demo_ids = {a.get("id") for a in getattr(agency_ads, "_ACCOUNTS", [])}
+    return (acct.get("id") in demo_ids
+            or str(acct.get("clientId") or "").startswith("demo-"))
+
+
 def ads_overview(account: str | None = None, days: int = 7) -> dict:
-    """Meta ads connection + analytics for the daycare account (mock until keyed)."""
+    """Meta ads connection + analytics for the daycare account (mock until keyed).
+
+    EVIDENCE DISCIPLINE (daycare creed): a token alone is not enough. daycare.env can
+    carry META_ACCESS_TOKEN while carrying no META_AD_ACCOUNT_MAP, in which case
+    agency_ads reports source="live" and then serves the AGENCY's demo numbers
+    (Bloom Dental: $3,370 spend / 117 leads). Those were rendering under a green LIVE
+    badge on the daycare Growth tab AND being fed to Solomon under "TODAY'S LIVE
+    CENTER DATA". A dentist's ad spend is not the daycare's. Refuse it and report the
+    honest not-configured read instead — same guard dropship_director already applies.
+    agency_ads itself is untouched; its mock still serves the agency workspace.
+    """
     with _ENV_LOCK, _scoped_env(_ADS_KEYS):
+        conn = agency_ads.connection()
+        accounts = agency_ads.accounts().get("accounts", [])
+        analytics = agency_ads.analytics(
+            account=account, client="daycare", days=_int(days, 7))
+
+    if _is_demo_account((analytics or {}).get("account")) or any(
+            _is_demo_account(a) for a in accounts):
         return {
             "ok": True,
-            "connection": agency_ads.connection(),
-            "accounts": agency_ads.accounts().get("accounts", []),
-            "analytics": agency_ads.analytics(
-                account=account, client="daycare", days=_int(days, 7)),
+            "connection": {**conn, "connected": False, "source": "not_configured",
+                           "todo": "Add META_AD_ACCOUNT_MAP to daycare.env so the "
+                                   "daycare's own Meta account resolves."},
+            "accounts": [],
+            "analytics": None,
+            "configured": False,
+            "detail": "Meta ad account not mapped for the daycare — add "
+                      "META_AD_ACCOUNT_MAP to daycare.env. No numbers are shown "
+                      "rather than another business's.",
         }
+    return {"ok": True, "connection": conn, "accounts": accounts,
+            "analytics": analytics, "configured": True}
 
 
 def social_overview(network: str | None = None) -> dict:
