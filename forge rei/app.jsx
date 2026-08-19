@@ -9,7 +9,6 @@ const REI_PAGES = {
   Contracts:     () => <window.CTContractsPage />,
   Conversations: () => <window.ConversationsPage />,
   Tasks:         () => <window.TasksPage />,
-  Properties:    () => <window.Placeholder title="Properties" icon="Properties" />,
   // Agents = the unified hub. Command/Screening keys stay mapped (nothing removed) —
   // they're reachable as each agent's Console inside the hub.
   Agents:        () => <window.HubAgentsPage ws="rei" />,
@@ -20,12 +19,10 @@ const REI_PAGES = {
   Buyers:        () => <window.BuyersPage />,
   Blast:         () => <window.BlastPage />,
   Outbound:      () => <window.OutboundPage />,
-  Marketing:     () => <window.Placeholder title="Marketing" icon="Marketing" />,
   Analytics:     () => <window.AnalyticsPage />,
   Brain:         () => <window.BrainPage />,
   SystemHealth:  () => <window.SystemHealthPage />,
   Costs:         () => <window.CostPage />,
-  Settings:      () => <window.Placeholder title="Settings" icon="Settings" />,
 };
 
 const AGENCY_PAGES = {
@@ -71,8 +68,6 @@ const DAYCARE_PAGES = {
   Billing:    () => <window.DaycareBilling />,
   Payroll:    () => <window.DaycarePayroll />,
   Growth:     () => <window.DaycareGrowth />,
-  Meals:      () => <window.DaycareMeals />,
-  Calendar:   () => <window.DaycareCalendar />,
   Reports:    () => <window.DaycareReports />,
   Brain:      () => <window.BrainPage />,
   Settings:   () => <window.DaycareSettings />,
