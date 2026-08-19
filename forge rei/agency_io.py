@@ -54,6 +54,30 @@ def _workspace(v):
     return out
 
 
+# What the CLIENT sees when they open their portal link, plus the two onboarding
+# contact fields + the link's own lifecycle. status/sentAt/openedAt are set by
+# mark_portal_sent / mark_portal_opened, never typed by hand — an operator save
+# edits the 6 string fields and leaves the lifecycle alone.
+_PORTAL_KEYS = ("welcome", "scope", "deliverables", "contactEmail",
+                "contactPhone", "startDate")
+_PORTAL_STATUSES = ("draft", "sent", "active")
+
+
+def _portal(v):
+    if not isinstance(v, dict):
+        return {**{k: "" for k in _PORTAL_KEYS},
+                "status": "draft", "sentAt": None, "openedAt": None}
+    out = {}
+    for k in _PORTAL_KEYS:
+        val = v.get(k, "")
+        out[k] = str(val) if val is not None else ""
+    out["status"] = v.get("status") if v.get("status") in _PORTAL_STATUSES else "draft"
+    for k in ("sentAt", "openedAt"):
+        val = v.get(k)
+        out[k] = val if isinstance(val, int) and not isinstance(val, bool) else None
+    return out
+
+
 def _num(v):
     try:
         return max(0.0, float(v))
@@ -92,6 +116,7 @@ def _slim(c):
         "notes": c.get("notes") or "",
         "portalToken": c.get("portalToken") or "",
         "workspace": _workspace(c.get("workspace")),
+        "portal": _portal(c.get("portal")),
         "dateAdded": c.get("dateAdded"),
         "dateUpdated": c.get("dateUpdated"),
     }
@@ -120,6 +145,14 @@ def save_client(c):
         clients = d.get("clients", [])
         existing = next((x for x in clients if x.get("id") == cid), None) if cid else None
         if existing:
+            # Only replace the portal block when the payload carries it, and even
+            # then keep the lifecycle (status/sentAt/openedAt) unless the payload
+            # explicitly sets it — an operator edit must not un-send a live link.
+            if "portal" in c:
+                new_portal = _portal({**(existing.get("portal") or {}),
+                                      **(c["portal"] if isinstance(c["portal"], dict) else {})})
+            else:
+                new_portal = existing.get("portal") or _portal(None)
             existing.update({
                 "name": name,
                 "business": c.get("business", existing.get("business", "")),
@@ -135,6 +168,7 @@ def save_client(c):
                 "notes": c.get("notes", existing.get("notes", "")),
                 "workspace": (_workspace(c.get("workspace")) if "workspace" in c
                               else existing.get("workspace") or _workspace(None)),
+                "portal": new_portal,
                 "dateUpdated": now,
             })
             saved = existing
@@ -154,6 +188,7 @@ def save_client(c):
                 "ghlSyncedAt": None,
                 "notes": c.get("notes", ""),
                 "workspace": _workspace(c.get("workspace")),
+                "portal": _portal(c.get("portal")),
                 "dateAdded": now,
                 "dateUpdated": now,
             }
@@ -292,6 +327,46 @@ def verify_portal(cid, token):
     except Exception:
         return None
     return None
+
+
+def mark_portal_sent(cid):
+    """Operator shared the link: portal.status -> "sent" + stamp sentAt.
+    Re-tapping just re-stamps (a re-share is a new send)."""
+    with _LOCK:
+        d = _load()
+        c = next((x for x in d.get("clients", []) if x.get("id") == cid), None)
+        if not c:
+            return {"error": "client not found"}
+        now = int(time.time() * 1000)
+        p = _portal(c.get("portal"))
+        p["status"] = "sent"
+        p["sentAt"] = now
+        c["portal"] = p
+        c["dateUpdated"] = now
+        _save(d)
+        return {"ok": True, "client": _slim(c)}
+
+
+def mark_portal_opened(cid):
+    """Client opened their portal. Stamps openedAt ONCE and promotes status to
+    "active". Idempotent + cheap (no write after the first open) and NEVER
+    raises — this runs on every client page load."""
+    try:
+        with _LOCK:
+            d = _load()
+            c = next((x for x in d.get("clients", []) if x.get("id") == cid), None)
+            if not c:
+                return {"ok": True}
+            p = _portal(c.get("portal"))
+            if p.get("openedAt"):
+                return {"ok": True}
+            p["openedAt"] = int(time.time() * 1000)
+            p["status"] = "active"
+            c["portal"] = p
+            _save(d)
+    except Exception:
+        pass
+    return {"ok": True}
 
 
 def mark_ghl_synced(cid):
