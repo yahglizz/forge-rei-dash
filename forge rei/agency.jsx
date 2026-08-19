@@ -178,6 +178,31 @@ function AgPortalLink({ clientId, compact, portal, onChanged }) {
           </div>
         </div>
       )}
+      {clientId && (
+        <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 10, flexWrap: "wrap" }}>
+          {p.openedAt ? (
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--green)", background: "#22C55E1f",
+              padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>
+              Opened {window.timeAgo(p.openedAt)}
+            </span>
+          ) : pSent ? (
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#4F7CFF", background: "#4F7CFF1f",
+              padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>
+              Sent {window.timeAgo(p.sentAt)}
+            </span>
+          ) : (
+            <span className="faint" style={{ fontSize: 11, fontWeight: 600, background: "var(--card)",
+              border: "1px solid var(--border)", padding: "3px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>
+              Draft — not sent yet
+            </span>
+          )}
+          {!pSent && (
+            <button className="tab" style={{ padding: "5px 10px", fontSize: 12 }} disabled={busy} onClick={markSent}>
+              {busy ? "…" : "Mark as sent"}
+            </button>
+          )}
+        </div>
+      )}
       {err && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 6 }}>{err}</div>}
     </div>
   );
@@ -186,14 +211,18 @@ function AgPortalLink({ clientId, compact, portal, onChanged }) {
 // Add / edit a client. onSaved() refreshes the parent list.
 function AgClientForm({ initial, onSaved, onCancel }) {
   const blankWs = { repo: "", branch: "", liveUrl: "", stack: "", brand: "", assets: "", accessNotes: "" };
-  const blank = { name: "", business: "", site: "", plan: "Growth", mrr: "", status: "lead", services: [], ghlContactId: "", notes: "", workspace: blankWs };
-  const [f, setF] = useStateAg(initial ? { ...blank, ...initial, mrr: initial.mrr || "", services: initial.services || [], workspace: { ...blankWs, ...(initial.workspace || {}) } } : blank);
+  // Onboarding block the client sees in their portal. status/sentAt/openedAt are
+  // lifecycle fields — never hand-edited here, just carried through on save.
+  const blankPortal = { welcome: "", scope: "", deliverables: "", contactEmail: "", contactPhone: "", startDate: "" };
+  const blank = { name: "", business: "", site: "", plan: "Growth", mrr: "", status: "lead", services: [], ghlContactId: "", notes: "", workspace: blankWs, portal: blankPortal };
+  const [f, setF] = useStateAg(initial ? { ...blank, ...initial, mrr: initial.mrr || "", services: initial.services || [], workspace: { ...blankWs, ...(initial.workspace || {}) }, portal: { ...blankPortal, ...(initial.portal || {}) } } : blank);
   const toggleSvc = (s) => setF((st) => ({ ...st, services: (st.services || []).includes(s)
     ? st.services.filter((x) => x !== s) : [...(st.services || []), s] }));
   const [saving, setSaving] = useStateAg(false);
   const [err, setErr] = useStateAg(null);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const setWs = (k, v) => setF((s) => ({ ...s, workspace: { ...(s.workspace || blankWs), [k]: v } }));
+  const setPortal = (k, v) => setF((s) => ({ ...s, portal: { ...(s.portal || blankPortal), [k]: v } }));
 
   async function submit() {
     if (!f.name.trim()) { setErr("Name is required"); return; }
@@ -274,7 +303,35 @@ function AgClientForm({ initial, onSaved, onCancel }) {
       <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Notes</div>
         <textarea style={{ ...agInp, minHeight: 60, resize: "vertical", fontFamily: "inherit" }}
           value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="What you're building for them, status, next step…" /></div>
-      <AgPortalLink clientId={f.id} />
+      {/* Client Portal — the onboarding block the client reads the moment they open their link. */}
+      <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--card-2)" }}>
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>👋 Client Portal</div>
+        <div className="faint" style={{ fontSize: 11, marginBottom: 10 }}>
+          What they see on their private portal — the welcome note, what you're building, and how to reach you.
+          Send status is tracked below on the link itself.
+        </div>
+        <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Welcome message</div>
+          <textarea style={{ ...agInp, minHeight: 52, resize: "vertical", fontFamily: "inherit" }}
+            value={f.portal.welcome} onChange={(e) => setPortal("welcome", e.target.value)}
+            placeholder="Hey Dana — this is your private line to me. Anything you need on the site, drop it here." /></div>
+        <div style={{ marginTop: 10 }}><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Scope</div>
+          <textarea style={{ ...agInp, minHeight: 52, resize: "vertical", fontFamily: "inherit" }}
+            value={f.portal.scope} onChange={(e) => setPortal("scope", e.target.value)}
+            placeholder="What you're building for them" /></div>
+        <div style={{ marginTop: 10 }}><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Deliverables</div>
+          <textarea style={{ ...agInp, minHeight: 52, resize: "vertical", fontFamily: "inherit" }}
+            value={f.portal.deliverables} onChange={(e) => setPortal("deliverables", e.target.value)}
+            placeholder="One per line — 5-page site, booking form, monthly SEO" /></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+          <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Contact email</div>
+            <input style={agInp} value={f.portal.contactEmail} onChange={(e) => setPortal("contactEmail", e.target.value)} placeholder="you@clientforge.com" /></div>
+          <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Contact phone</div>
+            <input style={agInp} value={f.portal.contactPhone} onChange={(e) => setPortal("contactPhone", e.target.value)} placeholder="(555) 555-0134" /></div>
+        </div>
+        <div style={{ marginTop: 10 }}><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Start date</div>
+          <input style={agInp} value={f.portal.startDate} onChange={(e) => setPortal("startDate", e.target.value)} placeholder="Mar 3, 2026" /></div>
+      </div>
+      <AgPortalLink clientId={f.id} portal={f.portal} />
       {err && <div style={{ color: "var(--red)", fontSize: 12.5 }}>{err}</div>}
       <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
         <button className="tab" onClick={onCancel}>Cancel</button>
@@ -331,7 +388,7 @@ function AgClientRow({ c, onEdit, onDelete, onChanged }) {
         {svcs.length > 0 ? svcs.map((s) => <AgSvcPill key={s} name={s} />)
           : <span className="faint" style={{ fontSize: 11.5 }}>No services tagged — edit to add</span>}
         <div style={{ marginLeft: "auto", display: "flex", gap: 7 }}>
-          <AgPortalLink clientId={c.id} compact />
+          <AgPortalLink clientId={c.id} portal={c.portal} compact onChanged={onChanged} />
           <button className="tab" style={{ padding: "5px 10px", fontSize: 12 }} disabled={syncing || svcs.length === 0} onClick={syncGhl}>
             <Icons.Conversations size={12} /> {syncing ? "Syncing…" : "Push tags to GHL"}
           </button>
