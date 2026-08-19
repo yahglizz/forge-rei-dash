@@ -294,7 +294,8 @@ window.AgUI = {
   // cards
   AnalyticsCard: UiAnalyticsCard, ApprovalCard: UiApprovalCard,
   AgentRecCard: UiAgentRecCard, WorkflowCard: UiWorkflowCard,
-  // shared maps + helpers REQ_STATUS: UI_REQ_STATUS,
+  // shared maps + helpers
+  REQ_STATUS: UI_REQ_STATUS,
   APPROVAL_STATUS: UI_APPROVAL_STATUS,
   inp: uiInp, field: uiField, fieldLabel: uiLabel,
 };
