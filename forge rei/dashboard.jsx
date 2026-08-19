@@ -312,41 +312,6 @@ function ConversationsWidget() {
   );
 }
 
-function AIWorkforce() {
-  const Icons = window.Icons;
-  return (
-    <div className="card card-pad">
-      <div className="card-title" style={{ marginBottom: 16 }}>AI Workforce</div>
-      <div className="workforce-grid">
-        {window.WORKFORCE.map((a) => {
-          const live = a.status === "online";
-          return (
-            <div key={a.name} className={"agent-card" + (live ? " active" : "")}>
-              <div className={"agent-av " + (live ? "live" : "soon")}><Icons.Bot size={24} /></div>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.name}</div>
-              <div className="faint" style={{ fontSize: 10.5, marginTop: 2 }}>{a.role}</div>
-              {live ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, margin: "8px 0" }}>
-                  <span className="dot online pulse" /><span style={{ fontSize: 10, color: "var(--green)", fontWeight: 600 }}>ONLINE</span>
-                </div>
-              ) : <div className="coming-soon">COMING SOON</div>}
-              {live && (
-                <div style={{ marginTop: 10, fontSize: 9.5, color: "var(--text-3)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", whiteSpace: "nowrap" }}><span>Tasks Today</span><span className="muted tabnum">0</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", whiteSpace: "nowrap" }}><span>Leads Managed</span><span className="muted tabnum">0</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", whiteSpace: "nowrap" }}><span>Messages Sent</span><span className="muted tabnum">0</span></div>
-                  <div style={{ marginTop: 8, fontSize: 10 }} className="faint">Performance <span style={{ float: "right", color: "var(--green)" }}>100%</span></div>
-                  <div className="progress" style={{ marginTop: 4 }}><div style={{ width: "100%" }} /></div>
-                </div>
-              )}
-              {!live && <div style={{ marginTop: 10, fontSize: 10 }} className="faint">Performance <span style={{ float: "right" }}>--</span></div>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function ActivityFeed() {
   const Icons = window.Icons;
@@ -780,7 +745,6 @@ function Dashboard() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "270px minmax(0,1fr) 270px", gap: 18, alignItems: "start" }}>
             <ConversationsWidget />
-            <AIWorkforce />
             <ActivityFeed />
           </div>
         </div>
