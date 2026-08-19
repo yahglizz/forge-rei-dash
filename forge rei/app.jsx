@@ -149,8 +149,8 @@ function App() {
   return (
     <div className={"app app-" + ws.id} style={{ "--workspace-accent": ws.accent }}>
       <window.Sidebar
-        active={active} onNav={setActive} goal={0} onHome={goHome}
-        brand={ws.brand} sub={ws.sub} nav={ws.nav} accent={ws.accent} showMarcus={ws.id === "rei"} />
+        active={active} onNav={setActive} onHome={goHome}
+        brand={ws.brand} sub={ws.sub} nav={ws.nav} accent={ws.accent} />
       <div className="main">
         <window.Header title={titleMap[active]} workspaces={wsList} current={ws} onSwitch={switchWs} onNavigate={setActive} onHome={goHome} />
         <div className="content">

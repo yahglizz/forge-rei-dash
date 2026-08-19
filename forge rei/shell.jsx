@@ -27,7 +27,7 @@ function Logo({ accent = "#4F7CFF" }) {
   );
 }
 
-function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, showMarcus = true, accent = "#4F7CFF", onHome }) {
+function Sidebar({ active, onNav, brand = "FORGE", sub = "REI OS", nav, accent = "#4F7CFF", onHome }) {
   const Icons = window.Icons;
   const items = nav || window.NAV;
   return (
