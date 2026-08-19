@@ -3,7 +3,6 @@
 const { useState: useStateDcx, useEffect: useEffectDcx, useCallback: useCallbackDcx } = React;
 
 const DCX_ACCENT = "#2DD4BF";
-const DCX_GOLD = "#F4B860";
 const DCX_API_ROOT = "/api/daycare";
 
 function DcxApiError(message, status, body) {
@@ -43,10 +42,6 @@ function DcxUnwrap(payload, key, fallback) {
   return payload;
 }
 
-function DcxArray(payload, key) {
-  const value = DcxUnwrap(payload, key, []);
-  return Array.isArray(value) ? value : [];
-}
 
 function DcxName(item, fallback = "Unknown") {
   if (!item) return fallback;
@@ -247,14 +242,6 @@ function DaycareDashboard() {
   </></DcxState></div>;
 }
 
-function DaycareDeferred({ kind }) {
-  const isMeals = kind === "Meals";
-  const Icon = isMeals ? window.Icons.Meals : window.Icons.Calendar;
-  return <div className="dc-page"><DcxPageHead title={isMeals ? "Meals & Menus" : "Calendar"} eyebrow="PLANNED EXPANSION"/><div className="card dc-deferred"><div className="dc-deferred-mark"><Icon size={30}/></div><span className="dc-week">LATER PHASE</span><h2>{isMeals ? "Meal planning will live here." : "The center calendar will live here."}</h2><p>{isMeals ? "Menus, meal compliance, allergies, and family visibility will be added after the core management data is fully operating." : "Closures, tours, staff schedules, and family events will be added after the core management data is fully operating."}</p><div className="dc-deferred-note">No placeholder controls are active. This prevents changes that look saved but never reach Supabase.</div></div></div>;
-}
-
-function DaycareMeals() { return <DaycareDeferred kind="Meals"/>; }
-function DaycareCalendar() { return <DaycareDeferred kind="Calendar"/>; }
 
 function DaycareSettings() {
   const status = DcxUseResource("/status", "status", 30000);
@@ -270,7 +257,7 @@ function DaycareSettings() {
 }
 
 Object.assign(window, {
-  DCX_ACCENT, DCX_GOLD, DcxRequest, DcxUnwrap, DcxArray, DcxName, DcxChildName, DcxMoney, DcxDate, DcxToday,
+  DCX_ACCENT, DcxRequest, DcxUnwrap, DcxName, DcxChildName, DcxMoney, DcxDate, DcxToday,
   DcxUseResource, DcxPageHead, DcxKpi, DcxState, DcxModal, DcxConfirm, DcxField,
-  DaycareWorkspace, DaycareDashboard, DaycareMeals, DaycareCalendar, DaycareSettings,
+  DaycareWorkspace, DaycareDashboard, DaycareSettings,
 });

@@ -288,15 +288,13 @@ function UiWorkflowCard({ wf, selected, onClick }) {
 window.AgUI = {
   // badges
   Badge: UiBadge, StatusBadge: UiStatusBadge, PriorityBadge: UiPriorityBadge,
-  RiskBadge: UiRiskBadge, KindBadge: UiKindBadge,
+  RiskBadge: UiRiskBadge,
   // inputs / pickers / forms
   ClientSelector: UiClientSelector, RequestForm: UiRequestForm,
   // cards
   AnalyticsCard: UiAnalyticsCard, ApprovalCard: UiApprovalCard,
   AgentRecCard: UiAgentRecCard, WorkflowCard: UiWorkflowCard,
-  // shared maps + helpers
-  PRIORITY: UI_PRIORITY, REQ_STATUS: UI_REQ_STATUS, RISK: UI_RISK,
-  APPROVAL_STATUS: UI_APPROVAL_STATUS, KIND: UI_KIND,
-  TYPES: UI_TYPES, PRIORITIES: UI_PRIORITIES,
-  inp: uiInp, field: uiField, fieldLabel: uiLabel, money: uiMoney,
+  // shared maps + helpers REQ_STATUS: UI_REQ_STATUS,
+  APPROVAL_STATUS: UI_APPROVAL_STATUS,
+  inp: uiInp, field: uiField, fieldLabel: uiLabel,
 };
