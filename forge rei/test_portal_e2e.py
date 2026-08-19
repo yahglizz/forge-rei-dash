@@ -16,6 +16,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import agent_bus
 import agency_io
 import agency_messages_io
 import agency_portal_io
@@ -27,12 +28,17 @@ class PortalEndToEndTest(unittest.TestCase):
         root = Path(self._tmp.name)
         self._orig_clients = agency_io.STATE
         self._orig_msgs = agency_messages_io.STATE
+        # Redirect the bus too, or a test run prunes the operator's REAL bus history
+        # (agent_bus keeps only the newest 200 notes).
+        self._orig_bus = agent_bus.STATE
         agency_io.STATE = root / "agency.json"
         agency_messages_io.STATE = root / "agency_messages.json"
+        agent_bus.STATE = root / "agent_bus.json"
 
     def tearDown(self):
         agency_io.STATE = self._orig_clients
         agency_messages_io.STATE = self._orig_msgs
+        agent_bus.STATE = self._orig_bus
         self._tmp.cleanup()
 
     def _client(self, name, **portal):
