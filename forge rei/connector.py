@@ -992,6 +992,7 @@ import monthly_goals  # noqa: E402
 import agency_io  # noqa: E402
 import agency_ghl  # noqa: E402
 import agency_requests_io  # noqa: E402
+import agency_messages_io  # noqa: E402
 import agency_portal_io  # noqa: E402
 import agency_dyson  # noqa: E402
 import agency_workflows_io  # noqa: E402
@@ -2473,6 +2474,17 @@ def api_portal_bootstrap(q):
     return agency_portal_io.bootstrap(cid, token)
 
 
+def api_agency_messages(q):
+    """Operator: one client's whole message thread + their unread count."""
+    cid = (q.get("clientId", [""]) or [""])[0]
+    return agency_messages_io.list_for_client(cid)
+
+
+def api_agency_messages_unread(_q):
+    """Operator: unread-by-operator counts across every client (badge source)."""
+    return agency_messages_io.unread_counts()
+
+
 def api_agency_dyson_drafts(_q):
     return agency_dyson.list_drafts()
 
@@ -2666,6 +2678,8 @@ ROUTES = {
     "/api/agency/ghl/pipeline": api_agency_ghl_pipeline,
     "/api/agency/ghl/tags": api_agency_ghl_tags,
     "/api/agency/requests": api_agency_requests,
+    "/api/agency/messages": api_agency_messages,
+    "/api/agency/messages/unread": api_agency_messages_unread,
     "/api/agency/portal/links": api_agency_portal_links,
     "/api/portal/bootstrap": api_portal_bootstrap,
     "/api/agency/dyson/drafts": api_agency_dyson_drafts,
@@ -2724,6 +2738,7 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/agency/ghl/dashboard", "/api/agency/ghl/contacts",
             "/api/agency/ghl/pipeline",
             "/api/agency/requests", "/api/agency/portal/links",
+            "/api/agency/messages", "/api/agency/messages/unread",
             "/api/portal/bootstrap", "/api/agency/dyson/drafts",
             "/api/agency/build/list",
             "/api/agency/workflows", "/api/agency/ads", "/api/agency/ads/accounts",
@@ -3064,9 +3079,13 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/request/save",
                                    "/api/agency/request/delete",
                                    "/api/agency/request/status",
+                                   "/api/agency/message/send",
+                                   "/api/agency/message/read",
+                                   "/api/agency/portal/sent",
                                    "/api/agency/portal/token",
                                    "/api/portal/bootstrap",
                                    "/api/portal/submit",
+                                   "/api/portal/message",
                                    "/api/agency/dyson/generate",
                                    "/api/agency/dyson/decision",
                                    "/api/agency/workflow/save",
@@ -3332,6 +3351,14 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/request/status":
                 result = agency_requests_io.set_status(
                     body.get("id"), body.get("status"), body.get("note"))
+            elif parsed.path == "/api/agency/message/send":
+                # Operator-side send. Sender is hardcoded, never read from the body.
+                result = agency_messages_io.send(
+                    body.get("clientId"), "operator", body.get("text") or "")
+            elif parsed.path == "/api/agency/message/read":
+                result = agency_messages_io.mark_read(body.get("clientId"), "operator")
+            elif parsed.path == "/api/agency/portal/sent":
+                result = agency_io.mark_portal_sent(body.get("clientId"))
             elif parsed.path == "/api/agency/portal/token":
                 # Admin: mint/return (or rotate) a client's portal link.
                 if body.get("rotate"):
@@ -3347,6 +3374,10 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/portal/submit":
                 # PUBLIC client-portal submit — token-scoped to one client.
                 result = agency_portal_io.submit(
+                    body.get("c"), body.get("k"), body)
+            elif parsed.path == "/api/portal/message":
+                # PUBLIC client-portal message — token-scoped, sender hardcoded.
+                result = agency_portal_io.send_message(
                     body.get("c"), body.get("k"), body)
             elif parsed.path == "/api/agency/dyson/generate":
                 result = agency_dyson.generate_draft(body.get("requestId"))
@@ -4681,6 +4712,7 @@ class Handler(BaseHTTPRequestHandler):
 #   GET  /            + /portal        → the client portal page (portal.html)
 #   POST /api/portal/bootstrap         → that client's own name + requests (token)
 #   POST /api/portal/submit            → file a new edit request (token)
+#   POST /api/portal/message           → post a message to the operator (token)
 # EVERYTHING else 404s. There is deliberately NO path from this handler to the
 # CRM, the dashboard APIs, secrets, or any other client — a client's token only
 # ever unlocks their own record (agency_portal_io + agency_io.verify_portal).
@@ -4741,7 +4773,8 @@ class PortalHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path not in ("/api/portal/bootstrap", "/api/portal/submit"):
+        if parsed.path not in ("/api/portal/bootstrap", "/api/portal/submit",
+                               "/api/portal/message"):
             return self.send_error(404, "Not found")
         if not self._same_origin_post():
             return self._json({"error": "same-origin request required"}, 403)
@@ -4755,6 +4788,9 @@ class PortalHandler(BaseHTTPRequestHandler):
                 return self._json({"error": "bad request"}, 400)
             if parsed.path == "/api/portal/bootstrap":
                 return self._json(agency_portal_io.bootstrap(body.get("c"), body.get("k")))
+            if parsed.path == "/api/portal/message":
+                return self._json(agency_portal_io.send_message(
+                    body.get("c"), body.get("k"), body))
             return self._json(agency_portal_io.submit(
                 body.get("c"), body.get("k"), body))
         except Exception:  # noqa: BLE001

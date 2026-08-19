@@ -18,14 +18,22 @@ SECURITY MODEL (why this module is separate + tiny):
   • clientId + clientName on a submitted request are taken from the VERIFIED client
     record, never from the client's POST body — so a client cannot file under, or
     read, another client's account by editing the payload.
-  • This module exposes exactly three verbs (bootstrap / submit / link). It is the
-    only code the portal-only public listener (connector portal server) will route
-    to. The main dashboard + its APIs stay on the private tailnet.
+  • This module exposes exactly four verbs (bootstrap / submit / send_message /
+    link). It is the only code the portal-only public listener (connector portal
+    server) will route to. The main dashboard + its APIs stay on the private tailnet.
+  • send_message is scoped the same way: the sender is hardcoded "client" and the
+    thread is keyed by the VERIFIED client id, so a client can only ever post into
+    their own thread — a clientId/from/sender key in the POST body is ignored.
+    bootstrap likewise returns only that client's own messages and only the three
+    client-facing portal fields (welcome/scope/deliverables); the contact fields,
+    link lifecycle, token, notes, workspace and MRR never leave the server.
 
 No store of its own — it composes agency_io (clients/tokens) + agency_requests_io
-(the request store). Nothing here writes anything the admin side can't see.
+(the request store) + agency_messages_io (the message thread). Nothing here writes
+anything the admin side can't see.
 """
 import agency_io
+import agency_messages_io
 import agency_requests_io
 
 # Types a client may pick in the portal. A deliberately friendlier, shorter subset
@@ -37,16 +45,32 @@ CLIENT_PRIORITIES = ["low", "medium", "high", "urgent"]
 
 _MAX_TITLE = 160
 _MAX_DETAIL = 4000
+_MAX_MESSAGE = 2000
 
 
 def bootstrap(cid, token):
     """Validate the client link and return everything the portal page renders.
 
-    Returns {ok, clientId, clientName, business, requests:[...], types, priorities}
-    or {error} on a bad/expired link. Never raises."""
+    Returns {ok, clientId, clientName, business, portal, requests:[...],
+    messages:[...], types, priorities} or {error} on a bad/expired link.
+    Never raises."""
     client = agency_io.verify_portal(cid, token)
     if not client:
         return {"error": "invalid or expired link"}
+    # Best-effort side-effects: stamp "opened" + clear the client's own unread
+    # marks. Neither may break the page load.
+    try:
+        agency_io.mark_portal_opened(client["id"])
+    except Exception:
+        pass
+    try:
+        agency_messages_io.mark_read(client["id"], "client")
+    except Exception:
+        pass
+    msgs = agency_messages_io.list_for_client(client["id"]).get("messages", [])
+    # ONLY the three client-facing onboarding fields. contactEmail/contactPhone/
+    # startDate/status/sentAt/openedAt/portalToken/notes/workspace/mrr are internal.
+    cportal = client.get("portal") or {}
     reqs = agency_requests_io.list_for_client(client["id"]).get("requests", [])
     # Slim the requests to what a client should see (no internal source flag noise,
     # but keep status/history so they can track progress).
@@ -71,7 +95,13 @@ def bootstrap(cid, token):
         "clientName": client.get("name") or "",
         "business": client.get("business") or "",
         "site": client.get("site") or "",
+        "portal": {
+            "welcome": cportal.get("welcome") or "",
+            "scope": cportal.get("scope") or "",
+            "deliverables": cportal.get("deliverables") or "",
+        },
         "requests": shown,
+        "messages": msgs,
         "types": CLIENT_TYPES,
         "priorities": CLIENT_PRIORITIES,
     }
@@ -112,6 +142,22 @@ def submit(cid, token, payload):
         "references": (payload.get("references") or "").strip()[:_MAX_DETAIL],
         "source": "portal",
     })
+
+
+def send_message(cid, token, payload):
+    """Client posts a message into their own thread. Validates the link FIRST,
+    then hardcodes the sender + takes the client id from the VERIFIED record —
+    a clientId / from / sender key in the payload is ignored entirely.
+
+    Returns {ok, message} or {error}. Never raises."""
+    client = agency_io.verify_portal(cid, token)
+    if not client:
+        return {"error": "invalid or expired link"}
+    if not isinstance(payload, dict):
+        return {"error": "message object required"}
+    text = (payload.get("text") or "").strip()[:_MAX_MESSAGE]
+    return agency_messages_io.send(client["id"], "client", text,
+                                   client_name=client.get("name") or "")
 
 
 def link(cid, base=""):

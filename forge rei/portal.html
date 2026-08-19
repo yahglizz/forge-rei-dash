@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Request an Edit — ClientForge</title>
+<title>Your Portal — ClientForge</title>
 <style>
   :root{
     --bg:#0b0d12; --card:#141821; --card2:#1b2130; --border:#252c3b;
@@ -26,8 +26,10 @@
   .brand-sub{ font-size:11.5px; color:var(--faint); }
   h1{ font-size:23px; font-weight:750; letter-spacing:-.4px; margin:0 0 4px; }
   .lead{ color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .lead.pw{ white-space:pre-wrap; }
   .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; }
   .card + .card{ margin-top:12px; }
+  .card-title{ font-weight:700; font-size:15px; margin-bottom:12px; }
   .section-title{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--faint); margin:26px 0 10px; }
   label{ display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:5px; }
   input,select,textarea{ width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text); border-radius:9px; padding:10px 11px; font-size:14px; font-family:inherit; outline:none; }
@@ -42,6 +44,33 @@
   .msg{ font-size:13px; padding:9px 11px; border-radius:9px; margin-top:10px; }
   .msg.ok{ background:#22C55E1f; color:var(--green); }
   .msg.err{ background:#EF44441f; color:var(--red); }
+
+  /* ---- chat ---- */
+  .chat-feed{ max-height:44vh; overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:10px; padding:1px; }
+  .bub-row{ display:flex; flex-direction:column; }
+  .bub-row.me{ align-items:flex-end; }
+  .bub-row.them{ align-items:flex-start; }
+  .bub{ max-width:84%; padding:9px 12px; font-size:14px; border-radius:14px; white-space:pre-wrap; word-wrap:break-word; overflow-wrap:anywhere; }
+  .bub.them{ background:var(--card2); border:1px solid var(--border); border-bottom-left-radius:5px; }
+  .bub.me{ background:var(--accent-weak); border:1px solid #8B5CF64d; border-bottom-right-radius:5px; }
+  .stamp{ font-size:10.5px; color:var(--faint); margin-top:3px; padding:0 4px; }
+  .composer{ display:flex; gap:8px; align-items:flex-end; margin-top:12px; }
+  .composer textarea{ min-height:44px; max-height:130px; resize:none; }
+  .composer .btn{ flex:0 0 auto; padding:11px 15px; }
+
+  /* ---- your project ---- */
+  .proj p{ margin:0 0 10px; color:var(--muted); font-size:13.5px; white-space:pre-wrap; }
+  .proj ul{ margin:0; padding-left:18px; color:var(--muted); font-size:13.5px; }
+  .proj li{ margin:4px 0; }
+  .proj .sub{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--faint); margin:0 0 6px; }
+
+  /* ---- requests (secondary) ---- */
+  details.more{ margin-top:24px; }
+  details.more > summary{ cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--faint); padding:11px 13px; background:var(--card); border:1px solid var(--border); border-radius:12px; }
+  details.more > summary::-webkit-details-marker{ display:none; }
+  details.more > summary::after{ content:"\25BE"; margin-left:auto; font-size:11px; }
+  details.more[open] > summary::after{ content:"\25B4"; }
+  details.more > .more-body{ margin-top:12px; }
   .req{ border:1px solid var(--border); border-radius:12px; padding:13px 14px; background:var(--card); }
   .req + .req{ margin-top:10px; }
   .req-top{ display:flex; align-items:center; gap:9px; }
@@ -89,6 +118,7 @@
   function el(html){ var t=document.createElement("template"); t.innerHTML=html.trim(); return t.content.firstChild; }
   function timeAgo(ts){
     if(!ts) return "";
+    if(ts < 1e11) ts = ts*1000;           // tolerate seconds-epoch
     var s=Math.floor((Date.now()-ts)/1000);
     if(s<60) return "just now";
     var m=Math.floor(s/60); if(m<60) return m+"m ago";
@@ -100,7 +130,33 @@
     return fetch(path, opt).then(function(r){ return r.json(); });
   }
 
-  var STATE = null; // bootstrap payload
+  var STATE   = null;   // bootstrap payload
+  var PENDING = [];     // optimistic client messages: {id, text, ts}
+  var SENDING = false;  // a chat send is in flight -> skip polling
+  var CHATERR = "";     // last chat send error
+  var atBottom = true;  // was the feed scrolled to the bottom before re-render
+
+  // values preserved across a re-poll re-render
+  var FIELDS = {chat:"chat-input", title:"f-title", type:"f-type", pri:"f-pri",
+                page:"f-page", detail:"f-detail", outcome:"f-outcome", refs:"f-refs"};
+  var DRAFT = {chat:"", title:"", type:"", pri:"", page:"", detail:"", outcome:"", refs:"", reqOpen:null};
+
+  function harvest(){
+    for(var k in FIELDS){
+      var e = document.getElementById(FIELDS[k]);
+      if(e) DRAFT[k] = e.value;
+    }
+    var d = document.getElementById("req-more");
+    if(d) DRAFT.reqOpen = d.open;
+    var f = document.getElementById("chat-feed");
+    if(f) atBottom = (f.scrollHeight - f.scrollTop - f.clientHeight) < 60;
+  }
+  function restore(){
+    for(var k in FIELDS){
+      var e = document.getElementById(FIELDS[k]);
+      if(e && DRAFT[k]) e.value = DRAFT[k];
+    }
+  }
 
   function badge(status){
     var m = STATUS[status] || {label:status, color:"#64748B"};
@@ -122,44 +178,177 @@
     return '<div class="req">'
       + '<div class="req-top"><div style="flex:1;min-width:0">'
         + '<div class="req-title">'+esc(r.title)+'</div>'
-        + '<div class="req-meta">'+esc(r.type)+' · '+esc(PRI[r.priority]||r.priority)+' · '+timeAgo(r.updatedAt||r.createdAt)+'</div>'
+        + '<div class="req-meta">'+esc(r.type)+' · '+esc(PRI[r.priority]||r.priority)+' · '+esc(timeAgo(r.updatedAt||r.createdAt))+'</div>'
       + '</div>'+badge(r.status)+'</div>'
       + tracker(r.status)
       + (r.detail ? '<div class="det">'+esc(r.detail)+'</div>' : '')
       + '</div>';
   }
 
+  // ---------- chat ----------
+  function feedMessages(){
+    var msgs = (STATE && STATE.messages) || [];
+    var have = {};
+    msgs.forEach(function(m){ if(m && m.id!=null) have[m.id] = 1; });
+    // drop optimistic entries the server has now echoed back
+    PENDING = PENDING.filter(function(p){ return !(p.id!=null && have[p.id]); });
+    return msgs.concat(PENDING.map(function(p){
+      return {from:"client", text:p.text, ts:p.ts};
+    }));
+  }
+  function bubble(m){
+    var mine = (m.from === "client");
+    return '<div class="bub-row '+(mine?"me":"them")+'">'
+      + '<div class="bub '+(mine?"me":"them")+'">'+esc(m.text)+'</div>'
+      + '<div class="stamp">'+(mine?"":"FORGE · ")+esc(timeAgo(m.ts))+'</div>'
+      + '</div>';
+  }
+  function chatCard(){
+    var msgs = feedMessages();
+    return '<div class="card">'
+      + '<div class="card-title">Message us</div>'
+      + '<div class="chat-feed" id="chat-feed">'
+        + (msgs.length ? msgs.map(bubble).join("")
+                       : '<div class="empty">Say hi — this goes straight to your FORGE contact.</div>')
+      + '</div>'
+      + '<div class="composer">'
+        + '<textarea id="chat-input" maxlength="4000" rows="1" placeholder="Type a message…"></textarea>'
+        + '<button class="btn" id="chat-send" disabled>Send</button>'
+      + '</div>'
+      + (CHATERR ? '<div class="msg err">'+esc(CHATERR)+'</div>' : '')
+      + '</div>';
+  }
+
+  // ---------- your project ----------
+  function bullets(txt){
+    return String(txt==null?"":txt).split("\n").map(function(l){
+      return l.replace(/^\s*[-•*]\s*/, "").trim();
+    }).filter(function(l){ return l.length > 0; });
+  }
+  function projectCard(){
+    var p = (STATE && STATE.portal) || {};
+    var scope = String(p.scope==null?"":p.scope).trim();
+    var items = bullets(p.deliverables);
+    if(!scope && !items.length) return "";
+    return '<div class="card proj">'
+      + '<div class="card-title">Your project</div>'
+      + (scope ? '<p>'+esc(scope)+'</p>' : '')
+      + (items.length
+          ? (scope ? '<div class="sub">What you\'re getting</div>' : '')
+            + '<ul>'+items.map(function(i){ return '<li>'+esc(i)+'</li>'; }).join("")+'</ul>'
+          : '')
+      + '</div>';
+  }
+
+  // ---------- render ----------
   function render(){
+    harvest();
     var s = STATE;
+    var p = s.portal || {};
+    var welcome = String(p.welcome==null?"":p.welcome).trim();
     var reqs = s.requests || [];
     var openCount = reqs.filter(function(r){ return r.status!=="completed" && r.status!=="rejected"; }).length;
+    var reqOpen = (DRAFT.reqOpen===null) ? (reqs.length === 0) : DRAFT.reqOpen;
 
     wrap.innerHTML = ""
       + '<div class="brand"><div class="brand-badge">CF</div>'
         + '<div><div class="brand-name">ClientForge</div><div class="brand-sub">Powered by FORGE AI Agency</div></div></div>'
       + '<h1>Hi '+esc((s.clientName||"there").split(" ")[0])+' 👋</h1>'
-      + '<p class="lead">Need a change to '+ (s.site? '<b>'+esc(s.business||"your site")+'</b>' : (s.business? '<b>'+esc(s.business)+'</b>' : "your site")) +'? Send it straight to our team below — no email, no back-and-forth. You\'ll see every request move through review, build, and done right here.</p>'
+      + (welcome
+          ? '<p class="lead pw">'+esc(welcome)+'</p>'
+          : '<p class="lead">Need a change to '+ (s.site? '<b>'+esc(s.business||"your site")+'</b>' : (s.business? '<b>'+esc(s.business)+'</b>' : "your site")) +'? Send it straight to our team below — no email, no back-and-forth. You\'ll see every request move through review, build, and done right here.</p>')
 
-      + '<div class="card">'
-        + '<div style="font-weight:700;font-size:15px;margin-bottom:14px">Request an edit</div>'
-        + '<div class="field"><label>What do you need? *</label><input id="f-title" maxlength="160" placeholder="e.g. Swap the homepage photo and headline"/></div>'
-        + '<div class="row2">'
-          + '<div class="field"><label>Type</label><select id="f-type">'+ (s.types||[]).map(function(t){return '<option>'+esc(t)+'</option>';}).join("") +'</select></div>'
-          + '<div class="field"><label>Priority</label><select id="f-pri">'+ (s.priorities||[]).map(function(p){return '<option value="'+p+'">'+(PRI[p]||p)+'</option>';}).join("") +'</select></div>'
+      + chatCard()
+      + projectCard()
+
+      + '<details class="more" id="req-more"'+(reqOpen?" open":"")+'>'
+        + '<summary>Requests'+(reqs.length?' · '+openCount+' open':'')+'</summary>'
+        + '<div class="more-body">'
+          + '<div class="card">'
+            + '<div class="card-title">Request an edit</div>'
+            + '<div class="field"><label>What do you need? *</label><input id="f-title" maxlength="160" placeholder="e.g. Swap the homepage photo and headline"/></div>'
+            + '<div class="row2">'
+              + '<div class="field"><label>Type</label><select id="f-type">'+ (s.types||[]).map(function(t){return '<option>'+esc(t)+'</option>';}).join("") +'</select></div>'
+              + '<div class="field"><label>Priority</label><select id="f-pri">'+ (s.priorities||[]).map(function(pr){return '<option value="'+esc(pr)+'">'+esc(PRI[pr]||pr)+'</option>';}).join("") +'</select></div>'
+            + '</div>'
+            + '<div class="field"><label>Which page? <span style="color:var(--faint);font-weight:400">(link or name)</span></label><input id="f-page" maxlength="300" placeholder="e.g. the Home page, or yoursite.com/about"/></div>'
+            + '<div class="field"><label>What exactly should change?</label><textarea id="f-detail" maxlength="4000" placeholder="Be specific — the more detail, the more we can do right away. e.g. Replace the headline with X, swap the team photo, change the button to say Y."></textarea></div>'
+            + '<div class="field"><label>What should it look like / do afterward? <span style="color:var(--faint);font-weight:400">(optional)</span></label><textarea id="f-outcome" maxlength="4000" placeholder="The end result you want. e.g. Visitors can book a call from the homepage."></textarea></div>'
+            + '<div class="field"><label>Reference links <span style="color:var(--faint);font-weight:400">(optional)</span></label><input id="f-refs" maxlength="4000" placeholder="Examples, inspiration, or where the new text/images live"/></div>'
+            + '<div class="btn-row"><button class="btn" id="f-submit">Send request</button></div>'
+            + '<div id="f-msg"></div>'
+          + '</div>'
+          + '<div class="section-title">Your requests'+(reqs.length?' · '+openCount+' open':'')+'</div>'
+          + (reqs.length ? reqs.map(reqCard).join("") : '<div class="card"><div class="empty">No requests yet. Send your first one above — we\'ll take it from there.</div></div>')
         + '</div>'
-        + '<div class="field"><label>Which page? <span style="color:var(--faint);font-weight:400">(link or name)</span></label><input id="f-page" maxlength="300" placeholder="e.g. the Home page, or yoursite.com/about"/></div>'
-        + '<div class="field"><label>What exactly should change?</label><textarea id="f-detail" maxlength="4000" placeholder="Be specific — the more detail, the more we can do right away. e.g. Replace the headline with X, swap the team photo, change the button to say Y."></textarea></div>'
-        + '<div class="field"><label>What should it look like / do afterward? <span style="color:var(--faint);font-weight:400">(optional)</span></label><textarea id="f-outcome" maxlength="4000" placeholder="The end result you want. e.g. Visitors can book a call from the homepage."></textarea></div>'
-        + '<div class="field"><label>Reference links <span style="color:var(--faint);font-weight:400">(optional)</span></label><input id="f-refs" maxlength="4000" placeholder="Examples, inspiration, or where the new text/images live"/></div>'
-        + '<div class="btn-row"><button class="btn" id="f-submit">Send request</button></div>'
-        + '<div id="f-msg"></div>'
-      + '</div>'
+      + '</details>'
+      + '<div class="foot">Your messages and requests go straight to the FORGE team.</div>';
 
-      + '<div class="section-title">Your requests'+(reqs.length?' · '+openCount+' open':'')+'</div>'
-      + (reqs.length ? reqs.map(reqCard).join("") : '<div class="card"><div class="empty">No requests yet. Send your first one above — we\'ll take it from there.</div></div>')
-      + '<div class="foot">Your requests go straight to the FORGE team and are reviewed before any change goes live.</div>';
+    restore();
 
     document.getElementById("f-submit").addEventListener("click", submit);
+    document.getElementById("req-more").addEventListener("toggle", function(){
+      DRAFT.reqOpen = document.getElementById("req-more").open;
+    });
+
+    var ta = document.getElementById("chat-input");
+    var sb = document.getElementById("chat-send");
+    sb.addEventListener("click", sendMsg);
+    ta.addEventListener("input", syncSend);
+    ta.addEventListener("keydown", function(e){
+      if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendMsg(); }
+    });
+    syncSend();
+
+    if(atBottom){
+      var f = document.getElementById("chat-feed");
+      if(f) f.scrollTop = f.scrollHeight;
+    }
+  }
+
+  function syncSend(){
+    var ta = document.getElementById("chat-input");
+    var sb = document.getElementById("chat-send");
+    if(!ta || !sb) return;
+    sb.disabled = SENDING || !(ta.value||"").trim();
+  }
+
+  function sendMsg(){
+    if(SENDING) return;
+    var ta = document.getElementById("chat-input");
+    var text = (ta.value||"").trim();
+    if(!text) return;
+
+    SENDING = true;
+    CHATERR = "";
+    ta.value = "";                       // harvest() will pick up the cleared box
+    var mine = {id:null, text:text, ts:Date.now()};
+    PENDING.push(mine);
+    atBottom = true;
+    render();
+
+    api("/api/portal/message", {c: CID, k: TOKEN, text: text}).then(function(res){
+      SENDING = false;
+      if(res && res.ok){
+        if(res.message && res.message.id != null) mine.id = res.message.id;
+        atBottom = true;
+        return boot(true);               // reconcile from source of truth
+      }
+      failSend(text, mine, (res && res.error) || "Couldn't send that. Please try again.");
+    }).catch(function(){
+      SENDING = false;
+      failSend(text, mine, "Network error — your message wasn't sent. Try again.");
+    });
+  }
+
+  function failSend(text, mine, err){
+    var i = PENDING.indexOf(mine);
+    if(i >= 0) PENDING.splice(i, 1);
+    CHATERR = err;
+    DRAFT.chat = text;                   // nothing the client typed is ever lost
+    var ta = document.getElementById("chat-input");
+    if(ta) ta.value = text;
+    render();
   }
 
   function submit(){
@@ -180,6 +369,10 @@
     }).then(function(res){
       btn.disabled=false; btn.textContent="Send request";
       if(res && res.ok){
+        ["f-title","f-page","f-detail","f-outcome","f-refs"].forEach(function(id){
+          var e=document.getElementById(id); if(e) e.value="";
+        });
+        DRAFT.reqOpen = true;
         // refresh the list from source of truth
         return boot(true).then(function(){
           var m=document.getElementById("f-msg");
@@ -200,13 +393,31 @@
     }
     return api("/api/portal/bootstrap", {c: CID, k: TOKEN})
       .then(function(res){
-        if(res && res.ok){ STATE = res; render(); }
-        else { wrap.innerHTML = '<div class="center"><h1>Link expired</h1><p class="lead">'+esc((res&&res.error)||"This link is no longer valid.")+' Please ask your FORGE contact for a fresh link.</p></div>'; }
+        if(res && res.ok){ STATE = res; render(); startPoll(); }
+        else if(!silent){ wrap.innerHTML = '<div class="center"><h1>Link expired</h1><p class="lead">'+esc((res&&res.error)||"This link is no longer valid.")+' Please ask your FORGE contact for a fresh link.</p></div>'; }
       })
       .catch(function(){
         if(!silent) wrap.innerHTML = '<div class="center"><h1>Can\'t connect</h1><p class="lead">We couldn\'t reach the portal. Please check your connection and try again.</p></div>';
       });
   }
+
+  // ---------- polling: visible tabs only, never mid-send ----------
+  var POLL = null;
+  function tick(){
+    if(document.hidden || SENDING || !STATE) return;
+    boot(true);
+  }
+  function startPoll(){
+    if(POLL) return;
+    POLL = setInterval(tick, 15000);
+  }
+  document.addEventListener("visibilitychange", function(){
+    if(document.hidden){
+      if(POLL){ clearInterval(POLL); POLL = null; }
+    } else {
+      startPoll(); tick();
+    }
+  });
 
   boot(false);
 })();

@@ -102,11 +102,27 @@ function AgGhlPanel() {
 // (?c=<id>&k=<token>) — they only ever see + submit their own requests, so nothing
 // is cross-contaminated between clients. `compact` = a one-tap generate+copy button
 // (for the client row); full = the labeled panel (for the client form).
-function AgPortalLink({ clientId, compact }) {
+function AgPortalLink({ clientId, compact, portal, onChanged }) {
   const [url, setUrl] = useStateAg("");
   const [busy, setBusy] = useStateAg(false);
   const [copied, setCopied] = useStateAg(false);
   const [err, setErr] = useStateAg(null);
+  // Local echo of the client's portal block so the chip updates without a full list refetch.
+  const [portalEcho, setPortalEcho] = useStateAg(null);
+  const p = portalEcho || portal || {};
+  const pSent = p.status === "sent" || p.status === "active";
+
+  async function markSent() {
+    if (!clientId) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await window.apiPost("/api/agency/portal/sent", { clientId });
+      setPortalEcho((r && r.client && r.client.portal)
+        || { ...p, status: "sent", sentAt: new Date().toISOString() });
+      onChanged && onChanged();
+    } catch (e) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
 
   async function gen(rotate) {
     if (!clientId) { setErr("Save the client first"); return; }
