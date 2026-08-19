@@ -40,12 +40,6 @@ function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, sh
           <div className="brand-sub">{sub}</div>
         </div>
       </button>
-      {onHome && (
-        <button className="nav-item" onClick={() => onHome()} style={{ marginBottom: 4 }}>
-          <Icons.Activity size={18} />
-          <span>Mission Control</span>
-        </button>
-      )}
 
       <nav className="nav">
         {items.map(([key, label]) => {
@@ -59,27 +53,6 @@ function Sidebar({ active, onNav, goal, brand = "FORGE", sub = "REI OS", nav, sh
         })}
       </nav>
 
-      {showMarcus && (
-      <div className="sidebar-card">
-        <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 14 }}>
-          <div className="mini-avatar"><Icons.Bot size={20} /></div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Marcus AI</div>
-            <div style={{ fontSize: 11.5, whiteSpace: "nowrap" }} className="faint">Acquisitions Manager</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
-              <span className="dot online pulse" /><span style={{ fontSize: 10.5, color: "var(--green)", fontWeight: 600 }}>ONLINE</span>
-            </div>
-          </div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 7 }}>
-          <span className="faint">Monthly Goal</span>
-        </div>
-        <div className="progress"><div style={{ width: `${goal}%` }} /></div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 7 }}>
-          <span className="faint">$0 / $50,000</span><span className="muted tabnum">{goal}%</span>
-        </div>
-      </div>
-      )}
     </aside>
   );
 }
@@ -147,20 +120,20 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onN
 
       <div style={{ flex: 1 }} />
 
-      <div className="card header-status" style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 13px", borderRadius: 12, whiteSpace: "nowrap" }}>
-        <span style={{ color: daycare && (!daycareSession || !daycareSession.authenticated) ? "var(--orange)" : "var(--green)" }}><Icons.Activity size={17} /></span>
+      {daycare && <div className="card header-status" style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 13px", borderRadius: 12, whiteSpace: "nowrap" }}>
+        <span style={{ color: (!daycareSession || !daycareSession.authenticated) ? "var(--orange)" : "var(--green)" }}><Icons.Activity size={17} /></span>
         <div style={{ lineHeight: 1.25 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 600 }}>{daycare ? "Center Status" : "AI Activity"}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }}>Center Status</div>
           <div style={{ fontSize: 11, color: "var(--green)", display: "flex", alignItems: "center", gap: 4 }}>
-            <span className={"dot " + (daycare && (!daycareSession || !daycareSession.authenticated) ? "" : "online pulse")} /> {daycare ? (daycareSession && daycareSession.authenticated ? "Supabase live" : "Secure sign-in required") : "Live"}
+            <span className={"dot " + ((!daycareSession || !daycareSession.authenticated) ? "" : "online pulse")} /> {daycareSession && daycareSession.authenticated ? "Supabase live" : "Secure sign-in required"}
           </div>
         </div>
-      </div>
+      </div>}
 
-      <div className="header-metric" style={{ lineHeight: 1.25, padding: "0 6px", whiteSpace: "nowrap" }}>
-        <div style={{ fontSize: 11.5 }} className="faint">{daycare ? "Children Enrolled" : "Revenue (This Month)"}</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: daycare ? (current.accent || "var(--green)") : "var(--green)" }} className="tabnum">{daycare ? (daycareSession && daycareSession.authenticated ? daycareCount : "—") : "$0.00"}</div>
-      </div>
+      {daycare && <div className="header-metric" style={{ lineHeight: 1.25, padding: "0 6px", whiteSpace: "nowrap" }}>
+        <div style={{ fontSize: 11.5 }} className="faint">Children Enrolled</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: current.accent || "var(--green)" }} className="tabnum">{daycareSession && daycareSession.authenticated ? daycareCount : "—"}</div>
+      </div>}
 
       {daycare && <button className="card header-bell" onClick={() => onNavigate("Announcements")} title="Open announcements" style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 12 }}>
         <Icons.Bell size={18} />
