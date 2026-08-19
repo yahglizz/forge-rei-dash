@@ -159,6 +159,25 @@ def unread_counts():
     return {"ok": True, "byClient": by, "total": total}
 
 
+def purge_client(client_id):
+    """Delete a client's whole conversation. Called when the client is deleted.
+
+    Without this an orphaned thread outlives the client record: it keeps reporting an
+    unread count for a client that no longer appears in any list, so the operator can
+    never open it to clear the badge — and a deleted client's messages would linger on
+    disk forever, which is not what "delete this client" means to the person clicking it.
+    """
+    cid = str(client_id or "").strip()
+    if not cid:
+        return {"error": "id required"}
+    with _LOCK:
+        d = _load()
+        removed = len(d["threads"].pop(cid, []) or [])
+        if removed:
+            _save(d)
+    return {"ok": True, "removed": removed}
+
+
 def reset():
     """Admin clean-slate: remove ALL message threads."""
     with _LOCK:

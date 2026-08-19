@@ -147,6 +147,21 @@ class PortalEndToEndTest(unittest.TestCase):
             self.assertNotIn(leak, blob, "portal bootstrap leaked: " + leak)
         self.assertEqual(set(boot["portal"]), {"welcome", "scope", "deliverables"})
 
+    def test_deleting_a_client_deletes_their_conversation(self):
+        """An orphaned thread keeps an unread badge alive for a client that no longer
+        exists — the operator can never open it to clear it — and retains a deleted
+        client's messages on disk. Deleting the client must delete the conversation."""
+        c = self._client("Goodbye")
+        tok = agency_portal_io.link(c["id"])["portalToken"]
+        agency_portal_io.send_message(c["id"], tok, {"text": "hello"})
+        self.assertEqual(agency_messages_io.unread_counts()["total"], 1)
+
+        agency_io.delete_client(c["id"])
+        agency_messages_io.purge_client(c["id"])
+
+        self.assertEqual(agency_messages_io.unread_counts()["total"], 0)
+        self.assertEqual(agency_messages_io.list_for_client(c["id"])["messages"], [])
+
     def test_empty_message_is_refused(self):
         c = self._client("Blank")
         tok = agency_portal_io.link(c["id"])["portalToken"]

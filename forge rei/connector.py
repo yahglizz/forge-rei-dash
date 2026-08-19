@@ -3333,7 +3333,12 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/client/save":
                 result = agency_io.save_client(body.get("client") or body)
             elif parsed.path == "/api/agency/client/delete":
-                result = agency_io.delete_client(body.get("id"))
+                # Delete the conversation with the client record — an orphaned thread
+                # would keep an unclearable unread badge alive and retain their messages.
+                _del_id = body.get("id")
+                result = agency_io.delete_client(_del_id)
+                if result.get("ok"):
+                    agency_messages_io.purge_client(_del_id)
             elif parsed.path == "/api/agency/reset":
                 # Admin clean-slate: wipe ALL agency clients + edit requests + the
                 # approval queue. No executor runs. Requires {"confirm": true}.
