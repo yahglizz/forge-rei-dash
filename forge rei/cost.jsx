@@ -4,7 +4,7 @@
 // /api/cost/settings. Additive, window-global, unique Ct* names + useStateCt alias.
 const { useState: useStateCt } = React;
 
-const CT_GREEN = "#22C55E", CT_AMBER = "#F59E0B", CT_RED = "#EF4444";
+const CO_GREEN = "#22C55E", CO_AMBER = "#F59E0B", CO_RED = "#EF4444";
 
 const ctInp = {
   background: "var(--card-2)", border: "1px solid var(--border)", borderRadius: 9,
@@ -49,7 +49,7 @@ function CtByAgent({ rows }) {
         </div>
         <div style={{ height: 4, background: "var(--card-2)", borderRadius: 3, marginTop: 4 }}>
           <div style={{
-            height: 4, borderRadius: 3, background: CT_GREEN,
+            height: 4, borderRadius: 3, background: CO_GREEN,
             width: Math.max(2, Math.round((r.usd || 0) / max * 100)) + "%",
           }} />
         </div>
@@ -163,7 +163,7 @@ function CostPage() {
   const today = d.today || {};
   const mtd = d.mtd || {};
   const fixed = d.fixed || {};
-  const capColor = d.capAlert ? CT_RED : d.capWarn ? CT_AMBER : CT_GREEN;
+  const capColor = d.capAlert ? CO_RED : d.capWarn ? CO_AMBER : CO_GREEN;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -188,7 +188,7 @@ function CostPage() {
 
       {/* Today tally */}
       <div className="card-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
-        <CtStat label="Spent today" value={ctUsd(today.usd)} color={CT_GREEN} />
+        <CtStat label="Spent today" value={ctUsd(today.usd)} color={CO_GREEN} />
         <CtStat label="Claude today" value={ctUsd(today.claudeUSD)}
           sub={(today.claudeIn || 0) + " in / " + (today.claudeOut || 0) + " out tok"} />
         <CtStat label="Texts today" value={today.sms || 0}

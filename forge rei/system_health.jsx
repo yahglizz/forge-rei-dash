@@ -2,7 +2,7 @@
 // fleet running?": every background loop's heartbeat freshness (green/amber/red), its last
 // error, plus disk + log pressure. Reads /api/system/health (forge_heartbeat snapshot).
 // Polls every 15s. Additive, window-global, unique Sh* names + useStateSh alias.
-const { useState: useStateSh } = React;
+const { useState: useStateSys } = React;
 
 const SH_COLOR = { green: "#22C55E", amber: "#F59E0B", red: "#EF4444", grey: "#64748B" };
 
