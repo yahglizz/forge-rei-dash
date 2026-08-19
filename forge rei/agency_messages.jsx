@@ -129,7 +129,8 @@ function MsThread({ clientId, clientName, onRead }) {
         <textarea style={{ ...msInp, minHeight: 44, resize: "vertical", fontFamily: "inherit" }}
           value={text} onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder="Write to this client…  (Enter sends · Shift+Enter for a new line)" />
+          placeholder="Write to this client…  (Enter sends)"
+          title="Enter sends · Shift+Enter starts a new line" />
         <button className="tab" disabled={sending || !text.trim()} onClick={send}
           style={{ background: MS_ACCENT, color: "#fff", fontWeight: 700, borderColor: "transparent",
             opacity: (sending || !text.trim()) ? 0.5 : 1, whiteSpace: "nowrap" }}>
