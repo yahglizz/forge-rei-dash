@@ -1,0 +1,93 @@
+- generic [active] [ref=f11e1]:
+  - banner [ref=f11e2]:
+    - generic [ref=f11e3]:
+      - link [ref=f11e4] [cursor=pointer]:
+        - /url: /
+        - img "A Touch of Blessings logo" [ref=f11e5]
+      - link "Enroll Now" [ref=f11e7] [cursor=pointer]:
+        - /url: /#enroll
+  - generic [ref=f11e9]:
+    - generic [ref=f11e10]:
+      - link "Home" [ref=f11e11] [cursor=pointer]:
+        - /url: /
+      - text: › Locations › 2318 Cecil B. Moore Ave
+    - generic [ref=f11e12]: North Philadelphia · 19121 · Near Temple
+    - heading "Daycare on Cecil B. Moore Ave — Near Temple University" [level=1] [ref=f11e13]
+    - paragraph [ref=f11e14]: A Touch of Blessings 2 & 3 at 2318 Cecil B. Moore Ave is our newest North Philadelphia center — right in the Temple University corridor. Now enrolling ages 6 weeks to 12 years. Be first in line.
+    - generic [ref=f11e15]:
+      - link "Enroll Now" [ref=f11e16] [cursor=pointer]:
+        - /url: /#enroll
+      - link "Get Directions" [ref=f11e17] [cursor=pointer]:
+        - /url: https://www.google.com/maps/dir/?api=1&destination=2318+Cecil+B+Moore+Ave+Philadelphia+PA+19121
+  - generic [ref=f11e20]:
+    - img "A Touch of Blessings 2 & 3 childcare center on Cecil B. Moore Ave" [ref=f11e21]
+    - generic [ref=f11e22]:
+      - generic [ref=f11e23]: This Location
+      - heading "A Touch of Blessings 2 & 3" [level=2] [ref=f11e24]
+      - generic [ref=f11e25]: 2318 Cecil B. Moore Ave., Philadelphia, PA 19121
+      - generic [ref=f11e30]:
+        - text: Contact
+        - link "(215) 236-5439" [ref=f11e33] [cursor=pointer]:
+          - /url: tel:2152365439
+        - text: until further notice
+      - generic [ref=f11e34]: Monday–Friday, 6:00 AM – 6:00 PM
+      - generic [ref=f11e39]: Ages 6 Weeks – 12 Years
+      - generic [ref=f11e44]:
+        - generic [ref=f11e45]: Child Care Works (CCIS)
+        - generic [ref=f11e46]: Private Pay
+        - generic [ref=f11e47]: Infant Care
+        - generic [ref=f11e48]: Pre-K
+        - generic [ref=f11e49]: Before & After School
+        - generic [ref=f11e50]: Pick-Up & Drop-Off
+  - generic [ref=f11e52]:
+    - heading "Childcare in the Temple University corridor (19121)" [level=2] [ref=f11e53]
+    - paragraph [ref=f11e54]: If you're a parent, student, or staff member near Temple University or along Cecil B. Moore Avenue, this is childcare right in your neighborhood. A Touch of Blessings 2 & 3 offers infant care, toddler and preschool programs, pre-K, and before- and after-school care — the same warm, licensed standard families know us for.
+    - paragraph [ref=f11e55]:
+      - text: We accept
+      - link "Child Care Works (CCIS) subsidy" [ref=f11e56] [cursor=pointer]:
+        - /url: /child-care-works
+      - text: and private pay. Spots at a brand-new center go fast —
+      - link "pre-enroll today" [ref=f11e57] [cursor=pointer]:
+        - /url: /#enroll
+      - text: or call
+      - link "(215) 236-5439" [ref=f11e58] [cursor=pointer]:
+        - /url: tel:2152365439
+      - text: .
+  - generic [ref=f11e60]:
+    - heading "Be first in line at our newest center" [level=2] [ref=f11e61]
+    - paragraph [ref=f11e62]: Reserve your child's spot on Cecil B. Moore Ave. We'll walk you through programs, pricing, and subsidy.
+    - generic [ref=f11e63]:
+      - link "Enroll Now" [ref=f11e64] [cursor=pointer]:
+        - /url: /#enroll
+      - link "Call (215) 236-5439" [ref=f11e65] [cursor=pointer]:
+        - /url: tel:2152365439
+  - contentinfo [ref=f11e66]:
+    - generic [ref=f11e67]:
+      - generic [ref=f11e68]:
+        - generic [ref=f11e69]:
+          - heading "A Touch of Blessings & A Mother's Touch" [level=4] [ref=f11e70]
+          - paragraph [ref=f11e71]: Childcare & early learning in North Philadelphia, near Temple University. Child Care Works (CCIS) & private pay accepted at all locations.
+        - generic [ref=f11e72]:
+          - heading "Locations" [level=4] [ref=f11e73]
+          - link "921 N 18th St" [ref=f11e74] [cursor=pointer]:
+            - /url: /locations/921-n-18th-st
+          - link "2318 Cecil B. Moore Ave" [ref=f11e75] [cursor=pointer]:
+            - /url: /locations/2318-cecil-b-moore
+          - link "1923 Cecil B. Moore Ave" [ref=f11e76] [cursor=pointer]:
+            - /url: /locations/1923-cecil-b-moore
+        - generic [ref=f11e77]:
+          - heading "More" [level=4] [ref=f11e78]
+          - link "Home" [ref=f11e79] [cursor=pointer]:
+            - /url: /
+          - link "Child Care Works Subsidy" [ref=f11e80] [cursor=pointer]:
+            - /url: /child-care-works
+          - link "Enroll Now" [ref=f11e81] [cursor=pointer]:
+            - /url: /#enroll
+          - link "Privacy Policy" [ref=f11e82] [cursor=pointer]:
+            - /url: /privacy-policy
+          - link "SMS Terms" [ref=f11e83] [cursor=pointer]:
+            - /url: /sms-terms
+      - generic [ref=f11e84]:
+        - text: © 2026 A Touch of Blessings. All Rights Reserved. ·
+        - link "management@atouchofblessing.com" [ref=f11e85] [cursor=pointer]:
+          - /url: mailto:management@atouchofblessing.com
