@@ -1,0 +1,100 @@
+- generic [active] [ref=f15e1]:
+  - generic [ref=f15e3]:
+    - generic [ref=f15e4]: A Touch of Blessings
+    - link "Back to site" [ref=f15e5] [cursor=pointer]:
+      - /url: /
+  - generic [ref=f15e10]:
+    - generic [ref=f15e11]:
+      - generic [ref=f15e12]: Get Started
+      - heading "Enroll Your Child Today — Spots Are Filling Fast" [level=2] [ref=f15e13]
+      - generic [ref=f15e14]: Bonus ending September 12, 2026 — enroll now to lock in your $100!
+      - paragraph [ref=f15e17]: Fill out the form and our team will contact you within 24 hours to discuss enrollment, schedule a tour, and answer any questions.
+      - list [ref=f15e18]:
+        - listitem [ref=f15e19]: No enrollment fee for a limited time
+        - listitem [ref=f15e23]: CCIS subsidy & private pay accepted
+        - listitem [ref=f15e27]: Ages 6 weeks through 12 years
+        - listitem [ref=f15e31]: 3 convenient Philadelphia locations
+        - listitem [ref=f15e35]: Open Monday–Friday, 6 AM – 6 PM
+        - listitem [ref=f15e39]: Pick-up & drop-off available
+      - generic [ref=f15e49]:
+        - text: "Remember: Enroll & stay 60 days to receive your $100 Gift Card or $100 Off Tuition!"
+        - strong [ref=f15e50]: — Offer ends September 12, 2026. Don't wait!
+    - generic [ref=f15e51]:
+      - generic [ref=f15e53]:
+        - text: "Don't fill this out if you're human:"
+        - textbox [ref=f15e54]
+      - generic [ref=f15e55]:
+        - generic [ref=f15e56]:
+          - generic [ref=f15e57]: Parent / Guardian Full Name *
+          - textbox "Parent / Guardian Full Name *" [ref=f15e58]:
+            - /placeholder: Your full name
+        - generic [ref=f15e59]:
+          - generic [ref=f15e60]: Phone Number *
+          - textbox "Phone Number *" [ref=f15e61]:
+            - /placeholder: (215) 000-0000
+      - generic [ref=f15e62]:
+        - generic [ref=f15e63]:
+          - generic [ref=f15e64]: Email Address *
+          - textbox "Email Address *" [ref=f15e65]:
+            - /placeholder: you@email.com
+        - generic [ref=f15e66]:
+          - generic [ref=f15e67]: Child's Name *
+          - textbox "Child's Name *" [ref=f15e68]:
+            - /placeholder: Child's full name
+      - generic [ref=f15e69]:
+        - generic [ref=f15e70]:
+          - generic [ref=f15e71]: Child's Age *
+          - combobox "Child's Age *" [ref=f15e72]:
+            - option "Select age range" [disabled] [selected]
+            - option "6 Weeks – 12 Months"
+            - option "1–2 Years"
+            - option "2–3 Years"
+            - option "3–4 Years"
+            - option "4–5 Years"
+            - option "5–8 Years"
+            - option "8–12 Years"
+        - generic [ref=f15e73]:
+          - generic [ref=f15e74]: Preferred Location *
+          - combobox "Preferred Location *" [ref=f15e75]:
+            - option "Select a location" [disabled] [selected]
+            - option "921 N 18th St. — A Touch of Blessings"
+            - option "2318 Cecil B. Moore Ave. — A Touch of Blessings 2 & 3"
+            - option "1923 Cecil B. Moore Ave. — A Mother's Touch Inc."
+      - generic [ref=f15e76]:
+        - generic [ref=f15e77]:
+          - generic [ref=f15e78]: Start Date Preference
+          - textbox "Start Date Preference" [ref=f15e79]
+        - generic [ref=f15e80]:
+          - generic [ref=f15e81]: Payment Type *
+          - combobox "Payment Type *" [ref=f15e82]:
+            - option "Select payment type" [disabled] [selected]
+            - option "CCIS Subsidy"
+            - option "Private Pay"
+      - generic [ref=f15e84]:
+        - generic [ref=f15e85]: How Did You Hear About Us?
+        - combobox "How Did You Hear About Us?" [ref=f15e86]:
+          - option "Select one" [disabled] [selected]
+          - option "Flyer"
+          - option "Social Media"
+          - option "Referral from Friend/Family"
+          - option "Google Search"
+          - option "Drive-By / Walk-In"
+          - option "Other"
+      - generic [ref=f15e87]:
+        - generic [ref=f15e88]: Additional Notes
+        - textbox "Additional Notes" [ref=f15e89]:
+          - /placeholder: Any questions or special requirements...
+      - generic [ref=f15e91] [cursor=pointer]:
+        - 'checkbox "Optional: I agree to receive text messages from A Touch of Blessings Learning Academy about enrollment, my child''s care, scheduling, and important announcements. Message frequency varies. Message and data rates may apply. Reply HELP for help, STOP to cancel. Consent is not a condition of enrollment or of any purchase. See our Privacy Policy and SMS Terms." [ref=f15e92]'
+        - generic [ref=f15e93]:
+          - strong [ref=f15e94]: "Optional:"
+          - text: I agree to receive text messages from A Touch of Blessings Learning Academy about enrollment, my child's care, scheduling, and important announcements. Message frequency varies. Message and data rates may apply. Reply HELP for help, STOP to cancel.
+          - strong [ref=f15e95]: Consent is not a condition of enrollment or of any purchase.
+          - text: See our
+          - link "Privacy Policy" [ref=f15e96]:
+            - /url: /privacy-policy
+          - text: and
+          - link "SMS Terms" [ref=f15e97]:
+            - /url: /sms-terms
+          - text: .
+      - button "Claim My Spot & $100 Bonus" [ref=f15e98] [cursor=pointer]
