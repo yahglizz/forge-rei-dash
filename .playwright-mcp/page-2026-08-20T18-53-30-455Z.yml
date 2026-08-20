@@ -1,0 +1,39 @@
+- main [ref=f7e2]:
+  - img "Inquiry received" [ref=f7e3]
+  - heading "We’ve got your inquiry" [level=1] [ref=f7e6]
+  - paragraph [ref=f7e7]: Thank you for reaching out to A Touch of Blessings. Your details are with our enrollment team.
+  - heading "What happens next" [level=2] [ref=f7e8]
+  - list [ref=f7e9]:
+    - listitem [ref=f7e10]:
+      - generic [ref=f7e11]: "1"
+      - generic [ref=f7e12]:
+        - generic [ref=f7e13]: We review your child’s details
+        - paragraph [ref=f7e14]: Age, preferred location, and start date, so we can talk about real availability rather than guesses.
+    - listitem [ref=f7e15]:
+      - generic [ref=f7e16]: "2"
+      - generic [ref=f7e17]:
+        - generic [ref=f7e18]: We call you
+        - paragraph [ref=f7e19]: Our team reaches out during opening hours — Monday to Friday, 6:00 AM to 6:00 PM.
+    - listitem [ref=f7e20]:
+      - generic [ref=f7e21]: "3"
+      - generic [ref=f7e22]:
+        - generic [ref=f7e23]: You come see us
+        - paragraph [ref=f7e24]: We’ll set up a visit so you can meet the teachers and see the room your child would be in.
+  - generic [ref=f7e25]:
+    - paragraph [ref=f7e26]:
+      - strong [ref=f7e27]: Can’t wait?
+      - text: Call us at
+      - link "(215) 236-5439" [ref=f7e28] [cursor=pointer]:
+        - /url: tel:2152365439
+      - text: and we’ll pick up during opening hours.
+    - paragraph [ref=f7e29]: Enrolling with Child Care Works (CCIS)? Mention it on the call — we accept subsidy alongside private pay.
+  - generic [ref=f7e30]:
+    - link "Take a virtual tour" [ref=f7e31] [cursor=pointer]:
+      - /url: /#tours
+    - link "Back to home" [ref=f7e32] [cursor=pointer]:
+      - /url: /
+  - paragraph [ref=f7e33]:
+    - text: Didn’t mean to send that, or need to correct a detail? Call
+    - link "(215) 236-5439" [ref=f7e34] [cursor=pointer]:
+      - /url: tel:2152365439
+    - text: and we’ll fix it for you.
