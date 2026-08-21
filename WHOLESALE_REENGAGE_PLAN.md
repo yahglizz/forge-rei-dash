@@ -184,6 +184,74 @@ Without the skip-excluded optimization: ~14,800 calls, ~123 min.
    `ghl_dnd` with `dnc_tags=wrong-number` (exclusion beats inclusion). Reclassify if you
    want `exclude_reason` semantics kept strictly to opt-out.
 
+### [B] thread-auditor — 2026-08-21 — DONE · VERDICT: NOT SAFE TO BLAST
+
+Audited `leads_audit.py` against the 5,527-row Ohio CSV + `ohio_reengage_prep.json`
+(232 threads w/ history) + `batches/*.json`. Read-only; no GHL calls; no repo files added.
+
+**Headline: 118 of the 247 KEEP-bucket rows that have any inbound text (48%) contain a
+refusal the classifier missed.** 47 of those are compliance-grade.
+
+P1 — missed opt-outs now sitting in KEEP buckets (TCPA exposure):
+- 42 by thread text: profanity-stop 22 (`daGIgIrL6D95JDb4vFVL` "FUCK OFF"), contraction/typo
+  stop 8 (`QlqPnCesBROotqwWTd4B` "No and please don't text me"; `tlN4DNv0miscFy0UgQsb`
+  "STPP TEXTING ME"; `e58D2VcFStHAmc9AUXFx` "Please don't text or call me anymore respect my
+  wishes"), legal/spam threat 4 (`uIIO2uYLQmIVrfrR8Ig9` "I'm suing you for harassment"),
+  lose-my-number 2, list-removal 2, blocked 1, 👎/🛑/🤬 reactions 6.
+- 7 carry a GHL `dnc` TAG but classify KEEP (3 of them `never_replied`, 0 inbound —
+  exactly the carrier-STOP case §4 describes). Union = **47 distinct**.
+- `_is_dnc`/`_is_opt_out` only ever read the LAST inbound. 11 of 232 threads have an
+  earlier seller opt-out with a benign last line — incl. `Is62uAj55dJ5UPcUguzy` ("Please
+  stop damn texting me" → last msg "🤬" → active_pending_us) and `TdPj3xPGmGOUWqowna50`
+  ("Stop texting me nigga", also dnc-tagged → active_pending_us). recent_history caps at 8
+  lines, so 11 is a floor.
+- **`seller_classify.classify("STOPALL") == "CONTINUE"`.** 77 Ohio contacts opted out with
+  the STOPALL family. They are excluded in the CSV only because `leads_audit._is_dnc` uses
+  a naive substring. `\bstop\b` does NOT match STOPALL — Stage A must not "tighten" that
+  substring without adding `stopall|stopallcontact|stopp+`.
+- 3 leads the PRODUCTION classifier calls DNC are in leads_audit KEEP buckets.
+
+P2 — wrongly killed / wrongly kept:
+- False `dead_end` is small: 7 total. 5 killed as `wrong_number` by
+  `_STANDALONE_DENIAL_RE` on "Who is this?"/"Who are you?" (`D3ugTFgL48MGaf4M1icx` had 6
+  inbound msgs); 1 killed as `dnc` by the "stop" substring inside
+  `IaAAnlDHbkawfRXmMn0J` "All business discussions are handled in person. Feel free to stop
+  by"; 1 positive 👍 reaction → `dnc` (`cNOkLSniTFInPccoIXqE`, trigger not visible in the
+  120-char snippet — Stage A should re-check on the full body).
+- The real P2 is inverted — 72 KEEP rows should be excluded, not re-engaged: 55 wrong-number
+  (`_is_denial` is fully `^…$`-anchored, so any extra clause defeats it — `pLM0ClCdIF39kfLxIYQB`
+  "WRING NUMBER", `l0zYbfsVRwQVdXeV7y8O` "Look man you got the wrong number. Good luck."),
+  7 already-sold (`tUGT0mly876czROQGtlz` "It's sold please forget about it" — `_is_sold` is
+  anchored and fired ONCE in 5,527 rows), 10 explicit refusals (`Ha982mQBkRMw3sCp2Bwk` "Nfs",
+  `FMJs4kSjyCU5Ymw5T788` "Not intrested").
+- `_is_hard_no` and `_is_sold` have ZERO false positives in this data (both effectively
+  fullmatch). Their problem is recall, not precision.
+
+**BLOCKS §1 decision 3:** 41 of the 42 `soft_no` rows are PERMANENT refusals
+("Not for sale" ×20, `59CwUHtz3musSW37YluN` "Not for sale no matter what the offer would
+be", `BgQgjltEjZdhBXyVzCMw` "NOT FOR SALE!!!"). Exactly ONE is a timing objection
+(`2rRTndTiHdofAjbCyapd`). Shipping all 42 as `soft_no_revisit` texts 41 people who flatly
+refused. `_SOFT_NO_PHRASES` conflates timing with refusal and contains no "later"/"few
+months" at all — genuine timing leads never land in soft_no. Split required.
+
+P3 — internal contradictions: 2 `never_replied` rows whose last message is INBOUND
+(`2yLVup4rPde9E55Wl1Z0`, `xsXQnERl2lAg0pXW9l2d`) — `_is_our_message` ate a real seller
+reply; the filter also eats "Touch of Blessings?" (`MY1qNVo5dCGgbJASuyWV`, an engaged
+question) and any seller line containing "as-is"/"cash offer". 1 carrier bounce classified
+as a live pending lead (`dtuuGU2W7BWmTroJQlGR` "The number you are sending an SMS to,
+currently has no SMS capabilities."). Dedupe: `merge_rank` treats only dnc/opt_out as
+unbeatable, so 7 KEEP survivors swallowed a `dead_end` duplicate (`VFfQJHM5bR9fiALwHSZK`
+kept over `j9NaCdLdNqjBgNOz2lXN` "No") — same person, one number said no.
+
+**Must change before any send:** (1) read GHL `dnd`/`dndSettings`/`dnc` tag — §4 gate;
+(2) scan EVERY inbound in the thread for dnc/opt-out, not just the last; (3) add the
+STOPALL family + contraction/typo stop forms + profanity + legal/spam threats + 👎🛑 to the
+opt-out set; (4) de-anchor `_is_denial`/`_is_sold`/`_is_hard_no` to search-anywhere;
+(5) split soft_no into timing vs. refusal, keep only timing; (6) drop "who is this"/"who
+are you" from the denial rule; (7) make ALL dead-end reasons unbeatable in `merge_rank`;
+(8) drop "as-is"/"cash offer"/"close fast" from `_OUR_OUTREACH_PHRASES` for inbound.
+Also fix `seller_classify._DNC_RE` (misses STOPALL, fires on "stop by").
+
 ## 8. Open questions for the operator
 
 <!-- head agent appends anything that is genuinely the operator's call -->
