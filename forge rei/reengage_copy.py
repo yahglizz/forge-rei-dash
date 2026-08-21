@@ -545,6 +545,13 @@ def demo():
     assert marcus_engine.MarcusEngine._PRICE_RE.search("i can do $40k")
     assert sms_guard._quotes_price_or_offer("we can offer 40,000")
 
+    # 3b. the --apply guard chain must actually swap a leaked figure, not just pass it
+    eng = marcus_engine.MarcusEngine(lambda *a, **k: {}, lambda *a, **k: None, "offline")
+    safe, leaked = eng._no_price_over_text("i can do $40k on it", "PRICE", "how much")
+    assert leaked and "$40k" not in safe, "the price guard the apply path relies on is dead"
+    assert eng._scrub_voice("hi there!; ok") == "hi there,. ok".replace(",.", ".")
+    assert marcus_engine._draft_safety_reason("", "") == "empty draft"
+
     # 4. grounding overlap actually discriminates
     assert "roof" in grounding("hows the roof holding up", "the roof leaks bad")
     assert grounding("hey whats a good time for a call", "the roof leaks bad") == []
