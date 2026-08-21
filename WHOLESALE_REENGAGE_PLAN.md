@@ -585,8 +585,10 @@ the Stage C CSVs on disk or from read-only inspection of the box.
 **3,022 sendable** (3,023 − 1). The one removed row is `KehwKm3V4Nj6Yan11Wx8`
 `yahjair (operator)` — the operator's own CRM record, the only blank phone in the keep-list.
 
-**1. GHL header spec — found, not guessed.** `~/Desktop/marcus-wholesale-agent/skills/
-wholesale-list-cleaner/SKILL.md` §"Output Format (GHL-Ready)", corroborated by all three of
+**1. GHL header spec — found, not guessed.** `marcus-wholesale-agent/skills/
+wholesale-list-cleaner/SKILL.md` — the in-project copy (same sibling folder as `ghl.env`),
+verified byte-identical to the `~/Desktop` mirror — §"Output Format (GHL-Ready)",
+corroborated by all three of
 its scripts (`clean_list.py` `GHL_COLUMNS`, `clean_multiphone.py:33`,
 `clean_batchdata_list.py:24`):
 `First Name | Last Name | Phone | Email | Address1 | City | State | Postal Code`, phone in

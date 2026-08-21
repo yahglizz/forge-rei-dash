@@ -6,8 +6,9 @@ Reads the Stage C output, splits names, applies the campaign/segment tag, and
 PROVES no excluded / dead_end contact leaked into a send file before writing.
 
 Header spec source (verified, not guessed):
-  ~/Desktop/marcus-wholesale-agent/skills/wholesale-list-cleaner/SKILL.md  ("Output
-  Format (GHL-Ready)") and its three scripts clean_list.py / clean_multiphone.py /
+  ../marcus-wholesale-agent/skills/wholesale-list-cleaner/SKILL.md  ("Output
+  Format (GHL-Ready)") -- the in-repo copy, byte-identical to the ~/Desktop mirror --
+  and its three scripts clean_list.py / clean_multiphone.py /
   clean_batchdata_list.py, which all emit exactly:
       First Name | Last Name | Phone | Email | Address1 | City | State | Postal Code
   Phone in E164 (+1XXXXXXXXXX).
