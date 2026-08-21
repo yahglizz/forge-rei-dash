@@ -523,3 +523,44 @@ guarantee exists on this machine.
 `marcus_state/leads_export/full_sweep.log`. Settings as ruled: `AUDIT_LIMIT=0`,
 `SKIP_THREADS_FOR_EXCLUDED=1`, `SOFT_NO_REFUSAL_IS_KEEP=False`,
 `HANDSET_SCOPED_DEAD_END={"wrong_number"}`. ETA ~73 min.
+
+### [C] Sweep run — 2026-08-21 18:12 — COMPLETE, verified
+
+7,363 processed · 0 errored · **reconciliation BALANCED** (4,057 kept + 3,306 excluded).
+8,808 API calls, 2,123s (~35 min — faster than the 73-min projection).
+
+| status | raw | deduped |
+|---|---|---|
+| never_replied | 3,837 | 2,823 |
+| active_pending_us | 116 | 109 |
+| replied_then_cold | 88 | 80 |
+| no_outbound_yet | 16 | 11 |
+| dead_end | 314 | 253 |
+| excluded (GHL gate) | 2,992 | 1,550 |
+
+**Deduped keep-list: 3,023 leads** (4,826 unique contacts from 7,363 rows).
+Exclude reasons: `ghl_dnd/undeliverable` 2,548 · `ghl_dnd/opt_out` 444 · `hard_no` 119 ·
+`wrong_number` 96 · `dnc` 82 · `soft_no_refusal` 12 · `sold` 5.
+States: OH 5,527 · PA 1,137 · DE 690 · blank 4 · FL 3 · NJ 1 · CA 1.
+
+**`soft_no_revisit` came back EMPTY (0 leads)** even with B2's widened timing regex —
+confirming Stage A's prediction. Genuine "call me in a few months" language lives in
+`active_pending_us` / `replied_then_cold`, which get re-engaged anyway. **Ruling: the
+segment is retired; no dedicated copy track. §3's row stays for schema stability only.**
+
+**Head-agent compliance verification of the output (all PASS):**
+```
+contact_id in BOTH keep and excluded  : 0
+contact in >1 keep segment            : 0
+keep rows carrying dnd/dnc/exclude mark: 0
+dnd_sms on keep rows                  : blank on all 3,023
+keep rows with no phone               : 1
+```
+
+**Deliverable:** `marcus_state/leads_export/all_leads_CLEAN_3023.csv` — all four keep
+segments merged, sorted warmest-first. Delivered to the operator.
+
+### [D] Copy Writer + [E] Campaign Packager — DISPATCHED 2026-08-21
+D: 3 bulk template variants × 2 cold segments + 189 individually-grounded warm drafts
+through the real `marcus_engine._ai_draft` harness. E: GHL-import spec + non-duplicating
+path, send ramp, reply-handling readiness, pre-flight checklist. Both propose-only.
