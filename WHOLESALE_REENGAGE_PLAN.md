@@ -121,7 +121,8 @@ missed opt-out costs the number.
 |-------|-------|-----------|-------------|
 | A | **Sweep Engineer** | — | `full_leads_audit.py`: all 7,363, every state incl. blank, `soft_no_revisit` split out, §4 DND gate wired in. Verified on a 50-contact slice. |
 | B | **Thread Auditor** | — (runs on existing Ohio CSV) | Regex audit of the classifier against real thread text. Find false `dead_end` (leads we wrongly killed) and false-live (opt-outs we missed). Ranked, with quoted evidence. |
-| C | **Sweep run** | A + B | Full 7,363 sweep executed → `all_leads_audit.csv` + per-segment CSVs, deduped by address/phone. |
+| B2 | **Classifier Hardener** | B | Implement B's 8 fixes + the `seller_classify` production fix. Local only, NO deploy. Leaves `test_optout_hardening.py`. **Blocks C.** |
+| C | **Sweep run** | A + B2 | Full 7,363 sweep executed → `all_leads_audit.csv` + per-segment CSVs, deduped by address/phone. |
 | D | **Copy Writer** | C | Re-engage SMS copy per segment, drafted through the real Marcus voice engine. Draft-only. |
 | E | **Campaign Packager** | C + D | GHL-import-ready CSV (correct headers) + per-segment send plan for one-time operator approval. |
 
@@ -287,4 +288,71 @@ Also fix `seller_classify._DNC_RE` (misses STOPALL, fires on "stop by").
 
 <!-- head agent appends anything that is genuinely the operator's call -->
 
-- (none yet)
+### Q1 — LIVE PRODUCTION BUG, open right now (needs an operator call on the hotfix)
+
+`seller_classify.py` governs how Marcus classifies **live inbound seller replies on the
+box**. Two verified defects, reproduced by the head agent 2026-08-21:
+
+```
+seller_classify.classify('STOPALL')            -> 'CONTINUE'   # must be DNC
+seller_classify.classify('stop by the office') -> 'DNC'        # must not be
+```
+
+77 Ohio contacts opted out using the STOPALL form. Production treats them as live
+conversations to reply to. This is a TCPA hole open in the running system **today**,
+independent of this re-engage job — and it is the exact path every reply from this campaign
+will flow through. Stage B2 is fixing it locally. **It is not deployed.** Operator decides
+when it ships (CLAUDE.md rule 1 wants auto-deploy; this touches live seller handling, so it
+waits for a yes).
+
+### Q2 — A2P/10DLC registration status (blocks the whole channel decision)
+
+Decision §1.1 is a GHL bulk SMS campaign to ~4,000+ contacts. That requires the wholesale
+sending number to be A2P/10DLC registered and in good standing. If it is not, a blast this
+size gets carrier-filtered or the number gets shut down, and the send channel has to change.
+Operator to confirm in GHL → Settings → Phone Numbers → Trust Center. Unanswered as of
+2026-08-21.
+
+### Q3 — Send volume / ramp (needed before Stage E)
+
+Even with 10DLC in good standing, blasting ~4,000 messages in one burst from a number with
+a months-long quiet period is a spam-filter trigger. Stage E should propose a daily ramp
+rather than one send. Operator sets the ceiling.
+
+---
+
+### [head agent] verification of Stage A + Stage B — 2026-08-21 — BOTH ACCEPTED
+
+**Stage A — verified, accepted.** Independently re-pulled all 7,363 contacts from live GHL.
+Numbers match Stage A's exactly: `dnd` bool 4 · `dndSettings.SMS` not-inactive 2,957 ·
+DNC-ish tag 78 · reason codes 30005 1371 / 30003 1170 / STOP_KEYWORD 311 / operator-manual
+92 / 30006 10 / 21610 2 / "Opted out" 1. `full_leads_audit.py` confirmed read-only (no
+POST/PUT/DELETE verbs present), `--selfcheck` passes, `ohio_*.csv` mtimes still Aug 2 —
+nothing clobbered.
+Rulings on Stage A's three questions:
+1. **`soft_no_revisit` stays a bucket but gets no dedicated copy track** if it lands at
+   ~1–5 leads. Stage B2 is widening timing detection; final call after its delta report.
+2. **Sequential run, no thread pool.** 73 min is acceptable for a background job; a 4-way
+   pool risking 429 bursts against the *live* location could rate-limit Marcus's production
+   loops on the box. Not worth 50 minutes.
+3. **Reclassify the `wrong-number`-tagged contact** to `exclude_reason=wrong_number`.
+   Keeps `ghl_dnd` semantics strictly compliance-grade. Still excluded either way.
+
+**Stage B — verified, accepted; it changes the critical path.** Spot-checked its highest-cost
+claims against live code: `_is_dnc` confirmed False on "STPP TEXTING ME" / "Lose my number" /
+"FUCK OFF"; `seller_classify` STOPALL and `stop by` defects reproduced exactly as reported.
+Headline stands: **47 compliance-grade opt-outs sitting in KEEP buckets, and 72 further KEEP
+rows that should be excluded** (55 wrong-number, 7 sold, 10 refusal).
+One sub-claim corrected: Stage B wrote that `_SOFT_NO_PHRASES` contains no "later"/"few
+months" at all — `'maybe later'` is in fact present. The list is exactly 13 refusals + 6
+timing, as Stage A described. Stage B's practical conclusion is unaffected: bare "call me in
+a few months" is absent, so genuine timing leads land in other buckets. Both agents converge
+on the same fix; the §1.3 amendment stands unchanged.
+
+**Consequence:** Stage C is BLOCKED behind a new Stage B2. Running the sweep on the current
+classifier would produce a list with 47 known opt-outs in it.
+
+### [B2] Classifier Hardener — DISPATCHED 2026-08-21
+Implementing Stage B's 8 fixes + the `seller_classify` production fix. Local edits only,
+explicitly **no deploy**. Must leave a runnable `test_optout_hardening.py` and prove the
+STOPALL count does not regress.
