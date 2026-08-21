@@ -24,12 +24,18 @@ _STOP_KEYWORD_RE = re.compile(
 # Bare "stop" -- but never "stop by/in/over/at" (a seller inviting us to visit:
 # "All business discussions are handled in person. Feel free to stop by"), and
 # never inside a word (the naive substring form matched "Chri-stop-her").
-# The lookbehinds kill the noun senses ("a stop sign", "the bus stop") without
-# touching the imperative sense, which is the only one a seller ever means.
+# Bare "stop" is only an opt-out in its IMPERATIVE sense. Requiring it to open a
+# clause (start of message, after punctuation, or after please/pls/just/so/no/then/
+# to) keeps every real Ohio opt-out -- "STOP", "Please stop contacting me.",
+# "So stop asking", "no stop" -- and drops the noun and narrative senses that were
+# firing: "the bus stop", "a stop sign", "The voices won't stop", "please stop
+# trying to bullshit". The forward guard drops "feel free to stop by".
+# "STOP texting me" mid-sentence is covered by _OPT_OUT_SENTENCE_RE below.
 _BARE_STOP_RE = re.compile(
-    r"(?<!a )(?<!the )(?<!bus )(?<!one )(?<!last )"
-    r"\bstop(?!\s+(?:by|in|over|at|sign|light)\b)\b",
-    re.IGNORECASE,
+    r"(?:^|[.!?,;:\n]\s*|\b(?:please|pls|plz|just|now|so|and|then|to|no|but|ok|"
+    r"okay|omg|said)\s+)"
+    r"sto+p+(?![\w])(?!\s+(?:by|in|over|at|sign|light|trying|tryna|acting|being)\b)",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 # "stop / stpp / quit / don't ... text|call|contact", at most one word in between.
