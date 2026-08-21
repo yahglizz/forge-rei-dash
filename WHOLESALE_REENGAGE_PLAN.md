@@ -564,3 +564,122 @@ segments merged, sorted warmest-first. Delivered to the operator.
 D: 3 bulk template variants × 2 cold segments + 189 individually-grounded warm drafts
 through the real `marcus_engine._ai_draft` harness. E: GHL-import spec + non-duplicating
 path, send ramp, reply-handling readiness, pre-flight checklist. Both propose-only.
+
+---
+
+### [E] Campaign Packager — 2026-08-21 — DELIVERED (propose-only; nothing touched in GHL)
+
+Zero GHL calls of any verb. Zero deploys, zero commits by me. Every number below comes from
+the Stage C CSVs on disk or from read-only inspection of the box.
+
+**Files written**
+- `forge rei/campaign_package.py` — pure-local packager (stdlib, no network). Re-runnable.
+- `marcus_state/leads_export/GHL_IMPORT_active_pending_us.csv` — **109**
+- `…/GHL_IMPORT_replied_then_cold.csv` — **80**
+- `…/GHL_IMPORT_no_outbound_yet.csv` — **10**
+- `…/GHL_IMPORT_never_replied.csv` — **2,823**
+- `…/GHL_IMPORT_verification.json` — the leak-check evidence
+- `…/CAMPAIGN_SEND_PLAN.md` — import path, ramp, copy slots, GO/NO-GO, kill switch
+- `…/CAMPAIGN_PREFLIGHT.md` — the checklist
+
+**3,022 sendable** (3,023 − 1). The one removed row is `KehwKm3V4Nj6Yan11Wx8`
+`yahjair (operator)` — the operator's own CRM record, the only blank phone in the keep-list.
+
+**1. GHL header spec — found, not guessed.** `~/Desktop/marcus-wholesale-agent/skills/
+wholesale-list-cleaner/SKILL.md` §"Output Format (GHL-Ready)", corroborated by all three of
+its scripts (`clean_list.py` `GHL_COLUMNS`, `clean_multiphone.py:33`,
+`clean_batchdata_list.py:24`):
+`First Name | Last Name | Phone | Email | Address1 | City | State | Postal Code`, phone in
+E164. Emitted in that order, then `Tags`, `Contact Id`, `Segment`. All 3,022 phones were
+already E164 in Stage C output. Names title-cased on split; LLC/Trust suffixes ride with the
+last name.
+
+**2. Non-duplicating import path — RECOMMEND: do not import at all.** These contacts already
+exist in GHL. Tag by `contact_id` via `POST /contacts/{id}/tags {"tags":[…]}` — the exact
+call production already makes (`scout_triage.py:1467-1475` / `:1447-1459`, v2
+`services.leadconnectorhq.com`, `2021-07-28`). Additive, cannot create a contact, cannot
+overwrite a field, reversible with the matching DELETE. Then every smart list is a tag
+filter forever after. 3,022 POSTs ≈ 25 min at the measured ~2 req/s. It is a WRITE, so it
+needs the operator's yes and a runner script — **deliberately not built** (§5.1).
+If the operator prefers the wizard: update-mode, **dedupe on Phone, never Email** —
+**1,215 of 3,022 rows (40%) have no email**, so an email-keyed import creates 1,215 duplicate
+seller records. Leave `Contact Id`/`Segment` unmapped.
+**"Just filter in GHL" does NOT work here** and is worth killing now: the four segments come
+from full-thread direction analysis through the B2-hardened classifier, and GHL has no native
+filter for "last message direction across the whole thread". The hybrid is the lazy correct
+answer — tag once, filter forever.
+
+**3. Ramp — 12 send days + 1 hold, warm first.**
+D1 `active_pending_us` 109 → D2 `replied_then_cold` 80 + `no_outbound_yet` 10 = 90 (cum 199)
+→ **D3 HOLD 0, GO/NO-GO** → D4 50 · D5 100 · D6 200 · D7 300 · D8-D12 400 each · D13 173.
+Cold = 650 + 2,000 + 173 = 2,823. Total 199 + 2,823 = **3,022** ✓. **13 business days ≈ 17
+calendar days ≈ 3 weeks.** Intra-day: 50 per batch every 30 min, 10:00–17:00 ET (every
+contact is in an ET state: OH 2,181 · PA 490 · DE 346 · FL 2 · NJ 1; the 2 blank-state rows
+go 11:00–16:00 ET, safe in every US timezone; the location's single CA contact was already
+excluded by the Stage C gate).
+
+**Where 400/day comes from — and what is still Unknown.** The **carrier daily cap is
+UNKNOWN** (Q2, unread Trust Center). 400 is **not** carrier-approved and must not be
+presented as such; if the brand is low-tier the ramp gets re-cut. 400 is derived from
+**measured reply-handling capacity**: Scout scores 15/sweep at 180 s = 300/hr
+(`scout_triage.py:74-76`), hands off 10/sweep = 200/hr (`:707`) — neither is binding; the
+operator is, at ~15–20 calls/day, and 400 × 4% reply ≈ 16 replies/day. Warm-up shape (50 →
+100 → 200 → 300 → 400) is practice, not a limit: the number has been quiet ~40 days (box
+`send_ledger.json` = 2 entries, last write Jul 12). Scout's 400-conversation window only
+breaks above ~130 msgs/min; the ramp peaks at ~1.7/min.
+
+**4. Reply readiness (read-only box inspection — nothing changed, nothing deployed).**
+GOOD: `forge-reios` **active**; `FORGE_MARCUS=1` is in the systemd unit itself so loops run;
+`/api/health` → `loopsEnabled: true`, `ops.paused: false`, Scout last ran **61 s ago**;
+interval is the default 180 s (no override) — sane for a spike; gate ON (`autoSend: false`,
+`autoSendNrn: false`); autopilot off; `send_ledger` = 2 entries (nothing ever sent).
+
+**⚠️ THE ONE THAT MATTERS — inbound replies do NOT auto-produce a one-tap SMS draft.** Both
+drafting switches are off: `FORGE_MARCUS_SMS` is set **nowhere** on the box → defaults to
+`"0"` → `MARCUS.run_forever` never starts (`connector.py:4854-4857`; that is why
+`/api/marcus/status` shows `"lastPoll": null`), **and** `ace.mode()` is `"off"` (box
+`ace.json`) while `_ace_update_from_screening` only calls ACE when mode ≠ `"off"`
+(`connector.py:1185`). On a reply the operator DOES get: Scout score + bucket + hot auto-tag
++ auto-pipeline + Telegram ping + a Marcus **screening report**. What is missing is the
+reply draft — the operator must press "Hand to Marcus" per lead (`connector.py:3516`).
+Invisible at 5 replies/day; a bottleneck on day 1's 109 warm leads. **Operator's call before
+send #1** — it is a live-seller behavior change, not a list-job side effect.
+
+Also to fix before send #1: **38 proposals already pending** unactioned
+(CONTINUE 22 · WRONG_NUMBER 10 · READY 5 · PRICE 1) — day-1 replies would queue behind them;
+**Telegram quiet hours are DISABLED** with `hot_lead` + `proposal` pings on, and days 1–2 put
+189 warm leads into that pipe with no night guard; **Scout's lead list prunes at
+`MAX_RECORDS = 300`** (`scout_triage.py:77`) so over 13 days the oldest fall off the Scout tab
+— tags/pipeline/GHL threads are unaffected (display limit, not data loss), but the GHL smart
+list must be the system of record, not the Scout tab.
+Machine capacity is fine for 189 simultaneous conversations (300 scored/hr, 200 handoffs/hr).
+The human is the constraint — which is exactly why warm rides alone on D1–D2 with a D3 hold.
+
+**5. Leak check — proven, not asserted.** `python3 campaign_package.py` → exit 0:
+```
+block list: 2577 contact_ids / 1803 phones (638 person-level)
+active_pending_us   109 in ->   109 out
+replied_then_cold    80 in ->    80 out
+no_outbound_yet      11 in ->    10 out
+never_replied      2823 in ->  2823 out
+TOTAL SENDABLE     3022
+DROPPED  no_outbound_yet/KehwKm3V4Nj6Yan11Wx8: internal_contact
+LEAK CHECK: 0 excluded/dead_end contacts in any send file.  PASS
+```
+Blocks on every `contact_id` in `all_leads_excluded.csv` (1,550) + `all_leads_dead_end.csv`
+(253) **including every dedupe-collapsed sibling id from `duplicate_contact_ids`**, on every
+phone in those files, and separately on 638 person-level (`opt_out`/`dnc`/`hard_no`/`sold`/
+`soft_no_refusal`) phones. Plus cross-segment id and phone collision checks: **0**. Evidence
+in `GHL_IMPORT_verification.json`.
+
+**Note on the autosync daemon.** `com.forge.autosync` is still loaded and pushing every ~60 s
+(commits `bcb6fca`/`6b7f797`/`86f0d99` at 18:21/18:23/18:25 today); it auto-pushed
+`campaign_package.py`. That is code with no secrets — same class as `full_leads_audit.py`.
+**No seller data leaked:** `marcus_state/` is gitignored (`forge rei/.gitignore:12`) with
+**0 tracked files**, re-verified. Every CSV above lives there.
+
+**FOR THE HEAD AGENT**
+1. Merge Stage D's copy into the four `[[STAGE D COPY — …]]` slots in `CAMPAIGN_SEND_PLAN.md` §4.
+2. Decide the drafting switch (`FORGE_MARCUS_SMS=1` vs. `ace` mode vs. leave manual) before D1.
+3. Q2 (A2P/10DLC) is still the gate on the whole ramp — 400/day is a capacity number, not a
+   carrier number.
