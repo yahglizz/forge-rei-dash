@@ -322,6 +322,7 @@ def _age_phrase(iso):
 
 OUT_FIELDS = ["contact_id", "name", "phone", "segment", "seller_last_message",
               "draft_text", "grounded_in",
+              "recommendation", "recommendation_why",
               "state", "city", "classification", "draft_source", "draft_status",
               "grounded_words", "chars", "sms_segments", "last_message_date_iso"]
 
