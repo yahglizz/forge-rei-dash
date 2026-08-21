@@ -876,3 +876,38 @@ Aug 2, and nothing has moved since.
 **Funding the API key is the single highest-leverage action available, and it is a
 prerequisite for the campaign** — Stage D's drafts cannot be regenerated through the real
 voice engine, and replies cannot be drafted, until it is funded.
+
+### [head agent] reconciliation of warm send files — 2026-08-21 — CLOSED
+
+Gap flagged in the Stage D entry is now fixed. Stage E built the warm GHL_IMPORT files from
+all 189 warm rows; Stage D's audit found 88 of those must not be texted. Filtered the two
+warm files on the `recommendation` column (`send` + `nurture` kept, `exclude` dropped):
+
+```
+GHL_IMPORT_active_pending_us.csv   109 ->  40   (dropped 69, all recommendation=exclude)
+GHL_IMPORT_replied_then_cold.csv    80 ->  61   (dropped 19, all recommendation=exclude)
+GHL_IMPORT_no_outbound_yet.csv                10
+GHL_IMPORT_never_replied.csv                2823
+TOTAL SENDABLE  3,022 -> 2,934
+```
+Pre-filter copies preserved as `*.csv.prefilter.bak`.
+
+Re-verified after the filter:
+```
+LEAK by contact_id                  : 0  PASS
+LEAK by phone                       : 0  PASS
+the 4 BUYERS (not sellers) in sends  : 0  PASS
+operator's own CRM record in sends   : 0  PASS
+```
+
+Also confirmed Stage E's citation correction: the in-repo
+`marcus-wholesale-agent/skills/wholesale-list-cleaner/SKILL.md` is **byte-identical** to the
+`~/Desktop` copy (`diff -q` clean). The in-repo citation is the better one — it travels with
+the repo instead of depending on one machine's Desktop.
+
+**Ramp arithmetic now needs a re-cut:** the plan was built on 3,022. Warm day 1 is 40 (not
+109) and day 2 is 71 (61 + 10). Cold total is unchanged at 2,823. New total 2,934. Stage E's
+`CAMPAIGN_SEND_PLAN.md` still shows the old numbers — regenerate when the operator unblocks.
+
+**STATUS: all stages A–E complete and verified. The package is send-ready pending the five
+operator decisions in §8. Nothing has been sent; no GHL write of any kind has been made.**
