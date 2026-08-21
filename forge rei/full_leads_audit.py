@@ -87,7 +87,9 @@ def soft_no_kind(body):
     b = (body or "").lower()
     if any(p in b for p in SOFT_NO_REFUSAL_PHRASES):
         return "refusal"
-    if any(p in b for p in SOFT_NO_TIMING_PHRASES):
+    # LA._TIMING_RE carries the widened forms ("give me 2 weeks", "call me in a few
+    # months", "check back in the spring") that no phrase list here can spell out.
+    if any(p in b for p in SOFT_NO_TIMING_PHRASES) or LA._is_timing(b):
         return "timing"
     return "refusal"
 
@@ -163,6 +165,11 @@ def compliance_check(contact):
 # Dedupe ranking
 # ---------------------------------------------------------------------------
 COMPLIANCE_DEAD_END = {"dnc", "opt_out"}  # thread-derived; unchanged from leads_audit
+# Every dead-end reason now beats a live duplicate of the same seller (7 Ohio KEEP
+# survivors had swallowed one). The exception is wrong_number: like a Twilio
+# undeliverable it is scoped to THAT HANDSET, not the person, so it must not delete
+# the seller's good second number -- exactly the split plan section 4 mandates.
+HANDSET_SCOPED_DEAD_END = {"wrong_number"}
 STATUS_RANK = {"active_pending_us": 5, "replied_then_cold": 4, "soft_no_revisit": 3,
                "dead_end": 2, "never_replied": 1, "no_outbound_yet": 0,
                "excluded": -1}
@@ -172,8 +179,10 @@ def merge_rank(row):
     """Compliance wins over everything; a dead handset loses to a live sibling."""
     if row["status_category"] == "excluded":
         return 100 if row["dnd_class"] == "opt_out" else -1
-    if row["status_category"] == "dead_end" and row["dead_end_reason"] in COMPLIANCE_DEAD_END:
-        return 100
+    if row["status_category"] == "dead_end":
+        # handset-scoped: must LOSE to any live sibling row for the same address,
+        # exactly like an undeliverable number does.
+        return -1 if row["dead_end_reason"] in HANDSET_SCOPED_DEAD_END else 100
     return STATUS_RANK.get(row["status_category"], -1)
 
 
@@ -234,6 +243,12 @@ def audit_contact(c):
             reason, status = f"soft_no_{kind}", "soft_no_revisit"
         else:
             reason = "soft_no_refusal"  # stays dead_end
+    elif not reason and status in ("active_pending_us", "replied_then_cold"):
+        # Real timing language ("call me back in the spring", "give me 2 weeks")
+        # never reaches LA's 6-phrase soft_no list, so it lands here. Re-label so
+        # Stage D writes timing-aware copy. KEEP either way -- never an exclusion.
+        if LA._is_timing(last_in.get("body") if last_in else ""):
+            reason, status = "soft_no_timing", "soft_no_revisit"
 
     row.update({
         "last_message_date_iso": LA.iso(last_ms),
@@ -433,8 +448,23 @@ def selfcheck():
     assert merge_rank(R("dead_end", dead_end_reason="dnc")) > merge_rank(R("active_pending_us"))
     # ...but a dead handset must lose to that seller's live second number
     assert merge_rank(R("excluded", dnd_class="undeliverable")) < merge_rank(R("no_outbound_yet"))
-    assert merge_rank(R("soft_no_revisit")) > merge_rank(R("dead_end"))
+    # dead_end with a reason is now unbeatable, so this contract is stated against
+    # the handset-scoped one (a bare dead_end row with no reason cannot occur:
+    # LA.classify only sets status "dead_end" when a reason fired).
+    assert merge_rank(R("soft_no_revisit")) > merge_rank(
+        R("dead_end", dead_end_reason="wrong_number"))
     assert merge_rank(R("replied_then_cold")) > merge_rank(R("soft_no_revisit"))
+    # every dead-end reason is unbeatable now, EXCEPT the handset-scoped one
+    for reason in ("hard_no", "sold", "soft_no_refusal", "dnc", "opt_out"):
+        assert merge_rank(R("dead_end", dead_end_reason=reason)) > merge_rank(
+            R("active_pending_us")), reason
+    assert merge_rank(R("dead_end", dead_end_reason="wrong_number")) < merge_rank(
+        R("never_replied"))
+    # widened timing detection reaches soft_no_kind
+    assert soft_no_kind("call me back in a few months") == "timing"
+    assert soft_no_kind("give me 2 weeks") == "timing"
+    assert soft_no_kind("check back in the spring") == "timing"
+    assert soft_no_kind("not interested, call me in a few months") == "refusal"
     print("selfcheck OK")
 
 

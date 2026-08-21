@@ -769,9 +769,10 @@ def main():
                    "never_replied": 1, "no_outbound_yet": 0}
 
     def merge_rank(row):
-        if (row["status_category"] == "dead_end"
-                and row["dead_end_reason"] not in HANDSET_SCOPED):
-            return 100  # unbeatable — compliance or a refusal by the seller
+        if row["status_category"] == "dead_end":
+            # handset-scoped reasons must LOSE to a live sibling row for the same
+            # address; every other dead end is unbeatable.
+            return -1 if row["dead_end_reason"] in HANDSET_SCOPED else 100
         return STATUS_RANK.get(row["status_category"], -1)
 
     def dedup_key(row):
