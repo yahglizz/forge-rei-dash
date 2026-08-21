@@ -442,17 +442,34 @@ def apply_drafts(jsonl_path):
             line = line.strip()
             if line:
                 d = json.loads(line)
-                hand[d["id"]] = d["draft"]
+                hand[d["id"]] = d
 
     with open(OUT_CSV, newline="") as f:
         rows = list(csv.DictReader(f))
 
-    guarded = blocked = leaked = untouched = 0
+    guarded = blocked = leaked = untouched = excluded = 0
     for r in rows:
-        new = hand.get(r["contact_id"])
-        if not new:
+        d = hand.get(r["contact_id"])
+        if not d:
+            # never overwritten: the two DETERMINISTIC production replies. A wrong-number
+            # contact should not be re-pitched at all (that is the whole point of the
+            # canned close), and an NRN seller is the nurture lane, not a call push.
+            src = r["draft_source"]
+            r["recommendation"] = "exclude" if src == "canned_wrong_number" else "nurture"
+            r["recommendation_why"] = (
+                "production canned wrong-number close, do not re-pitch"
+                if src == "canned_wrong_number"
+                else "production canned not-right-now nurture line")
             untouched += 1
             continue
+        r["recommendation"], r["recommendation_why"] = d["rec"], d["why"]
+        if d["rec"] == "exclude":
+            excluded += 1
+            r.update({"draft_text": "", "grounded_in": r["seller_last_message"],
+                      "draft_source": "none", "draft_status": "exclude_recommended",
+                      "grounded_words": "", "chars": 0, "sms_segments": 0})
+            continue
+        new = d["draft"]
         said = r["seller_last_message"]
         text = engine._scrub_voice(new, seller_said=said)
         text, did_leak = engine._no_price_over_text(text, r["classification"], said)
@@ -481,7 +498,13 @@ def apply_drafts(jsonl_path):
         w.writeheader()
         w.writerows(rows)
     print(f"[apply] {guarded} re-bodied · {leaked} price-guard swaps · {blocked} blocked · "
-          f"{untouched} left as-is (production canned replies)")
+          f"{excluded} exclude-recommended · {untouched} left as production canned replies")
+    ungrounded = [r for r in rows if r["draft_status"] == "ok" and not r["grounded_words"]
+                  and r["draft_source"] != "canned_nrn"]
+    print(f"[apply] sendable drafts with no lexical echo of the seller's own words: "
+          f"{len(ungrounded)}")
+    for r in ungrounded:
+        print(f"    {r['contact_id']} {r['name']!r} <- {r['seller_last_message'][:70]!r}")
     return rows
 
 
