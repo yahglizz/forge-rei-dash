@@ -67,8 +67,8 @@ TEMPLATES = {
     "never_replied": [
         ("NR-A", "clean restart — name the gap, no guilt, one ask",
          "hi {{contact.first_name}}, this is Yahjair with A Touch of Blessings Home Buyers. "
-         "we reached out about your property a while back and i never wanted to be a bug. "
-         "if your still holding onto it im still buying as is for cash. worth a quick call? "
+         "we reached out about your property a while back and i dont wanna be a bug. "
+         "if your still holding it im still buying as is for cash, worth a quick call? "
          + FOOTER),
         ("NR-B", "question-first — cheapest possible reply, one word gets a thread going",
          "hi {{contact.first_name}}, Yahjair here with A Touch of Blessings Home Buyers. "
@@ -76,9 +76,9 @@ TEMPLATES = {
          "if you do id love 5 min on the phone to see if we can help. "
          + FOOTER),
         ("NR-C", "permission to say no + reassurance stack",
-         "hey {{contact.first_name}}, this is Yahjair with A Touch of Blessings Home Buyers. "
-         "i reached out about your property before and never heard back which is 100% ok. "
-         "still buying as is, 0 fees, you pick the closing date. open to a quick call about it? "
+         "hey {{contact.first_name}}, Yahjair with A Touch of Blessings Home Buyers. "
+         "i reached out about your property before and never heard back, thats 100% ok. "
+         "still buying as is, 0 fees, you pick the closing date. open to a quick call? "
          + FOOTER),
     ],
     "no_outbound_yet": [
@@ -234,10 +234,12 @@ def write_templates():
                      f"{'s' if segs != 1 else ''}**")
             L.append(f"- Raw template with the merge tag unexpanded: {len(text)} chars "
                      f"({enc_t}, {units_t} units)")
-            head = max(0, 153 * segs - units)
-            L.append(f"- Headroom before the next segment boundary: **{head} chars** "
-                     f"(a first name longer than {7 + head} chars would push it to "
-                     f"{segs + 1} segments)")
+            head = max(0, (160 if segs == 1 else 153 * segs) - units)
+            L.append(f"- Headroom before it spills into a {segs + 1}th segment: **{head} "
+                     f"chars** — i.e. safe up to a {7 + head}-character first name. "
+                     f"Longest first name in the whole {seg} list is "
+                     f"{MAX_FIRST_NAME[seg]} chars, so **every contact on this list stays "
+                     f"at {segs} segments**.")
             if enc != "GSM-7":
                 L.append("- **WARNING: not GSM-7.** A non-GSM character forced UCS-2 — "
                          "per-segment budget drops 153 -> 67. Fix before sending.")
