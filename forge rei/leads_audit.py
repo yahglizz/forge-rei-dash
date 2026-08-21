@@ -470,14 +470,16 @@ def _dead_end_reason(body, expected_name=None):
     content-based dead ends. None means the message is a live, actionable seller reply."""
     if body is None:
         return None
-    # Judge the SELLER's words. A tapback / quote-reply carries our own message
-    # inside the quote -- including our "reply STOPALL contact" footer -- and every
-    # rule below would otherwise be reading our text as theirs.
-    body = seller_classify._seller_words(body)
+    # Compliance rules see the FULL body: seller_classify does its own quote
+    # handling and must still catch a carrier opt-out CONFIRMATION quoted inside a
+    # tapback ("👍 to 'You have successfully been unsubscribed'").
     if _is_dnc(body):
         return "dnc"
     if _is_opt_out(body):
         return "opt_out"
+    # The content rules below judge the SELLER's words only. A tapback / quote-reply
+    # carries our own pitch inside the quote and would otherwise be read as theirs.
+    body = seller_classify._seller_words(body)
     if _is_denial(body, expected_name):
         return "wrong_number"
     if _is_sold(body):

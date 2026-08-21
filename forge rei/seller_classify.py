@@ -112,11 +112,28 @@ def _seller_words(text):
     return _QUOTED_SPAN_RE.sub(" ", text or "")
 
 
+# Carrier / platform opt-out CONFIRMATIONS. These land in the thread as their own
+# message and get quoted back by a tapback ("\U0001F44D to 'You have successfully been
+# unsubscribed...'", contact 45GAWv1ODCSmlXh4VxJo). They are proof the person opted
+# out -- never our marketing -- so they are matched on the FULL body, BEFORE the
+# quoted-span strip, and a thumbs-up on one does not resurrect the lead.
+_OPTOUT_CONFIRM_RE = re.compile(
+    r"(?:successfully\s+)?(?:been\s+)?unsubscrib(?:ed|e)\b"
+    r"|you\s+will\s+not\s+receive\s+any\s+(?:more|further)\s+messag"
+    r"|(?:has|have)\s+been\s+(?:added\s+to|placed\s+on|put\s+on)\s+"
+    r"(?:the\s+|our\s+)?(?:do\s*not|dnc|block|suppress)"
+    r"|\bopted\s+out\b|\bopt(?:ed)?[-\s]?out\s+(?:list|request)",
+    re.IGNORECASE,
+)
+
+
 def is_opt_out(text):
     """Compliance-grade, permanent opt-out: STOP family (incl. STOPALL),
     "don't text me", profanity aimed at us, legal/spam threat, "lose my number",
     or a bare negative glyph. Shared with leads_audit.py so the offline blast
     scrubber and the live send gate can never drift apart."""
+    if _OPTOUT_CONFIRM_RE.search(text or ""):
+        return True
     t = _seller_words(text)
     if not t.strip():
         return False

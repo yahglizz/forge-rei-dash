@@ -125,6 +125,13 @@ check(SC.classify(TAPBACK) != "DNC", "positive tapback quoting our STOPALL foote
 # but a real STOP outside the quote still counts
 eq(SC.classify('Stop. “we buy houses” I dont want your texts anymore'), "DNC",
    "stop outside a quoted span")
+# ...and a thumbs-up on a CARRIER opt-out confirmation is not a resurrected lead
+# (45GAWv1ODCSmlXh4VxJo). The confirmation is matched before the quote is stripped.
+CARRIER_CONFIRM = ("\u200b\U0001F44D\u200b to \u201cYou have successfully been unsubscribed. "
+                   "You will not receive any more messages\u201d")
+eq(SC.classify(CARRIER_CONFIRM), "DNC", "tapback on a carrier unsubscribe confirmation")
+check(LA._dead_end_reason(CARRIER_CONFIRM) in ("dnc", "opt_out"),
+      "leads_audit must keep a carrier unsubscribe confirmation excluded")
 
 # ---------------------------------------------------------------------------
 # 4. Thread-wide compliance scan. An opt-out ANYWHERE is permanent.
