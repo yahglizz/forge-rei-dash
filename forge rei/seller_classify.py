@@ -21,9 +21,6 @@ _STOP_KEYWORD_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Bare "stop" -- but never "stop by/in/over/at" (a seller inviting us to visit:
-# "All business discussions are handled in person. Feel free to stop by"), and
-# never inside a word (the naive substring form matched "Chri-stop-her").
 # Bare "stop" is only an opt-out in its IMPERATIVE sense. Requiring it to open a
 # clause (start of message, after punctuation, or after please/pls/just/so/no/then/
 # to) keeps every real Ohio opt-out -- "STOP", "Please stop contacting me.",
@@ -133,6 +130,8 @@ def is_opt_out(text):
         or _LOSE_NUMBER_RE.search(t)
         or _is_negative_glyph(t)
     )
+
+
 _HELP_RE = re.compile(
     r"\b(?:who\s+is\s+this|who\s+are\s+you|wrong\s+number)\b",
     re.IGNORECASE,
