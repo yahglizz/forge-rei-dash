@@ -170,6 +170,10 @@ def grounding(draft, seller_text):
 # ---------------------------------------------------------------------------
 SEG_ROWS = {"never_replied": 2823, "no_outbound_yet": 11,
             "active_pending_us": 109, "replied_then_cold": 80}
+# Measured off the actual segment CSVs, not assumed — a merge field's length is variable
+# and that is the only thing that can move a template across a segment boundary at send
+# time. 0 blank first names in either bulk list; longest is 12 chars.
+MAX_FIRST_NAME = {"never_replied": 12, "no_outbound_yet": 7}
 
 
 def write_templates():
@@ -185,9 +189,13 @@ def write_templates():
     L.append("## Merge field\n")
     L.append("GHL expands `{{contact.first_name}}` at send time. Confirmed in-repo against a "
              "live GHL location (`forge-solomon/skills/solomon-systems-craft.md`). A contact "
-             "with a blank first name renders an EMPTY string, not a fallback — Stage E must "
-             "either filter blank-first-name rows out of the smart list or set a GHL default "
-             "value on the field.\n")
+             "with a blank first name renders an EMPTY string, not a fallback.\n")
+    L.append("Measured on the two bulk CSVs: **0 blank names, longest first name 12 "
+             "characters.** One caveat for Stage E — the audit CSV's `name` column comes from "
+             "GHL's `contactName`, while the merge tag reads the separate `firstName` field. "
+             "They are normally the same first token but are not the same field, so confirm "
+             "`firstName` is populated on the smart list before sending, or set a default "
+             "value on the field in GHL.\n")
     L.append("## Opt-out footer — verbatim, do not reword\n")
     L.append(f"> {FOOTER}\n")
     L.append("This is our own existing outbound language (128 occurrences in the on-disk "
@@ -235,7 +243,7 @@ def write_templates():
             L.append(f"- Raw template with the merge tag unexpanded: {len(text)} chars "
                      f"({enc_t}, {units_t} units)")
             head = max(0, (160 if segs == 1 else 153 * segs) - units)
-            L.append(f"- Headroom before it spills into a {segs + 1}th segment: **{head} "
+            L.append(f"- Headroom before it spills into another segment: **{head} "
                      f"chars** — i.e. safe up to a {7 + head}-character first name. "
                      f"Longest first name in the whole {seg} list is "
                      f"{MAX_FIRST_NAME[seg]} chars, so **every contact on this list stays "
@@ -250,18 +258,20 @@ def write_templates():
     L.append("## Segment-boundary notes\n")
     L.append("- GSM-7: 160 chars in a single message, 153 per part once it splits "
              "(7 chars go to the concatenation header). UCS-2: 70 / 67.\n")
-    L.append("- **Every variant here is 2 segments.** The footer alone is "
-             f"{len(FOOTER)} chars, so a single-segment message would leave ~"
-             f"{160 - len(FOOTER) - 1} chars for the entire pitch — not enough to introduce "
+    L.append("- **Every variant here is exactly 2 segments, for every contact on the list.** "
+             f"The footer alone is {len(FOOTER)} chars, so a 1-segment message would leave "
+             f"~{160 - len(FOOTER) - 1} chars for the entire pitch — not enough to introduce "
              "the business, name the gap, and ask for a call. 2 segments is a deliberate "
-             "trade, not an overrun.\n")
-    L.append("- **One emoji doubles the bill.** Any emoji, curly quote, or en/em dash added "
-             "later flips the message to UCS-2: these ~300-char bodies would jump from 2 "
-             f"segments to 5. On `never_replied` alone that is 5,646 -> 14,115 billed "
-             "segments. Do not paste copy in from a word processor.\n")
-    L.append("- Merge-field length is variable and the counts above assume a 7-character "
-             "first name. The headroom line per variant says exactly how long a name can get "
-             "before that variant crosses into another segment.\n")
+             "trade, not an overrun. Total bulk cost: **5,646 + 22 = 5,668 billed segments** "
+             "whichever variants you pick.\n")
+    L.append("- **One emoji triples the bill.** Any emoji, curly quote, or en/em dash added "
+             "later flips the message to UCS-2 (153 -> 67 per part): a ~300-char body jumps "
+             "from 2 segments to 5. On `never_replied` alone that is 5,646 -> 14,115 billed "
+             "segments for one invisible character. Do not paste this copy through a word "
+             "processor or a chat app that auto-curls quotes.\n")
+    L.append("- Rewriting a variant? Re-run `python3 reengage_copy.py --selfcheck` — it "
+             "re-derives every count and hard-fails on a non-GSM character, a price shape, a "
+             "missing footer, or a missing merge field.\n")
 
     L.append("## Not covered here\n")
     L.append("- `active_pending_us` (109) and `replied_then_cold` (80) get **no template**. "
