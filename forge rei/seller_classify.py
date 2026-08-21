@@ -88,12 +88,27 @@ def _is_negative_glyph(text):
     return "".join(_LETTERS_RE.findall(text)).lower() in _GLYPH_ONLY_WORDS
 
 
+# An iMessage tapback / quote-reply echoes OUR OWN message back at us as inbound
+# text -- and our outreach footer literally reads "If you'd rather not receive
+# messages reply STOPALL contact". Matching opt-out patterns inside that quoted
+# span reads our own compliance line as the seller's opt-out: a positive 👍 on our
+# follow-up would classify DNC and block the operator from answering it. Only the
+# seller's own words -- the text OUTSIDE the quote -- count.
+_QUOTED_SPAN_RE = re.compile(
+    r"[\u201c\u201e\"][^\u201c\u201d\"]{20,}(?:[\u201d\"]|$)")
+
+
+def _seller_words(text):
+    """Strip a long quoted span (our echoed message) from an inbound body."""
+    return _QUOTED_SPAN_RE.sub(" ", text or "")
+
+
 def is_opt_out(text):
     """Compliance-grade, permanent opt-out: STOP family (incl. STOPALL),
     "don't text me", profanity aimed at us, legal/spam threat, "lose my number",
     or a bare negative glyph. Shared with leads_audit.py so the offline blast
     scrubber and the live send gate can never drift apart."""
-    t = text or ""
+    t = _seller_words(text)
     if not t.strip():
         return False
     return bool(
