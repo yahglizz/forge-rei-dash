@@ -683,3 +683,58 @@ in `GHL_IMPORT_verification.json`.
 2. Decide the drafting switch (`FORGE_MARCUS_SMS=1` vs. `ace` mode vs. leave manual) before D1.
 3. Q2 (A2P/10DLC) is still the gate on the whole ramp — 400/day is a capacity number, not a
    carrier number.
+
+### [head agent] verification of Stage E — 2026-08-21 — ACCEPTED
+
+Re-ran the leak check independently against `all_leads_excluded.csv` + `all_leads_dead_end.csv`,
+blocking on contact_id, dedupe-collapsed sibling ids, AND phone:
+```
+TOTAL SENDABLE 3,022 · LEAK by contact_id 0 PASS · LEAK by phone 0 PASS
+duplicate phones across send files 0 · rows with no phone 0 · non-E164 0
+rows with NO email 1,215 (40%)
+```
+The 40%-no-email figure independently confirms E's warning: an **email-keyed GHL import would
+create 1,215 duplicate seller records.** Dedupe on Phone, never Email.
+
+Headers verified against the cited source (`marcus-wholesale-agent/skills/wholesale-list-cleaner/SKILL.md`):
+`First Name · Last Name · Phone · Email · Address1 · City · State · Postal Code · Tags · Contact Id · Segment`.
+
+**Good catch on the 1 dropped row:** `KehwKm3V4Nj6Yan11Wx8` = `yahjair (operator)` — the
+operator's own CRM record, and the only blank phone in the keep-list. We would have texted
+ourselves. Sendable is **3,022**, not 3,023.
+
+**Accepted E's recommendation to NOT import.** Tag by `contact_id` via
+`POST /contacts/{id}/tags` — the same call `scout_triage.py:1467-1475` already makes.
+Additive, cannot create a contact, cannot overwrite a field, reversible. Then every smart
+list is a tag filter forever. It IS a write, so it is operator-gated and the runner was
+deliberately not built. "Just filter in GHL" was correctly rejected: segment membership comes
+from full-thread direction analysis, which GHL cannot express as a native filter.
+
+### ⛔ BLOCKER FOUND BY STAGE E — replies will not auto-draft
+
+Independently reproduced on the box:
+```
+FORGE_MARCUS_SMS : set nowhere  -> defaults "0"  (connector.py:4854)
+lastPoll         : None         -> MARCUS.run_forever never started
+ace.mode()       : off          -> _ace_update_from_screening skips (connector.py:1185)
+```
+An inbound reply still gets scored, bucketed, hot-tagged, auto-pipelined, Telegram-pinged and
+screened — but **no SMS reply draft is produced.** The operator must press "Hand to Marcus"
+per lead. Invisible at today's ~5 replies/day; a hard bottleneck on day 1's 109 warm leads.
+**Operator decision required before send #1.** Note the flag is off *by design* (CLAUDE.md §5:
+"Legacy SMS auto-responder OFF by default"), so turning it on is a deliberate policy change,
+not a bug fix.
+
+Also flagged by E, unresolved: Telegram quiet hours DISABLED with hot-lead + proposal pings
+on (day 1 = 109 leads → overnight phone spam); Scout's UI prunes at `MAX_RECORDS = 300`
+(display cap, not data loss — the GHL smart list must be system of record). A pending-proposal
+backlog exists; exact count unsettled (E measured 38 via its method, a raw `proposals.jsonl`
+scan gives a much larger number) — worth the operator clearing it before adding 3,022 more.
+
+### Ramp accepted (13 business days ≈ 3 calendar weeks)
+D1 warm 109 → D2 warm 90 (cum 199) → **D3 HOLD / GO-NO-GO** → D4 50 · D5 100 · D6 200 ·
+D7 300 · D8–D12 400 · D13 173. Total 3,022 ✓. 50 per batch every 30 min, 10:00–17:00 ET.
+E was straight that **400/day is a capacity number derived from operator call throughput
+(~15–20 calls/day, 400 × 4% ≈ 16 replies), NOT a carrier limit — the carrier cap remains
+Unknown pending Q2 (10DLC).** Correct per the creed; do not let the ramp table imply
+carrier approval.
