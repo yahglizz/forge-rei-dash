@@ -17,7 +17,17 @@ one clean DNC-scrubbed CSV, and re-engage them via a GHL bulk SMS campaign.
 |---|----------|--------|
 | 1 | Send channel | **GHL bulk campaign.** CSV → GHL smart-list → SMS workflow, throttled by GHL. Operator approves copy ONCE per segment. Replies fall back into the normal Scout→Marcus one-tap loop. |
 | 2 | Scope | **All 7,363 contacts, every state, INCLUDING blank-state.** The Ohio-only run dropped ~1,836 contacts; blank-state contacts were silently discarded. Both are bugs. |
-| 3 | `soft_no` ("not right now", "few months", "later") | **RE-ENGAGE.** Own segment, timing-aware copy. It is NOT a refusal. Currently miscoded as `dead_end` — must be split out. |
+| 3 | `soft_no` ("not right now", "few months", "later") | **RE-ENGAGE — as AMENDED 2026-08-21, see below.** Operator intent: exclude only people who said they don't want to sell. |
+
+> **AMENDMENT to decision 3 (head agent, 2026-08-21, evidence-backed).** The literal
+> reading — keep everything tagged `soft_no` — is WRONG and would violate the operator's
+> own stated intent. `_SOFT_NO_PHRASES` conflates timing with refusal: of the 42 `soft_no`
+> rows in the Ohio data, **41 are flat refusals** (`'NOT FOR SALE!!!'`,
+> `'Not for sale no matter what the offer would be'`,
+> `"I still own it but I'm not interested in selling thank you"`, `'Yes but not selling'`).
+> Ruling: `soft_no_refusal` stays `dead_end`; only `soft_no_timing` becomes
+> `soft_no_revisit`. Ambiguous → refusal, per §5.5. `SOFT_NO_REFUSAL_IS_KEEP` stays
+> **False**. Verified independently by the head agent against the raw CSV.
 | 4 | The 194 Ohio drafts from 2026-08-02 | **Redraft fresh.** Threads are 3 weeks staler; Marcus's voice/playbook skills have improved since. |
 
 ## 2. Ground truth (verified 2026-08-21, live GHL reads)
@@ -64,6 +74,27 @@ one clean DNC-scrubbed CSV, and re-engage them via a GHL bulk SMS campaign.
 Carrier-level STOP handling does not always leave an inbound message on the thread. A
 genuinely opted-out contact can therefore classify as `never_replied` and land in a
 5,000-person blast. That is a TCPA violation and a number-shutdown risk.
+
+> **CORRECTION (head agent, 2026-08-21).** The stated *mechanism* above was partly wrong:
+> in the Ohio data all 205 STOP_KEYWORD contacts had already been caught by the thread
+> classifier — carrier-STOP-with-no-thread-message did not occur there. The gate is still
+> mandatory, for two different reasons it did catch: **46 TCPA-grade opt-outs** (DNC tag /
+> operator-set DND) sitting inside live buckets — `active_pending_us` 32,
+> `replied_then_cold` 10, `never_replied` 4 — plus **106 STOP_KEYWORD contacts outside
+> Ohio** the previous run never looked at. Verified independently by the head agent
+> against live GHL: 7,363 pulled · `dnd` bool 4 · `dndSettings.SMS` not-inactive 2,957 ·
+> DNC-ish tag 78. Reason codes: 30005 1371 · 30003 1170 · STOP_KEYWORD 311 ·
+> operator-manual 92 · 30006 10 · 21610 2 · "Opted out" 1.
+
+**Two classes of exclusion — do not collapse them.** `dnd_class` distinguishes:
+- **`opt_out`** — person-level, permanent, compliance-grade (STOP_KEYWORD, 21610
+  blacklist, operator-set DND, DNC tag). Unbeatable dedupe rank. Never text again by any
+  number.
+- **`undeliverable`** — that *handset* only (Twilio 30003/30005/30006, 2,551 contacts).
+  Not a compliance event. Must NOT poison the same seller's second number — thousands of
+  contacts carry "ohio 1st/2nd number" tags, so collapsing these to person-level would
+  discard reachable leads. Excluded from SMS sends anyway: an undeliverable number wastes
+  spend and degrades carrier sender reputation.
 
 **Gate:** no CSV ships and no campaign is proposed until every row has been checked
 against contact-level `dnd` / `dndSettings` / DNC tags, and any hit is excluded with
