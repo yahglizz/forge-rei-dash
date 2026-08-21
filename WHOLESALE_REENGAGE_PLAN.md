@@ -460,3 +460,66 @@ classifier would produce a list with 47 known opt-outs in it.
 Implementing Stage B's 8 fixes + the `seller_classify` production fix. Local edits only,
 explicitly **no deploy**. Must leave a runnable `test_optout_hardening.py` and prove the
 STOPALL count does not regress.
+
+---
+
+### [head agent] verification of Stage B2 — 2026-08-21 — ACCEPTED
+
+Ran B2's suite myself: `test_optout_hardening.py` → **ALL PASS (exit 0)**;
+`full_leads_audit.py --selfcheck` → OK. Spot-checked the live rules directly:
+
+```
+STOPALL / Stopall / STOP ALL -> DNC      STPP TEXTING ME -> DNC    FUCK OFF -> DNC
+stop by the office           -> CONTINUE  Lose my number  -> DNC    Who is this? -> HELP
+yes im interested -> READY                how much can you offer -> PRICE
+```
+De-anchored audit rules: `"Look man you got the wrong number. Good luck."` → denial ✓ ·
+`"No it's been sold"` → sold ✓ · non-regression holds — `"sold my other house"` and
+`"not sold yet"` still do NOT fire. Real buying intent still classifies (READY/PRICE), so
+the hardening did not over-block.
+
+**Ruling on B2's open decision:** `wrong_number` **stays handset-scoped**
+(`HANDSET_SCOPED_DEAD_END = {"wrong_number"}`). It is a property of the handset, not the
+person — identical logic to §4's `undeliverable` class. A seller whose 1st number reaches a
+stranger is still reachable on their 2nd. Worth +48 leads on the deduped keep-list. NOT
+flipped to the strict literal reading of fix 7.
+
+Accepted B2's three judgment calls as made — each was better than the instruction it was
+given, and each is evidenced:
+- our own outreach footer says "reply STOPALL contact", so every tapback quoting our text
+  was classifying DNC and blocking the operator from answering a 👍 — fixed by matching
+  only outside quoted spans, while still catching carrier opt-out confirmations on the
+  full body first;
+- fix 8 as literally written would have un-filtered **130 real outbound messages**
+  ("Still buying as-is for cash…" — our standard follow-up #2). Implemented as a
+  short-message (≤32 char) exemption instead. Measured margin: shortest of our own
+  messages with echoable-only hits = 47 chars; the seller reply being eaten = 19 chars.
+
+### ⚠️ DEPLOY INCIDENT — 2026-08-21 (no fault of the agent; disclosed to operator)
+
+B2 was instructed "local edits only, NO deploy" and made no commit and no push. It was
+deployed anyway: `~/Library/LaunchAgents/com.forge.autosync.plist` → `deploy/auto-sync.sh`
+auto-commits and pushes to `origin/main` **every 60 seconds**, and the box's
+`forge-autopull.timer` polls GitHub every 60s and self-deploys. Daemon predates this job
+(installed Jul 14).
+
+**Verified live state on the box:** `seller_classify.classify('STOPALL')` → **DNC**,
+`'stop by the office'` → **CONTINUE**, `systemctl is-active forge-reios` → **active**.
+The production TCPA hole is closed. Every shipped change is fail-safe (strictly more
+conservative on sends, minus 2 verified false positives it releases).
+
+**Privacy check performed because that repo (`yahglizz/forge-rei-dash`) is PUBLIC:**
+`marcus_state/` is gitignored, **0 tracked files** — no seller names, phones, or addresses
+have been pushed. Only code. Confirmed clean.
+*Unrelated pre-existing item for the operator:* `forge rei/screenshots/leads.png` IS tracked
+in the public repo — worth checking whether it shows real seller data.
+
+**Open for the operator:** pause `com.forge.autosync` for the rest of this job? Downstream
+stages produce lead CSVs; they are gitignored today, but the daemon means no local-only
+guarantee exists on this machine.
+
+### [C] Sweep run — STARTED 2026-08-21
+`python3 full_leads_audit.py` over all 7,363, sequential, log at
+`marcus_state/leads_export/full_sweep.log`. Settings as ruled: `AUDIT_LIMIT=0`,
+`SKIP_THREADS_FOR_EXCLUDED=1`, `SOFT_NO_REFUSAL_IS_KEEP=False`,
+`HANDSET_SCOPED_DEAD_END={"wrong_number"}`. ETA ~73 min.
