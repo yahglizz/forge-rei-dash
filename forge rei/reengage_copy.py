@@ -415,6 +415,76 @@ def draft_warm():
 
 
 # ---------------------------------------------------------------------------
+# --apply: re-body the warm CSV from hand-written drafts, through the SAME production
+# guard chain _ai_draft runs on model output.
+#
+# Why this mode exists: on 2026-08-21 BOTH Anthropic keys the engine can reach
+# (marcus-wholesale-agent/config/ghl.env and forge-agency/config/agency.env) returned
+# HTTP 400 "Your credit balance is too low", so `_ai_draft` silently fell back to the
+# static `draft_reply()` template for all 175 non-canned leads. A template cannot
+# reference what the seller actually said, which is the entire point of drafting these
+# 189 individually. So the drafts are written by hand against each seller's real thread
+# text and pushed through the identical post-processing the engine applies to Claude's
+# output: _scrub_voice -> _no_price_over_text -> _draft_safety_reason. Generation is not
+# the engine's; every safety gate is.
+# ---------------------------------------------------------------------------
+def apply_drafts(jsonl_path):
+    import json
+    import marcus_engine
+    import sms_guard
+
+    engine = marcus_engine.MarcusEngine(lambda *a, **k: {}, lambda *a, **k: (_ for _ in ()) .throw(
+        RuntimeError("no writes")), "offline")   # offline: no GHL call is made in this mode
+    hand = {}
+    with open(jsonl_path) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                d = json.loads(line)
+                hand[d["id"]] = d["draft"]
+
+    with open(OUT_CSV, newline="") as f:
+        rows = list(csv.DictReader(f))
+
+    guarded = blocked = leaked = untouched = 0
+    for r in rows:
+        new = hand.get(r["contact_id"])
+        if not new:
+            untouched += 1
+            continue
+        said = r["seller_last_message"]
+        text = engine._scrub_voice(new, seller_said=said)
+        text, did_leak = engine._no_price_over_text(text, r["classification"], said)
+        if did_leak:
+            leaked += 1
+        reason = marcus_engine._draft_safety_reason(text, said)
+        if reason:
+            blocked += 1
+            r["draft_status"] = "blocked"
+            r["draft_text"] = f"[BLOCKED: {reason}]"
+            r["draft_source"] = "blocked"
+            continue
+        assert not sms_guard._quotes_price_or_offer(text), \
+            f"{r['contact_id']} would be rejected by the live send gate: {text!r}"
+        text = f"{text} {FOOTER}"
+        shared = grounding(text, said)
+        enc, _units, segs = sms_segments(text)
+        r.update({"draft_text": text, "draft_source": "price_guard" if did_leak else "handwritten",
+                  "draft_status": "ok", "grounded_in": said,
+                  "grounded_words": " ".join(shared), "chars": len(text),
+                  "sms_segments": segs})
+        guarded += 1
+
+    with open(OUT_CSV, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=OUT_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    print(f"[apply] {guarded} re-bodied · {leaked} price-guard swaps · {blocked} blocked · "
+          f"{untouched} left as-is (production canned replies)")
+    return rows
+
+
+# ---------------------------------------------------------------------------
 def demo():
     """Self-check: pure logic, no network, no Claude. Exit 1 on failure."""
     # 1. segment math
@@ -469,6 +539,9 @@ def demo():
 if __name__ == "__main__":
     if "--selfcheck" in sys.argv:
         demo()
+    elif "--apply" in sys.argv:
+        demo()
+        apply_drafts(sys.argv[sys.argv.index("--apply") + 1])
     elif "--templates" in sys.argv:
         demo()
         print("Wrote", write_templates())
