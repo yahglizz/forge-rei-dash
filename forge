@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# forge — call any FORGE agent from any shell (Mac, PC, SSH, Claude Code, cron).
+#
+# Same brains the dashboard and Telegram talk to: POSTs the existing
+# /api/hub/* endpoints on the box. No new backend, no extra auth — the network
+# is the perimeter (DO firewall blocks public; reach it over Tailscale).
+#
+#   forge scout what's hot today
+#   forge midas which product is winning
+#   forge task solomon pull the ratio report
+#   forge agents | forge tasks [agent] | forge bus [agent]
+#   echo "long question..." | forge marcus
+#
+# Box URL: $FORGE_URL, else tailnet, else localhost:7799.
+set -euo pipefail
+
+TAILNET="https://forge-reios.tail0a2dda.ts.net"
+LOCAL="http://localhost:7799"
+AGENTS="marcus scout atlas dyson eco solomon midas"
+
+usage() {
+  cat <<'EOF'
+forge — call any FORGE agent from anywhere
+
+  forge <agent> <message...>     ask that agent (marcus scout atlas dyson eco solomon midas)
+  forge task <agent> <title...>  file a real job (hub task + agent bus; the agent sees it)
+  forge agents                   live roster + status
+  forge tasks [agent]            open/recent tasks
+  forge bus [agent]              agent bus messages (alerts, handoffs, coaching)
+
+  echo "..." | forge <agent>     message from stdin (long text, pipes, files)
+  FORGE_URL=... forge ...        override the box URL
+  forge --json <cmd>             raw JSON instead of formatted output
+
+Agents propose, never act outward — asking is always safe.
+EOF
+}
+
+# --- box resolution ------------------------------------------------------
+resolve() {
+  if [ -n "${FORGE_URL:-}" ]; then echo "$FORGE_URL"; return; fi
+  for base in "$TAILNET" "$LOCAL"; do
+    if curl -fsS -m 4 -o /dev/null "$base/api/hub/roster" 2>/dev/null; then
+      echo "$base"; return
+    fi
+  done
+  echo "forge: can't reach the box. Tailscale up? Or set FORGE_URL." >&2
+  exit 1
+}
+
+# --- transport -----------------------------------------------------------
+# jq isn't on every machine (the PC), python3 is — and it does the JSON
+# escaping too, so one dependency covers both directions.
+post() { # post <path> <key=val>...
+  local path="$1"; shift
+  python3 - "$BASE$path" "$@" <<'PY'
+import json, sys, urllib.request
+url, pairs = sys.argv[1], sys.argv[2:]
+body = json.dumps(dict(p.split("=", 1) for p in pairs)).encode()
+req = urllib.request.Request(url, body, {"Content-Type": "application/json"})
+sys.stdout.write(urllib.request.urlopen(req, timeout=180).read().decode())
+PY
+}
+
+get() { curl -fsS -m 60 "$BASE$1"; }
+
+# --- formatting ----------------------------------------------------------
+fmt() { # fmt <mode>  (reads JSON on stdin)
+  local raw; raw="$(cat)"
+  if [ "${JSON:-0}" = "1" ]; then printf '%s\n' "$raw"; return; fi
+  # Payload rides in argv because stdin is already carrying the program heredoc.
+  # ponytail: fine to ~1MB (ARG_MAX); use a temp file if a reply ever outgrows it.
+  python3 - "$1" "$raw" <<'PY'
+import json, sys, time
+mode, raw = sys.argv[1], sys.argv[2]
+try:
+    d = json.loads(raw)
+except Exception:
+    print(raw.strip()); sys.exit(0)
+
+def when(ms):
+    return time.strftime("%m/%d %H:%M", time.localtime((ms or 0) / 1000))
+
+if mode == "chat":
+    if d.get("needsKey"):
+        print("needs an API key on the box:", d.get("needsKey")); sys.exit(1)
+    print((d.get("reply") or d.get("error") or json.dumps(d)).strip())
+elif mode == "task":
+    t = d.get("task") or d
+    if t.get("title"):
+        who = t.get("agentName") or t.get("agentId")
+        print(f"filed -> {who}: {t['title']}  [{t.get('id','')}]")
+    else:
+        print(json.dumps(d))
+elif mode == "roster":
+    for a in d.get("agents", []):
+        err = (a.get("status") or {}).get("lastError")
+        print(f"{a.get('emoji','')}  {a['id']:<8} {a.get('businessLabel',''):<18} "
+              f"{a.get('role','')}" + (f"   !! {err}" if err else ""))
+elif mode == "tasks":
+    rows = d.get("tasks", [])
+    if not rows: print("no tasks"); sys.exit(0)
+    for t in rows[:25]:
+        print(f"[{t.get('status','?'):<7}] {t.get('agentId',''):<8} {when(t.get('createdAt'))}"
+              f"  {(t.get('title') or '')[:88]}")
+elif mode == "bus":
+    rows = d.get("messages", [])
+    if not rows: print("bus quiet"); sys.exit(0)
+    for m in rows[:25]:
+        print(f"{when(m.get('ts'))}  {m.get('from',''):<9}->{m.get('to',''):<9} "
+              f"{(m.get('text') or '')[:96]}")
+else:
+    print(json.dumps(d, indent=2))
+PY
+}
+
+# --- args ----------------------------------------------------------------
+JSON=0
+[ "${1:-}" = "--json" ] && { JSON=1; shift; }
+export JSON
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  ""|-h|--help|help) usage; exit 0 ;;
+esac
+
+BASE="$(resolve)"
+
+case "$cmd" in
+  agents)
+    get /api/hub/roster | fmt roster ;;
+  tasks)
+    get "/api/hub/tasks${1:+?agentId=$1}" | fmt tasks ;;
+  bus)
+    get "/api/hub/bus${1:+?agentId=$1}" | fmt bus ;;
+  task)
+    agent="${1:-}"; shift || true
+    case " $AGENTS " in *" $agent "*) ;; *)
+      echo "forge task <agent> <title...>   agents: $AGENTS" >&2; exit 2 ;;
+    esac
+    title="$*"; [ -n "$title" ] || { echo "forge: task needs a title" >&2; exit 2; }
+    post /api/hub/task "agentId=$agent" "title=$title" | fmt task ;;
+  *)
+    case " $AGENTS " in *" $cmd "*) ;; *)
+      echo "forge: unknown '$cmd'. agents: $AGENTS  (forge --help)" >&2; exit 2 ;;
+    esac
+    msg="$*"
+    # No message on the line -> read it from stdin (pipes, heredocs, files).
+    if [ -z "$msg" ] && [ ! -t 0 ]; then msg="$(cat)"; fi
+    if [ -z "${msg//[[:space:]]/}" ]; then
+      echo "forge: say something to $cmd" >&2; exit 2
+    fi
+    post /api/hub/chat "agentId=$cmd" "message=$msg" | fmt chat ;;
+esac
