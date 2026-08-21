@@ -738,3 +738,84 @@ E was straight that **400/day is a capacity number derived from operator call th
 (~15–20 calls/day, 400 × 4% ≈ 16 replies), NOT a carrier limit — the carrier cap remains
 Unknown pending Q2 (10DLC).** Correct per the creed; do not let the ramp table imply
 carrier approval.
+
+---
+
+### [D] Copy Writer — 2026-08-21 — DELIVERED · 2 findings that change Stage E
+
+**Files:** `forge rei/reengage_copy.py` (new, ~600 lines, stdlib) ·
+`marcus_state/leads_export/reengage_templates.md` ·
+`marcus_state/leads_export/reengage_drafts_warm.csv`.
+Self-check `python3 reengage_copy.py --selfcheck` (0 API calls, 0 Claude calls) → ALL PASS.
+Read-only: GET only, `ghl_post_canary` passed into the engine, no write verb in the file,
+nothing sent.
+
+**1. BULK — 3 variants × 2 segments, all verified.** `{{contact.first_name}}` merge field
+(GHL syntax confirmed in-repo against a live location). Every variant: **GSM-7, exactly 2
+SMS segments, opt-out footer, zero price.** Footer is our own outbound language verbatim —
+`If you'd rather not receive messages reply STOPALL contact, have a blessed day` (128
+occurrences in the on-disk thread dumps) — with **one deliberate change: the straight
+apostrophe replaces the curly `’` used in 122 of them.** `’` is not in GSM-7; it silently
+forces UCS-2 and cuts the budget 153 → 67 chars, which on 2,823 sends turns a 2-segment
+message into 5 (5,646 → 14,115 billed segments) for an invisible character.
+Measured on the actual CSVs: 0 blank first names, longest 12 chars, so every contact stays
+at 2 segments. Bulk total **5,668 billed segments**. 3 variants is a deliverability
+measure, not indecision — 2,823 byte-identical bodies from one number is the signature
+carriers filter on; rotating three keeps any body under ~950 sends.
+
+**2. WARM — 189 drafted individually, and 88 of them should NOT be texted.** This is the
+finding. Reading all 189 real threads: **`recommendation` = send 91 · nurture 10 ·
+exclude 88** (`active_pending_us` 33/7/69 · `replied_then_cold` 58/3/19). The 88 are wrong
+numbers ("Wong number", "Am not Kenneth sorry", "Paulette has not had this # for 18
+years"), flat refusals ("pass. thank you.", "No interest in selling thanks"), hostility, a
+carrier bounce, and **4 people who are buyers not sellers** (`ttb7dvGh1bI76CDvnzVc` "I do
+not sell I only buy", `XkB3meE7vHESoAr0VGXH`, `IJxKPwtFrs4NaJTFrqxa`, `AylYmth33nB6XJ81I0Ie`).
+Stage B predicted ~72 KEEP rows needing exclusion location-wide; in the 189 warm rows alone
+it is 88. **Stage E must filter on `recommendation`, never on row count.** Excluded rows
+carry an empty `draft_text` on purpose.
+
+**3. BLOCKER — both Anthropic keys are out of credit, so the real drafter never ran.**
+`marcus-wholesale-agent/config/ghl.env` and `forge-agency/config/agency.env` both return
+`HTTP 400: Your credit balance is too low to access the Anthropic API`. `_ai_draft`
+catches that and silently returns `_template_reply(), "template"` — so the first run
+produced 175 static templates, not grounded copy, with the failure visible only in
+`engine.last_error`. **This is live on the box too: Marcus is currently drafting every
+seller reply from static templates, and Scout/Atlas/Solomon/Midas make no Claude calls
+either.** Nothing in the health card surfaces it. Operator action required.
+Workaround used: the 189 drafts are hand-written against each seller's real thread text and
+pushed through the **identical** production post-processing (`_scrub_voice` →
+`_no_price_over_text` → `_draft_safety_reason`, plus `sms_guard._quotes_price_or_offer`),
+via `reengage_copy.py --apply`. Generation is not the engine's; every safety gate is.
+Re-run the whole thing through `_ai_draft` once the key is funded.
+
+**4. `marcus_engine._is_denial` "who is this" false positive is LIVE and it fired here.**
+4 sellers who asked `Who is this?` / `Who are you?` (`TLacazLeIRfc6eyUgOhq`,
+`BGRQSCH3XdqJpRxIl0Kt`, `b8F64jZzQ7yzgxWFSRvg`, `gWcpARuIMwxu3Vy0TOrr`) got the canned
+wrong-number close instead of a re-engage. Stage B fix 6 was applied to the audit copy
+only; B2 deliberately left `marcus_engine.py` alone. I did **not** touch live code — I
+overrode those 4 rows in the CSV output and flagged them. Production still mis-handles this
+every time a seller asks who we are.
+
+**Verification of the output (0 violations, all 101 sendable drafts):** no price shape
+(`MarcusEngine._PRICE_RE`), no send-gate trip (`sms_guard._quotes_price_or_offer`), no `$`,
+no 3+ digit run, no "offer"/"ballpark", no draft-safety reason, no em-dash/semicolon/
+exclamation, footer present, GSM-7, exactly 2 segments each (202 billed total).
+**No message in either deliverable contains a price, offer, range, or ballpark. Nothing was
+sent and no GHL write was made.**
+
+**Grounding.** `grounded_in` carries the seller's real thread text for every one of the 189
+rows; `grounded_words` carries the distinctive words the draft actually echoes. **8 sendable
+drafts echo no seller word**, and 7 of those are correct behavior: the seller's only
+distinctive tokens WERE the price figure or the word "offer" (`$750K`, `Offer?`, `Make the
+offer`, `80000`, `Yess Give me 250,000`, `Give me a ballpark figure`, `what's your offer?`)
+— both forbidden to echo. **Exactly one is genuinely ungroundable: `43HZDM5cFuerGHtXq676`
+john mcrae, whose entire reply was the word "Nine".** That one is deliberately generic.
+
+**For the head agent:**
+1. Fund an Anthropic key, then re-run `python3 reengage_copy.py` to regenerate the 101
+   sendable drafts through the real engine, and check whether the box has been running on
+   templates long enough to matter.
+2. The 88 exclusions are a copy-writer's read of the thread text, not a compliance
+   classification. They are not in `all_leads_excluded.csv`. Decide whether Stage E just
+   filters them or whether they should be pushed back into the audit's exclude set.
+3. `_is_denial`'s "who is this" clause is still live. Same call B2 deferred.
