@@ -460,7 +460,9 @@ _TIMING_RE = re.compile(
 
 
 def _is_timing(body):
-    return bool(_TIMING_RE.search(body or ""))
+    # seller's own words only: a 👍 tapback quotes our "can close in 2 weeks" back
+    # at us and would otherwise read as the seller asking for two weeks.
+    return bool(_TIMING_RE.search(seller_classify._seller_words(body)))
 
 
 def _dead_end_reason(body, expected_name=None):
@@ -468,6 +470,10 @@ def _dead_end_reason(body, expected_name=None):
     content-based dead ends. None means the message is a live, actionable seller reply."""
     if body is None:
         return None
+    # Judge the SELLER's words. A tapback / quote-reply carries our own message
+    # inside the quote -- including our "reply STOPALL contact" footer -- and every
+    # rule below would otherwise be reading our text as theirs.
+    body = seller_classify._seller_words(body)
     if _is_dnc(body):
         return "dnc"
     if _is_opt_out(body):
