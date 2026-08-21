@@ -277,6 +277,12 @@ def write_templates():
     L.append("- `active_pending_us` (109) and `replied_then_cold` (80) get **no template**. "
              "They are individually drafted in `reengage_drafts_warm.csv` — they are the "
              "warmest leads in the business and a merge-field blast wastes them.\n")
+    L.append("- **Stage E: that CSV is not 189 sends.** Reading all 189 threads turned up "
+             "**88 rows that should not be texted at all** (wrong number, not the owner, "
+             "flat refusal, hostility, a carrier bounce, and four people who are buyers not "
+             "sellers). Filter on the `recommendation` column — `send` 91, `nurture` 10, "
+             "`exclude` 88 — and never on row count. Excluded rows carry an empty "
+             "`draft_text` on purpose.\n")
     L.append("- Property address is deliberately NOT merged in. `{{contact.address1}}` "
              "renders empty on any contact missing it and produces a broken sentence at "
              "scale. If Stage E confirms address coverage is 100% on the send list, adding "
@@ -549,7 +555,7 @@ def demo():
     eng = marcus_engine.MarcusEngine(lambda *a, **k: {}, lambda *a, **k: None, "offline")
     safe, leaked = eng._no_price_over_text("i can do $40k on it", "PRICE", "how much")
     assert leaked and "$40k" not in safe, "the price guard the apply path relies on is dead"
-    assert eng._scrub_voice("hi there!; ok") == "hi there,. ok".replace(",.", ".")
+    assert eng._scrub_voice("hi there!; ok") == "hi there., ok"  # ! -> . and ; -> ,
     assert marcus_engine._draft_safety_reason("", "") == "empty draft"
 
     # 4. grounding overlap actually discriminates
