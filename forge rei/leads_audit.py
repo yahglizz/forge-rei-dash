@@ -25,6 +25,12 @@ TARGET_STATE = "OH"  # 2-letter or full name; case-insensitive exact match again
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(HERE, "..", "marcus-wholesale-agent", "config", "ghl.env")
 OUT_DIR = os.path.join(HERE, "marcus_state", "leads_export")
+
+# The compliance strings live in ONE place: seller_classify.py, the tracked module
+# the live send gate uses. Importing it here (stdlib-only, same folder, no side
+# effects) is what stops the offline blast scrubber and production from drifting.
+sys.path.insert(0, HERE)
+import seller_classify  # noqa: E402
 OUT_CSV = os.path.join(OUT_DIR, "ohio_leads_audit.csv")
 
 USER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -217,12 +223,21 @@ _SOFT_NO_PHRASES = [
     "keeping the house", "keeping the property",
 ]
 
+# Anchored on purpose: a search-anywhere "no" would eat "no rush", "no problem",
+# "I have no idea". Recall is added by widening the ALTERNATION (standalone forms
+# found in the Ohio data: "Nfs", "No sale.", "Not intrested"), never by unanchoring.
 _HARD_NO_RE = re.compile(
-    r"^\s*(no+|nope|nah+|no\s*thanks?|no\s*thank\s*you|not\s*interested"
-    r"|no\s*i'?m?\s*good|no\s*sorry|sorry\s*no|not\s*for\s*me|no\s*thx)"
+    r"^\s*(no+|nope|nah+|no\s*thanks?|no\s*thank\s*you|not\s*int[a-z]{0,4}sted"
+    r"|no\s*i'?m?\s*good|no\s*sorry|sorry\s*no|not\s*for\s*me|no\s*thx"
+    r"|nfs|no\s*sale|not\s*sell?ing|hard\s*(?:no|pass)|pass)"
     r"[\s.!?,'\"\-]*$",
     re.IGNORECASE,
 )
+
+# Unambiguous refusals that can sit inside a longer sentence. Kept tiny on purpose.
+_REFUSAL_ANY_RE = re.compile(
+    r"(?i)\bnfs\b|\bnot\s+for\s+sale\b|\bno\s+sale\b"
+    r"|\bnot\s+int[a-z]{0,4}sted\s+in\s+sell")
 
 _OPT_OUT_PHRASES = [
     "remove my number", "take me off", "off your list", "off your website",
@@ -259,7 +274,11 @@ _STANDALONE_DENIAL_RE = re.compile(
     r"did\s+i\s+call\s+you|did\s+you\s+call\s+me|you\s+called\s+me|"
     r"i\s+(?:did\s+not|didn'?t)\s+call\s+you|"
     r"(?:i\s+)?never\s+(?:called|talked\s+to|spoke\s+to)\s+you|"
-    r"who\s+dis|who(?:'?s|\s+is)\s+this|who\s+are\s+you|what\s+is\s+this"
+    # "who is this / who are you / who dis" REMOVED 2026-08-21: it is the single
+    # most normal reply to a cold text, not a wrong number. It killed 5 real leads
+    # in the Ohio audit (D3ugTFgL48MGaf4M1icx had SIX inbound messages). Production
+    # seller_classify already calls this HELP; this now matches.
+    r"what\s+is\s+this"
     r")\s*[?.!,]*(?:\s*(?:no+|nope|nah+))?\s*[?.!,]*$",
     re.IGNORECASE,
 )
@@ -299,8 +318,19 @@ def _named_identity_match(body, expected_name=None):
 
 
 def _is_dnc(body):
+    """Compliance-grade opt-out, delegated to the tracked live classifier.
+
+    The legacy substring list is still ORed in MINUS bare "stop", so this can only
+    gain recall, never lose it. Bare "stop" as a substring was matching inside words
+    ("Chri-STOP-her") and inside "feel free to stop by"; the STOPALL family it DID
+    catch by accident (77 real Ohio opt-outs) is now matched explicitly by
+    seller_classify._STOP_KEYWORD_RE. Verified: the STOPALL count did not drop."""
     b = (body or "").lower()
-    return any(p in b for p in _DNC_PHRASES)
+    if not b.strip():
+        return False
+    if seller_classify.is_opt_out(body):
+        return True
+    return any(p in b for p in _DNC_PHRASES if p != "stop")
 
 
 def _is_opt_out(body):
@@ -314,10 +344,27 @@ def _is_soft_no(body):
 
 
 def _is_hard_no(body):
-    return bool(_HARD_NO_RE.match(body or ""))
+    return bool(_HARD_NO_RE.match(body or "") or _REFUSAL_ANY_RE.search(body or ""))
+
+
+# The rules above are effectively fullmatch (^...$), so ANY extra clause defeated
+# them -- "Look man you got the wrong number. Good luck." stayed in a KEEP bucket
+# (55 such rows in the Ohio audit). This is the search-anywhere companion: it fires
+# only on an unambiguous wrong-number/not-the-owner core phrase, never on a bare "no".
+_WRONG_NUMBER_ANY_RE = re.compile(
+    r"(?i)\b(?:wrong|wring|worng|incorrect)\s+(?:number|person|phone|guy|gal|lady|"
+    r"contact|name)\b"
+    r"|\byou(?:'?ve|\s+have|\s+got|\s+hv)?\s+(?:have|got)?\s*(?:the\s+)?wrong\b"
+    r"|\b(?:that|this)(?:'?s|\s+is)\s+not\s+my\s+(?:name|number)\b"
+    r"|\bi\s+(?:do\s+not|don'?t|dont)\s+own\s+(?:it|this|that|any|the|a\b)"
+    r"|\bnever\s+owned\b"
+    r"|\bno\s*(?:one|body)\s+here\s+owns\b"
+    r"|\bnot\s+(?:the\s+)?(?:owner|seller)\b")
 
 
 def _is_denial(body, expected_name=None):
+    if _WRONG_NUMBER_ANY_RE.search(body or ""):
+        return True
     if _DENIAL_MESSAGE_RE.match(body or ""):
         return True
     if _STANDALONE_DENIAL_RE.match(body or ""):
@@ -336,9 +383,84 @@ _SOLD_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Search-anywhere companion. _SOLD_RE fired exactly ONCE in 5,527 rows because it is
+# fullmatch: "No it's been sold", "It's sold please forget about it", "Sold them all
+# sorry" and "Carbon has been sold" all stayed in KEEP buckets. _SOLD_RE had ZERO
+# false positives and that is the property to protect, so every branch below needs a
+# subject or an auxiliary verb glued to "sold", and _NOT_SOLD_RE vetoes first.
+_SOLD_ANY_RE = re.compile(
+    r"(?i)\b(?:"
+    r"(?:has|have|had|hs)\s+(?:been\s+)?sold"
+    r"|(?:is|was|are|were)\s+sold"
+    r"|(?:it|that|this|its|it'?s|they|house|home|property|place)\s*"
+    r"(?:'?s|is|was|been|already)?\s*(?:been\s+)?sold"
+    r"|already\s+sold"
+    r"|sold\s+(?:it|them|that|this|already|last|off|the\s+\w+)"
+    r")\b")
+
+# Anything that means NOT sold. Checked first, so "not sold yet", "thinking of
+# getting it sold" and "sold my other house" can never reach the rule above.
+_NOT_SOLD_RE = re.compile(
+    r"(?i)\b(?:not|isn'?t|hasn'?t|haven'?t|hadn'?t|aren'?t|wasn'?t|weren'?t|never|"
+    r"won'?t|would|could|should|might|may|if|when|once|unless|before|until|"
+    r"get(?:ting)?|to\s+be|want(?:ing|ed)?\s+to|trying\s+to|thinking\s+(?:of|about)|"
+    r"plan(?:ning)?\s+to|going\s+to|hoping\s+to|need(?:ing)?\s+to|like\s+to)\s+"
+    r"(?:\w+\s+){0,3}?sold\b"
+    r"|\bsold\s+(?:my\s+|the\s+|another\s+)?other\b"
+    r"|\bnot\s+for\s+sale\b")
+
 
 def _is_sold(body):
-    return bool(_SOLD_RE.match((body or "").strip()))
+    b = (body or "").strip()
+    if not b:
+        return False
+    if _NOT_SOLD_RE.search(b):
+        return False
+    return bool(_SOLD_RE.match(b) or _SOLD_ANY_RE.search(b))
+
+
+def _compliance_reason(inbound_msgs):
+    """dnc/opt-out found ANYWHERE in the thread wins, permanently.
+
+    _dead_end_reason only ever saw the LAST inbound. 11+ Ohio threads had an explicit
+    seller opt-out earlier with a benign final message -- Is62uAj55dJ5UPcUguzy said
+    "Please stop damn texting me" and then sent a bare emoji, and classified
+    active_pending_us. A seller can change their mind about SELLING; nobody un-says
+    STOP. Non-compliance dead ends (sold/hard_no/wrong_number) deliberately stay on
+    the most recent genuine reply."""
+    reason = None
+    for m in inbound_msgs:
+        body = m.get("body")
+        if _is_dnc(body):
+            return "dnc"
+        if reason is None and _is_opt_out(body):
+            reason = "opt_out"
+    return reason
+
+
+# Timing objections ("call me in the spring") that _SOFT_NO_PHRASES has no word for --
+# it contains no "later"/"few months" form at all, so genuine timing leads land in
+# active_pending_us/replied_then_cold instead of soft_no. Consumed by
+# full_leads_audit.py to re-label them soft_no_revisit; it is NEVER an exclusion here,
+# so a false positive costs a copy angle, not a lead.
+_TIMING_RE = re.compile(
+    r"(?i)\b(?:"
+    r"(?:call|text|hit|reach|contact|check|try|get)\s+(?:me\s+|back\s+|up\s+|"
+    r"with\s+me\s+)*(?:back\s+)?(?:in|around|after|next|later|this\s+(?:spring|"
+    r"summer|fall|winter))\b"
+    r"|give\s+me\s+(?:a\s+)?(?:\d{1,2}|few|couple(?:\s+of)?|some)\s*"
+    r"(?:more\s+)?(?:days?|weeks?|months?|years?)"
+    r"|check\s+back\s+(?:in|with|next|later|around)"
+    r"|(?:in|after)\s+(?:a\s+)?(?:few|couple(?:\s+of)?|\d{1,2})\s+"
+    r"(?:more\s+)?(?:days?|weeks?|months?|years?)"
+    r"|(?:next|this\s+coming)\s+(?:spring|summer|fall|autumn|winter|year|month)"
+    r"|down\s+the\s+road|later\s+(?:this|next)\s+year"
+    r"|maybe\s+(?:in|next|later)|ask\s+me\s+(?:again|later)"
+    r")\b")
+
+
+def _is_timing(body):
+    return bool(_TIMING_RE.search(body or ""))
 
 
 def _dead_end_reason(body, expected_name=None):
@@ -508,8 +630,10 @@ def classify(messages, expected_name=None):
 
     last_inbound = inbound_seller_msgs[-1] if inbound_seller_msgs else None
     last_outbound = outbound_msgs[-1] if outbound_msgs else None
-    dead_end_reason = (_dead_end_reason(last_inbound.get("body"), expected_name)
-                        if last_inbound else None)
+    # Compliance first, across the WHOLE thread, and it outranks the last reply.
+    dead_end_reason = _compliance_reason(inbound_seller_msgs) or (
+        _dead_end_reason(last_inbound.get("body"), expected_name)
+        if last_inbound else None)
 
     if not messages:
         return ("no_outbound_yet", last_inbound, last_outbound, total_inbound,
@@ -632,13 +756,22 @@ def main():
     # person's two phone numbers ever said "STOP", the whole person is off-limits, even if
     # their other number looks like a live pending reply. Below that, pick the most
     # actionable status.
-    COMPLIANCE_DEAD_END = {"dnc", "opt_out"}
+    # Every dead-end reason is about the PERSON or the PROPERTY and therefore beats
+    # a live sibling row: 7 Ohio KEEP survivors swallowed a dead_end duplicate of the
+    # same seller (VFfQJHM5bR9fiALwHSZK kept over j9NaCdLdNqjBgNOz2lXN "No").
+    # wrong_number is the one exception -- like a Twilio-undeliverable handset it is
+    # scoped to THAT PHONE, not the person, and thousands of contacts carry
+    # "ohio 1st/2nd number" tags, so letting it poison the address would delete the
+    # seller's good number along with the bad one. Same rule as plan section 4's
+    # opt_out-vs-undeliverable split.
+    HANDSET_SCOPED = {"wrong_number"}
     STATUS_RANK = {"active_pending_us": 4, "replied_then_cold": 3, "dead_end": 2,
                    "never_replied": 1, "no_outbound_yet": 0}
 
     def merge_rank(row):
-        if row["status_category"] == "dead_end" and row["dead_end_reason"] in COMPLIANCE_DEAD_END:
-            return 100  # unbeatable — compliance
+        if (row["status_category"] == "dead_end"
+                and row["dead_end_reason"] not in HANDSET_SCOPED):
+            return 100  # unbeatable — compliance or a refusal by the seller
         return STATUS_RANK.get(row["status_category"], -1)
 
     def dedup_key(row):
