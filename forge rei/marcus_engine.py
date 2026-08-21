@@ -385,6 +385,7 @@ _OUR_OUTREACH_PHRASES = [
     "wanted to reach out", "wanted to see if", "wanted to ask if",
     "trying to reach you", "tried calling you", "following up on my call",
     "following up on my text", "following up about the property",
+    "following up on my note", "still buying as-is",
     "would you consider selling", "have you considered selling",
     "interested in selling your", "consider an offer on",
     "cash for your property", "cash for your home",
@@ -406,10 +407,36 @@ _OUR_OUTREACH_RE = re.compile(
 )
 
 
+# Phrases a seller can legitimately echo back at us. On their own they mean "our
+# outreach" only inside a full-length pitch; a SHORT inbound that contains one is
+# the seller talking. Measured on 690 real Ohio outbound + 365 inbound messages
+# (2026-08-21): the shortest of our own messages caught by an echoable-only hit is
+# 47 chars ("Elizabeth with a touch of blessings home buyers"); the only seller
+# reply eaten by one is 19 chars ("Touch of Blessings?", contact MY1qNVo5dCGgbJASuyWV,
+# an engaged question we deleted). 32 sits between them with margin on both sides.
+# ponytail: length heuristic, not semantics -- if a real pitch ever ships under 32
+# chars, add its distinctive words to _OUR_OUTREACH_PHRASES instead of raising this.
+_ECHOABLE_OUTREACH_PHRASES = {
+    "as-is", "cash offer", "close fast", "close quickly", "we pay cash",
+    "no realtor", "no agents", "touch of blessing", "touch of blessings",
+}
+_ECHO_SHORT_MAX = 32
+
+
 def _is_our_message(body):
     """True if the text reads like OUR outreach (not a seller's reply)."""
     b = (body or "").lower()
-    return any(p in b for p in _OUR_OUTREACH_PHRASES) or bool(_OUR_OUTREACH_RE.search(body or ""))
+    hits = [p for p in _OUR_OUTREACH_PHRASES if p in b]
+    if _OUR_OUTREACH_RE.search(body or ""):
+        return True
+    if not hits:
+        return False
+    # Only echoable marketing/brand words, in a message far too short to be our
+    # pitch -> the seller is quoting us back, not us texting ourselves.
+    if len(b.strip()) <= _ECHO_SHORT_MAX and all(h in _ECHOABLE_OUTREACH_PHRASES
+                                                  for h in hits):
+        return False
+    return True
 
 
 # Model-output admission checks. These are intentionally deterministic and are run once
