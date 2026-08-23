@@ -12,15 +12,36 @@ const NAV = [
   ["Brain", "Brain"], ["SystemHealth", "System Health"], ["Costs", "Costs"],
 ];
 
-// Forge AI Agency workspace — ClientForge ops + control center
+// Forge AI Agency workspace — ClientForge ops + control center.
+//
+// Two LENSES inside this one workspace (the sidebar toggle in shell.jsx switches them):
+//   "p" = PERSONAL — the businesses I own. The daycare is the focus; the other
+//         owned businesses are one jump away from the My Businesses page.
+//   "b" = BUSINESS — client work. Everything ClientForge already did.
+// A third element is the lens; NO third element means the tab shows in BOTH
+// (shared infra — Agents, Agent Office, Brain, Settings).
+//
+// Shape note: every consumer destructures exactly [key, label] (shell.jsx:45)
+// or feeds the array to Object.fromEntries (app.jsx), and both ignore a third
+// element — so this is additive and nothing else had to change to tolerate it.
 const AGENCY_NAV = [
-  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"], ["Build", "Blueprint Studio"], ["Clients", "Clients"], ["Messages", "Client Chat"], ["ClientView", "Client View"],
-  ["Requests", "Edit Requests"],
-  ["Workflows", "Workflows"], ["Ads", "Meta Ads"], ["Social", "Social"], ["Approvals", "Approvals"],
-  ["CallCenter", "Call Center"],
-  ["Pipeline", "Pipeline"], ["Projects", "Projects"], ["Revenue", "Revenue"],
+  ["Dashboard", "Dashboard", "b"],
+  // Personal lens — my own businesses. The daycare surfaces reuse the daycare
+  // components as-is (app.jsx wraps them in DaycareWorkspace, so the daycare
+  // login gate still applies exactly as it does in the daycare workspace).
+  ["MyBiz", "My Businesses", "p"], ["MyAds", "Daycare · Ads", "p"],
+  ["MySocial", "Daycare · Social", "p"], ["MyStudio", "Daycare · Ad Studio", "p"],
+  ["Agents", "Agents"], ["Office", "Agent Office"],
+  ["Build", "Blueprint Studio", "b"], ["Clients", "Clients", "b"], ["Messages", "Client Chat", "b"], ["ClientView", "Client View", "b"],
+  ["Requests", "Edit Requests", "b"],
+  ["Workflows", "Workflows", "b"], ["Ads", "Meta Ads", "b"], ["Social", "Social", "b"], ["Approvals", "Approvals", "b"],
+  ["CallCenter", "Call Center", "b"],
+  ["Pipeline", "Pipeline", "b"], ["Projects", "Projects", "b"], ["Revenue", "Revenue", "b"],
   ["Brain", "Brain"], ["Settings", "Settings"],
 ];
+
+// The lens toggle rendered above the agency sidebar nav.
+const AGENCY_SCOPES = [["p", "Personal"], ["b", "Business"]];
 
 // Daycare workspace — center operations, families, staff, enrollment, and billing.
 const DAYCARE_NAV = [
@@ -51,4 +72,4 @@ const WORKSPACES = [
   { id: "dropship", brand: "FORGE", sub: "DROPSHIP", accent: "#F97316", tag: "Dropshipping", nav: DROPSHIP_NAV },
 ];
 
-Object.assign(window, { NAV, AGENCY_NAV, DAYCARE_NAV, DROPSHIP_NAV, WORKSPACES });
+Object.assign(window, { NAV, AGENCY_NAV, AGENCY_SCOPES, DAYCARE_NAV, DROPSHIP_NAV, WORKSPACES });

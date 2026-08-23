@@ -27,7 +27,12 @@ function Logo({ accent = "#4F7CFF" }) {
   );
 }
 
-function Sidebar({ active, onNav, brand = "FORGE", sub = "REI OS", nav, accent = "#4F7CFF", onHome }) {
+// `scopes` is optional: when a workspace has lenses (today only the agency, which
+// splits Personal / Business), pass [[id,label],…] plus the active `scope` and an
+// `onScope` handler and a segmented toggle renders above the nav. Workspaces
+// without lenses pass nothing and render exactly as before.
+function Sidebar({ active, onNav, brand = "FORGE", sub = "REI OS", nav, accent = "#4F7CFF", onHome,
+                   scopes = null, scope = null, onScope = null }) {
   const Icons = window.Icons;
   const items = nav || window.NAV;
   return (
@@ -40,6 +45,25 @@ function Sidebar({ active, onNav, brand = "FORGE", sub = "REI OS", nav, accent =
           <div className="brand-sub">{sub}</div>
         </div>
       </button>
+
+      {scopes && scopes.length > 1 && (
+        <div style={{ display: "flex", gap: 4, padding: 4, margin: "0 0 10px",
+                      background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 10 }}>
+          {scopes.map(([id, label]) => {
+            const on = scope === id;
+            return (
+              <button key={id} onClick={() => onScope && onScope(id)}
+                title={id === "p" ? "My own businesses" : "Client work"}
+                style={{ flex: 1, padding: "6px 8px", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                         borderRadius: 7, border: "1px solid " + (on ? accent + "66" : "transparent"),
+                         background: on ? accent + "26" : "transparent",
+                         color: on ? accent : "var(--muted, #94A3B8)" }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <nav className="nav">
         {items.map(([key, label]) => {
