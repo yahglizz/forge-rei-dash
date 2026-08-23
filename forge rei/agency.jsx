@@ -938,4 +938,57 @@ function AgencySettings() {
   );
 }
 
-Object.assign(window, { AgencyDashboard, AgencyClients, AgencyPipeline, AgencyProjects, AgencyRevenue, AgencySettings });
+// ---------------------------------------------------------------------------
+// PERSONAL lens — the businesses I own, as opposed to the clients I serve.
+// Deliberately a launcher, not a metrics page: every number that matters lives
+// behind a business's own auth + its own engine, and inventing a summary here
+// would mean fabricating figures. The daycare's real ad numbers are one tab
+// over (Daycare · Ads), reading the daycare's own Meta credentials.
+// ---------------------------------------------------------------------------
+const AG_MY_BIZ = [
+  { id: "daycare", name: "A Touch of Blessings", kind: "Daycare", accent: "#2DD4BF",
+    copy: "Enrollment, families, billing, staffing — and the enrollment ad account.",
+    tabs: [["MyAds", "Ads"], ["MySocial", "Social"], ["MyStudio", "Ad Studio"]] },
+  { id: "rei", name: "FORGE REI", kind: "Wholesaling", accent: "#4F7CFF",
+    copy: "Seller leads, screening, underwriting, and the buyer blast." },
+  { id: "dropship", name: "FORGE Dropship", kind: "E-commerce", accent: "#F97316",
+    copy: "Shopify + AutoDS + Meta store, run by Midas." },
+];
+
+function AgencyPersonal() {
+  const go = (id) => window.forgeEnterBusiness && window.forgeEnterBusiness(id);
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>My Businesses</h1>
+          <p className="faint">The businesses I own. Client work lives under the Business lens.</p>
+        </div>
+      </div>
+
+      <div className="grid-3">
+        {AG_MY_BIZ.map((biz) => (
+          <div key={biz.id} className="card card-pad" style={{ borderTop: "2px solid " + biz.accent }}>
+            <div className="faint" style={{ fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase" }}>{biz.kind}</div>
+            <div className="card-title" style={{ marginTop: 4 }}>{biz.name}</div>
+            <p className="faint" style={{ marginTop: 6, minHeight: 38 }}>{biz.copy}</p>
+            {biz.tabs && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                {biz.tabs.map(([key, label]) => (
+                  <button key={key} className="btn-ghost" style={{ fontSize: 12, padding: "4px 10px" }}
+                    onClick={() => window.GoTo && window.GoTo(key)}>{label}</button>
+                ))}
+              </div>
+            )}
+            <button className="btn" onClick={() => go(biz.id)}
+              style={{ background: biz.accent + "22", color: biz.accent, borderColor: biz.accent + "55" }}>
+              Open {biz.kind} workspace
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { AgencyDashboard, AgencyClients, AgencyPipeline, AgencyProjects, AgencyRevenue, AgencySettings, AgencyPersonal });
