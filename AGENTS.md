@@ -13,6 +13,15 @@ own. One file, all seven agents, four businesses.*
 
 *Last updated: 2026-07-15.*
 
+> **Per-agent cards now live in [`agents/`](agents/), one file per agent, filed by
+> business.** This file stays as the single-page overview; `agents/` is where an
+> agent's routes, knobs, creed, skill load order, and exact autonomy line are
+> written down. Two things this page predates: the 2026-07-25 consolidation
+> (Nora/Nova → Solomon, Blaze/Hawk/Otto → Midas) and **Orion**, the cross-business
+> Chief of Staff — see [`agents/portfolio/orion.md`](agents/portfolio/orion.md).
+> `CLAUDE.md` §2 and §5 remain canonical for autonomy.
+> Checked by `forge rei/test_agents_docs.py`.
+
 ---
 
 ## The one rule that governs every agent
