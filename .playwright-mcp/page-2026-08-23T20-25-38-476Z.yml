@@ -1,0 +1,88 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - button "FORGE AI Agency" [ref=f1e5] [cursor=pointer]:
+      - generic [ref=f1e10]:
+        - generic [ref=f1e11]: FORGE
+        - generic [ref=f1e12]: AI Agency
+    - generic [ref=f1e13]:
+      - button "Personal" [ref=f1e14] [cursor=pointer]
+      - button "Business" [active] [ref=f1e15] [cursor=pointer]
+    - navigation [ref=f1e16]:
+      - button "Dashboard" [ref=f1e106] [cursor=pointer]
+      - button "Agents" [ref=f1e39] [cursor=pointer]
+      - button "Agent Office" [ref=f1e45] [cursor=pointer]
+      - button "Blueprint Studio" [ref=f1e113] [cursor=pointer]
+      - button "Clients" [ref=f1e120] [cursor=pointer]
+      - button "Client Chat" [ref=f1e127] [cursor=pointer]
+      - button "Client View" [ref=f1e131] [cursor=pointer]
+      - button "Edit Requests" [ref=f1e136] [cursor=pointer]
+      - button "Workflows" [ref=f1e140] [cursor=pointer]
+      - button "Meta Ads" [ref=f1e146] [cursor=pointer]
+      - button "Social" [ref=f1e151] [cursor=pointer]
+      - button "Approvals" [ref=f1e158] [cursor=pointer]
+      - button "Call Center" [ref=f1e163] [cursor=pointer]
+      - button "Pipeline" [ref=f1e170] [cursor=pointer]
+      - button "Projects" [ref=f1e174] [cursor=pointer]
+      - button "Revenue" [ref=f1e181] [cursor=pointer]
+      - button "Brain" [ref=f1e51] [cursor=pointer]
+      - button "Settings" [ref=f1e55] [cursor=pointer]
+  - generic [ref=f1e60]:
+    - banner [ref=f1e61]:
+      - generic [ref=f1e62]:
+        - textbox "Go to a page" [ref=f1e66]:
+          - /placeholder: Go to a page...
+        - generic [ref=f1e67]: ⌘K
+      - button "Y Yahjair FORGE AI Agency" [ref=f1e69] [cursor=pointer]:
+        - generic [ref=f1e70]: "Y"
+        - generic [ref=f1e71]:
+          - generic [ref=f1e72]: Yahjair
+          - generic [ref=f1e73]: FORGE AI Agency
+    - generic [ref=f1e189]:
+      - generic [ref=f1e190]:
+        - generic [ref=f1e191]:
+          - heading "Forge AI Agency" [level=1] [ref=f1e192]
+          - generic [ref=f1e193]: Command center for ClientForge — websites + AI agents.
+        - button "Add Client" [ref=f1e194] [cursor=pointer]
+      - generic [ref=f1e197]:
+        - generic [ref=f1e198]: Agency GoHighLevel connected · 4JIvZEmkY5EjTsDRnjBN
+        - generic [ref=f1e201]:
+          - generic [ref=f1e202]:
+            - generic [ref=f1e208]: GHL Contacts
+            - generic [ref=f1e209]: "18"
+          - generic [ref=f1e210]:
+            - generic [ref=f1e214]: Conversations
+            - generic [ref=f1e215]: "12"
+            - generic [ref=f1e216]: 2 unread
+          - generic [ref=f1e218]:
+            - generic [ref=f1e222]: Open Opps
+            - generic [ref=f1e223]: "7"
+          - generic [ref=f1e224]:
+            - generic [ref=f1e228]: GHL Pipeline
+            - generic [ref=f1e229]: $0
+      - generic [ref=f1e231]:
+        - generic [ref=f1e232]:
+          - generic [ref=f1e238]: Active Clients
+          - generic [ref=f1e239]: "1"
+          - generic [ref=f1e240]: 1 total
+        - generic [ref=f1e242]:
+          - generic [ref=f1e246]: MRR
+          - generic [ref=f1e247]: $1,500
+          - generic [ref=f1e249]: $18,000/yr
+        - generic [ref=f1e251]:
+          - generic [ref=f1e255]: Pipeline
+          - generic [ref=f1e256]: "0"
+          - generic [ref=f1e257]: leads to close
+        - generic [ref=f1e259]:
+          - generic [ref=f1e263]: In Production
+          - generic [ref=f1e264]: "0"
+          - generic [ref=f1e265]: builds in flight
+      - generic [ref=f1e267]:
+        - generic [ref=f1e268]:
+          - generic [ref=f1e269]: Recent clients
+          - button "View all" [ref=f1e270] [cursor=pointer]
+        - generic [ref=f1e271]:
+          - generic [ref=f1e272]:
+            - text: Bloom Dental (demo)
+            - generic [ref=f1e273]: Bloom Dental
+          - generic [ref=f1e274]: $1,500/mo
+          - generic [ref=f1e275]: Active
