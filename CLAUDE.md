@@ -405,12 +405,29 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
 `forge-daycare/supabase/migrations/` and the app's `supabase/migrations/` are kept
 **byte-identical = single source of truth** (verified against the live DB).
 
-- **Opens straight in (no login).** On the box, a loopback (SSH-tunnel) request auto-mints
-  an admin session so the console opens with no login screen. Gated by
-  `FORGE_DAYCARE_AUTOADMIN=1` + `FORGE_DAYCARE_ALLOW_HTTP=1`, both **loopback-only** —
-  tailnet/public clients still require real HTTPS + Login-ID/PIN. See
-  `daycare_supabase.request_is_secure` / `autoadmin_session` and
-  `connector._daycare_resolve_session`.
+- **Opens straight in (no login) — for the whole tailnet, as of 2026-08-23.** The box
+  auto-mints an admin session so the console opens with no login screen. Gated by
+  `FORGE_DAYCARE_AUTOADMIN=1` + `FORGE_DAYCARE_ALLOW_HTTP=1` + **`FORGE_DAYCARE_OPEN=1`**.
+  The first two alone are loopback-only (the SSH-tunnel owner); `FORGE_DAYCARE_OPEN`
+  additionally admits clients arriving through Tailscale Serve, so the daycare PIN is
+  gone on every device on the tailnet. **The trust boundary is now Tailscale device
+  authentication, not a PIN.** What still holds it up, and must not be quietly removed:
+  - `:7799` and `:10000` are firewalled off the public internet (verified: connection
+    refused from outside). The dashboard is reachable only over the tailnet.
+  - The public Tailscale **Funnel** (`:8443`) points at `PortalHandler`, a separate
+    4-route client portal with no path to the CRM, the daycare, or secrets. Verified:
+    `/api/daycare/*` 404s on the funnel. Children's records are never public.
+  - `autoadmin_session` still requires a **loopback peer**, so only Serve-fronted
+    traffic qualifies — a raw hit straight to `:7799` from a tailnet IP still gets the
+    login screen.
+  - `test-login` (the role picker) stays `is_owner_loopback`-gated — direct tunnel only.
+  **The cost of this trade:** anyone holding an unlocked enrolled device, and any device
+  or user later added to the tailnet (or any node share), gets full daycare admin —
+  children's names, attendance, incidents, guardians, billing — with no second gate.
+  Audit the tailnet before adding a member, and set `FORGE_DAYCARE_OPEN=0` +
+  `systemctl restart forge-reios` to put the PIN back instantly.
+  See `daycare_supabase.request_is_secure` / `autoadmin_session` /
+  `is_owner_loopback` and `connector._daycare_resolve_session`.
 - **Ads + Social + Ideas (Growth tab).** `daycare_growth.py` reuses the agency
   `agency_ads`/`agency_social`/`agency_eco` engines with the daycare's OWN creds (locked
   env-swap; agency code untouched). Mock until `META_ACCESS_TOKEN` / `METRICOOL_USER_TOKEN`
