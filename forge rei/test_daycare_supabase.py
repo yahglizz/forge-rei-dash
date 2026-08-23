@@ -200,6 +200,24 @@ class DaycareSecurityTests(unittest.TestCase):
             # Direct tunnel (no forwarding headers) → still works.
             self.assertIs(bridge.autoadmin_session("127.0.0.1", {}), minted)
 
+    def test_autoadmin_allows_proxied_request_when_open_access(self):
+        # FORGE_DAYCARE_OPEN trades the daycare PIN for Tailscale device auth: a
+        # Serve-fronted tailnet client is auto-admitted instead of refused. The
+        # loopback-peer requirement is kept even then, so a raw non-Serve hit to
+        # the dashboard port still falls through to the login.
+        opened = config(autoadmin=True, open_access=True,
+                        test_profiles=(("admin", "BL-ADM-301", "123456"),))
+        bridge = daycare.SupabaseBridge(opened)
+        minted = session()
+        with mock.patch.object(bridge, "login", return_value=(minted, {"role": "admin"})):
+            daycare._SESSIONS[minted.sid] = minted
+            self.assertIs(
+                bridge.autoadmin_session("127.0.0.1", {"X-Forwarded-Proto": "https"}),
+                minted)
+            # Not loopback (direct :7799 hit from a tailnet IP) → still refused.
+            self.assertIsNone(
+                bridge.autoadmin_session("100.80.10.20", {"X-Forwarded-Proto": "https"}))
+
     def test_is_owner_loopback_distinguishes_tunnel_from_serve(self):
         self.assertTrue(daycare.is_owner_loopback({}, "127.0.0.1"))
         self.assertTrue(daycare.is_owner_loopback({"User-Agent": "curl"}, "::1"))

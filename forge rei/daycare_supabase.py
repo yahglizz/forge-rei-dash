@@ -100,6 +100,15 @@ class DaycareConfig:
     # transparently given an admin session so the owner opens straight into the console.
     # Loopback-only; tailnet/public clients are never auto-authenticated.
     autoadmin: bool = False
+    # Open access (FORGE_DAYCARE_OPEN): drop the daycare sign-in for clients that
+    # reached us through the Tailscale Serve reverse proxy, not just the direct SSH
+    # tunnel. The trust boundary becomes the tailnet itself — every device on it is
+    # one the operator enrolled and Tailscale authenticated. It does NOT open the
+    # box to the internet: :7799 is firewalled off, the public Funnel points at the
+    # separate token-scoped client portal, and the loopback-peer requirement below
+    # still means only Serve-fronted traffic qualifies (a raw tailnet hit straight
+    # to :7799 arrives as 100.x and still gets the login).
+    open_access: bool = False
     # Optional cross-link to the deployed parent/staff family app (blank = hidden).
     family_app_url: str = ""
 
@@ -161,6 +170,7 @@ def load_config() -> DaycareConfig:
         test_mode=test_mode and bool(test_profiles),
         test_profiles=tuple(test_profiles),
         autoadmin=_truthy(pick("FORGE_DAYCARE_AUTOADMIN", default="0")),
+        open_access=_truthy(pick("FORGE_DAYCARE_OPEN", default="0")),
         family_app_url=pick(
             "FORGE_DAYCARE_FAMILY_APP_URL", "DAYCARE_FAMILY_APP_URL", "FAMILY_APP_URL",
             default=""),
@@ -715,11 +725,17 @@ class SupabaseBridge:
         loopback check. Reuses one cached admin session; re-mints on expiry. Returns
         ``None`` (never raises) when auto-admin does not apply, so callers fall back
         to the normal 401 login path.
+
+        When ``FORGE_DAYCARE_OPEN`` is set the proxied refusal is skipped, so any
+        tailnet device reaching us through Tailscale Serve is auto-admitted too —
+        the operator has traded the PIN for Tailscale device authentication. The
+        loopback-peer requirement above is deliberately kept even then.
         """
         global _AUTOADMIN_SID
         if not self.config.autoadmin or not is_loopback(client_ip):
             return None
-        if headers is not None and _is_proxied(headers):
+        if (headers is not None and _is_proxied(headers)
+                and not self.config.open_access):
             return None  # arrived via Tailscale Serve, not the SSH tunnel
         creds = next(
             ((login_id, pin) for role, login_id, pin in self.config.test_profiles
