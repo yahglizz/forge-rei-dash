@@ -431,10 +431,10 @@ function DswPacketModal({ seed, onClose }) {
 
 // Presence-only health for the research + creative keys. Never shows a value.
 function DswHealthStrip() {
-  const wh = window.DsUseResource("/winninghunter/health", null, 0);
+  const gh = window.DsUseResource("/gethookd/health", null, 0);
   const eb = window.DsUseResource("/everbee/health", null, 0);
   const cr = window.DsUseResource("/creative/health", null, 0);
-  const rows = [["WinningHunter (ad spy)", wh], ["EverBee (Etsy)", eb], ["Higgsfield (creative)", cr]];
+  const rows = [["GetHookd (ad intelligence)", gh], ["EverBee (Etsy)", eb], ["Higgsfield (creative)", cr]];
   return <div className="card card-pad dc-panel">
     <div className="dc-panel-head"><div><div className="card-title">Research connections</div><div className="faint">Presence only — keys live in dropship.env and never show here. Unkeyed reads Unknown, never a fake number.</div></div></div>
     <div className="dc-room-strip">{rows.map((row) => {

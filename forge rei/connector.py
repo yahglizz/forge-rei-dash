@@ -4404,6 +4404,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/mcp/probe": _mcp_probe,
             "/api/dropship/pipiads/health": lambda: dropship_pipiads.health(),
             "/api/dropship/adspy/health": lambda: dropship_adspy.health(),
+            "/api/dropship/gethookd/health": lambda: __import__("dropship_gethooked").health(),
             "/api/dropship/winninghunter/health": lambda: dropship_winninghunter.health(),
             "/api/dropship/everbee/health": lambda: etsy_everbee.health(),
             # Same {ok, configured, connected, detail, source} shape as the other

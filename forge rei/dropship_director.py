@@ -50,7 +50,7 @@ POLL_INTERVAL = 900  # seconds between loop ticks (self-improve + due-brief chec
 # a key alone can't move data, so lighting them up as "connected" is a phantom read.
 _SYSTEMS = [
     ("SHOPIFY_ADMIN_TOKEN", "Shopify (store)", True),
-    ("WINNINGHUNTER_API_KEY", "WinningHunter (product + ad research)", True),
+    ("GETHOOKED_API_KEY", "GetHookd (product + ad research)", True),
     ("EVERBEE_CLIENT_ID", "EverBee (Etsy research)", True),
     ("HIGGSFIELD_API_KEY", "Higgsfield (ad creative)", True),
     ("AUTODS_API_KEY", "AutoDS (sourcing)", True),
@@ -882,8 +882,8 @@ class MidasEngine:
                 etsy_ev = {"ok": False, "error": str(e), "keywords": [], "listings": []}
         else:
             try:
-                import dropship_winninghunter
-                ads_ev = dropship_winninghunter.evidence(name)
+                import dropship_gethooked
+                ads_ev = dropship_gethooked.evidence(name)
             except Exception as e:  # noqa: BLE001
                 ads_ev = {"ok": False, "error": str(e), "ads": [], "products": []}
 

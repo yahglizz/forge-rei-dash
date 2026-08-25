@@ -173,18 +173,18 @@ def test_kill_flags() -> None:
 def test_unkeyed_mocks() -> None:
     print("\nunkeyed clients (no fabricated rows)")
 
-    import dropship_winninghunter as wh
+    import dropship_gethooked as gh
     import etsy_everbee as eb
 
-    if wh.configured():
-        print("  skip WinningHunter — a key is present in this environment")
+    if gh.configured():
+        print("  skip GetHookd — a key is present in this environment")
     else:
-        r = wh.search_ads("tote bag")
-        check("WH unkeyed: configured False", r["configured"] is False)
-        check("WH unkeyed: zero ads, not invented", r["ads"] == [])
-        check("WH unkeyed: says what to add", "WINNINGHUNTER_API_KEY" in r["detail"])
-        check("WH unkeyed: health not connected", wh.health()["connected"] is False)
-        check("WH unkeyed: evidence empty", wh.evidence("tote bag")["ads"] == [])
+        r = gh.search_ads("tote bag")
+        check("GetHookd unkeyed: configured False", r["configured"] is False)
+        check("GetHookd unkeyed: zero ads, not invented", r["ads"] == [])
+        check("GetHookd unkeyed: says what to add", "GETHOOKED_API_KEY" in r["detail"])
+        check("GetHookd unkeyed: health not connected", gh.health()["connected"] is False)
+        check("GetHookd unkeyed: evidence empty", gh.evidence("tote bag")["ads"] == [])
 
     if eb.configured():
         print("  skip EverBee — a key is present in this environment")
