@@ -893,7 +893,8 @@ class MidasEngine:
                              "biggestUnknown": "Category is excluded for a first product store."})
             candidates.append(item)
         candidates.sort(key=lambda item: item["score"], reverse=True)
-        return {"ok": bool(result.get("ok")), "candidates": candidates[:10],
+        return {"ok": bool(result.get("ok")), "error": result.get("error"),
+                "candidates": candidates[:10],
                 "usedCredits": source.get("usedCredits"), "remainingCredits": source.get("remainingCredits"),
                 "testBudget": {"daily": 40, "maximum": 120},
                 "note": "Evidence scores only. Source a candidate in AutoDS before calculating price, profit, or launch."}
