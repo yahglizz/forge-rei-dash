@@ -25,6 +25,7 @@ to marcus_state/midas.json — no new database.
 """
 import contextlib
 import json
+import re
 import os
 import threading
 import time
@@ -846,6 +847,56 @@ class MidasEngine:
                 "contract in your playbook.\n\nIDEAS:\n"
                 + (ideas if isinstance(ideas, str) else json.dumps(ideas)))
         return self.analyze(task, data, lane="product research")
+
+    def discover(self, limit=10):
+        """Find and evidence-rank up to ten beginner-safe product candidates."""
+        try:
+            import dropship_gethookd
+            source = dropship_gethookd.search_ads("", per_page=max(20, min(int(limit) * 3, 50)))
+        except Exception as error:  # noqa: BLE001
+            return {"ok": False, "error": f"GetHookd unavailable: {error}"}
+        if not source.get("ok"):
+            return {"ok": False, "error": source.get("error") or "GetHookd scan failed",
+                    "source": source}
+        cap = max(1, min(int(limit), 10))
+        task = (
+            "Return ONLY {\"candidates\":[...]}. Select up to " + str(cap) +
+            " distinct PHYSICAL product candidates actually identifiable from the supplied ads. "
+            "Reject apparel/sizing, beauty/skin claims, supplements, baby products, electronics/batteries, "
+            "fragile/oversized goods, protected brands, and anything with unclear shipping. Never invent a "
+            "product name from a brand, price, cost, ship time, sales or revenue. Each item must be "
+            "{name,score,verdict,headline,whyItWins,audience,adTypes,adAngles,biggestUnknown,nextStep,sourceUrl}. "
+            "score is an evidence score only (1-10), not a profit verdict; verdict is test/watch/pass. "
+            "Set verdict=pass when the product is not clear or not beginner-safe."
+        )
+        result = self.analyze(
+            "Turn these real GetHookd ads into a beginner product shortlist for separate single-product Shopify stores. " + task,
+            {"ads": source.get("ads") or [], "testBudget": {"daily": 40, "maximum": 120}},
+            max_tokens=2600, lane="product research")
+        rows = ((result.get("result") or {}).get("candidates")
+                if isinstance(result.get("result"), dict) else [])
+        unsafe = re.compile(r"\b(apparel|clothing|shirt|dress|shoe|jewelry|cosmetic|skincare|supplement|"
+                            r"baby|battery|electronic|charger|glass|ceramic|furniture|mattress)\b", re.I)
+        candidates = []
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict) or not str(row.get("name") or "").strip():
+                continue
+            item = {k: row.get(k) for k in ("name", "score", "verdict", "headline", "whyItWins",
+                    "audience", "adTypes", "adAngles", "biggestUnknown", "nextStep", "sourceUrl")}
+            try:
+                item["score"] = max(1, min(10, int(item.get("score"))))
+            except (TypeError, ValueError):
+                item["score"] = 1
+            item["verdict"] = item["verdict"] if item.get("verdict") in ("test", "watch", "pass") else "watch"
+            if unsafe.search(str(item["name"])):
+                item.update({"score": 1, "verdict": "pass", "headline": "Pass - not beginner-safe",
+                             "biggestUnknown": "Category is excluded for a first product store."})
+            candidates.append(item)
+        candidates.sort(key=lambda item: item["score"], reverse=True)
+        return {"ok": bool(result.get("ok")), "candidates": candidates[:10],
+                "usedCredits": source.get("usedCredits"), "remainingCredits": source.get("remainingCredits"),
+                "testBudget": {"daily": 40, "maximum": 120},
+                "note": "Evidence scores only. Source a candidate in AutoDS before calculating price, profit, or launch."}
 
     def research_packet(self, candidate=None):
         """The decision packet: evidence + money math + kill flags + the read.
