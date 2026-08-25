@@ -933,8 +933,8 @@ class MidasEngine:
                 etsy_ev = {"ok": False, "error": str(e), "keywords": [], "listings": []}
         else:
             try:
-                import dropship_gethooked
-                ads_ev = dropship_gethooked.evidence(name)
+                import dropship_gethookd
+                ads_ev = dropship_gethookd.evidence(name)
             except Exception as e:  # noqa: BLE001
                 ads_ev = {"ok": False, "error": str(e), "ads": [], "products": []}
 

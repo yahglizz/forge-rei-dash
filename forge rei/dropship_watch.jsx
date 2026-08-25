@@ -95,6 +95,32 @@ function DswTrending({ onAdded }) {
   </div>;
 }
 
+function DswDiscover({ onAdded }) {
+  const [data, setData] = useStateDsw(null);
+  const [busy, setBusy] = useStateDsw(false);
+  const [adding, setAdding] = useStateDsw(null);
+  const [err, setErr] = useStateDsw("");
+  const scan = async () => {
+    setBusy(true); setErr("");
+    try { setData(await window.DsRequest("/research/discover", { body: { limit: 10 } })); }
+    catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const add = async (item) => {
+    setAdding(item.name);
+    try {
+      await window.DsRequest("/watchlist/save", { body: { name: item.name, stage: "researching", sourceUrl: item.sourceUrl || "", notes: item.headline || "" } });
+      if (onAdded) onAdded();
+    } catch (e) { window.alert(e.message); } finally { setAdding(null); }
+  };
+  const items = (data && data.candidates) || [];
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head"><div><div className="card-title">Find & rank 10 beginner products</div><div className="faint">GetHookd finds active winning Shopify ads; Midas excludes beginner-hostile categories and ranks the remaining evidence. $40/day, $120 maximum test once supplier math clears.</div></div><button className="dc-primary" disabled={busy} onClick={scan}>{busy ? "Midas is ranking…" : "Find 10 products"}</button></div>
+    {err && <div className="dc-form-error">{err}</div>}
+    {data && <div className="dsw-src-line"><span className="dsw-src ok">GetHookd used {data.usedCredits || 0} credits · {data.remainingCredits || "?"} remaining</span><span className="faint">{data.note}</span></div>}
+    {items.length ? <div className="dsw-trend-list">{items.map((item, i) => <div key={i} className="dsw-trend-item"><div className="dsw-score" style={{ borderColor: DswScoreColor(item.score), color: DswScoreColor(item.score) }}>{item.score}<small>/10</small></div><div className="dsw-trend-main"><b>{item.name}</b><small className="faint">{item.headline || "Evidence-ranked candidate"}</small>{Array.isArray(item.adAngles) && item.adAngles.length ? <small className="faint">Angles: {item.adAngles.join(" · ")}</small> : null}<small className="faint">Unknown: {item.biggestUnknown || "source cost and shipping"}</small></div><div className="dsw-trend-actions">{item.sourceUrl && <a className="link" href={item.sourceUrl} target="_blank" rel="noreferrer">Source ↗</a>}<button className="dc-outline dsw-add-btn" disabled={adding === item.name} onClick={() => add(item)}>{adding === item.name ? "Adding…" : "＋ Watch"}</button></div></div>)}</div> : (data ? <div className="dc-inline-empty">No beginner-safe physical products were identifiable in this scan. Run it again later; it will not invent candidates.</div> : null)}
+  </div>;
+}
+
 // Competitor Ads — what OTHER stores are running right now, out of the Meta Ad Library.
 // Days-running is the headline number on purpose: nobody keeps paying to run a losing
 // ad, so a 60-day-old ad is a proven ad. Manual pull only — each search fires a PAID
@@ -507,6 +533,7 @@ function DropshipWatch() {
     </div>
     {err && <div className="dc-form-error">{err}</div>}
     <DswHealthStrip />
+    <DswDiscover onAdded={watch.refresh} />
     <DswTrending onAdded={watch.refresh} />
     <DswCompetitorAds />
     <window.DsState loading={watch.loading} error={watch.error} empty={!items.length} icon="Watch" title="Nothing on watch yet" copy="Pull trending products above, or add one you spotted — then let Midas score it." onRetry={watch.refresh}>

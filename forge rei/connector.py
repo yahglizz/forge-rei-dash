@@ -4405,7 +4405,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/mcp/probe": _mcp_probe,
             "/api/dropship/pipiads/health": lambda: dropship_pipiads.health(),
             "/api/dropship/adspy/health": lambda: dropship_adspy.health(),
-            "/api/dropship/gethookd/health": lambda: __import__("dropship_gethooked").health(),
+            "/api/dropship/gethookd/health": lambda: dropship_gethookd.health(),
             "/api/dropship/winninghunter/health": lambda: dropship_winninghunter.health(),
             "/api/dropship/everbee/health": lambda: etsy_everbee.health(),
             # Same {ok, configured, connected, detail, source} shape as the other
@@ -4474,6 +4474,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/dropship/mcp/probe",
             "/api/dropship/mcp/call",
             "/api/dropship/adspy/search", "/api/dropship/adspy/advertiser",
+            "/api/dropship/research/discover",
             "/api/dropship/research/packet",
             "/api/dropship/creative/make",
             "/api/dropship/director/run", "/api/dropship/director/learn",
@@ -4561,6 +4562,12 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         limit = None
                     result = dropship_adspy.advertiser(page, limit=limit)
+            elif path == "/api/dropship/research/discover":
+                try:
+                    limit = max(1, min(int(body.get("limit", 10)), 10))
+                except (TypeError, ValueError):
+                    limit = 10
+                result = MIDAS.discover(limit)
             elif path == "/api/dropship/research/packet":
                 # The decision packet: evidence + money math + kill flags + the read.
                 # Read-only research — nothing lists, buys, advertises or messages, so
