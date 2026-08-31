@@ -462,19 +462,23 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
   (`GHL_API_KEY`/`GHL_LOCATION_ID`, separate from wholesale+agency). `daycare_ghl.py`
   texts families their payment link. **Owner-initiated only** (the "Text" button IS the
   approval gate — never autonomous). Routes `/api/daycare/ghl/{health,text-invoice}`.
-- **Contact-Form auto-enroll.** Every enrolled Contact-Form submission is auto-enrolled
-  into the Supabase roster the moment the Parent Logins inbox loads it
-  (`connector._daycare_pending_families` → `_daycare_family_child_body` →
-  `daycare_supabase.save_child`, no guardian block = no login). Internal + reversible
-  (a deletable child row), same rule-2 class as HOT-lead auto-tag. Idempotent via a
-  contact→child ledger `marcus_state/daycare_form_children.json`
+- **Contact-Form intake is ONE-TAP, not auto-enroll** (changed — auto-enroll on inbox
+  load was removed; `FORGE_DAYCARE_AUTOENROLL` no longer exists). `GET
+  /api/daycare/ghl/pending-families` is strictly **read-only** — prefetching the Parent
+  Logins inbox must never write a child row or a ledger entry. Enrollment happens only
+  on the owner's explicit click: `POST /api/daycare/ghl/enroll` →
+  `_daycare_family_child_body` → `daycare_supabase.save_child`, which in one shot creates
+  the child, matches the classroom from the form's age-band tag, provisions the guardian
+  login (Login ID + one-time PIN) when the family gave an email, mirrors the family back
+  into GHL, and dismisses the inbox card. `save_child` auto-switches the session to the
+  family's own `location_id` and restores the active center afterward, so a family always
+  lands at its own center regardless of which center the owner is standing in. Idempotent
+  via the contact→child ledger `marcus_state/daycare_form_children.json`
   (`daycare_ghl.form_child_id`/`record_form_child`); name-based dedupe
   (`daycare_supabase.find_child_id`) adopts an already-enrolled kid instead of
-  duplicating, first-name-only submissions fall back to the family surname. The parent
-  **login** stays button-gated — owner's Create-login (`/api/daycare/ghl/enroll`) now
-  passes the ledgered child id so `save_child` UPDATES the row and provisions the
-  guardian (Login ID + one-time PIN) on that update path. Kill switch
-  `FORGE_DAYCARE_AUTOENROLL=0` (default on).
+  duplicating, first-name-only submissions fall back to the family surname.
+  **Consequence: submissions sit in the inbox until someone clicks Enroll** — check the
+  inbox against the roster before assuming a family is provisioned.
 - **Secrets + flags** all live in `forge-daycare/config/daycare.env` (git-ignored, 404 over
   HTTP, chmod 600, shipped by `push.sh`). Design spec:
   `docs/superpowers/specs/2026-07-13-daycare-os-design.md`.
