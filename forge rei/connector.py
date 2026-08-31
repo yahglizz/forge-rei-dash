@@ -3891,9 +3891,11 @@ class Handler(BaseHTTPRequestHandler):
         """Enroll/update a child, then mirror the family into GHL tagged with THIS center.
 
         Supabase is the source of truth and its write is authoritative: a GHL failure is
-        REPORTED, never fatal, and never rolls back an enrolled child. The child's
-        location_id comes from save_child (= the active center), so a child can only ever
-        be created in the center the owner is currently standing in.
+        REPORTED, never fatal, and never rolls back an enrolled child. When the body
+        carries a location_id, save_child switches the session to THAT center for the
+        write and restores the active center afterward, so a Contact-Form family always
+        lands at its own center no matter which one the owner is currently standing in;
+        with no location_id the child is created in the active center.
         """
         result = daycare_supabase.save_child(session, body)
         child = (result or {}).get("child") or {}
@@ -3915,9 +3917,9 @@ class Handler(BaseHTTPRequestHandler):
         if not contact_id:
             raise daycare_supabase.DaycareError(400, "contact_id is required", "validation_error")
         child_body = self._daycare_family_child_body(session, family)
-        # If the kid was already auto-enrolled from the inbox, pass its id so
-        # save_child UPDATES that row (and provisions the login) instead of
-        # inserting a duplicate.
+        # If this contact was already enrolled once (ledgered by a prior enroll click,
+        # or by the retired auto-enroll path), pass that child id so save_child UPDATES
+        # the row (and provisions the login) instead of inserting a duplicate.
         child_body["id"] = daycare_ghl.form_child_id(contact_id) or None
         # A parent login is created ONLY when the family gave an email — enrollment and
         # login are independent. save_child raises if guardian NAME is passed without an
