@@ -284,6 +284,24 @@ def set_note(lead_id, note, field="note"):
     return {"ok": False, "detail": "Lead not found."}
 
 
+def _escalate_one_time(offer, info):
+    """The one-time build/setup charge, as a number.
+
+    A monthly offer carries its build price separately (free today — see
+    `agency-offer-sheet.md`). A one-time offer IS the build. Either way this has
+    to be a number, because a build stored only as a sentence in `plan` was
+    revenue nothing could count.
+    """
+    if offer:
+        if offer.get("monthly"):
+            return float(offer.get("buildPrice", 0) or 0)
+        return float(offer.get("price", 0) or 0)
+    try:
+        return max(0.0, float(info.get("oneTime") or 0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _escalate_notes(lead, info):
     """Build the client-book note: contact info the client record has no field for,
     plus what they actually said on the call."""
@@ -351,9 +369,15 @@ def escalate(lead_id, info):
         "name": name,
         "business": str(info.get("business") or snapshot.get("company") or "").strip(),
         "status": "lead",
-        "plan": agency_offers.line(offer),
+        # The quote goes in `offer` (structured), never in `plan` — `plan` is a
+        # dropdown in the UI, so writing the quote there meant one stray click
+        # erased the only record of what was actually sold.
+        "offer": offer,
         "site": str(info.get("site") or snapshot.get("website") or "").strip(),
         "mrr": mrr,
+        # A free build stores 0 and that is the honest number — it is CAC, not
+        # revenue. A paid build stores its price so build revenue is countable.
+        "oneTime": _escalate_one_time(offer, info),
         "services": services,
         "notes": _escalate_notes(snapshot, info),
     }

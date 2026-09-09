@@ -13,10 +13,12 @@ const AG_STATUS = {
 const AG_ORDER = ["lead", "building", "active", "paused", "churned"];
 const AG_PLANS = ["Starter", "Growth", "Pro", "Custom"];
 // What a client signed up for — dashboard tags, mirrored to GHL as "signed: x".
-const AG_SERVICES = ["Website", "Automations", "AI Receptionist", "AI Chatbot",
-  "Ads Management", "SEO", "Lead Gen", "Social Media", "CRM Setup", "Hosting"];
+const AG_SERVICES = ["Website", "Mobile App", "Automations", "AI Receptionist",
+  "AI Chatbot", "Ads Management", "SEO", "Lead Gen", "Social Media", "CRM Setup",
+  "Hosting"];
 const AG_SVC_COLOR = {
-  "Website": "#4F7CFF", "Automations": "#F59E0B", "AI Receptionist": "#2DD4BF",
+  "Website": "#4F7CFF", "Mobile App": "#A855F7", "Automations": "#F59E0B",
+  "AI Receptionist": "#2DD4BF",
   "AI Chatbot": "#8B5CF6", "Ads Management": "#EC4899", "SEO": "#22C55E",
   "Lead Gen": "#EF4444", "Social Media": "#E1306C", "CRM Setup": "#0EA5E9",
   "Hosting": "#64748B",
