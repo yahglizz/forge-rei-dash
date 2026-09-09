@@ -76,8 +76,11 @@ def _encode(params: dict) -> bytes:
     return urllib.parse.urlencode(flat).encode("utf-8")
 
 
-def _req(method: str, path: str, params: dict | None = None) -> dict:
-    key = _secret_key()
+def _req(method: str, path: str, params: dict | None = None,
+         key: str | None = None) -> dict:
+    # `key` lets another business unit (the agency) reuse this transport with
+    # its OWN Stripe account instead of the daycare's. Default is unchanged.
+    key = (key or "").strip() or _secret_key()
     if not key:
         raise StripeError(503, "Stripe is not configured", "not_configured")
     url = f"{_API_BASE}{path}"
