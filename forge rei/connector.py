@@ -2576,6 +2576,18 @@ def api_agency_settings(_q):
     return agency_io.get_settings()
 
 
+# --- Care-plan payment link (agency Stripe account) -------------------------
+# No clientId -> a cheap health check the UI can call. With a clientId -> that
+# client's attributed link. Neither charges anyone; see agency_billing.py.
+def api_agency_billing(q):
+    import agency_billing
+    client_id = (q.get("clientId", [None]) or [None])[0]
+    if not client_id:
+        return agency_billing.status()
+    email = (q.get("email", [""]) or [""])[0]
+    return agency_billing.link_for_client(client_id, email)
+
+
 ROUTES = {
     "/api/sync": api_sync,
     "/api/health": api_health,
@@ -2702,6 +2714,7 @@ ROUTES = {
     "/api/agency/social/analytics": api_agency_social_analytics,
     "/api/agency/deploy/status": api_agency_deploy_status,
     "/api/agency/settings": api_agency_settings,
+    "/api/agency/billing/link": api_agency_billing,
 }
 
 # Marcus endpoints are real-time — never serve them from the 45s cache.
