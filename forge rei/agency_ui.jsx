@@ -46,11 +46,6 @@ const UI_KIND = {
 const UI_TYPES = ["Website Edit", "New Page", "Bug Fix", "Content Update",
                   "SEO", "Integration", "Design Change", "AI Agent", "Other"];
 const UI_PRIORITIES = ["low", "medium", "high", "urgent"];
-const UI_DEMO_CLIENTS = [
-  { id: "demo-bloom", name: "Bloom Dental" },
-  { id: "demo-peak",  name: "Peak Fitness" },
-];
-
 const uiInp = {
   background: "var(--card-2)", border: "1px solid var(--border)", borderRadius: 9,
   padding: "9px 11px", color: "var(--text)", fontSize: 13, width: "100%", outline: "none",
@@ -79,12 +74,12 @@ const UiKindBadge = ({ kind }) => {
 };
 
 // ---- client selector --------------------------------------------------------
-// Pulls the live client book (/api/agency/clients); if empty, falls back to the
-// demo clients so every mock section still has someone to point at.
+// Pulls the live client book (/api/agency/clients). NO demo fallback: this feeds
+// UiRequestForm, which persists the picked id into the REAL request store, so a
+// placeholder client id here becomes fabricated data an agent then acts on.
 function UiClientSelector({ value, onChange, allowAll = false, label = "Client" }) {
   const { data } = window.useApi("/api/agency/clients");
-  const live = (data && data.clients) || [];
-  const clients = live.length ? live.map((c) => ({ id: c.id, name: c.name })) : UI_DEMO_CLIENTS;
+  const clients = ((data && data.clients) || []).map((c) => ({ id: c.id, name: c.name }));
   return (
     <div style={uiField}>
       <span style={uiLabel}>{label}</span>
@@ -94,7 +89,9 @@ function UiClientSelector({ value, onChange, allowAll = false, label = "Client" 
         onChange && onChange(id, c);
       }}>
         {allowAll && <option value="">All clients</option>}
-        {!value && !allowAll && <option value="">Select a client…</option>}
+        {!value && !allowAll && (
+          <option value="">{clients.length ? "Select a client…" : "No clients yet — add one first"}</option>
+        )}
         {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
     </div>

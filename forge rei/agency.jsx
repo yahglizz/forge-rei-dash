@@ -118,7 +118,7 @@ function AgPortalLink({ clientId, compact, portal, onChanged }) {
     try {
       const r = await window.apiPost("/api/agency/portal/sent", { clientId });
       setPortalEcho((r && r.client && r.client.portal)
-        || { ...p, status: "sent", sentAt: new Date().toISOString() });
+        || { ...p, status: "sent", sentAt: Date.now() });   // epoch ms — timeAgo/mark_portal_sent both use ms
       onChanged && onChanged();
     } catch (e) { setErr(e.message || "Failed"); }
     finally { setBusy(false); }
@@ -620,7 +620,12 @@ function AgMrrBarChart({ clients }) {
 function AgencyRevenue() {
   const { data, error, refresh } = window.useApi("/api/agency/clients", { interval: 20000 });
   const { data: s } = window.useApi("/api/agency/stats", { interval: 20000 });
-  const clients = ((data && data.clients) || []).filter((c) => c.mrr > 0)
+  // Match agency_io.stats() exactly: only active/paused clients are revenue. A
+  // lead or a churned client with a stale MRR is NOT money coming in, and the
+  // `st.mrr || totalMrr` fallbacks below would otherwise report them as such the
+  // moment stats legitimately returns 0.
+  const clients = ((data && data.clients) || [])
+    .filter((c) => c.mrr > 0 && (c.status === "active" || c.status === "paused"))
     .sort((a, b) => b.mrr - a.mrr);
   const st = s || {};
   const totalMrr = clients.reduce((sum, c) => sum + c.mrr, 0);
@@ -632,7 +637,7 @@ function AgencyRevenue() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         <AgKpi kpi={{ label: "MRR", icon: "Dollar", color: "#22C55E", value: st.mrr || totalMrr, prefix: "$", sub: "monthly recurring" }} />
         <AgKpi kpi={{ label: "ARR", icon: "Trend", color: "#22C55E", value: st.arr || totalArr, prefix: "$", sub: "annual run-rate" }} />
-        <AgKpi kpi={{ label: "Paying Clients", icon: "Leads", color: "#4F7CFF", value: clients.length, sub: "with MRR > 0" }} />
+        <AgKpi kpi={{ label: "Paying Clients", icon: "Leads", color: "#4F7CFF", value: clients.length, sub: "active or paused, MRR > 0" }} />
       </div>
 
       {/* SVG bar chart */}

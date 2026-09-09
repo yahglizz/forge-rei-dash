@@ -2439,7 +2439,7 @@ def api_agency_ghl_dashboard(_q):
 
 
 def api_agency_ghl_contacts(q):
-    limit = int((q.get("limit", ["50"]) or ["50"])[0])
+    limit = _qint(q, "limit", 50)
     query = (q.get("query", [None]) or [None])[0]
     return agency_ghl.contacts(AGENCY, limit=limit, query=query)
 
@@ -2502,7 +2502,7 @@ def api_agency_build_list(_q):
 def api_agency_ads(q):
     account = (q.get("account", [None]) or [None])[0]
     client = (q.get("client", [None]) or [None])[0]
-    days = int((q.get("days", ["7"]) or ["7"])[0])
+    days = _qint(q, "days", 7)
     return agency_ads.analytics(account=account, client=client, days=days)
 
 
