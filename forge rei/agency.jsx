@@ -412,7 +412,10 @@ function AgClientForm({ initial, defaults, onSaved, onCancel }) {
           <input style={agInp} value={f.portal.startDate} onChange={(e) => setPortal("startDate", e.target.value)} placeholder="Mar 3, 2026" /></div>
       </div>
       <AgPortalLink clientId={f.id} portal={f.portal} />
-      <AgPayLink clientId={f.id} email={f.portal && f.portal.contactEmail} />
+      {/* No email prefill: portal.contactEmail is OUR contact address shown to the
+          client, not theirs — prefilling it would subscribe us to our own plan.
+          The client types their own email at Stripe, which is correct anyway. */}
+      <AgPayLink clientId={f.id} />
       {err && <div style={{ color: "var(--red)", fontSize: 12.5 }}>{err}</div>}
       <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
         <button className="tab" onClick={onCancel}>Cancel</button>

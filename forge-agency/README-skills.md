@@ -14,10 +14,19 @@ agents:
 
 **Operator-facing (not loaded into Dyson/Eco prompts — prospecting isn't their job):**
 
+- **`skills/agency-offer-sheet.md` — the offer and its price. SINGLE SOURCE OF
+  TRUTH.** Read this before touching any price anywhere. The site, the dashboard
+  (`forge rei/agency_offers.py`), the call, the cold email, and the DM all read
+  from it. If two of them disagree, this file wins and the other is stale. §7 is
+  the update checklist.
+- `skills/agency-warm-intro-playbook.md` — the first channel: the Philly daycare
+  network. Who's in the room, the peer opener, what to say when they say yes,
+  and the rules for not burning a small-city network.
 - `skills/agency-icp.md` — who ClientForge cold-calls: territory order, niche
   ranking, qualify/disqualify, buying-signal scoring, the Clay column build.
-- `skills/agency-cold-call-playbook.md` — the offer ladder + pricing, call goal,
-  scripts, objections, post-call flow, compliance rules.
+- `skills/agency-cold-call-playbook.md` — call goal, scripts, objections,
+  post-call flow, compliance rules. Its §1 offer ladder is a summary of the
+  offer sheet, not a second source.
 
 ## Seed vs. live (learned) playbooks
 
