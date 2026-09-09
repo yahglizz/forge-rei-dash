@@ -19,9 +19,9 @@ STATUSES = ["lead", "building", "active", "paused", "churned"]
 
 # What a client signed up for. Used as dashboard tags + mirrored to GHL as
 # "signed: <service>" tags (see agency_ghl.service_tag).
-SERVICES = ["Website", "Automations", "AI Receptionist", "AI Chatbot",
-            "Ads Management", "SEO", "Lead Gen", "Social Media", "CRM Setup",
-            "Hosting"]
+SERVICES = ["Website", "Mobile App", "Automations", "AI Receptionist",
+            "AI Chatbot", "Ads Management", "SEO", "Lead Gen", "Social Media",
+            "CRM Setup", "Hosting"]
 
 
 def _services(v):
@@ -106,7 +106,11 @@ def _slim(c):
         "name": c.get("name") or "(unnamed)",
         "business": c.get("business") or "",
         "plan": c.get("plan") or "",
+        # What they actually signed: the quoted offer, kept separate from `plan`
+        # so touching the plan dropdown can't erase the record of the quote.
+        "offer": c.get("offer") if isinstance(c.get("offer"), dict) else None,
         "mrr": _num(c.get("mrr")),
+        "oneTime": _num(c.get("oneTime")),   # build/setup revenue; not recurring
         "status": c.get("status") if c.get("status") in STATUSES else "lead",
         "site": c.get("site") or "",
         "agents": c.get("agents") or [],
@@ -157,7 +161,10 @@ def save_client(c):
                 "name": name,
                 "business": c.get("business", existing.get("business", "")),
                 "plan": c.get("plan", existing.get("plan", "")),
+                "offer": (c["offer"] if isinstance(c.get("offer"), dict)
+                          else existing.get("offer")),
                 "mrr": _num(c.get("mrr", existing.get("mrr", 0))),
+                "oneTime": _num(c.get("oneTime", existing.get("oneTime", 0))),
                 "status": (c.get("status") if c.get("status") in STATUSES
                            else existing.get("status", "lead")),
                 "site": c.get("site", existing.get("site", "")),
@@ -179,7 +186,9 @@ def save_client(c):
                 "name": name,
                 "business": c.get("business", ""),
                 "plan": c.get("plan", ""),
+                "offer": c["offer"] if isinstance(c.get("offer"), dict) else None,
                 "mrr": _num(c.get("mrr", 0)),
+                "oneTime": _num(c.get("oneTime", 0)),
                 "status": c.get("status") if c.get("status") in STATUSES else "lead",
                 "site": c.get("site", ""),
                 "agents": c.get("agents", []),
