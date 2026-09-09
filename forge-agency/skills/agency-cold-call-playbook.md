@@ -22,29 +22,42 @@ did not land. "Send me some info" is a no wearing a polite hat — see §5.
 
 ## 1. The offer ladder — land cheap, expand after
 
+**The offer and its price live in `agency-offer-sheet.md`.** That file is the only
+source of truth; this section is the call-facing summary of it. If the two ever
+disagree, the offer sheet wins and this section is stale — fix it.
+
 Trust first, margin second. The website is the door, not the business.
 
 | Rung | What | Price | Why |
 |---|---|---|---|
-| **1. The door** | Website — built, live, mobile, with a real booking/inquiry form wired to their CRM | **$0–1,000** (free or near-free when the monthly is signed) | This is customer-acquisition cost, not revenue. It buys a relationship and a portfolio piece. |
-| **2. The business** | **Care plan — $200–500/mo.** Hosting, edits, updates, form/CRM monitoring, monthly report | **$200–500/mo** | This is the actual business. Recurring, low-effort, high-retention. Every call is aimed here. |
-| **3. Expand** | Automations — missed-call text-back, speed-to-lead follow-up, review requests, booking reminders, AI receptionist | project + monthly bump | Sold *after* the site is live and they trust us. Easiest upsell we have. |
-| **4. Expand** | Ads management (Eco) | management fee + their spend | Only for businesses already spending. Never sold cold. |
+| **1. The door** | Website — built, live, mobile, with a real booking/inquiry form wired to their CRM | **Free.** No deposit, no setup fee | Customer-acquisition cost, not revenue. It buys a relationship, a reference, and a testimonial we don't have yet. |
+| **2. The business** | **Care plan — $129/mo.** Hosting, up to 2 edits/mo, form + CRM delivery monitoring, speed-to-lead, missed-call text-back, monthly report | **$129/mo**, 6-month minimum, first charge at launch | The actual business. Recurring, low-effort, high-retention. Every call is aimed here. |
+| **3. Expand** | Automations — CRM pipeline, follow-up sequences, review requests, booking reminders, AI receptionist | $250–$1,100 one-time (may bump the monthly) | Sold *after* the site is live and they trust us. Easiest upsell we have. |
+| **4. Expand** | Ads management (Eco) | $250 / $450 / $750 per month; **client pays spend directly** | Only for businesses already spending. Never sold cold. |
 | **5. Expand** | Apps / custom builds | scoped per project | Rare, biggest checks. Comes from existing clients asking, never from a cold call. |
 
 **How we frame it on the Zoom (not the cold call):**
-> "The site itself I'm doing for [free / $X] — I'd rather earn the relationship
-> than the deposit. What I charge for is keeping it working: $X a month covers
-> hosting, any edits you want, and I watch that the form is actually delivering.
-> Cancel whenever."
+> "The site itself I'm doing free — I'd rather earn the relationship than the
+> deposit. What I charge for is keeping it working: a hundred twenty-nine a month
+> covers hosting, any edits you want, and I watch that the form is actually
+> delivering. Six months, then cancel whenever. And it's yours either way —
+> code, domain, all of it."
+
+**Anchor the $129 against one of their customers, never against our cost.** One
+enrolled child is roughly $10–13k/yr to a center; one roofing job is $8–15k.
+Full table in `agency-offer-sheet.md` §5.
 
 **Rules:**
 - **Never quote a price on the cold call.** Same discipline as wholesale: the
   number happens on the call where we can show the work. If pushed, see §5.
-- **Never discount the monthly to save a deal.** Discount the build (it's already
-  near zero) — the monthly is the business.
+- **Never discount the monthly to save a deal.** The build is already free —
+  there is nothing left to give.
 - **Never take on a client whose monthly we had to argue them into.** They churn
   at month three and cost more than they paid.
+- **The site lists paid build tiers ($300/$700/$1,400) and we offer the build
+  free.** That gap is deliberate — it makes free land as a real concession. The
+  *monthly* must match everywhere, and does: the site's care plan reads
+  "$75–$200/mo", which contains $129.
 
 ---
 

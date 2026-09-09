@@ -91,24 +91,36 @@ Wholesale lead screening and daycare operations run on separate tracks — see
 
 ---
 
-## How Clients Come In — cold call from a Clay-built list
+## How Clients Come In — warm intros first, then cold calls
 
-*(added 2026-07-29)*
+*(added 2026-07-29; channel order and offer updated 2026-09-08)*
 
-Client acquisition is **outbound cold calling** off lead lists built in Clay.
-Two files own it — read them before doing any prospecting, list, or script work:
+Two channels, in this order. **Warm intros lead** — the operator is a licensed
+Philadelphia childcare director, so every other director in the city is a peer,
+not a stranger, and that converts far better than a dial. Cold calling runs
+underneath it off lead lists built in Clay.
 
-- **`agency-icp.md`** — who we call: territory order (clear one metro, then
+Four files own acquisition — read them before doing any offer, prospecting,
+list, or script work:
+
+- **`agency-offer-sheet.md`** — **the offer and its price. Single source of
+  truth.** Everything else (site, dashboard, call, email, DM) reads from it. If
+  any two prices disagree, this file wins.
+- **`agency-warm-intro-playbook.md`** — the daycare-network channel: who's in
+  the room, the peer opener, what to say when they say yes, and the rules for
+  not burning a small-city network.
+- **`agency-icp.md`** — who we call cold: territory order (clear one metro, then
   advance; **Philly is active**), niche ranking (**daycare/childcare first**),
   qualify/disqualify (**owner-reachable only, no corporate/franchise**), the
   buying-signal score, and the Clay column build.
-- **`agency-cold-call-playbook.md`** — the offer ladder + pricing, the call
-  goal (**book a 15-min Zoom, reveal the mockup there**), scripts, objections,
-  post-call flow, and the compliance rules.
+- **`agency-cold-call-playbook.md`** — the call goal (**book a 15-min Zoom,
+  reveal the mockup there**), scripts, objections, post-call flow, compliance.
 
-**Offer ladder in one line:** website is the door at **$0–1,000**; the business
-is the **$200–500/mo care plan**; automations, ads, and apps expand from there.
-**No price is ever quoted on the cold call** — same discipline as wholesale.
+**Offer in one line:** the website is **free**; the business is the **$129/mo
+care plan** (6-month minimum, first charge at launch, they own the code);
+automations, ads, and apps expand from there. **No price is ever quoted on a
+cold call** — same discipline as wholesale. In a *warm* intro the price is named
+early and plainly, because withholding it between peers reads as a setup.
 
 **Every lead carries a PAIN POINT or it doesn't get called** (`agency-icp.md` §5).
 One specific, observable sentence about what's broken in *that* business's web
