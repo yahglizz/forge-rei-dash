@@ -5,9 +5,12 @@ marcus_state/agency_requests.json. Clients (or you on their behalf) submit edit
 requests; admin moves them through a status flow; every change is logged in the
 request's history.
 
-MOCK/SEED: ships with a few example requests so the UI is explorable on first
-load. Replace the seed + swap _load/_save for a real DB later (see
-AGENCY_DASHBOARD_FEATURES.md → "Future database notes").
+The store starts EMPTY. It used to ship demo requests ("Bloom Dental",
+"Peak Fitness") so the UI was explorable, but the real client portal
+(agency_portal_io) is wired now and those rows landed in the operator's live
+queue as if they were client work — and were eligible for Dyson + the approval
+queue. Swap _load/_save for a real DB later (see AGENCY_DASHBOARD_FEATURES.md →
+"Future database notes").
 """
 import forge_atomic
 import json
@@ -25,50 +28,6 @@ PRIORITIES = ["low", "medium", "high", "urgent"]
 STATUSES = ["submitted", "in_review", "approved", "in_progress",
             "completed", "rejected"]
 
-_NOW = int(time.time() * 1000)
-_DAY = 86400 * 1000
-
-# --- MOCK SEED (remove when wiring a real client portal) --------------------
-_SEED = {
-    "seq": 3,
-    "requests": [
-        {
-            "id": "r1", "clientId": "demo-bloom", "clientName": "Bloom Dental",
-            "title": "Swap homepage hero image + headline",
-            "type": "Website Edit", "priority": "high", "status": "in_review",
-            "detail": "New hero shot from the photoshoot, headline to "
-                      "'Gentle dentistry for the whole family'.",
-            "createdAt": _NOW - 2 * _DAY, "updatedAt": _NOW - _DAY,
-            "history": [
-                {"ts": _NOW - 2 * _DAY, "action": "submitted", "note": "Client submitted"},
-                {"ts": _NOW - _DAY, "action": "in_review", "note": "Moved to review"},
-            ],
-        },
-        {
-            "id": "r2", "clientId": "demo-peak", "clientName": "Peak Fitness",
-            "title": "Add online class booking page",
-            "type": "New Page", "priority": "urgent", "status": "submitted",
-            "detail": "Need a /book page wired to their Calendly + a CTA in the nav.",
-            "createdAt": _NOW - 6 * 3600 * 1000, "updatedAt": _NOW - 6 * 3600 * 1000,
-            "history": [
-                {"ts": _NOW - 6 * 3600 * 1000, "action": "submitted", "note": "Client submitted"},
-            ],
-        },
-        {
-            "id": "r3", "clientId": "demo-bloom", "clientName": "Bloom Dental",
-            "title": "Fix contact form not sending",
-            "type": "Bug Fix", "priority": "high", "status": "completed",
-            "detail": "Form submits but no email arrives. Check SMTP / webhook.",
-            "createdAt": _NOW - 5 * _DAY, "updatedAt": _NOW - 3 * _DAY,
-            "history": [
-                {"ts": _NOW - 5 * _DAY, "action": "submitted", "note": "Client submitted"},
-                {"ts": _NOW - 4 * _DAY, "action": "in_progress", "note": "Dyson assigned"},
-                {"ts": _NOW - 3 * _DAY, "action": "completed", "note": "Webhook re-pointed, verified"},
-            ],
-        },
-    ],
-}
-
 
 def _load():
     if STATE.exists():
@@ -78,7 +37,7 @@ def _load():
                 return d
         except Exception:
             pass
-    return json.loads(json.dumps(_SEED))  # deep copy of seed on first run
+    return {"requests": [], "seq": 0}   # missing/corrupt file -> empty, never fake rows
 
 
 def _save(d):

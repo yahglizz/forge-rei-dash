@@ -209,7 +209,7 @@ function AgPortalLink({ clientId, compact, portal, onChanged }) {
 }
 
 // Add / edit a client. onSaved() refreshes the parent list.
-function AgClientForm({ initial, onSaved, onCancel }) {
+function AgClientForm({ initial, defaults, onSaved, onCancel }) {
   const blankWs = { repo: "", branch: "", liveUrl: "", stack: "", brand: "", assets: "", accessNotes: "" };
   // Onboarding block the client sees in their portal. status/sentAt/openedAt are
   // lifecycle fields — never hand-edited here, just carried through on save.
@@ -220,6 +220,20 @@ function AgClientForm({ initial, onSaved, onCancel }) {
     ? st.services.filter((x) => x !== s) : [...(st.services || []), s] }));
   const [saving, setSaving] = useStateAg(false);
   const [err, setErr] = useStateAg(null);
+  // Settings → "Default plan for new clients" / "Default services offered
+  // (pre-selected when adding a new client)". Applied once, NEW clients only,
+  // and only while the operator hasn't touched either field — /api/agency/settings
+  // usually resolves before this form mounts, but nothing guarantees it.
+  const [seeded, setSeeded] = useStateAg(false);
+  useEffectAg(() => {
+    if (initial || seeded || !defaults) return;
+    setSeeded(true);
+    setF((s) => ({
+      ...s,
+      plan: (s.plan === blank.plan && defaults.defaultPlan) ? defaults.defaultPlan : s.plan,
+      services: (s.services || []).length ? s.services : (defaults.defaultServices || []),
+    }));
+  }, [defaults, initial, seeded]);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const setWs = (k, v) => setF((s) => ({ ...s, workspace: { ...(s.workspace || blankWs), [k]: v } }));
   const setPortal = (k, v) => setF((s) => ({ ...s, portal: { ...(s.portal || blankPortal), [k]: v } }));
@@ -402,6 +416,7 @@ function AgClientRow({ c, onEdit, onDelete, onChanged }) {
 function AgencyClients() {
   const Icons = window.Icons;
   const { data, error, loading, refresh } = window.useApi("/api/agency/clients");
+  const { data: agSettings } = window.useApi("/api/agency/settings");
   const [editing, setEditing] = useStateAg(null);   // client object or {} for new
   const [tagBusy, setTagBusy] = useStateAg(false);
   const clients = (data && data.clients) || [];
@@ -435,7 +450,7 @@ function AgencyClients() {
         </div>}
       </div>
       {error && <window.ErrorRow error={error} onRetry={refresh} />}
-      {editing && <AgClientForm initial={editing.id ? editing : null}
+      {editing && <AgClientForm initial={editing.id ? editing : null} defaults={agSettings}
         onSaved={() => { setEditing(null); refresh(); }} onCancel={() => setEditing(null)} />}
 
       {!editing && loading && <window.LoadingRow label="Loading clients…" />}
