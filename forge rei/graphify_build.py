@@ -282,6 +282,12 @@ def build_graph():
     for n in b.nodes:
         r = n.get("repo") or "?"
         by_repo[r] = by_repo.get(r, 0) + 1
+    if not b.nodes:
+        # No roots on this host (e.g. /api/graphify/rebuild hit on the Mac, where
+        # /opt/forge/* doesn't exist). Keep the last good graph instead of wiping it.
+        with _lock:
+            _status["error"] = "no graph roots on this host — kept last graph"
+        return dict(_status)
     graph = {
         "directed": True, "multigraph": False,
         "graph": {"generated_at": int(time.time()),
