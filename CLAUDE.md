@@ -315,6 +315,28 @@ update that skill if you improved the pattern.
 - Agency Call Center (`agency_calls.py` + `agency_callcenter.jsx`): tap-to-log dial tracker — Answered/No-Answer buttons, daily log, editable dial goal, streak (consecutive days ≥ goal; in-progress today never breaks it). `/api/agency/calls{,/log,/undo,/goal}`, state `marcus_state/agency_calls.json`. Internal tally only — no approval gate.
 - Agency Call Sheet (`agency_callsheet.py`, same tab): upload a PDF of biz leads (or paste text) → Claude parses to rows (`review_agent._claude`; regex fallback, pypdf/PyPDF2/pdftotext extraction chain — box has pypdf) → CRM-style table with search + status chips; per-row quick-marks New/Answered/No answer/Call back/Move on, tap-to-dial `tel:` links, inline notes, phone-dedupe on import. Marking answered/no_answer auto-bumps the daily tally. `/api/agency/callsheet{,/import-pdf,/import-text,/status,/note,/delete,/clear-dead}`, state `marcus_state/agency_callsheet.json`.
 - Bus: `/api/bus` · Brain: `/api/brain/{tree,note,search,recent,graph,activity,status}`
+- **`./forge` — call any agent from any shell (the 4th surface, next to dashboard /
+  Telegram / Agent Office).** One bash script at the repo root; no new backend — it POSTs
+  the same `/api/hub/{chat,task}` the dashboard uses, so the conversation thread, the hub
+  task queue, and the agent bus stay shared across every surface. Install once:
+  `ln -sf "$HOME/forge rei dash/forge" ~/.local/bin/forge`. Then from Mac, the PC, an SSH
+  session, a cron job, or a Claude Code Bash call:
+
+  | Command | What it does |
+  |---------|--------------|
+  | `forge scout what's hot today` | ask that agent (`marcus scout atlas dyson eco solomon midas`) |
+  | `forge task midas check inventory` | file a REAL job — hub task + bus message the agent reads |
+  | `forge agents` / `forge tasks [agent]` / `forge bus [agent]` | roster+status · task queue · bus feed |
+  | `echo "..." \| forge marcus` | message from stdin (long text, files, pipes) |
+  | `forge --json <cmd>` | raw JSON, for scripting |
+
+  Box URL resolves `$FORGE_URL` → tailnet (`https://forge-reios.tail0a2dda.ts.net`) →
+  `localhost:7799`. No API token because the network IS the perimeter (DO firewall blocks
+  public; tailnet or SSH tunnel only) — **do not expose 7799 publicly without adding auth
+  first.** Phone without Telegram: an iOS Shortcut doing
+  `POST $TAILNET/api/hub/chat {"agentId":"scout","message":"..."}` over Tailscale is the
+  same call. Rule 2 holds — chat is thinking, `task` is an assignment, neither acts outward.
+  Self-check: `./test_forge_cli.sh` (stub box on 127.0.0.1, 12 assertions, exit 1 on failure).
 - **Agent Office** (`pixel_office.py` + `pixel_office.jsx`, nav "Agent Office" in all four
   workspaces): the visual floor — four department rooms, twelve agents as pixel characters,
   animated from REAL signals only (live job → agent_bus → open hub tasks → engine status;
