@@ -54,6 +54,7 @@ UNANSWERED_SEC = 15 * 60               # business-hours seconds before a reply i
 LOOKBACK_DAYS = 90                     # form leads quiet longer than this leave the desk
 CHAT_DAYS = 30                         # untagged chat/phone contacts: recent only
 ALERT_KEEP_DAYS = 120                  # prune old alert-dedupe keys
+CONV_LOOKUPS = 50                      # per-sweep GETs for leads outside the 100-thread window
 
 LEAD_TAGS = {"form-type-new-inquiry", "website-lead"}
 # Existing families (Family Contact Form, one-tap enroll, dashboard sync) — never leads.
@@ -153,7 +154,10 @@ def _reason(code, since, anchor=""):
 
 def derive(contact, messages, tasks, now, kind="form"):
     """Pure: one lead's desk row from its raw GHL contact + messages + tasks at `now`
-    (epoch seconds). No I/O. Timestamps out are epoch ms; durations are seconds."""
+    (epoch seconds). No I/O. Timestamps out are epoch ms; durations are seconds.
+    messages=None means the thread could not be read (history unknown): reasons that
+    hinge on "no reply seen" are withheld — missing data never pages the owner."""
+    known = messages is not None
     tags = _tags(contact)
     cf = daycare_ghl._cf_map(contact)
     cid = str(contact.get("id") or "")
@@ -175,7 +179,7 @@ def derive(contact, messages, tasks, now, kind="form"):
     opted_out = bool(last_in and seller_classify.is_opt_out(last_in[4]))
 
     reasons = []
-    if PREF_CALL_TAG in tags and not humans and not done_task:
+    if known and PREF_CALL_TAG in tags and not humans and not done_task:
         reasons.append(_reason("pref_call", created))
     if (last_in and not opted_out and not any(h >= last_in[0] for h in humans)
             and business_secs(last_in[0], now) >= UNANSWERED_SEC):
@@ -183,7 +187,7 @@ def derive(contact, messages, tasks, now, kind="form"):
     overdue = [(d, t) for d, t in open_tasks if d < now]
     if overdue:
         reasons.append(_reason("overdue_task", overdue[0][0], anchor=overdue[0][1].get("id") or ""))
-    if queued and not outs:
+    if known and queued and not outs:
         reasons.append(_reason("sms_queued", created))
 
     responded = bool(outs) and any(e[0] > outs[0] for e in ins)
@@ -214,6 +218,7 @@ def derive(contact, messages, tasks, now, kind="form"):
         "openTask": ({"dueAt": _ms(open_tasks[0][0]), "overdue": open_tasks[0][0] < now}
                      if open_tasks else None),
         "optedOut": opted_out,
+        "historyKnown": known,
         "ghlUrl": (f"https://app.gohighlevel.com/v2/location/{location_id}/contacts/detail/{cid}"
                    if location_id and cid else ""),
     }
@@ -379,6 +384,23 @@ def _tasks(client, contact_id):
             if isinstance(t, dict)]
 
 
+def _conversation(client, contact_id):
+    """One contact's newest conversation (GET), or {} when it has none."""
+    data = client.get("/conversations/search", {
+        "locationId": client.location_id, "contactId": contact_id, "limit": 1,
+        "sortBy": "last_message_date"})
+    convs = (data.get("conversations") if isinstance(data, dict) else None) or []
+    return convs[0] if convs and isinstance(convs[0], dict) else {}
+
+
+def _retry_after(e):
+    """Seconds GHL asked us to wait on a 429 (Retry-After, delta-seconds), else one interval."""
+    try:
+        return min(max(1, int(str(e.headers.get("Retry-After")).strip())), 86400)
+    except (AttributeError, TypeError, ValueError):
+        return INTERVAL
+
+
 def collect(client, now):
     """Read the daycare GHL location -> (lead rows, per-lead fetch failures). GET only."""
     contacts = list(daycare_ghl.iter_contacts(client))
@@ -387,7 +409,7 @@ def collect(client, now):
     by_contact = {}
     for c in (convs.get("conversations") if isinstance(convs, dict) else None) or []:
         by_contact.setdefault(c.get("contactId"), c)      # newest conversation wins
-    leads, failed = [], 0
+    leads, failed, lookups = [], 0, 0
     for contact in contacts:
         contact.setdefault("locationId", client.location_id)
         cid = contact.get("id")
@@ -401,14 +423,20 @@ def collect(client, now):
             if tags & LEAD_TAGS:
                 if max(created, last_at) < now - LOOKBACK_DAYS * 86400:
                     continue
-                leads.append(derive(contact, _messages(client, conv), _tasks(client, cid), now))
+                if conv is None and lookups < CONV_LOOKUPS:
+                    lookups += 1          # thread older than the location-wide window
+                    conv = _conversation(client, cid)       # {} = looked: no thread at all
+                msgs = _messages(client, conv) if conv is not None else None  # None = unknown
+                leads.append(derive(contact, msgs, _tasks(client, cid), now))
             elif (conv and not any(t.startswith(daycare_ghl.LOCATION_PREFIX) for t in tags)
                   and last_at >= now - CHAT_DAYS * 86400):
                 msgs = _messages(client, conv)
                 kind = _chat_kind(msgs)
                 if kind:
                     leads.append(derive(contact, msgs, [], now, kind=kind))
-        except Exception:  # noqa: BLE001 — one bad lead never kills the sweep
+        except Exception as e:  # noqa: BLE001 — one bad lead never kills the sweep...
+            if getattr(e, "code", None) == 429:
+                raise                     # ...but a rate limit does: stop hammering GHL
             failed += 1
     leads.sort(key=lambda l: (l["stage"] != "NEEDS_HUMAN", -(l.get("createdAt") or 0)))
     return leads, failed
@@ -418,18 +446,25 @@ def run_once(client, now=None, send=None):
     """One sweep: read GHL, derive, save, alert. Returns the saved state."""
     now = now or time.time()
     error = None
-    leads = failed = None
+    leads = failed = backoff = None
     if client is None or not getattr(client, "configured", False):
         error = "Daycare GHL not configured — add GHL_API_KEY + GHL_LOCATION_ID to daycare.env."
     else:
+        held = _load()
+        if now < (held.get("backoffUntil") or 0) / 1000:
+            return held       # inside GHL's Retry-After: zero GETs; the 429 error stands
         try:
             leads, failed = collect(client, now)
         except Exception as e:  # noqa: BLE001 — type + HTTP code only; never a body/token
             code = getattr(e, "code", None)
             error = f"GHL read failed: {type(e).__name__}{f' {code}' if code else ''}"
+            if code == 429:
+                backoff = _retry_after(e)
+                error += f" — rate-limited, backing off {backoff}s"
     with _LOCK:
         st = _load()
         st["lastRunAt"] = _ms(now)
+        st["backoffUntil"] = _ms(now + backoff) if backoff else None
         if leads is not None:
             st["leads"] = leads
             st["kpis"] = kpis(leads, now)
