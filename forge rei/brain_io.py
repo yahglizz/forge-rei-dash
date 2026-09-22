@@ -99,7 +99,9 @@ def read_note(rel):
         p = _safe(rel)
     except ValueError as e:
         return {"error": str(e)}
-    if not p.is_file():
+    # Notes only: never serve dotfiles (vault/.env holds a PAT) or non-markdown.
+    hidden = any(part.startswith(".") for part in p.relative_to(VAULT).parts)
+    if hidden or p.suffix != ".md" or not p.is_file():
         return {"error": "not found", "path": rel}
     return {"path": rel, "title": p.stem, "content": p.read_text(errors="ignore")}
 
