@@ -76,6 +76,15 @@ def _hub_agents():
         return {}
 
 
+def _archived():
+    """Archived business ids (business_scope). Fails OPEN: nothing archived."""
+    try:
+        import business_scope
+        return business_scope.archived()
+    except Exception:
+        return set()
+
+
 def _card(agent_id):
     """Name/role/blurb for one agent — hub first, dropship table second."""
     return _hub_agents().get(agent_id) or DROPSHIP_AGENTS.get(agent_id) or {
@@ -208,11 +217,16 @@ def _activity(agent_id, bus_idx, task_counts, now_ms):
 
 
 def state(business=None):
-    """The whole floor. `business` scopes to one department; None returns all four."""
+    """The whole floor. `business` scopes to one department; None returns every
+    non-archived one."""
     now_ms = int(time.time() * 1000)
     bus_idx = _bus_index()
     task_counts = _open_tasks()
-    depts = [d for d in DEPARTMENTS if not business or d["id"] == business]
+    # No scope -> every ACTIVE department (archived ones drop off the floor; asking
+    # for one by name still works, so an archived workspace can be viewed read-only).
+    arch = _archived()
+    depts = [d for d in DEPARTMENTS
+             if (d["id"] == business if business else d["id"] not in arch)]
 
     out = []
     for d in depts:

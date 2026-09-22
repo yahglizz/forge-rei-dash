@@ -142,6 +142,13 @@ class OrionEngine:
         a failing business degrades to a note, never takes the gather down."""
         data = {"rei": {}, "agency": {}, "daycare": {}, "dropship": {},
                 "bus": [], "coaching": [], "clientRequests": []}
+        # Archived businesses (business_scope) are left out of the paid brief.
+        # Fails open: if the scope can't be read, gather everything as before.
+        try:
+            import business_scope
+            arch = business_scope.archived()
+        except Exception:
+            arch = set()
 
         # REI — Scout's read + the screening queue.
         try:
@@ -194,8 +201,9 @@ class OrionEngine:
             data["daycare"]["error"] = str(e)[:120]
 
         # Dropship — Midas's CACHED brief + trending signal (only if a source is keyed).
+        # Not read at all while archived (the key is dropped below).
         try:
-            if midas:
+            if midas and "dropship" not in arch:
                 data["dropship"]["status"] = midas.status() or {}
                 b = midas.brief() if hasattr(midas, "brief") else None
                 bb = (b or {}).get("brief") if isinstance(b, dict) else None
@@ -204,8 +212,9 @@ class OrionEngine:
                         "headline": bb.get("headline"),
                         "priorities": (bb.get("priorities") or [])[:4],
                         "winners": (bb.get("winners") or [])[:3]}
-            import dropship_io
-            data["dropship"]["watchlist"] = dropship_io.stats()
+            if "dropship" not in arch:
+                import dropship_io
+                data["dropship"]["watchlist"] = dropship_io.stats()
         except Exception as e:  # noqa: BLE001
             data["dropship"]["error"] = str(e)[:120]
 
@@ -225,6 +234,10 @@ class OrionEngine:
                 for c in (agent_coach.feed(20) or [])][-12:]
         except Exception:
             pass
+        for b in arch:
+            data.pop(b, None)
+        if arch:
+            data["archived"] = sorted(arch)
         return data
 
     def _system_prompt(self):
@@ -252,7 +265,9 @@ class OrionEngine:
             "• Close the loop and DECIDE. Don't hedge. Speak plainly and directly to the "
             "owner.\n"
             "• You never take an outward action yourself — you tell the owner what to do; "
-            "he acts.\n\n"
+            "he acts.\n"
+            "• Any business listed under 'archived' in the data is paused on purpose: give "
+            "it no priority and leave it out of byBusiness.\n\n"
             "Output ONLY valid JSON with keys: greeting (one short warm line), headline "
             "(the single most important focus today), focus (the theme in a few words), "
             "idea (one specific high-leverage thing to attack now, tied to a real signal), "

@@ -2768,6 +2768,20 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/screening/queue", "/api/screening/report", "/api/screening/status",
             "/api/notify/settings", "/api/ops/status", "/api/test-mode"}
 
+# --- WP-B --- business archive scope (P1-1). Archive = hide, never delete.
+# GET /api/businesses -> {ok, businesses:[{id,label,archived}]}
+# POST /api/businesses/set {id, archived} lives in do_POST (lines marked "WP-B").
+import business_scope
+
+
+def api_businesses(_q):
+    return {"ok": True, "businesses": business_scope.listing()}
+
+
+ROUTES["/api/businesses"] = api_businesses
+NO_CACHE.add("/api/businesses")
+# --- /WP-B ---
+
 
 def _get_or_create_conversation(contact_id):
     data = ghl_get("/conversations/search",
@@ -3180,6 +3194,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/notify/settings",
                                    "/api/notify/test",
                                    "/api/ops/set",
+                                   "/api/businesses/set",  # WP-B
                                    "/api/brief/send",
                                    "/api/brief/config",
                                    "/api/recap/send",
@@ -3646,6 +3661,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = telegram_io.send_test()
             elif parsed.path == "/api/ops/set":
                 result = forge_ops.set_paused(bool(body.get("paused")))
+            elif parsed.path == "/api/businesses/set":  # WP-B
+                result = business_scope.set_archived(body.get("id"), body.get("archived"))
             elif parsed.path == "/api/brief/send":
                 result = _maybe_daily_brief(force=True)
             elif parsed.path == "/api/brief/config":
