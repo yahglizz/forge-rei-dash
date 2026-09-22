@@ -934,6 +934,7 @@ class MarcusEngine:
             )
             with urllib.request.urlopen(req, timeout=30) as r:
                 data = json.loads(r.read().decode())
+            forge_heartbeat.ai_ok()   # shared AI-dependency signal (never raises)
             try:  # cost telemetry — best-effort, never blocks the draft
                 import cost_tracker
                 u = data.get("usage") or {}
@@ -963,7 +964,12 @@ class MarcusEngine:
                 msg = (err_body.get("error") or {}).get("message") or str(e)
             except Exception:  # noqa: BLE001
                 msg = str(e)
+            forge_heartbeat.ai_fail(e.code, msg)   # billing/auth → hard-down (never raises)
             self.last_error = f"AI draft failed: Anthropic API error ({e.code}): {msg}"
+            return _template_reply(), "template"
+        except OSError as e:  # network / timeout (URLError, socket) — transient AI signal
+            forge_heartbeat.ai_fail(None, e)
+            self.last_error = f"AI draft failed: {e}"
             return _template_reply(), "template"
         except Exception as e:  # noqa: BLE001
             self.last_error = f"AI draft failed: {e}"

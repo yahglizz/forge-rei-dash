@@ -180,6 +180,8 @@ class SolomonEngine:
         self.last_brief_at = None
         self.brief_count = 0
         self.learn_state = {"lastLearnedAt": None, "learnCount": 0, "briefsSinceLearn": 0}
+        self.fail_streak = 0          # WP-A — consecutive failed briefs (backoff input)
+        self.last_attempt_at = None   # WP-A — ms epoch of the last brief attempt
         self._sk_text = ""
         self._sk_mtime = None
         self._load()
@@ -194,6 +196,8 @@ class SolomonEngine:
                 self.last_brief_at = d.get("lastBriefAt")
                 self.brief_count = d.get("briefCount", 0) or 0
                 self.learn_state = d.get("learnState", self.learn_state) or self.learn_state
+                self.fail_streak = int(d.get("failStreak") or 0)          # WP-A
+                self.last_attempt_at = d.get("lastAttemptAt")             # WP-A
         except Exception:
             pass
 
@@ -206,6 +210,8 @@ class SolomonEngine:
                 "lastBriefAt": self.last_brief_at,
                 "briefCount": self.brief_count,
                 "learnState": self.learn_state,
+                "failStreak": self.fail_streak,          # WP-A
+                "lastAttemptAt": self.last_attempt_at,   # WP-A
             })
         except Exception:
             pass
@@ -824,6 +830,32 @@ class SolomonEngine:
     def run_once(self, session=None):
         return self.build_brief(session)
 
+    # --- WP-A --- failed-brief backoff: 15 min → 30 → 60 → 2 h → 4 h → cap 6 h. Without
+    # it a dead Anthropic key was retried every tick forever (errStreak ~4,900), and each
+    # retry re-gathered Meta with an invalid token. A successful brief resets the streak.
+    # failStreak / lastAttemptAt persist in solomon.json so a restart keeps the schedule.
+    BACKOFF_BASE_S = POLL_INTERVAL
+    BACKOFF_CAP_S = 6 * 3600
+
+    @classmethod
+    def backoff_delay_s(cls, fail_streak):
+        if fail_streak <= 0:
+            return 0
+        return min(cls.BACKOFF_BASE_S * 2 ** (fail_streak - 1), cls.BACKOFF_CAP_S)
+
+    def _brief_due(self, now):
+        due = (self.last_brief_at is None
+               or (now - self.last_brief_at) >= BRIEF_EVERY_MS)
+        wait_ms = self.backoff_delay_s(self.fail_streak) * 1000
+        return due and (now - (self.last_attempt_at or 0)) >= wait_ms
+
+    def _note_brief_result(self, ok, now):
+        with self.lock:
+            self.last_attempt_at = now
+            self.fail_streak = 0 if ok else self.fail_streak + 1
+            self._save()
+    # --- /WP-A ---
+
     def run_forever(self):
         while True:
             try:
@@ -833,16 +865,18 @@ class SolomonEngine:
                 key = _solomon_key()
                 # Due a fresh autonomous brief? Build one under an auto-admin session.
                 now = int(time.time() * 1000)
-                due = (self.last_brief_at is None
-                       or (now - self.last_brief_at) >= BRIEF_EVERY_MS)
-                if due and key:
+                if self._brief_due(now) and key:
                     session = None
                     try:
                         import daycare_supabase
                         session = daycare_supabase.BRIDGE.autoadmin_session("127.0.0.1")
                     except Exception:
                         session = None
-                    self.build_brief(session)
+                    ok = False
+                    try:
+                        ok = bool((self.build_brief(session) or {}).get("ok"))
+                    finally:
+                        self._note_brief_result(ok, now)   # WP-A — an exception counts as a fail
                 self._maybe_learn(key)
             except Exception as e:  # noqa: BLE001
                 self.last_error = f"loop: {e}"
