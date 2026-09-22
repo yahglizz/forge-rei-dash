@@ -15,7 +15,9 @@ What it does, every 15 min on the box (FORGE_MARCUS gate lives in connector.main
   3. Saves marcus_state/daycare_leads.json; `view()` serves /api/daycare/leads, `kpis()`
      the dashboard numbers, `needs_human()` the Owner Actions list.
   4. When a lead NEWLY needs a human, posts ONE owner alert (agent_bus + Telegram), deduped
-     per lead+reason episode, only 8am–9pm ET.
+     per lead+reason episode, only 8am–9pm ET. The bus copy carries the contact id + reason
+     codes only (skill_forge samples bus text to disk); the parent's first name rides only
+     the direct Telegram line to the owner's phone.
 
 Hard limits (CLAUDE.md rule 2 + the daycare creed): ZERO Claude calls, sends NOTHING to
 families, writes NOTHING to GHL (GET only), claims NO facts (no availability, price or
@@ -55,6 +57,7 @@ LOOKBACK_DAYS = 90                     # form leads quiet longer than this leave
 CHAT_DAYS = 30                         # untagged chat/phone contacts: recent only
 ALERT_KEEP_DAYS = 120                  # prune old alert-dedupe keys
 CONV_LOOKUPS = 50                      # per-sweep GETs for leads outside the 100-thread window
+CONTACT_PAGES, PAGE_SIZE = 6, 100      # iter_contacts cap; a full cap = maybe truncated
 
 LEAD_TAGS = {"form-type-new-inquiry", "website-lead"}
 # Existing families (Family Contact Form, one-tap enroll, dashboard sync) — never leads.
@@ -307,11 +310,14 @@ def _alert_key(lead, reason):
 
 
 def _notify(text, data, key):
-    """One bus alert to the operator + the same line on Telegram. agent_bus alone does not
+    """One bus alert to the operator + the line on Telegram. agent_bus alone does not
     reach Telegram (its notifier only forwards known event types), so this mirrors the
-    watchdog: bus for the dashboard record, telegram_io.send for the phone."""
+    watchdog: bus for the dashboard record, telegram_io.send for the phone. `text` may
+    carry a parent's first name — Telegram only; the bus copy is name-free (id + codes)."""
     import agent_bus
-    agent_bus.send("daycare_leads", "operator", "alert", text, data)
+    bus_text = ((f"Daycare lead needs you (contact {data['contactId']}): "
+                 + ", ".join(data.get("reasons") or [])) if data.get("contactId") else text)
+    agent_bus.send("daycare_leads", "operator", "alert", bus_text, data)
     try:
         import telegram_io
         telegram_io.send(html.escape(text), dedupe_key="daycare-lead:" + key)
@@ -402,8 +408,10 @@ def _retry_after(e):
 
 
 def collect(client, now):
-    """Read the daycare GHL location -> (lead rows, per-lead fetch failures). GET only."""
-    contacts = list(daycare_ghl.iter_contacts(client))
+    """Read the daycare GHL location -> (lead rows, per-lead fetch failures, truncated).
+    GET only. truncated = the contact page cap was hit, so older contacts went unread."""
+    contacts = list(daycare_ghl.iter_contacts(client, max_pages=CONTACT_PAGES,
+                                              page_size=PAGE_SIZE))
     convs = client.get("/conversations/search", {
         "locationId": client.location_id, "limit": 100, "sortBy": "last_message_date"})
     by_contact = {}
@@ -439,7 +447,7 @@ def collect(client, now):
                 raise                     # ...but a rate limit does: stop hammering GHL
             failed += 1
     leads.sort(key=lambda l: (l["stage"] != "NEEDS_HUMAN", -(l.get("createdAt") or 0)))
-    return leads, failed
+    return leads, failed, len(contacts) >= CONTACT_PAGES * PAGE_SIZE
 
 
 def run_once(client, now=None, send=None):
@@ -447,6 +455,7 @@ def run_once(client, now=None, send=None):
     now = now or time.time()
     error = None
     leads = failed = backoff = None
+    truncated = False
     if client is None or not getattr(client, "configured", False):
         error = "Daycare GHL not configured — add GHL_API_KEY + GHL_LOCATION_ID to daycare.env."
     else:
@@ -454,7 +463,7 @@ def run_once(client, now=None, send=None):
         if now < (held.get("backoffUntil") or 0) / 1000:
             return held       # inside GHL's Retry-After: zero GETs; the 429 error stands
         try:
-            leads, failed = collect(client, now)
+            leads, failed, truncated = collect(client, now)
         except Exception as e:  # noqa: BLE001 — type + HTTP code only; never a body/token
             code = getattr(e, "code", None)
             error = f"GHL read failed: {type(e).__name__}{f' {code}' if code else ''}"
@@ -470,6 +479,9 @@ def run_once(client, now=None, send=None):
             st["kpis"] = kpis(leads, now)
             st["lastOkAt"] = _ms(now)
             error = f"{failed} lead(s) could not be read this sweep" if failed else None
+            # Not an error (the sweep worked) — a note so a growing location shows up.
+            st["note"] = (f"Contact list hit the {CONTACT_PAGES * PAGE_SIZE}-contact cap — "
+                          "older contacts were not scanned." if truncated else None)
             try:
                 process_alerts(st, leads, now, send)
             except Exception as e:  # noqa: BLE001 — an alert failure never loses the sweep
@@ -486,7 +498,7 @@ def view():
     """GET /api/daycare/leads payload. Reads state only — no network on the request path."""
     st = _load()
     leads = st.get("leads") or []
-    error = st.get("error")
+    error = st.get("error") or st.get("note")
     if not st.get("lastRunAt"):
         error = error or ("Lead Desk has not run yet — it reads GHL every 15 min on the box "
                           "(loops are off on a UI-only machine).")

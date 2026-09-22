@@ -113,7 +113,7 @@ function navFor(ws, scope) {
 
 // --- Business archive (P1-1) + home sub-views + crash guard -------------------
 // Archive = HIDE, never delete: an archived workspace leaves the switchers but its
-// PAGE_MAPS entry and scripts still load, so "Open read-only" can still show it.
+// PAGE_MAPS entry and scripts still load, so "Open (archived)" can still show it.
 // Server truth is /api/businesses (business_scope.py); until it answers we assume
 // the default seed so an archived business never flashes into the switcher.
 const APP_ARCHIVE_SEED = ["dropship", "agency:p"];
@@ -198,7 +198,7 @@ function App() {
   const bizRows = bizApi.data && bizApi.data.businesses;
   const archived = new Set(bizRows ? bizRows.filter((b) => b.archived).map((b) => b.id) : APP_ARCHIVE_SEED);
   const activeWs = wsList.filter((w) => !archived.has(w.id));
-  // An archived workspace opened via "Open read-only" (session only — a reload drops it).
+  // An archived workspace opened via "Open (archived)" (session only — a reload drops it).
   const [roWs, setRoWs] = useStateA(null);
   const [wsId, setWsId] = useStateA(() => appRead("forge_ws", "rei"));
   // A stale forge_ws pointing at an archived business falls back to rei.
@@ -231,7 +231,7 @@ function App() {
     openView("home");
   }
   // Enter a business from Mission Control — optionally landing on a specific page.
-  // An archived id opens read-only (that's what the Archived page's button calls).
+  // An archived id opens anyway, actions live (that's what the Archived page's button calls).
   function enterBusiness(id, page) {
     const next = wsList.find((w) => w.id === id) || wsList[0];
     setRoWs(archived.has(next.id) ? next.id : null);
@@ -307,7 +307,7 @@ function App() {
                         background: "rgba(100,116,139,.14)", borderBottom: "1px solid var(--border)" }}>
             <span className="pill" style={{ background: "rgba(100,116,139,.25)" }}>Archived</span>
             <span className="faint" style={{ flex: 1 }}>
-              Viewing an archived business. It's hidden from the switcher, Mission Control and agent briefs; its data is untouched.
+              Viewing an archived business — actions still work. It's hidden from the switcher, Mission Control and agent briefs; its data is untouched.
             </span>
             <button className="tab" onClick={() => openView("archived")}>Manage</button>
           </div>

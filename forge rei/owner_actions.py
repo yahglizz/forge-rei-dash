@@ -350,7 +350,7 @@ def _src_system(ctx):
     if isinstance(ai, dict) and ai.get("ok") is False:
         out.append(_item("ai:down", "FIX", "system", "urgent", "Anthropic credits/auth",
                          ai.get("error") or ai.get("reason") or "AI calls failing — every agent is blind",
-                         ai.get("since") or ai.get("lastErrorAt"), {"view": "health"}, "ai"))
+                         ai.get("downSince") or ai.get("lastErrorAt"), {"view": "health"}, "ai"))
     return out
 
 

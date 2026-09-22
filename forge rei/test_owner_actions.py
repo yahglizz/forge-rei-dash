@@ -109,6 +109,9 @@ finally:
 # 6. system source stays quiet when the fleet isn't active (UI-only Mac) — no false FIX rows
 assert oa._src_system({"system": {"active": False, "loops": [{"loop": "x", "status": "red"}]}}) == []
 assert oa._src_system({"system": {"ai": {"ok": True}}}) == []
+# AI FIX row ages from forge_heartbeat.ai_health's downSince (there is no "since" key)
+_down = oa._src_system({"system": {"ai": {"ok": False, "downSince": int(time.time() * 1000) - 7_200_000}}})
+assert _down and 7100 <= _down[0]["ageSec"] <= 7300, _down
 
 # 7. build() on an empty ctx never raises and returns the contract shape
 empty = oa.build({}, sources=[])

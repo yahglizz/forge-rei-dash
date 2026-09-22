@@ -13,12 +13,18 @@ OUT="$DEST/forge-state-$(date +%F).tgz"
 mkdir -p "$DEST" && chmod 700 "$DEST"
 
 cd /
+# marcus_state is the point of the backup — missing = fail loud. Everything else is optional:
+# a missing member makes GNU tar exit 2, which would silently kill every backup.
+[ -d opt/forge/forge-rei/marcus_state ] \
+  || { echo "backup: opt/forge/forge-rei/marcus_state missing" >&2; exit 1; }
+m=(opt/forge/forge-rei/marcus_state)
+for p in opt/forge/forge-rei/uploads opt/forge/vault opt/forge/*/config etc/default/forge-reios; do
+  if [ -e "/$p" ]; then m+=("$p"); fi
+done
 # Live files change under us (heartbeats every ~30 s, atomic tmp+rename writes). GNU tar exits 1
 # for "file changed / removed as we read it" — that's a usable snapshot. 2+ is a real failure.
 rc=0
-tar czf "$OUT.tmp" --warning=no-file-changed --warning=no-file-removed \
-  opt/forge/forge-rei/marcus_state opt/forge/forge-rei/uploads opt/forge/vault \
-  opt/forge/*/config etc/default/forge-reios || rc=$?
+tar czf "$OUT.tmp" --warning=no-file-changed --warning=no-file-removed "${m[@]}" || rc=$?
 [ "$rc" -le 1 ] || { echo "backup: tar failed rc=$rc" >&2; rm -f "$OUT.tmp"; exit 1; }
 
 # Prove the archive reads back and actually holds the state before it replaces anything.

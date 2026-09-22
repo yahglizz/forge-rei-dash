@@ -141,6 +141,52 @@ def test_archived_business_disabled_and_last():
     assert all(r["archived"] for r in rows[first_archived:]), [r["id"] for r in rows]
 
 
+def test_archived_rei_disables_wholesale():
+    # business_scope calls the wholesale workspace "rei" — the registry must map it
+    sys.modules["business_scope"] = types.SimpleNamespace(is_archived=lambda b: b == "rei")
+    try:
+        rows = agents_hub.registry()
+    finally:
+        sys.modules.pop("business_scope", None)
+    whs = [r for r in rows if r["business"] == "wholesale"]
+    assert whs and all(r["status"] == "DISABLED" and r["archived"] for r in whs), whs
+    assert not any(r["archived"] for r in rows if r["business"] != "wholesale")
+
+
+def test_marcus_event_driven_not_failed():
+    # marcus_sms (legacy SMS loop, off by default) must not drive Marcus's card
+    forge_heartbeat.beat("marcus_sms", 60, "Marcus SMS responder", error="x")
+    ts = NOW - 5_000
+    scr = types.SimpleNamespace(screenings={"c1": {"updatedAt": ts - 9_000},
+                                            "c2": {"updatedAt": ts}})
+    real_eng, real_ai, real_pending = agents_hub._engine, agents_hub._ai_health, \
+        agents_hub._pending
+    agents_hub._engine = lambda aid: scr if aid == "screener" else None
+    agents_hub._ai_health = lambda: {"ok": True}
+    try:
+        m = {r["id"]: r for r in agents_hub.registry()}["marcus"]
+        agents_hub._pending = lambda aid, q: 2 if aid == "marcus" else 0
+        m2 = {r["id"]: r for r in agents_hub.registry()}["marcus"]
+        agents_hub._engine = lambda aid: None                  # screener unreachable
+        m3 = {r["id"]: r for r in agents_hub.registry()}["marcus"]
+    finally:
+        agents_hub._engine, agents_hub._ai_health, agents_hub._pending = \
+            real_eng, real_ai, real_pending
+    assert m["status"] == "IDLE", m
+    assert m["dependencyHealth"]["heartbeat"] == "none", m
+    assert m["lastRun"] == ts and m["lastSuccessAt"] == ts, m
+    assert m2["status"] == "WAITING FOR APPROVAL", m2
+    assert m3["status"] == "WAITING FOR APPROVAL" and m3["lastRun"] is None \
+        and m3["lastError"] is None, m3                          # fails soft, not FAILED
+
+
+def test_daily_agents_no_poll_based_next_run():
+    forge_heartbeat.beat("daily_brief", 300, "Daily brief")
+    by = {r["id"]: r for r in agents_hub.registry()}
+    assert by["orion"]["nextRun"] is None and by["briefs"]["nextRun"] is None, \
+        (by["orion"]["nextRun"], by["briefs"]["nextRun"])
+
+
 def test_task_failed_round_trip():
     out = agents_hub.send_task("scout", "rank the 5 hottest leads")
     tid = out["task"]["id"]

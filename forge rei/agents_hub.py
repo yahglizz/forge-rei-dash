@@ -71,11 +71,15 @@ BUSINESS = {
 #            and tasks keep THIS id; that brain gets this agent's live state as context
 #            and sees its open tasks (_open_tasks_block).
 #   ai       False = never calls Claude, so an AI outage can't degrade it
+#   daily    True = sends once a day at a set hour; its hb interval is the poll, not the
+#            cadence, so no nextRun is projected from it
 AGENTS = [
     {"id": "marcus", "name": "Marcus", "business": "wholesale", "emoji": "🎯",
      "role": "Lead Agent — head of the operation",
      "blurb": "Screens sellers, drafts the text-back, directs the team. Never quotes a price.",
-     "hb": ["marcus_sms"], "queue": "marcus"},
+     # No hb: marcus_sms only beats for the legacy SMS loop (off by default). Screening is
+     # event-driven (Scout hands off), so _probe reads its newest screening instead.
+     "queue": "marcus"},
     {"id": "scout", "name": "Scout", "business": "wholesale", "emoji": "🔍",
      "role": "Lead Triage — finds, ranks, organizes",
      "blurb": "Scores every seller reply, tags + buckets them, hands the hot ones to Marcus.",
@@ -121,12 +125,12 @@ AGENTS = [
      "role": "Chief of Staff — the cross-business CEO brief",
      "blurb": "Reads what every agent produced and writes the daily 'attack today' "
               "brief: one focus, one idea, ranked priorities. Proposes only.",
-     "hb": ["daily_brief"]},
+     "hb": ["daily_brief"], "daily": True},
     {"id": "briefs", "name": "Daily brief / recap", "business": "system", "emoji": "🗞️",
      "role": "Morning brief + end-of-day recap (Telegram)",
      "blurb": "Stats-only Telegram pulses, morning and evening. No Claude call. Orion "
               "answers for it in chat.",
-     "hb": ["daily_brief"], "chatVia": "orion", "ai": False},
+     "hb": ["daily_brief"], "chatVia": "orion", "ai": False, "daily": True},
 ]
 
 _BY_ID = {a["id"]: a for a in AGENTS}
@@ -166,6 +170,7 @@ def _engine(agent_id):
         "midas": getattr(connector, "MIDAS", None),
         "orion": getattr(connector, "ORION", None),
         "followup": getattr(connector, "FOLLOWUP", None),
+        "screener": getattr(connector, "SCREENER", None),   # Marcus's screening engine
     }.get(agent_id)
 
 
@@ -597,7 +602,8 @@ def _ai_health():
 def _archived(business):
     try:
         import business_scope          # archive switch; absent on older builds
-        return bool(business_scope.is_archived(business))
+        # business_scope's id for our "wholesale" is "rei" (same map as owner_actions)
+        return bool(business_scope.is_archived({"wholesale": "rei"}.get(business, business)))
     except Exception:
         return False
 
@@ -641,10 +647,18 @@ def _probe(agent_id):
             st = eng.summary()
             p.update(lastRun=st.get("lastRun") or None, lastError=st.get("lastError"),
                      keys=st.get("aiScoring"), work=f"{st.get('total', 0)} leads tracked")
-        elif agent_id == "marcus" and eng is not None:
-            st = eng.status()
-            p.update(lastRun=st.get("lastPoll") or None, lastError=st.get("lastError"),
-                     keys=st.get("hasAI"), task=st.get("task") if st.get("pending") else None)
+        elif agent_id == "marcus":
+            try:                          # event-driven: newest screening = last real run
+                newest = max((r.get("updatedAt") or 0 for r in list(
+                    getattr(_engine("screener"), "screenings", {}).values())), default=0) or None
+            except Exception:
+                newest = None
+            st = eng.status() if eng is not None else {}
+            p.update(lastRun=max(st.get("lastPoll") or 0, newest or 0) or None,
+                     lastSuccessAt=newest)
+            if eng is not None:
+                p.update(lastError=st.get("lastError"), keys=st.get("hasAI"),
+                         task=st.get("task") if st.get("pending") else None)
         elif agent_id == "atlas" and eng is not None:
             st = eng.status()
             p.update(lastError=st.get("lastError"), keys=st.get("aiPrep"),
@@ -731,6 +745,7 @@ def registry(business=None, now=None):
                                   else None)),
             "nextRun": (rec["lastRun"] + int(interval * 1000)
                         if rec.get("lastRun") and interval and status != "DISABLED"
+                        and not a.get("daily")
                         else None),
             "tasksCompleted": sum(1 for t in mine if t.get("status") == "done"),
             "tasksFailed": sum(1 for t in mine if t.get("status") == "failed"),
