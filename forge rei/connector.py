@@ -2863,6 +2863,15 @@ NO_CACHE.add("/api/owner-actions")
 # --- /WP-C ---
 
 
+# --- WP-D --- Agent Control Center (spec §9): every agent in one roster with status +
+# last run / success / next run / tasks / errors / current task / dependency health.
+# Read-only. Chat + tasks reuse POST /api/hub/chat and /api/hub/task.
+ROUTES["/api/agents/registry"] = lambda q: agents_hub.registry_payload(
+    (q.get("business", [None]) or [None])[0])
+NO_CACHE.add("/api/agents/registry")
+# --- /WP-D ---
+
+
 def _get_or_create_conversation(contact_id):
     data = ghl_get("/conversations/search",
                    {"locationId": LOCATION_ID, "contactId": contact_id})

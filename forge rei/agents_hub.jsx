@@ -29,16 +29,43 @@ const HUB_BIZ_COLOR = {
   daycare: "#2DD4BF",
   dropship: "#F59E0B",
   voice: "#F4B860",
+  cross: "#EC4899",
+  system: "#94A3B8",
 };
 
 // agent id -> business, so the coaching feed can color an entry by who sent it even
 // when that agent isn't in the current workspace's roster (cross-business view).
 const HUB_BUSINESS_OF = {
   scout: "wholesale", marcus: "wholesale", atlas: "wholesale",
+  followup: "wholesale", ace: "wholesale", autopilot: "wholesale",
   dyson: "agency", eco: "agency",
   solomon: "daycare",
   midas: "dropship",
+  orion: "cross", briefs: "system",
 };
+
+// The Agent Control Center fields for one agent (roster().control = agents_hub.registry
+// row): status pill, last run / success, errors, tasks, current task, and the error text.
+// Pill + time formatter come from agent_center.jsx; both are optional at render time.
+function HubControlLine({ c }) {
+  if (!c) return null;
+  const HubPill = window.AccStatusPill || null;
+  const ago = window.accAgo || ((ms) => (ms ? new Date(ms).toLocaleString() : "—"));
+  const err = c.lastError || (c.dependencyHealth || {}).aiReason;
+  return <div style={{
+    fontSize: 11.5, opacity: .8, marginTop: 5, display: "flex", gap: 6,
+    flexWrap: "wrap", alignItems: "center",
+  }}>
+    {HubPill && <HubPill status={c.status} />}
+    <span>last run {ago(c.lastRun)}</span>
+    <span>· last success {ago(c.lastSuccessAt)}</span>
+    <span>· errors {c.errorCount == null ? "—" : c.errorCount}</span>
+    <span>· tasks {c.tasksCompleted} done / {c.tasksFailed} failed</span>
+    {c.pendingApprovals > 0 && <span>· {c.pendingApprovals} awaiting approval</span>}
+    {c.currentTask && <span>· now: {c.currentTask}</span>}
+    {err && <span style={{ color: "#EF4444", flexBasis: "100%", wordBreak: "break-word" }}>⚠ {err}</span>}
+  </div>;
+}
 
 function HubDot({ ok, title }) {
   return <span title={title || (ok ? "ready" : "not ready")} style={{
@@ -228,9 +255,14 @@ function HubTasks({ agent }) {
       <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", opacity: .45, marginBottom: 6 }}>
         Closed
       </div>
-      {closed.slice(0, 12).map((t) => <div key={t.id} style={{
-        fontSize: 12, opacity: .5, padding: "5px 2px", textDecoration: "line-through",
-      }}>{t.title}</div>)}
+      {closed.slice(0, 12).map((t) => t.status === "failed"
+        ? <div key={t.id} style={{ fontSize: 12, padding: "5px 2px" }}>
+          <span style={{ opacity: .7 }}>{t.title}</span>
+          <div style={{ color: "#EF4444", fontSize: 11, wordBreak: "break-word" }}>⚠ failed: {t.error}</div>
+        </div>
+        : <div key={t.id} style={{
+          fontSize: 12, opacity: .5, padding: "5px 2px", textDecoration: "line-through",
+        }}>{t.title}</div>)}
     </div>}
   </div>;
 }
@@ -418,6 +450,7 @@ function HubAgentsPage({ ws }) {
             }}>{agent.businessLabel}</span>
           </div>
           <div style={{ fontSize: 12, opacity: .6 }}>{agent.role}</div>
+          <HubControlLine c={agent.control} />
         </div>
         <div style={{ display: "flex", gap: 5 }}>
           {TABS.map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{
@@ -435,4 +468,4 @@ function HubAgentsPage({ ws }) {
   </div>;
 }
 
-Object.assign(window, { HubAgentsPage, HubRail, HubChat, HubTasks, HubConsole, HubCoachFeed, HubAskPeer });
+Object.assign(window, { HubAgentsPage, HubRail, HubChat, HubTasks, HubConsole, HubCoachFeed, HubAskPeer, HubControlLine });

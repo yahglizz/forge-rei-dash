@@ -19,21 +19,13 @@ you tap Refresh.
 to attack. He grounds every recommendation in a signal an agent actually
 reported, never a guess.
 
-## ⚠️ Not in the hub roster
+## In the hub roster (since 2026-09-22)
 
-Orion is instantiated at `forge rei/connector.py:1039` and serves
-`/api/mission-control/brief`, but he is **absent from `agents_hub.AGENTS`**
-(`forge rei/agents_hub.py:55`, which lists seven). Consequences:
-
-- he does not appear in the **Agents** hub in any workspace
-- he does not appear on the **Agent Office** floor
-- `/api/hub/roster` does not return him
-- `/task orion …` in Telegram has no roster entry to route to
-- `CLAUDE.md` §5 says "Seven agents, on purpose" and does not list him
-
-He still runs and still produces the Mission Control brief. Adding him to the
-roster is a behavior change, not a docs change, so it is recorded here rather
-than done silently.
+Orion is in `agents_hub.AGENTS` (business `cross`), so he shows in the Agent
+Control Center (`/api/agents/registry`), `/api/hub/roster`, hub chat and
+`/api/hub/task`. Chat runs his grounded director path (`_director_chat`):
+NORTH_STAR + his latest cached brief + his learned playbook. He also answers for
+the daily brief / recap ([briefs.md](briefs.md)). Not on the Agent Office floor.
 
 ## Where it lives
 
