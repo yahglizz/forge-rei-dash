@@ -2768,6 +2768,14 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/screening/queue", "/api/screening/report", "/api/screening/status",
             "/api/notify/settings", "/api/ops/status", "/api/test-mode"}
 
+# --- WP-D --- Agent Control Center (spec §9): every agent in one roster with status +
+# last run / success / next run / tasks / errors / current task / dependency health.
+# Read-only. Chat + tasks reuse POST /api/hub/chat and /api/hub/task.
+ROUTES["/api/agents/registry"] = lambda q: agents_hub.registry_payload(
+    (q.get("business", [None]) or [None])[0])
+NO_CACHE.add("/api/agents/registry")
+# --- /WP-D ---
+
 
 def _get_or_create_conversation(contact_id):
     data = ghl_get("/conversations/search",

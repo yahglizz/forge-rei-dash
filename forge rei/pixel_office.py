@@ -290,12 +290,16 @@ def _run(job, chat_fn):
                 if out.get("needsKey"):
                     err = reply or "no Anthropic key"
                     reply = ""
+                elif out.get("error"):     # the brain failed (e.g. out of credits)
+                    err = str(out["error"])[:300]
+                    reply = ""
             else:
                 reply = str(out or "")
 
         if err or not reply:
             _step(jid, "error", err or "no answer came back")
-            _finish(jid, "error", error=err or "no answer came back")
+            _fail_task(job, err or "no answer came back")   # before _finish: pollers
+            _finish(jid, "error", error=err or "no answer came back")   # see both at once
             return
 
         _step(jid, "report", "writing up the answer")
@@ -316,7 +320,18 @@ def _run(job, chat_fn):
         _finish(jid, "done", result=reply)
     except Exception as e:  # noqa: BLE001 — a worker thread must never take the box down
         _step(jid, "error", str(e)[:200])
+        _fail_task(job, str(e))
         _finish(jid, "error", error=str(e)[:300])
+
+
+def _fail_task(job, err):
+    """The hub task behind an errored run → failed (with the reason), never left open."""
+    try:
+        import agents_hub
+        if job.get("taskId"):
+            agents_hub.update_task(job["taskId"], "failed", error=err)
+    except Exception:
+        pass
 
 
 def dispatch(agent_id, title, note="", chat_fn=None):
@@ -438,6 +453,9 @@ def _selfcheck():
             break
         time.sleep(0.05)
     assert job(bad["jobId"])["job"]["status"] == "error"
+    # ...and its hub task lands in "failed" with the reason, not stuck "open"
+    t = next(t for t in agents_hub.tasks("atlas")["tasks"] if t["id"] == bad["taskId"])
+    assert t["status"] == "failed" and t.get("error"), t
 
     assert dispatch("nobody", "x").get("error") == "unknown agent"
     assert dispatch("scout", "").get("error")

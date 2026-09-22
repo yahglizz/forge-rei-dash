@@ -1,12 +1,13 @@
 # FORGE — Agents
 
 One card per agent, filed under the business it serves. **Eight agents, four
-businesses, plus one cross-business Chief of Staff.**
+businesses, plus one cross-business Chief of Staff** — and four engines
+with no brain of their own (Follow-up, ACE, Autopilot, the daily brief / recap).
 
 | Business | Agents |
 |---|---|
-| [Portfolio](portfolio/) (cross-business) | [Orion](portfolio/orion.md) |
-| [Wholesale · REI](wholesale/) | [Scout](wholesale/scout.md) · [Marcus](wholesale/marcus.md) · [Atlas](wholesale/atlas.md) |
+| [Portfolio](portfolio/) (cross-business) | [Orion](portfolio/orion.md) · [Daily brief / recap](portfolio/briefs.md) |
+| [Wholesale · REI](wholesale/) | [Scout](wholesale/scout.md) · [Marcus](wholesale/marcus.md) · [Atlas](wholesale/atlas.md) · [Follow-up](wholesale/followup.md) · [ACE](wholesale/ace.md) · [Autopilot](wholesale/autopilot.md) |
 | [Agency · ClientForge](agency/) | [Dyson](agency/dyson.md) · [Eco](agency/eco.md) |
 | [Daycare](daycare/) | [Solomon](daycare/solomon.md) |
 | [Dropship](dropship/) | [Midas](dropship/midas.md) |
@@ -44,9 +45,7 @@ agent's scope changes, update `CLAUDE.md` first, then its card here.
 Roster in code: `forge rei/agents_hub.py:55` (`AGENTS`). Creed map:
 `forge rei/agent_creed.py:28` (`CREED_FILE`).
 
-> **Known drift, 2026-08-23:** `agents_hub.AGENTS` lists seven agents — Orion is
-> absent from it, though he is instantiated at `forge rei/connector.py:1039` and
-> serves `/api/mission-control/brief`. He therefore does not appear in the Agents
-> hub, the Agent Office floor, or `/api/hub/roster`. Documented in
-> [portfolio/orion.md](portfolio/orion.md); not "fixed" here because adding him
-> to the hub roster is a behavior change, not a docs change.
+Follow-up, ACE, Autopilot and the daily brief / recap have no brain of their own;
+their roster entry carries `chatVia` (Marcus, or Orion for the briefs), which answers
+for them in chat and sees their tasks. Every roster agent shows in the Agent Control
+Center (`/api/agents/registry`, `agents_hub.registry()`).
