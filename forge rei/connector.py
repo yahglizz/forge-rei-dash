@@ -2824,6 +2824,28 @@ NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-cont
             "/api/notify/settings", "/api/ops/status", "/api/test-mode"}
 
 
+# --- WP-C ---
+# Owner Actions (spec §15): ONE read-only list of what needs the owner right now across
+# every business — CALL / CALLBACK / APPROVE / REVIEW / FIX. Sends nothing, zero Claude
+# calls; reuses the live engines the way mission_control does.
+import owner_actions  # noqa: E402
+
+
+def api_owner_actions(_q):
+    try:
+        return owner_actions.build({
+            "scout": SCOUT, "marcus": MARCUS, "screener": SCREENER, "deal_prep": DEAL_PREP,
+            "daycare_client": DAYCARE_GHL, "system": api_system_health(None)})
+    except Exception as e:  # last-resort guard — the UI renders `error`, never "0 actions"
+        return {"ok": False, "error": str(e)[:200], "counts": {"total": 0}, "items": [],
+                "generatedAt": int(time.time() * 1000)}
+
+
+ROUTES["/api/owner-actions"] = api_owner_actions
+NO_CACHE.add("/api/owner-actions")
+# --- /WP-C ---
+
+
 def _get_or_create_conversation(contact_id):
     data = ghl_get("/conversations/search",
                    {"locationId": LOCATION_ID, "contactId": contact_id})
