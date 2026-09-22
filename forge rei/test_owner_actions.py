@@ -102,8 +102,7 @@ import agency_approvals_io
 orig_state = agency_approvals_io.STATE
 agency_approvals_io.STATE = Path(sys.argv[1] if len(sys.argv) > 1 else "/nonexistent-dir") / "nope.json"
 try:
-    assert agency_approvals_io.list_queue("pending")["queue"], "seed should be present in memory"
-    assert oa._src_agency_approvals({}) == []
+    assert oa._src_agency_approvals({}) == []   # no state file → no rows (seed removed in WP-G)
 finally:
     agency_approvals_io.STATE = orig_state
 
