@@ -298,7 +298,7 @@ def _src_daycare_inquiries(ctx):
                 continue
             bits = [b for b in (f.get("child_name"), f.get("classroom_label"),
                                 f.get("location_tag")) if b]
-            items.append(_item(f"daycare-inquiry:{cid}", "CALL", "daycare", "revenue",
+            items.append(_item(f"daycare:{cid}", "CALL", "daycare", "revenue",
                                f"Call {f.get('parent_name') or 'family'} — new enrollment inquiry",
                                " · ".join(map(str, bits)), _iso_ms(f.get("created_at")),
                                {"ws": "daycare", "page": "ParentLogins"}, "daycare_ghl"))
@@ -313,26 +313,25 @@ def _src_daycare_inquiries(ctx):
 
 
 def _src_daycare_leads(ctx):
-    """Daycare Lead Desk (WP-E, daycare_leads.needs_human) — optional until it lands."""
+    """Daycare Lead Desk (daycare_leads.needs_human): {id, title, why, ageSec,
+    priority URGENT|REVENUE|NORMAL, contactId, ...}. Keyed daycare:<contactId> like the
+    inquiry source so one family is ONE row; this source runs first, so it wins."""
     try:
         import daycare_leads
     except ImportError:
         return []
-    rows = daycare_leads.needs_human()
-    if isinstance(rows, dict):
-        rows = rows.get("items") or rows.get("leads") or []
+    now = int(time.time() * 1000)
     out = []
-    for r in rows or []:
-        if not isinstance(r, dict):
+    for r in daycare_leads.needs_human() or []:
+        if not isinstance(r, dict) or not r.get("contactId"):
             continue
-        kind = str(r.get("kind") or "CALL").upper()
-        rid = r.get("id") or r.get("contactId") or r.get("contact_id")
-        out.append(_item(f"daycare-lead:{rid}", kind if kind in ("CALL", "CALLBACK") else "CALL",
-                         "daycare", "urgent",
-                         r.get("title") or f"Call {r.get('name') or 'family'} — needs a human",
-                         r.get("why") or r.get("reason") or r.get("stage"),
-                         r.get("createdAt") or r.get("ts"),
-                         r.get("link") or {"ws": "daycare", "page": "Enrollment"}, "daycare_leads"))
+        age = r.get("ageSec")
+        created = now - int(age) * 1000 if isinstance(age, (int, float)) else None
+        out.append(_item(f"daycare:{r['contactId']}", "CALL", "daycare",
+                         str(r.get("priority") or "urgent").lower(),
+                         r.get("title") or "Call family — needs a human", r.get("why"),
+                         created, {"ws": "daycare", "page": "Dashboard"}, "daycare_leads",
+                         now_ms=now))
     return out
 
 
@@ -376,8 +375,8 @@ SOURCES = [
     ("agency_callsheet", "agency", _src_agency_callsheet),
     ("agency_approvals", "agency", _src_agency_approvals),
     ("agency_requests", "agency", _src_agency_requests),
+    ("daycare_leads", "daycare", _src_daycare_leads),   # first: richer row wins the dedupe
     ("daycare_inquiries", "daycare", _src_daycare_inquiries),
-    ("daycare_leads", "daycare", _src_daycare_leads),
     ("system", "system", _src_system),
     ("skill_forge", "system", _src_skill_forge),
 ]

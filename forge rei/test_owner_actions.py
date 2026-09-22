@@ -116,3 +116,25 @@ empty = oa.build({}, sources=[])
 assert empty["ok"] and empty["items"] == [] and empty["counts"]["total"] == 0 and "generatedAt" in empty
 
 print("test_owner_actions: OK")
+
+
+def test_daycare_lead_desk_contract():
+    # WP-E needs_human() shape → one row per family, real priority + age, no double prefix.
+    import sys, types
+    fake = types.ModuleType("daycare_leads")
+    fake.needs_human = lambda: [{"id": "daycare-lead:c1", "contactId": "c1", "title": "Call Jo",
+                                 "why": "unanswered 40m", "ageSec": 2400, "priority": "REVENUE"}]
+    sys.modules["daycare_leads"] = fake
+    try:
+        rows = oa._src_daycare_leads({})
+    finally:
+        del sys.modules["daycare_leads"]
+    assert len(rows) == 1 and rows[0]["id"] == "daycare:c1", rows
+    assert rows[0]["priority"] == "revenue" and 2390 <= rows[0]["ageSec"] <= 2410, rows
+    dup = oa._item("daycare:c1", "CALL", "daycare", "revenue", "Call Jo — new enrollment inquiry")
+    assert len(oa.merge_and_sort(rows + [dup])) == 1
+
+
+if __name__ == "__main__":
+    test_daycare_lead_desk_contract()
+    print("test_daycare_lead_desk_contract: OK")
