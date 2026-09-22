@@ -105,6 +105,11 @@ def ads_overview(account: str | None = None, days: int = 7) -> dict:
         analytics = agency_ads.analytics(
             account=account, client="daycare", days=_int(days, 7))
 
+    if conn.get("source") == "auth_error":
+        # WP-A — Meta REJECTED the token (agency_ads' 6h cache). Say so; the demo-account
+        # guard below would otherwise misreport it as "add META_AD_ACCOUNT_MAP".
+        return {"ok": True, "connection": conn, "accounts": [], "analytics": None,
+                "configured": False, "detail": conn.get("todo")}
     if _is_demo_account((analytics or {}).get("account")) or any(
             _is_demo_account(a) for a in accounts):
         return {

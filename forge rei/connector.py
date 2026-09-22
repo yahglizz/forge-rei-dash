@@ -548,7 +548,7 @@ def api_system_health(_q):
         reasons.append("disk pressure")
     # --- /WP-A ---
     return {
-        "ok": (not red) and disk_ok and bool(ai.get("ok")),
+        "ok": (not red) and disk_ok and bool(ai.get("ok")),   # WP-A — hard-down AI gates the fleet
         "reason": "; ".join(reasons) or None,   # WP-A — why ok is false, in one line
         "ai": ai,   # WP-A — {ok, hard, kind, reason, lastOkAt, lastErrorAt, lastError, downSince, failStreak, callsTotal, errorsTotal, alerted}
         "loopsEnabled": LOOPS_ENABLED,
@@ -1847,13 +1847,12 @@ def _watchdog_forever():
     every = max(60, int(os.environ.get("FORGE_WATCHDOG_SEC", "300")))
     while True:
         try:
-            if forge_ops.paused():          # clocked out — everything is intentionally idle
-                time.sleep(every)
-                continue
             # --- WP-A --- AI dependency (Anthropic credits/auth): ONE alert on hard-down,
             # ONE on recovery. `alerted` lives in ai_health.json so a restart mid-outage
             # doesn't re-fire it. Marked only once Telegram accepts (or isn't configured),
             # so a transient Telegram failure retries next tick instead of losing the alert.
+            # Runs ABOVE the clocked-out check: a dead key is a fix-required fact whether or
+            # not the crew is paused, and it is transition-based, so it cannot spam.
             try:
                 ai = forge_heartbeat.ai_health()
                 if ai.get("hard") and not ai.get("alerted"):
@@ -1881,6 +1880,9 @@ def _watchdog_forever():
             except Exception:
                 pass
             # --- /WP-A ---
+            if forge_ops.paused():          # clocked out — everything is intentionally idle
+                time.sleep(every)
+                continue
             for l in forge_heartbeat.snapshot():
                 loop = l.get("loop")
                 status = l.get("status")

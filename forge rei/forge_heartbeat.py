@@ -27,6 +27,7 @@ credit outage). `ai_ok()` / `ai_fail()` are stamped at the two shared call sites
 and the watchdog read. Billing (400 "credit balance") and auth (401/403) = HARD DOWN
 until the next successful call; 429/5xx/network = transient. Never raises.
 """
+import hashlib
 import json
 import re
 import shutil
@@ -169,30 +170,71 @@ def ai_classify(code, msg):
     return "transient", False
 
 
-def ai_ok():
-    """A Claude call succeeded. Clears any hard-down state. Never raises."""
-    # ponytail: one fleet-wide signal, not per-key. Every box key bills to ONE Anthropic
-    # account (billing outages are account-wide); a single revoked key among healthy ones
-    # would be masked. Track per key-fingerprint if keys ever split across accounts.
+def _ai_fp(key):
+    """Credential fingerprint for hardBy — never the key itself. No key → "default"."""
+    try:
+        return hashlib.sha256(str(key).encode()).hexdigest()[:8] if key else "default"
+    except Exception:
+        return "default"
+
+
+def _ai_hard_by(d):
+    """hardBy = {fingerprint: {kind, code, since}} — one entry per credential that is
+    currently hard-down. A pre-hardBy state file with hard=True migrates to "default"."""
+    hb = d.get("hardBy")
+    if not isinstance(hb, dict):
+        hb = ({"default": {"kind": d.get("kind"), "code": None, "since": d.get("downSince")}}
+              if d.get("hard") else {})
+    return hb
+
+
+def _ai_apply(d, hb):
+    """Derive the top-level fields (hard/ok/kind/reason/downSince) from hardBy. A key that
+    recovers clears only its own entry; the fleet is hard-down while ANY key is."""
+    d["hardBy"] = hb
+    d["hard"] = bool(hb)
+    d["ok"] = not hb
+    if not hb:
+        d.update({"kind": None, "reason": None, "downSince": None})
+        return
+    kinds = {v.get("kind") for v in hb.values()}
+    kind = "billing" if "billing" in kinds else "auth"     # billing is account-wide → worst
+    code = next((v.get("code") for v in hb.values() if v.get("kind") == kind), None)
+    n = len(hb)
+    d["kind"] = kind
+    d["downSince"] = min((v.get("since") or 0) for v in hb.values()) or None
+    d["reason"] = (("Anthropic credit balance exhausted — top up the account"
+                    if kind == "billing" else
+                    f"Anthropic rejected the API key (HTTP {code}) — check/rotate it")
+                   + f" · {n} key{'s' if n != 1 else ''} down")
+
+
+def ai_ok(key=None):
+    """A Claude call succeeded. Clears the hard-down state for THIS credential (by
+    fingerprint; no key → "default"). Never raises."""
     try:
         now = int(time.time() * 1000)
         with _LOCK:
             d = _ai_load()
-            d.update({"ok": True, "lastOkAt": now, "downSince": None, "reason": None,
-                      "kind": None, "hard": False, "failStreak": 0,
+            hb = _ai_hard_by(d)
+            hb.pop(_ai_fp(key), None)
+            d.update({"lastOkAt": now, "failStreak": 0,
                       "callsTotal": int(d.get("callsTotal") or 0) + 1})
+            _ai_apply(d, hb)
             _ai_save(d)
     except Exception:
         pass
 
 
-def ai_fail(code, msg):
-    """A Claude call failed. code = HTTP status (None for network/timeouts). Never raises."""
+def ai_fail(code, msg, key=None):
+    """A Claude call failed. code = HTTP status (None for network/timeouts). A hard
+    failure marks THIS credential down (by fingerprint). Never raises."""
     try:
         now = int(time.time() * 1000)
         kind, hard = ai_classify(code, msg)
         with _LOCK:
             d = _ai_load()
+            hb = _ai_hard_by(d)
             d["callsTotal"] = int(d.get("callsTotal") or 0) + 1
             d["errorsTotal"] = int(d.get("errorsTotal") or 0) + 1
             d["failStreak"] = int(d.get("failStreak") or 0) + 1
@@ -201,13 +243,10 @@ def ai_fail(code, msg):
             d["lastKind"] = kind
             if hard:
                 # A 429 during a billing outage does not end the outage — only ai_ok() does.
-                d["ok"] = False
-                d["hard"] = True
-                d["kind"] = kind
-                d["downSince"] = d.get("downSince") or now
-                d["reason"] = ("Anthropic credit balance exhausted — top up the account"
-                               if kind == "billing" else
-                               f"Anthropic rejected the API key (HTTP {code}) — check/rotate it")
+                fp = _ai_fp(key)
+                prev = hb.get(fp) or {}
+                hb[fp] = {"kind": kind, "code": code, "since": prev.get("since") or now}
+            _ai_apply(d, hb)
             _ai_save(d)
     except Exception:
         pass
@@ -230,7 +269,8 @@ def ai_health():
     (billing/auth); transient errors show in lastError/failStreak. Never raises."""
     base = {"ok": True, "hard": False, "kind": None, "reason": None, "lastOkAt": None,
             "lastErrorAt": None, "lastError": None, "lastKind": None, "downSince": None,
-            "failStreak": 0, "callsTotal": 0, "errorsTotal": 0, "alerted": False}
+            "failStreak": 0, "callsTotal": 0, "errorsTotal": 0, "alerted": False,
+            "hardBy": {}}   # {key fingerprint: {kind, code, since}} — never the key itself
     try:
         with _LOCK:
             d = _ai_load()

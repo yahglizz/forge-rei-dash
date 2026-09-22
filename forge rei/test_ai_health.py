@@ -13,6 +13,7 @@ import ast
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -130,6 +131,57 @@ class AiHealthTest(_TempState):
         self.assertFalse(fh.ai_health()["alerted"])
         self.assertTrue(json.loads(fh.AI_STATE.read_text())["ok"])
 
+    def test_hard_down_is_tracked_per_credential(self):
+        """Fable review: one revoked key among healthy ones must not be masked, and a
+        healthy key's success must not clear ANOTHER key's outage (no flip-flop)."""
+        fh.ai_fail(400, self.CREDIT, key="unit-key-A")
+        fh.ai_ok("unit-key-B")                          # B fine → fleet still hard (A)
+        ai = fh.ai_health()
+        self.assertTrue(ai["hard"])
+        self.assertFalse(ai["ok"])
+        self.assertEqual(len(ai["hardBy"]), 1)
+        self.assertIn("1 key down", ai["reason"])
+        self.assertNotIn("unit-key", json.dumps(ai), "fingerprints only — never the key")
+        first_since = ai["downSince"]
+
+        fh.ai_fail(401, "invalid x-api-key", key="unit-key-B")
+        ai = fh.ai_health()
+        self.assertEqual(len(ai["hardBy"]), 2)
+        self.assertIn("2 keys down", ai["reason"])
+        self.assertEqual(ai["kind"], "billing", "billing (account-wide) outranks auth")
+        self.assertEqual(ai["downSince"], first_since, "downSince = the EARLIEST key")
+
+        fh.ai_ok("unit-key-B")                          # B recovers — A is still dead
+        fh.ai_ok("unit-key-B")
+        ai = fh.ai_health()
+        self.assertTrue(ai["hard"], "no flip-flop: A never succeeded")
+        self.assertEqual(len(ai["hardBy"]), 1)
+        self.assertIn("1 key down", ai["reason"])
+
+        fh.ai_ok("unit-key-A")                          # A recovers → fleet ok
+        ai = fh.ai_health()
+        self.assertTrue(ai["ok"])
+        self.assertEqual(ai["hardBy"], {})
+        self.assertIsNone(ai["downSince"])
+
+    def test_keyless_calls_share_the_default_fingerprint(self):
+        fh.ai_fail(401, "bad key")                      # no key → "default"
+        self.assertIn("default", fh.ai_health()["hardBy"])
+        fh.ai_ok()
+        self.assertTrue(fh.ai_health()["ok"])
+
+    def test_pre_hardby_state_file_migrates(self):
+        """A box mid-outage on the old single-flag file must not read green after upgrade."""
+        fh.AI_STATE.write_text(json.dumps({"ok": False, "hard": True, "kind": "billing",
+                                           "downSince": 123, "reason": "old"}))
+        fh.ai_fail(429, "rate limited")                 # any write migrates it
+        ai = fh.ai_health()
+        self.assertTrue(ai["hard"])
+        self.assertEqual(ai["downSince"], 123)
+        self.assertIn("default", ai["hardBy"])
+        fh.ai_ok()
+        self.assertTrue(fh.ai_health()["ok"])
+
     def test_ai_calls_never_raise(self):
         fh.AI_STATE = Path(self._tmp.name) / "no-such-dir" / "x" / "ai.json"
         fh.ai_fail(400, self.CREDIT)             # write fails → swallowed
@@ -183,7 +235,7 @@ class ReviewAgentHookTest(_TempState):
 
     def test_success_records_ok_and_clears_outage(self):
         import review_agent
-        fh.ai_fail(400, AiHealthTest.CREDIT)
+        fh.ai_fail(400, AiHealthTest.CREDIT, key="k")   # same credential _claude uses below
         resp = _FakeResp({"content": [{"type": "text", "text": "hello"}],
                           "stop_reason": "end_turn", "usage": {}})
         with mock.patch("urllib.request.urlopen", return_value=resp), \
@@ -200,9 +252,21 @@ class ReviewAgentHookTest(_TempState):
         fn = next(n for n in ast.walk(tree)
                   if isinstance(n, ast.FunctionDef) and n.name == "_ai_draft")
         seg = ast.get_source_segment(src, fn)
-        self.assertIn("forge_heartbeat.ai_fail(e.code, msg)", seg)
-        self.assertIn("forge_heartbeat.ai_fail(None, e)", seg)
-        self.assertIn("forge_heartbeat.ai_ok()", seg)
+        self.assertIn("forge_heartbeat.ai_fail(e.code, msg, self.anthropic_key)", seg)
+        self.assertIn("forge_heartbeat.ai_fail(None, e, self.anthropic_key)", seg)
+        self.assertIn("forge_heartbeat.ai_ok(self.anthropic_key)", seg)
+
+    def test_review_agent_passes_its_key(self):
+        """Per-credential hardBy: a 400 through review_agent must land on THAT key's
+        fingerprint, not "default"."""
+        import review_agent
+        err = self._http_error(400, AiHealthTest.CREDIT)
+        with mock.patch("urllib.request.urlopen", side_effect=err):
+            with self.assertRaises(RuntimeError):
+                review_agent._claude("unit-key-A", "sys", "user")
+        hb = fh.ai_health()["hardBy"]
+        self.assertEqual(list(hb), [fh._ai_fp("unit-key-A")])
+        self.assertNotIn("default", hb)
 
 
 class SolomonBackoffTest(unittest.TestCase):
@@ -210,11 +274,12 @@ class SolomonBackoffTest(unittest.TestCase):
         import daycare_director
         self.dd = daycare_director
         self._tmp = tempfile.TemporaryDirectory()
-        self._orig = daycare_director.STATE
+        self._orig = (daycare_director.STATE, fh.STATE)
         daycare_director.STATE = Path(self._tmp.name) / "solomon.json"
+        fh.STATE = Path(self._tmp.name) / "heartbeats.json"   # the loop's real beats land here
 
     def tearDown(self):
-        self.dd.STATE = self._orig
+        self.dd.STATE, fh.STATE = self._orig
         self._tmp.cleanup()
 
     def test_schedule_15m_doubling_capped_6h(self):
@@ -254,24 +319,63 @@ class SolomonBackoffTest(unittest.TestCase):
         self.assertFalse(eng._brief_due(t2 + 1000), "fresh brief → not due (24h cadence)")
         self.assertTrue(eng._brief_due(t2 + self.dd.BRIEF_EVERY_MS))
 
+    class _Stop(BaseException):          # not Exception → escapes the loop's except
+        pass
+
+    def _run_loop(self, eng, ticks, build_brief):
+        """Drive run_forever for `ticks` iterations offline: no key file, no Supabase
+        login (autoadmin_session → None even with FORGE_DAYCARE_AUTOADMIN=1 in the
+        shell), no learn, real forge_heartbeat beats into the temp store."""
+        import daycare_supabase
+        with mock.patch.object(self.dd, "_solomon_key", return_value="k"), \
+             mock.patch.object(self.dd.forge_ops, "paused", return_value=False), \
+             mock.patch.object(daycare_supabase.BRIDGE, "autoadmin_session", return_value=None), \
+             mock.patch.object(eng, "build_brief", side_effect=build_brief) as bb, \
+             mock.patch.object(eng, "_maybe_learn"), \
+             mock.patch.object(self.dd.time, "sleep",
+                               side_effect=[None] * (ticks - 1) + [self._Stop()]):
+            with self.assertRaises(self._Stop):
+                eng.run_forever()
+        return bb
+
     def test_loop_counts_an_exception_as_a_fail(self):
         """run_forever: build_brief raising must still advance the backoff state."""
         eng = self.dd.SolomonEngine()
-
-        class _Stop(BaseException):      # not Exception → escapes the loop's except
-            pass
-
-        with mock.patch.object(self.dd, "_solomon_key", return_value="k"), \
-             mock.patch.object(self.dd.forge_ops, "paused", return_value=False), \
-             mock.patch.object(eng, "build_brief", side_effect=RuntimeError("no credits")), \
-             mock.patch.object(eng, "_maybe_learn"), \
-             mock.patch.object(self.dd.forge_heartbeat, "beat"), \
-             mock.patch.object(self.dd.time, "sleep", side_effect=_Stop):
-            with self.assertRaises(_Stop):
-                eng.run_forever()
+        self._run_loop(eng, 1, RuntimeError("no credits"))
         self.assertEqual(eng.fail_streak, 1)
         self.assertIsNotNone(eng.last_attempt_at)
         self.assertIn("no credits", eng.last_error)
+        self.assertEqual(fh.snapshot()[0]["errorsTotal"], 1, "the attempt itself counts")
+
+    def test_backoff_ticks_do_not_inflate_heartbeat_errors(self):
+        """Codex review: inside a backoff window no brief is attempted, yet the loop kept
+        beating with the STALE last_error → errStreak/errorsTotal grew ~96/day."""
+        eng = self.dd.SolomonEngine()
+        eng._note_brief_result(False, int(self.dd.time.time() * 1000))   # 15 min window opens
+        eng.last_error = "brief: no credits"
+        bb = self._run_loop(eng, 2, RuntimeError("must not be called"))
+        bb.assert_not_called()
+        rec = fh.snapshot()[0]
+        self.assertEqual(rec["loop"], "solomon")
+        self.assertEqual(rec["beats"], 2, "the loop still beats (not stale)")
+        self.assertEqual(rec["errorsTotal"], 0, "no attempt → no error counted")
+        self.assertEqual(rec["errStreak"], 0)
+        self.assertEqual(eng.fail_streak, 1, "backoff state untouched")
+
+    def test_status_exposes_backoff_and_next_brief(self):
+        eng = self.dd.SolomonEngine()
+        self.assertIsNone(eng.next_brief_at(), "never briefed/attempted → due now")
+        t = 1_700_000_000_000
+        eng._note_brief_result(False, t)
+        eng._note_brief_result(False, t)                 # streak 2 → 30 min backoff
+        self.assertEqual(eng.next_brief_at(), t + 30 * 60 * 1000)
+        eng._note_brief_result(True, t)
+        eng.last_brief_at = t
+        self.assertEqual(eng.next_brief_at(), t + self.dd.BRIEF_EVERY_MS, "cadence wins")
+        st = eng.status()
+        self.assertEqual(st["failStreak"], 0)
+        self.assertEqual(st["lastAttemptAt"], t)
+        self.assertEqual(st["nextBriefAt"], t + self.dd.BRIEF_EVERY_MS)
 
 
 class MetaAuthCacheTest(unittest.TestCase):
@@ -317,7 +421,10 @@ class MetaAuthCacheTest(unittest.TestCase):
                         return_value={"META_ACCESS_TOKEN": "unit-test-token-not-real"}):
             data, err = eng._gather_campaign()
         self.assertFalse(data["connected"])
-        self.assertTrue(err)
+        self.assertEqual(data["source"], "auth_error")
+        # Fable review: the err must name the REJECTION — not "add META_AD_ACCOUNT_MAP".
+        self.assertIn("rejected", err.lower())
+        self.assertNotIn("META_AD_ACCOUNT_MAP", err)
         self.assertEqual(len(calls), 1, "the gather must not re-hit Meta either")
 
     def test_transient_error_is_not_cached(self):
@@ -393,11 +500,14 @@ class PhantomConnectorTest(unittest.TestCase):
     def test_no_other_module_imports_connector(self):
         """Only the two known lazy lookups (plus tests) import connector — anything new
         needs the same alias guarantee."""
+        # Per-LINE statement match — a substring check also trips on comments/docstrings
+        # that merely mention "import connector" (Codex review).
+        stmt = re.compile(r"^\s*import connector\b", re.M)
         offenders = []
         for p in HERE.glob("*.py"):
             if p.name.startswith("test_") or p.name == "connector.py":
                 continue
-            if "import connector" in p.read_text():
+            if stmt.search(p.read_text()):
                 offenders.append(p.name)
         self.assertEqual(sorted(offenders), ["agents_hub.py", "pixel_office.py"])
 
@@ -422,6 +532,9 @@ class SystemHealthRouteTest(unittest.TestCase):
         self.assertIn("FIX REQUIRED: Anthropic credits/auth", wseg)
         self.assertIn("forge_heartbeat.ai_alerted(True)", wseg)
         self.assertIn("forge_heartbeat.ai_alerted(False)", wseg)
+        # The AI alert runs ABOVE the clocked-out `continue`: a dead key is fix-required
+        # whether or not the crew is paused (transition-based, so it can't spam).
+        self.assertLess(wseg.index("FIX REQUIRED: Anthropic"), wseg.index("forge_ops.paused()"))
 
 
 if __name__ == "__main__":

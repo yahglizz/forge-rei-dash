@@ -260,6 +260,8 @@ def snapshot(scout=None, solomon=None, midas=None, screener=None, system=None):
         "diskPct": disk.get("pctUsed"),
         "telegram": bool(sysd.get("telegramConfigured")),
         "ok": bool(sysd.get("ok", True)),
+        "reason": sysd.get("reason"),   # WP-A — why ok is false, one line
+        "ai": sysd.get("ai"),           # WP-A — {ok, hard, kind, reason, downSince, ...}
         "jump": {"ws": "rei", "page": "SystemHealth"},
     }
     # If the fleet is actively running and a loop is down, raise it on the REI card
