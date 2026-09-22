@@ -5008,11 +5008,15 @@ def main():
         tsol.start()
         # --- WP-E --- Daycare Lead Desk: reads daycare GHL every 15 min, derives lead
         # stages + who needs a human, alerts the owner. Zero Claude calls, sends nothing.
-        print(f"   Daycare Lead Desk: read-only GHL lead sweep every {daycare_leads.INTERVAL // 60} min"
-              f" · {'GHL connected' if DAYCARE_GHL.configured else 'GHL NOT configured'}")
-        tdl = threading.Thread(target=daycare_leads.run_forever, args=(DAYCARE_GHL,),
-                               daemon=True, name="daycare_leads")
-        tdl.start()
+        # FORGE_DAYCARE_LEADS=0 switches it off (retired, so the health card stays quiet).
+        if os.environ.get("FORGE_DAYCARE_LEADS", "1") != "0":
+            print(f"   Daycare Lead Desk: read-only GHL lead sweep every {daycare_leads.INTERVAL // 60} min"
+                  f" · {'GHL connected' if DAYCARE_GHL.configured else 'GHL NOT configured'}")
+            tdl = threading.Thread(target=daycare_leads.run_forever, args=(DAYCARE_GHL,),
+                                   daemon=True, name="daycare_leads")
+            tdl.start()
+        else:
+            forge_heartbeat.retire("daycare_leads")
         # --- /WP-E ---
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering

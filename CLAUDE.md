@@ -404,7 +404,8 @@ update that skill if you improved the pattern.
   | `FORGE_DROPSHIP_BRIEF` | **0 (off)** | Midas's scheduled brief. Off while the store has 0/7 systems wired — a brief over empty data is fabrication AND a daily bill. On-demand (chat, `/task`, `/api/dropship/director/run`, all 3 lanes) is unaffected. Set `1` when Shopify connects. |
   | `FORGE_TODAY_LOOP` | **0 (off)** | DoToday's scheduled rebuild + 9 AM email. Paused by operator request. Costs $0 either way (DoToday makes no Claude call); `view()` self-rebuilds so `/today` + `/done` still work. |
   | `FORGE_SCOUT_INTERVAL` | 180 | Wholesale sweep. The money loop — leave hot. |
-  | `FORGE_SOLOMON_BRIEF_EVERY_H` | 24 | Daycare brief. Raise to 48 if enrollment goes quiet. |
+  | `FORGE_DAYCARE_LEADS` | 1 (on) | Daycare Lead Desk sweep (15 min, GET-only on the daycare GHL, zero Claude). `0` stops it and retires its heartbeat. |
+| `FORGE_SOLOMON_BRIEF_EVERY_H` | 24 | Daycare brief. Raise to 48 if enrollment goes quiet. |
   | `FORGE_SCOUT_LEARN_EVERY` / `FORGE_ATLAS_LEARN_EVERY` | 25 / 12 | Self-improve cadence — the other real Claude cost. |
 
   **Switching a loop OFF must call `forge_heartbeat.retire("<loop>")`** in the else branch,

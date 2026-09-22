@@ -1,6 +1,6 @@
 // archived.jsx — Archived Businesses (P1-1). Archive = HIDE, never delete.
 // Lists every business/lens from /api/businesses with a Reactivate or Archive toggle
-// (POST /api/businesses/set). Archived workspaces can still be opened read-only via
+// (POST /api/businesses/set). Archived workspaces can still be opened (fully working) via
 // window.forgeEnterBusiness (app.jsx). Rendered by app.jsx as the "archived" home view.
 const { useState: useStateArc } = React;
 
@@ -41,7 +41,7 @@ function ArchivedBusinessesPage() {
           {b.archived ? "Archived" : "Active"}
         </span>
         {canOpen && (
-          <button className="tab" onClick={() => window.forgeEnterBusiness(b.id)}>Open read-only</button>
+          <button className="tab" onClick={() => window.forgeEnterBusiness(b.id)}>Open (archived)</button>
         )}
         <button className={"tab" + (b.archived ? " active" : "")} disabled={busyArc === b.id}
           onClick={() => toggleArc(b)}>

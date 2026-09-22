@@ -419,7 +419,7 @@ function PixelOfficePage() {
         <div>
           <div style={{ fontWeight: 700, fontSize: 14.5 }}>Agent Office</div>
           <div className="faint" style={{ fontSize: 11.5 }}>
-            All four departments, live. {agents.length} agents · {busy} working right now.
+            {((state && state.departments) || []).length} departments, live. {agents.length} agents · {busy} working right now.
           </div>
         </div>
         <div style={{ flex: 1 }} />

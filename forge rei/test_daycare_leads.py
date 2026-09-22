@@ -342,6 +342,50 @@ def test_lead_outside_conversation_window():
         dl.CONV_LOOKUPS = cap
 
 
+def test_bus_alert_is_name_free():
+    """skill_forge samples bus text to disk: the parent's name rides Telegram only."""
+    import sys
+    import types
+    bus, tg = [], []
+    saved = {m: sys.modules.get(m) for m in ("agent_bus", "telegram_io")}
+    sys.modules["agent_bus"] = types.SimpleNamespace(send=lambda *a: bus.append(a))
+    sys.modules["telegram_io"] = types.SimpleNamespace(
+        send=lambda text, dedupe_key=None: tg.append(text))
+    try:
+        dl._notify("Daycare lead needs you: Jordan (921 N 18th St) — GHL call task is overdue",
+                   {"type": "daycare_lead", "contactId": "c1", "reasons": ["overdue_task"]}, "k")
+    finally:
+        for m, mod in saved.items():
+            if mod is None:
+                sys.modules.pop(m, None)
+            else:
+                sys.modules[m] = mod
+    text, data = bus[0][3], bus[0][4]
+    assert "Jordan" not in text and "921" not in text and "c1" in text and "overdue_task" in text, text
+    assert "Jordan" not in str(data)
+    assert "Jordan" in tg[0]
+
+
+def test_contact_cap_truncation_note():
+    """A full contact page cap is surfaced as a note — the sweep and heartbeat stay clean."""
+    cap = (dl.CONTACT_PAGES, dl.PAGE_SIZE)
+    dl.CONTACT_PAGES, dl.PAGE_SIZE = 1, 5          # FakeGHL returns exactly 5 contacts
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            dl.STATE = Path(tmp) / "daycare_leads.json"
+            now = et(2026, 9, 22, 11, 0)
+            st = dl.run_once(FakeGHL(now), now=now, send=lambda *a: None)
+            assert st["error"] is None and len(st["leads"]) == 2, st["error"]
+            assert "5-contact cap" in st["note"], st["note"]
+            assert "5-contact cap" in dl.view()["error"]
+    finally:
+        dl.CONTACT_PAGES, dl.PAGE_SIZE = cap
+    with tempfile.TemporaryDirectory() as tmp:
+        dl.STATE = Path(tmp) / "daycare_leads.json"
+        st = dl.run_once(FakeGHL(now), now=now, send=lambda *a: None)
+        assert st["note"] is None and dl.view()["error"] is None
+
+
 if __name__ == "__main__":
     import sys
     failed = 0
