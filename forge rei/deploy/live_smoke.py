@@ -140,7 +140,8 @@ def system_health_ok(status, body):
         return False, "HTTP %s" % status
     if not j.get("ok"):
         red = j.get("redLoops") or []
-        return False, "ok=false redLoops=%s diskOk=%s" % (red, j.get("diskOk"))
+        return False, "ok=false redLoops=%s diskOk=%s reason=%s" % (
+            red, j.get("diskOk"), j.get("reason"))   # WP-A — reason names the AI/disk cause
     if not j.get("active", True):
         return False, "active=false (loops off or paused)"
     red = j.get("redLoops") or []

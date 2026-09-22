@@ -58,6 +58,32 @@ function ShLoopRow({ loop }) {
   );
 }
 
+function ShAiRow({ ai }) {
+  // WP-A — Anthropic dependency: ok, or hard-down (billing/auth) + reason + downSince.
+  const timeAgo = window.timeAgo;
+  const status = ai.hard ? "red" : "green";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 4px" }}>
+      <ShDot status={status} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 13.5 }}>Anthropic (Claude calls)</div>
+        {ai.hard ? (
+          <div className="faint mono" style={{ fontSize: 11, color: "var(--red)", marginTop: 2 }}>
+            {ai.reason}{ai.downSince ? " · down since " + timeAgo(ai.downSince) : ""}
+          </div>
+        ) : (
+          <div className="faint" style={{ fontSize: 11, marginTop: 2 }}>
+            ok{ai.lastOkAt ? " · last success " + timeAgo(ai.lastOkAt) : " · no calls recorded yet"}
+          </div>
+        )}
+      </div>
+      <div className="tabnum" style={{ fontSize: 12.5, fontWeight: 600, color: SH_COLOR[status], flexShrink: 0 }}>
+        {ai.hard ? "DOWN" : "OK"}
+      </div>
+    </div>
+  );
+}
+
 function ShStat({ label, value, color }) {
   return (
     <div className="card card-pad" style={{ textAlign: "center" }}>
@@ -105,9 +131,20 @@ function SystemHealthPage() {
             {loops.length} loops monitored · {d.note || ""}
             {d.paused ? " · crew clocked out" : ""}
           </div>
+          {d.reason && (   /* WP-A — why ok is false, in one line */
+            <div style={{ fontSize: 12, color: "var(--red)", marginTop: 3 }}>{d.reason}</div>
+          )}
         </div>
         <button className="tab" onClick={refresh}>Refresh</button>
       </div>
+
+      {/* AI dependency (WP-A) — heartbeats wrap loops, not Claude calls */}
+      {d.ai && (
+        <div className="card card-pad">
+          <div className="card-title" style={{ fontSize: 15, marginBottom: 6 }}>AI dependency</div>
+          <ShAiRow ai={d.ai} />
+        </div>
+      )}
 
       {/* Loop tally */}
       <div className="card-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>

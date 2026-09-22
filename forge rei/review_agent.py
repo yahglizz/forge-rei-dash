@@ -49,13 +49,14 @@ def _api_key():
     return None
 
 
-def _ai_health(ok, code=None, msg=None):
+def _ai_health(ok, code=None, msg=None, key=None):
     """Stamp the shared AI-dependency signal (forge_heartbeat.ai_*). Heartbeats wrap
-    loops, not Claude calls — this is what lets a credit/auth outage show red. Never
-    raises into the caller."""
+    loops, not Claude calls — this is what lets a credit/auth outage show red. `key` is
+    fingerprinted (never stored) so one revoked key can't mask or be masked by another.
+    Never raises into the caller."""
     try:
         import forge_heartbeat
-        forge_heartbeat.ai_ok() if ok else forge_heartbeat.ai_fail(code, msg)
+        forge_heartbeat.ai_ok(key) if ok else forge_heartbeat.ai_fail(code, msg, key)
     except Exception:
         pass
 
@@ -103,12 +104,12 @@ def _claude(key, system, user, max_tokens=1200, tools=None, model=None):
                 msg = (body.get("error") or {}).get("message") or str(e)
             except Exception:  # noqa: BLE001
                 msg = str(e)
-            _ai_health(False, e.code, msg)
+            _ai_health(False, e.code, msg, key)
             raise RuntimeError(f"Anthropic API error ({e.code}): {msg}") from None
         except Exception as e:  # noqa: BLE001 — network / timeout: transient, then re-raise
-            _ai_health(False, None, e)
+            _ai_health(False, None, e, key)
             raise
-        _ai_health(True)
+        _ai_health(True, key=key)
         try:  # cost telemetry — best-effort, never blocks the call
             import cost_tracker
             u = data.get("usage") or {}

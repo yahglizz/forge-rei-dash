@@ -654,15 +654,19 @@ function DashHealthDot() {
   const loops = Array.isArray(d.loops) ? d.loops : [];
   const reds = loops.filter((l) => l.status === "red").length;
   const ambers = loops.filter((l) => l.status === "amber").length;
-  const c = error ? "#EF4444" : !d.active ? "#64748B" : reds ? "#EF4444" : ambers ? "#F59E0B" : "#22C55E";
-  const label = error ? "health check failed" : !d.active ? "idle" : reds ? reds + " loop down" : ambers ? ambers + " warn" : "healthy";
+  // WP-A — ok:false with no red loop = AI hard-down / disk pressure; d.reason says which.
+  const notOk = !!d.active && d.ok === false;
+  const c = error ? "#EF4444" : !d.active ? "#64748B" : (reds || notOk) ? "#EF4444" : ambers ? "#F59E0B" : "#22C55E";
+  const label = error ? "health check failed" : !d.active ? "idle" : reds ? reds + " loop down"
+    : notOk ? (d.reason || "attention needed") : ambers ? ambers + " warn" : "healthy";
   return (
     <span onClick={() => window.GoTo && window.GoTo("SystemHealth")}
-      title={error ? "System health check failed: " + error : "System health — tap for detail"}
+      title={error ? "System health check failed: " + error : (d.reason || "System health — tap for detail")}
       style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
       <span style={{ width: 9, height: 9, borderRadius: "50%", background: c, display: "inline-block",
-                     boxShadow: (reds || error) ? "0 0 0 3px rgba(239,68,68,.18)" : "none" }} />
-      <span className="faint" style={{ fontSize: 11.5 }}>{label}</span>
+                     boxShadow: (reds || notOk || error) ? "0 0 0 3px rgba(239,68,68,.18)" : "none" }} />
+      <span className="faint" style={{ fontSize: 11.5, maxWidth: 260, overflow: "hidden",
+                                       textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </span>
   );
 }

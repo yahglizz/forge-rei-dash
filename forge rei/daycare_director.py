@@ -813,6 +813,9 @@ class SolomonEngine:
             "lastBriefAt": self.last_brief_at,
             "learn": self.learn_state,
             "lastError": self.last_error,
+            "failStreak": self.fail_streak,          # WP-A — consecutive failed briefs
+            "lastAttemptAt": self.last_attempt_at,   # WP-A
+            "nextBriefAt": self.next_brief_at(),     # WP-A — cadence + backoff, whichever is later
         }
 
     def overview(self):
@@ -873,10 +876,22 @@ class SolomonEngine:
             self.last_attempt_at = now
             self.fail_streak = 0 if ok else self.fail_streak + 1
             self._save()
+
+    def next_brief_at(self):
+        """ms epoch of the next autonomous brief: the 24h cadence OR the backoff window,
+        whichever ends later. None until the first brief/attempt (= due now)."""
+        if self.last_brief_at is None and self.last_attempt_at is None:
+            return None
+        return max((self.last_brief_at or 0) + BRIEF_EVERY_MS,
+                   (self.last_attempt_at or 0) + self.backoff_delay_s(self.fail_streak) * 1000)
     # --- /WP-A ---
 
     def run_forever(self):
         while True:
+            # WP-A — only a tick that ATTEMPTED a brief (or itself raised) reports an error
+            # to the heartbeat. A backoff tick attempts nothing; re-beating the stale
+            # last_error inflated errStreak/errorsTotal ~96/day during an outage.
+            attempted = False
             try:
                 if forge_ops.paused():
                     time.sleep(POLL_INTERVAL)
@@ -885,6 +900,7 @@ class SolomonEngine:
                 # Due a fresh autonomous brief? Build one under an auto-admin session.
                 now = int(time.time() * 1000)
                 if self._brief_due(now) and key:
+                    attempted = True
                     session = None
                     try:
                         import daycare_supabase
@@ -898,11 +914,12 @@ class SolomonEngine:
                         self._note_brief_result(ok, now)   # WP-A — an exception counts as a fail
                 self._maybe_learn(key)
             except Exception as e:  # noqa: BLE001
+                attempted = True
                 self.last_error = f"loop: {e}"
             finally:
                 try:
                     forge_heartbeat.beat("solomon", POLL_INTERVAL, "Solomon director",
-                                         error=self.last_error)
+                                         error=self.last_error if attempted else None)
                 except Exception:
                     pass
             time.sleep(POLL_INTERVAL)

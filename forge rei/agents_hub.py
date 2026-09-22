@@ -652,7 +652,8 @@ def _probe(agent_id):
         elif agent_id in ("solomon", "midas", "orion") and eng is not None:
             st = eng.status()
             p.update(lastSuccessAt=st.get("lastBriefAt"), lastError=st.get("lastError"),
-                     keys=st.get("aiReady"), work=f"{st.get('briefCount', 0)} briefs")
+                     keys=st.get("aiReady"), work=f"{st.get('briefCount', 0)} briefs",
+                     nextRun=st.get("nextBriefAt"))   # WP-A — Solomon: cadence + backoff
         elif agent_id == "followup" and eng is not None:
             st = eng.status()
             p.update(lastRun=st.get("lastRun") or None, lastError=st.get("lastError"),
@@ -729,9 +730,12 @@ def registry(business=None, now=None):
             "lastSuccessAt": (p.get("lastSuccessAt") or rec.get("lastSuccessAt")
                               or (rec.get("lastRun") if rec and not rec.get("errStreak")
                                   else None)),
-            "nextRun": (rec["lastRun"] + int(interval * 1000)
-                        if rec.get("lastRun") and interval and status != "DISABLED"
-                        else None),
+            # WP-A: an engine-declared next run (Solomon's nextBriefAt, cadence + backoff)
+            # beats the heartbeat's lastRun + interval, which is only the next poll tick.
+            "nextRun": ((p.get("nextRun")
+                         or (rec["lastRun"] + int(interval * 1000)
+                             if rec.get("lastRun") and interval else None))
+                        if status != "DISABLED" else None),
             "tasksCompleted": sum(1 for t in mine if t.get("status") == "done"),
             "tasksFailed": sum(1 for t in mine if t.get("status") == "failed"),
             "openTasks": len(open_t),
