@@ -220,12 +220,14 @@ class FakeGHL:
                 lead(created=n - 200 * 86400, cid="old1"),                             # dormant
             ], "meta": {}}
         if path == "/conversations/search":
-            return {"conversations": [
+            convs = [
                 {"id": "cv1", "contactId": "lead1", "lastMessageDate": int((n - 1800) * 1000)},
                 {"id": "cvc", "contactId": "chat1", "lastMessageDate": int((n - 1800) * 1000)},
                 {"id": "cvv", "contactId": "vendor1", "lastMessageDate": int((n - 1800) * 1000)},
                 {"id": "cvf", "contactId": "fam1", "lastMessageDate": int((n - 1800) * 1000)},
-            ]}
+            ]
+            only = (params or {}).get("contactId")
+            return {"conversations": [c for c in convs if not only or c["contactId"] == only]}
         if path == "/conversations/cv1/messages":
             return {"messages": {"messages": [msg("inbound", n - 1800),
                                               msg("outbound", n - 7000, source="workflow")]}}
@@ -262,6 +264,82 @@ def test_sweep_and_view():
         # Unconfigured client: honest error, no crash.
         st = dl.run_once(None, now=now + 1800)
         assert "not configured" in st["error"]
+
+
+def test_rate_limit_aborts_sweep():
+    """An exhausted 429 stops the whole sweep at once, keeps the last good snapshot, and
+    holds every GET until GHL's Retry-After passes (else one interval)."""
+    import urllib.error
+
+    class Limited(FakeGHL):
+        def get(self, path, params=None):
+            if path.startswith("/conversations/cv"):          # first per-lead read
+                self.calls.append(path)
+                raise urllib.error.HTTPError(path, 429, "Too Many Requests",
+                                             {"Retry-After": "1800"}, None)
+            return super().get(path, params)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        dl.STATE = Path(tmp) / "daycare_leads.json"
+        now = et(2026, 9, 22, 11, 0)
+        good = dl.run_once(FakeGHL(now), now=now, send=lambda *a: None)
+        lim = Limited(now + 900)
+        st = dl.run_once(lim, now=now + 900, send=lambda *a: None)
+        assert "429" in st["error"] and "backing off 1800s" in st["error"], st["error"]
+        assert st["leads"] == good["leads"] and st["lastOkAt"] == good["lastOkAt"]
+        assert st["alerted"] == good["alerted"]
+        assert st["backoffUntil"] == dl._ms(now + 900 + 1800)
+        assert sum(1 for c in lim.calls if c.startswith("/conversations/cv") or c.endswith("/tasks")) == 1
+        # Inside the backoff: zero GETs; the 429 error stands, so the heartbeat beats red.
+        quiet = FakeGHL(now + 1800)
+        st = dl.run_once(quiet, now=now + 1800)
+        assert quiet.calls == [] and "429" in st["error"]
+        # Past it: a normal sweep, backoff cleared.
+        st = dl.run_once(FakeGHL(now + 2800), now=now + 2800, send=lambda *a: None)
+        assert st["error"] is None and st["backoffUntil"] is None and len(st["leads"]) == 2
+    assert dl._retry_after(urllib.error.HTTPError("u", 429, "x", {}, None)) == dl.INTERVAL
+
+
+def test_lead_outside_conversation_window():
+    """A lead whose thread fell out of the 100-conversation window is looked up per
+    contact (capped); an answered one never pages the owner, and one past the cap is
+    'history unknown' — never NEEDS_HUMAN or an alert from missing data."""
+    class Window(FakeGHL):
+        def get(self, path, params=None):
+            n = self.now
+            if path == "/contacts/":
+                self.calls.append(path)
+                return {"contacts": [
+                    lead(["pref-call-30"], created=n - 5 * 86400, cid="late1"),
+                    lead(["pref-call-30"], created=n - 5 * 86400, cid="late2"),
+                ]}
+            if path == "/conversations/search" and (params or {}).get("contactId") == "late1":
+                self.calls.append("lookup:late1")
+                return {"conversations": [{"id": "cvl", "contactId": "late1",
+                                           "lastMessageDate": int((n - 4 * 86400) * 1000)}]}
+            if path == "/conversations/cvl/messages":
+                self.calls.append(path)
+                return {"messages": {"messages": [
+                    msg("inbound", n - 5 * 86400 + 60),
+                    msg("outbound", n - 5 * 86400 + 600, source="app", userId="u1")]}}
+            return super().get(path, params)
+
+    cap = dl.CONV_LOOKUPS
+    dl.CONV_LOOKUPS = 1
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            dl.STATE = Path(tmp) / "daycare_leads.json"
+            now = et(2026, 9, 22, 11, 0)
+            sent, ghl = [], Window(now)
+            st = dl.run_once(ghl, now=now, send=lambda *a: sent.append(a))
+            ids = {l["contactId"]: l for l in st["leads"]}
+            assert ids["late1"]["stage"] != "NEEDS_HUMAN" and ids["late1"]["historyKnown"], ids["late1"]
+            assert ids["late1"]["firstHumanSec"] == 600
+            assert ids["late2"]["stage"] != "NEEDS_HUMAN" and ids["late2"]["historyKnown"] is False
+            assert "lookup:late1" in ghl.calls and ghl.calls.count("/conversations/search") == 1
+            assert sent == [] and dl.needs_human(st) == [] and st["error"] is None
+    finally:
+        dl.CONV_LOOKUPS = cap
 
 
 if __name__ == "__main__":
