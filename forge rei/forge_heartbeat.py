@@ -171,6 +171,9 @@ def ai_classify(code, msg):
 
 def ai_ok():
     """A Claude call succeeded. Clears any hard-down state. Never raises."""
+    # ponytail: one fleet-wide signal, not per-key. Every box key bills to ONE Anthropic
+    # account (billing outages are account-wide); a single revoked key among healthy ones
+    # would be masked. Track per key-fingerprint if keys ever split across accounts.
     try:
         now = int(time.time() * 1000)
         with _LOCK:

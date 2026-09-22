@@ -335,10 +335,21 @@ class MetaAuthCacheTest(unittest.TestCase):
         self.assertEqual(self.ads.connection()["source"], "live")
 
     def test_replaced_token_is_retried_immediately(self):
-        self.ads._AUTH_DEAD[(hash("unit-test-token-not-real"), "act_1001")] = 9e12
+        self.ads._AUTH_DEAD[(hash("unit-test-token-not-real"), None)] = 9e12
         self.assertTrue(self.ads._auth_dead("unit-test-token-not-real"))
+        self.assertTrue(self.ads._auth_dead("unit-test-token-not-real", "act_other"))
         self.assertFalse(self.ads._auth_dead("a-new-token"))
-        self.assertEqual(self.ads._auth_dead("unit-test-token-not-real", "act_other"), False)
+
+    def test_account_403_does_not_kill_the_whole_token(self):
+        # Codex review: a 403 on ONE ad account must not black out every account.
+        self.assertEqual(self.ads._auth_scope("Meta 403: no permission", "act_1"), "act_1")
+        self.assertEqual(self.ads._auth_scope("Meta 400: Cannot parse access token", "act_1"), "token")
+        self.assertIsNone(self.ads._auth_scope("Meta 500: internal", "act_1"))
+        self.ads._AUTH_DEAD[(hash("unit-test-token-not-real"), "act_1001")] = 9e12
+        self.assertFalse(self.ads._auth_dead("unit-test-token-not-real"))
+        self.assertTrue(self.ads._auth_dead("unit-test-token-not-real", "act_1001"))
+        self.assertFalse(self.ads._auth_dead("unit-test-token-not-real", "act_other"))
+        self.assertEqual(self.ads.connection()["source"], "live")
 
 
 class PhantomConnectorTest(unittest.TestCase):

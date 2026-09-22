@@ -1857,7 +1857,7 @@ def _watchdog_forever():
                     esc = getattr(telegram_io, "_esc", str)   # HTML parse mode — escape raw errors
                     txt = ("🔴 FIX REQUIRED: Anthropic credits/auth — all agents' AI calls "
                            f"failing. {esc(ai.get('reason'))}. Last error: {esc(ai.get('lastError'))}")
-                    res = telegram_io.send(txt, dedupe_key="watchdog:ai")
+                    res = telegram_io.send(txt, dedupe_key=f"watchdog:ai:{ai.get('downSince')}")
                     if (res or {}).get("ok") or not telegram_io.configured():
                         forge_heartbeat.ai_alerted(True)
                         try:
@@ -1868,7 +1868,7 @@ def _watchdog_forever():
                             pass
                 elif ai.get("ok") and ai.get("alerted"):
                     txt = "🟢 Anthropic AI calls recovered — agents are thinking again."
-                    res = telegram_io.send(txt, dedupe_key="watchdog-ok:ai")
+                    res = telegram_io.send(txt, dedupe_key=f"watchdog-ok:ai:{ai.get('lastOkAt')}")
                     if (res or {}).get("ok") or not telegram_io.configured():
                         forge_heartbeat.ai_alerted(False)
                         try:
