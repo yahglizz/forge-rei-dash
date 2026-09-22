@@ -468,6 +468,24 @@ class SolomonEngine:
                              "numbers exist for this center.")
         return data, None
 
+    # --- WP-E ---
+    def _gather_leads(self):
+        """Enrollment leads from the Lead Desk's saved state (daycare_leads) — no network.
+        Gives the enrollment lane real lead flow: KPIs + who needs a human right now."""
+        try:
+            import daycare_leads
+            desk = daycare_leads.view()
+        except Exception as e:  # noqa: BLE001 — the brief still works without it
+            return {"error": f"lead desk unavailable: {type(e).__name__}"}
+        return {
+            "kpis": desk.get("kpis"),
+            "needsHuman": [{k: i.get(k) for k in ("title", "why", "ageSec", "priority", "center")}
+                           for i in (desk.get("needsHuman") or [])[:10]],
+            "lastRunAt": desk.get("lastRunAt"),
+            "error": desk.get("error"),
+        }
+    # --- /WP-E ---
+
     def _gather_competitor(self, key):
         """Daycare-scoped competitor read (best-effort — never blocks the brief)."""
         try:
@@ -573,6 +591,7 @@ class SolomonEngine:
             "connectedSystems": [{"name": s["name"], "connected": s["connected"]} for s in systems],
             "offlineChannels": offline,
         }
+        live["leadDesk"] = self._gather_leads()  # --- WP-E --- GHL enrollment leads (read-only)
         user = (
             "TODAY'S LIVE CENTER DATA (ground the brief in these — do not invent "
             "numbers):\n" + json.dumps(live, indent=2)
