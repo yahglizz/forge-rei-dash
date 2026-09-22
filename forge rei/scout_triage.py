@@ -375,7 +375,7 @@ class ScoutEngine:
         """Deterministic provisional score (no Claude). Returns a partial record dict."""
         if cls == "DNC":
             return {"intent": "dead", "motivation": 0, "bucket": "dead",
-                    "reason": "said stop / do not contact", "scoreSource": "rule"}
+                    "reason": "opt-out / said stop or do not contact", "scoreSource": "rule"}
         # Explicit opt-out/harassment complaint that isn't literally "stop" ("remove my
         # number", "leave me alone") — DNC-grade, caught here so it never depends on
         # Claude being up. Checked before the generic wrong-number denial below.

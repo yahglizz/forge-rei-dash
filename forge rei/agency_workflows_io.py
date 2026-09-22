@@ -192,6 +192,18 @@ def _save(d):
     forge_atomic.atomic_write_json(STATE, d)
 
 
+def _sanitize_conn_error(e, limit=200):
+    """Error text safe to hand to the UI — no API key, no base URL."""
+    msg = str(e)
+    key = os.environ.get("N8N_API_KEY", "")
+    if key:
+        msg = msg.replace(key, "***")
+    base = os.environ.get("N8N_BASE_URL", "")
+    if base:
+        msg = msg.replace(base, "<n8n host>")
+    return msg[:limit]
+
+
 def list_workflows():
     """Live workflows from n8n if connected; else mock. Merges local drafts."""
     conn = _connection()
@@ -201,9 +213,11 @@ def list_workflows():
             base_workflows = _live_workflows()
         except Exception as e:
             import sys
-            print(f"[workflows] live fetch failed, falling back to mock: {e}",
+            detail = _sanitize_conn_error(e)
+            print(f"[workflows] live fetch failed, falling back to mock: {detail}",
                   file=sys.stderr)
             base_workflows = _MOCK_WORKFLOWS
+            conn = {**conn, "connected": False, "source": "mock", "detail": detail}
 
     with _LOCK:
         d = _load()

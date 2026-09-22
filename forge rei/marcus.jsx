@@ -633,10 +633,11 @@ function ClockCard() {
   const clkPaused = !!cd.paused;
   const crew = (cd.crew || []).join(", ");
   const [clkBusy, setClkBusy] = useStateM(false);
+  const [clkErr, setClkErr] = useStateM(null);
   const flipClock = async () => {
     setClkBusy(true);
-    try { await window.apiPost("/api/ops/set", { paused: !clkPaused }); }
-    catch (e) { /* refresh shows truth */ }
+    try { await window.apiPost("/api/ops/set", { paused: !clkPaused }); setClkErr(null); }
+    catch (e) { setClkErr(e.message || "clock toggle failed — state unchanged, try again"); }
     setClkBusy(false);
     cs.refresh();
   };
@@ -652,6 +653,7 @@ function ClockCard() {
             ? (crew + " stood down — you've got the wheel, your taps still work")
             : (crew + " working: sweeping, scoring, tagging, screening, prepping")}
         </span>
+        {clkErr && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--danger, #e5484d)" }}>⚠ {clkErr}</span>}
       </div>
       <button onClick={flipClock} disabled={clkBusy}
         style={{ marginLeft: "auto", background: clkPaused ? "var(--accent, #46a758)" : "var(--danger, #e5484d)", color: "#fff", border: "none", borderRadius: 10, padding: "9px 16px", fontSize: 13, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", opacity: clkBusy ? 0.6 : 1 }}>

@@ -43,6 +43,11 @@ function WfConnectionCard({ connection }) {
         <span style={{ fontWeight: 600, fontSize: 15 }}>n8n — not connected</span>
       </div>
       {conn.todo && <div className="faint" style={{ fontSize: 12.5 }}>{conn.todo}</div>}
+      {conn.detail && (
+        <div style={{ fontSize: 12.5, color: "var(--orange)" }}>
+          Live fetch failed — showing mock workflows below. {conn.detail}
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div style={window.AgUI.field}>
           <span style={window.AgUI.fieldLabel}>Base URL (env: N8N_BASE_URL)</span>

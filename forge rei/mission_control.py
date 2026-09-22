@@ -97,7 +97,7 @@ def _rei_card(scout, screener):
                 pend = len(q.get("queue") or q.get("reports") or [])
             if pend:
                 c["metrics"].append({"label": "To screen", "value": pend,
-                                     "jump": {"ws": "rei", "page": "Screening"}})
+                                     "jump": {"ws": "rei", "page": "Agents"}})
         except Exception:
             pass
     except Exception as e:
@@ -150,7 +150,7 @@ def _daycare_card(solomon):
             {"label": "Systems wired", "value": f"{wired}/{len(systems)}" if systems else "—",
              "jump": {"ws": "daycare", "page": "Settings"}},
             {"label": "Director AI", "value": "Ready" if st.get("aiReady") else "Off",
-             "jump": {"ws": "daycare", "page": "Director"}},
+             "jump": {"ws": "daycare", "page": "Agents"}},
         ]
         if not st.get("aiReady"):
             c["attention"].append({"sev": "warn", "text": "Solomon AI off — no API key",
