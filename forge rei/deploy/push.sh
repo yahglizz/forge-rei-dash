@@ -129,6 +129,12 @@ else
   echo "   (no $TG yet — skipping; Telegram alerts stay 'not configured')"
 fi
 
+echo "==> lock down secrets on the box (every *.env -> root:root 600)"
+# rsync -a carries the Mac's uid 501 + 0644 onto the secrets, and macOS openrsync has no
+# --chown, so reset ownership + mode on the box after the last env-carrying rsync above.
+# vault/ is skipped (its .env is the owner's call); repo/ is a git clone and never holds secrets.
+$SSH "$TARGET" "find $REMOTE -path $REMOTE/repo -prune -o -path $REMOTE/vault -prune -o -type f -name '*.env' -exec chown root:root {} + -exec chmod 600 {} +"
+
 echo "==> push constitution (NORTH_STAR.md, repo root)"
 if [ -f "$NORTHSTAR" ]; then
   rsync -az -e "$SSH" "$NORTHSTAR" "$TARGET:$REMOTE/NORTH_STAR.md"

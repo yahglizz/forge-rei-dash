@@ -122,6 +122,62 @@ systemctl enable --now forge-daily-learn.timer
 # retire the old 02:00 UTC voice-only learn — folded into the 8pm full sweep
 systemctl disable --now forge-learn.timer 2>/dev/null || true
 
+echo "==> weekly review (Mon 08:00 UTC -> POST /api/review/run)"
+# The JSON body MUST be quoted: systemd strips bare quotes, so an unquoted -d {"days":7}
+# arrives as {days:7} and the API rejects it ("request body must be valid JSON").
+cat > /etc/systemd/system/forge-review.service <<EOF
+[Unit]
+Description=FORGE weekly review
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -s -X POST http://127.0.0.1:$PORT/api/review/run -H "Content-Type: application/json" -d '{"days":7}'
+EOF
+cat > /etc/systemd/system/forge-review.timer <<EOF
+[Unit]
+Description=Run FORGE weekly review on Mondays
+[Timer]
+OnCalendar=Mon *-*-* 08:00:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now forge-review.timer
+
+echo "==> nightly state backup (03:30 America/New_York -> /root/backups, keep 7)"
+# marcus_state/ + the box vault exist ONLY on this box. The script is copied OUT of the live
+# tree so a broken code deploy can't take the backup down with it.
+install -m 700 -o root -g root "$APP/deploy/backup_state.sh" /usr/local/sbin/forge-backup-state.sh
+cat > /etc/systemd/system/forge-backup.service <<EOF
+[Unit]
+Description=FORGE nightly state backup (marcus_state, uploads, vault, configs -> /root/backups, keep 7)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/forge-backup-state.sh
+Nice=10
+IOSchedulingClass=idle
+EOF
+cat > /etc/systemd/system/forge-backup.timer <<EOF
+[Unit]
+Description=Run the FORGE state backup daily at 03:30 Eastern (DST-aware)
+[Timer]
+OnCalendar=*-*-* 03:30:00 America/New_York
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now forge-backup.timer
+
+echo "==> journald cap (unbounded default = 10% of disk; journald RSS grows with it on a 1GB box)"
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/forge.conf <<EOF
+[Journal]
+SystemMaxUse=200M
+MaxRetentionSec=1month
+EOF
+systemctl restart systemd-journald
+
 echo "==> log rotation (connector + learn logs — keep the 1GB disk from filling)"
 # copytruncate is MANDATORY: systemd holds the append fd (StandardOutput=append:), so a
 # rename-then-create rotation would leave the service writing to the orphaned old inode and
