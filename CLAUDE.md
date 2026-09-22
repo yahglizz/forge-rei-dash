@@ -62,6 +62,7 @@ Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
 2. **Propose → review → execute.** Agents never take irreversible or outward actions on their own. Texting sellers, posting socials, moving pipeline, launching ads — all gated behind my one-click approval. The ONLY things agents do autonomously are: score/triage, **auto-apply internal+reversible tags** (offer auto-tag + HOT-lead triage tags — see below), read the brain, write their own learned playbook to the brain, and post notes on the agent bus.
    - **Exception — HOT-lead auto-tag.** `asap` (hot) leads get their triage tags (`triage: asap`, `motivated: high`) pushed to GHL automatically the moment Scout flags them — no approval, because tags are internal + reversible (the "✕ Not hot" remove button undoes them). Warm/nurture tags stay proposals I approve. Outward actions (SMS/pipeline/ads) stay gated. Flip off with `FORGE_SCOUT_AUTOTAG_HOT=0`. Runs every poll (`scout_triage._autotag_hot`), so backlog tags too.
    - **Exception — AUTOPILOT follow-up bumps (operator opt-in, default OFF).** When the operator flips autopilot on (Telegram `/autopilot on`), the routine no-response RE-ENGAGE bumps that followup.py already drafts are auto-sent through `autopilot.maybe_send` — gated by: re-engage drafts only (never first replies, never PRICE/READY/HELP/DNC), legit_check thread verdict, daily cap (FORGE_AUTOPILOT_CAP=10), 9am-8pm ET window, send-ledger dedupe, voice scrub, and a Telegram receipt per send. `/autopilot off` kills it instantly. Everything else stays tap-gated.
+   - **Exception — ACE (operator opt-in, default OFF).** *(Documented 2026-09-22 — was missing.)* `ace.py` + `conversation_engine.py` run a per-thread state machine after every Scout auto-screen. Modes `off` / `shadow` (drafts proposals only) / `supervised` / `full`. **In supervised AND full, `ace.apply` auto-sends qualifying-question and call-pivot texts** through `marcus.approve` → `sms_guard` (autonomous=True), capped 3/10 per day, with Telegram receipt + ⛔ stop / ↩ undo taps and a call-ready queue. One POST (`/api/ace/mode`) changes the mode — only the operator flips it; never an agent, never a deploy. Kill: mode `off`, `forge_ops` clock-out, per-thread hold.
 3. **Marcus owns texting.** Scout ranks + tags + hands off; it never sends SMS. Same spirit for every agent: one agent per outward channel.
 4. **Reply to sellers only — never to our own messages.** Agents never draft a reply to OUR outreach/opener/blast (e.g. "we buy houses", "I was calling about…", "just following up"). Only genuine inbound seller messages get a draft. GHL sometimes mis-flags our own text as inbound; the `_is_our_message()` filter in `marcus_engine.py` (`_OUR_OUTREACH_PHRASES`) skips it. Edit that list to match your scripts.
 4. **Secrets stay private.** API keys live in `*.env` files OUTSIDE the web-served folder, git-ignored. Never served over HTTP (must 404). Never paste keys in chat. Don't rotate keys unless I say so.
@@ -220,6 +221,7 @@ and a new Claude call per cycle.
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
 | **Solomon** (`daycare_director.py`) | Daycare | **Runs the whole center.** One ranked operating brief: ops, enrollment, money, people, **roster + family follow-ups** (was Nora), **campaign health + competitor read + creative direction** (was Nova). Owns enrollment. See §10. | Never texts/invoices/launches ads/writes the DB. Proposes only. Self-improves. |
+| **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
 Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls), `brain_io`
@@ -377,9 +379,13 @@ update that skill if you improved the pattern.
 
   **Switching a loop OFF must call `forge_heartbeat.retire("<loop>")`** in the else branch,
   or it stops beating, goes red forever, and trips the health card + watchdog. Which agents
-  actually cost money: `daily_brief`, `daily_recap`, `do_today`, `followup` make **zero**
-  Claude calls — pausing them saves nothing. Spend is Scout, Marcus, Atlas, Solomon, Midas,
-  `skill_forge`, `style_agent`, and your chats. Per-agent truth: `/api/cost/status` →
+  actually cost money: `daily_brief` and `daily_recap` make **zero** Claude calls.
+  *(Corrected 2026-09-22 audit:)* `followup` DOES call Claude (it drafts re-engage bumps via
+  `_ai_draft`; autopilot's legit verdict too), the `do_today` loop runs `legit_check` +
+  `marcus_lead` directives (Claude), and the `brief` thread runs **Orion's** daily CEO brief
+  (Claude). Spend is Scout, Marcus, Atlas, followup, Solomon, Midas, Orion, `skill_forge`,
+  `style_agent`, and your chats. **`FORGE_TODAY_LOOP=0` also stops the scheduled legit audit +
+  Marcus lead directives** (they only run inside `DoTodayEngine.run_forever`). Per-agent truth: `/api/cost/status` →
   `mtd.byAgent`, rendered on the Costs tab ("Spend by agent").
 - HOT-lead auto-pipeline: `FORGE_SCOUT_AUTOPIPE_HOT=1` (default on) — asap leads auto-land in the Wholesaling Pipeline Hot stage each poll (internal + reversible, same rationale as auto-tags).
 - HOT-lead auto-tag: `FORGE_SCOUT_AUTOTAG_HOT=1` (default on). Scout pushes `triage: asap`+`motivated: high` to GHL for every `asap` lead each poll (`_autotag_hot`, runs even with no new leads → backlog covered). Set `=0` to revert to approval-gated tagging.
