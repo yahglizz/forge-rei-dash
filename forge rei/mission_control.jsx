@@ -344,18 +344,28 @@ function McPriority({ p, onEnter }) {
 }
 
 function McCeoBrief({ onEnter }) {
-  const { data, loading, refresh } = window.useApi("/api/mission-control/brief", { interval: 60000 });
+  const { data, error, loading, refresh } = window.useApi("/api/mission-control/brief", { interval: 60000 });
   const [running, setRunning] = useStateMC(false);
   const [open, setOpen] = useStateMC(false);
+  const [runErr, setRunErr] = useStateMC(null);
   const d = data || {};
   const b = d.brief;
   const nP = (b && b.priorities && b.priorities.length) || 0;
   const nR = (b && b.clientRequests && b.clientRequests.length) || 0;
+  // WP-C: a fetch failure is an ERROR, not "add an API key" — say what actually happened.
+  const headline = b ? b.headline
+    : error ? "Orion unavailable: " + error
+    : loading ? "Reading every business…"
+    : (data && d.aiReady === false) ? "Add an API key to enable Orion"
+    : "No brief yet today";
 
   async function run() {
-    setRunning(true);
-    try { await window.apiPost("/api/mission-control/brief/run", {}); refresh(); }
-    catch (e) { /* transient — next refresh reconciles */ }
+    setRunning(true); setRunErr(null);
+    try {
+      const r = await window.apiPost("/api/mission-control/brief/run", {});
+      if (r && r.ok === false) setRunErr(r.error || "brief run failed");
+      refresh();
+    } catch (e) { setRunErr(e.message || String(e)); }
     setRunning(false);
   }
 
@@ -381,9 +391,14 @@ function McCeoBrief({ onEnter }) {
             <span className="faint" style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: .3, flexShrink: 0 }}>ORION</span>
             <span style={{ fontSize: 13, fontWeight: 650, lineHeight: 1.25, overflow: "hidden",
               textOverflow: "ellipsis", whiteSpace: open ? "normal" : "nowrap" }}>
-              {b ? b.headline : (loading ? "Reading every business…" : (d.aiReady ? "No brief yet today" : "Add an API key to enable Orion"))}
+              {headline}
             </span>
           </div>
+          {(runErr || (error && b)) && (
+            <div style={{ fontSize: 11.5, color: "var(--red)", marginTop: 2 }}>
+              {runErr ? "Brief run failed: " + runErr : "Refresh failed: " + error}
+            </div>
+          )}
         </div>
         {b && (nP + nR > 0) && (
           <button className="tab" onClick={() => setOpen((o) => !o)}
@@ -496,6 +511,28 @@ function MissionControl({ onEnter, workspaces = [] }) {
             )}
           </div>
           <button className="tab" onClick={refresh} style={{ padding: "9px 13px" }}>Refresh</button>
+        </div>
+
+        {/* WP-C: the owner's list — what needs me RIGHT NOW, every business, one place. */}
+        {window.OwnerActionsCard && <window.OwnerActionsCard />}
+
+        {/* WP-C: top-level views. forgeOpenView (WP-B) when present; existing pages otherwise. */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[
+            ["agents", "Agents", ["rei", "Agents"]],
+            ["health", "Automation Health", ["rei", "SystemHealth"]],
+            ["costs", "Costs / KPI", ["rei", "Costs"]],
+            ["archived", "Archived", null],
+          ].map(([view, label, fallback]) => {
+            const ov = window.forgeOpenView;
+            if (!ov && !fallback) return null;
+            return (
+              <button key={view} className="tab" style={{ fontSize: 12, padding: "6px 12px" }}
+                onClick={() => { if (ov) ov(view); else onEnter(fallback[0], fallback[1]); }}>
+                {label} →
+              </button>
+            );
+          })}
         </div>
 
         {/* Orion's CEO brief — greets the owner with today's focus + a fresh idea. */}
