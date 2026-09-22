@@ -15,11 +15,20 @@ Contract (hard): `beat()` NEVER raises. A telemetry bug must never be able to ki
 loop it is measuring. Every public function swallows its own exceptions and degrades to a
 safe default.
 
-State: marcus_state/heartbeats.json  {loop: {lastRun, interval, label, staleMult,
-lastError, errStreak, beats}}. Lives in marcus_state/ which is rsync-excluded, so it is
-box-local and survives every deploy (mirrors ops_clock.json / agent_bus.json).
+State: marcus_state/heartbeats.json  {loop: {lastRun, lastSuccessAt, interval, label,
+staleMult, lastError, errStreak, errorsTotal, beats}}. Lives in marcus_state/ which is
+rsync-excluded, so it is box-local and survives every deploy (mirrors ops_clock.json /
+agent_bus.json).
+
+AI dependency health (marcus_state/ai_health.json): heartbeats wrap LOOPS, not Claude
+calls — a loop whose every Claude call 400s still beats green (that hid a 51-day
+credit outage). `ai_ok()` / `ai_fail()` are stamped at the two shared call sites
+(review_agent._claude, marcus_engine._ai_draft); `ai_health()` is what /api/system/health
+and the watchdog read. Billing (400 "credit balance") and auth (401/403) = HARD DOWN
+until the next successful call; 429/5xx/network = transient. Never raises.
 """
 import json
+import re
 import shutil
 import threading
 import time
@@ -29,7 +38,20 @@ import forge_atomic
 
 _DIR = Path(__file__).resolve().parent / "marcus_state"
 STATE = _DIR / "heartbeats.json"
+AI_STATE = _DIR / "ai_health.json"
 _LOCK = threading.Lock()
+
+# Error strings land in a state file + the health API + Telegram. Never a secret.
+_SECRET_RE = re.compile(
+    r"sk-ant-[A-Za-z0-9_\-]+|pit-[A-Za-z0-9_\-]+|eyJ[A-Za-z0-9_\-]{20,}"
+    r"|(?i:(?:token|key|secret|bearer|password)\s*[=:]\s*)\S+")
+
+
+def _scrub(s, limit=400):
+    try:
+        return _SECRET_RE.sub("[redacted]", str(s))[:limit]
+    except Exception:
+        return "?"
 
 # Logs the watchdog / health card report on. Written by systemd (StandardOutput=append:)
 # and daily_learn.sh — see setup_droplet.sh.
@@ -90,7 +112,8 @@ def beat(loop, interval=None, label=None, error=None, stale_mult=2.0):
     interval  — expected seconds between beats (for staleness math). Persisted once.
     label     — human name for the UI. Persisted once.
     error     — the caught exception (or its str) from THIS iteration, or None/"" if clean.
-                Truthy → set lastError + increment errStreak; falsy → clear + reset streak.
+                Truthy → set lastError + increment errStreak + errorsTotal; falsy → clear
+                the streak and stamp lastSuccessAt. errorsTotal is cumulative (never reset).
     stale_mult — a loop is 'stale' once ageSec > stale_mult * interval. Persisted once.
 
     Never raises.
@@ -109,16 +132,110 @@ def beat(loop, interval=None, label=None, error=None, stale_mult=2.0):
             if stale_mult is not None:
                 rec["staleMult"] = stale_mult
             if error:
-                rec["lastError"] = str(error)[:400]
+                rec["lastError"] = _scrub(error)
                 rec["lastErrorAt"] = now
                 rec["errStreak"] = int(rec.get("errStreak") or 0) + 1
+                rec["errorsTotal"] = int(rec.get("errorsTotal") or 0) + 1
             else:
                 rec["lastError"] = None
                 rec["errStreak"] = 0
+                rec["lastSuccessAt"] = now
             d[loop] = rec
             _save(d)
     except Exception:
         pass
+
+
+# ── AI dependency health ──────────────────────────────────────────────────────
+def _ai_load():
+    try:
+        d = json.loads(AI_STATE.read_text())
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _ai_save(d):
+    forge_atomic.atomic_write_json(AI_STATE, d)
+
+
+def ai_classify(code, msg):
+    """(kind, hard) for one failed Claude call. billing/auth = hard down; else transient."""
+    m = str(msg or "").lower()
+    if code == 400 and "credit balance" in m:
+        return "billing", True
+    if code in (401, 403) or "authentication_error" in m or "permission_error" in m:
+        return "auth", True
+    return "transient", False
+
+
+def ai_ok():
+    """A Claude call succeeded. Clears any hard-down state. Never raises."""
+    try:
+        now = int(time.time() * 1000)
+        with _LOCK:
+            d = _ai_load()
+            d.update({"ok": True, "lastOkAt": now, "downSince": None, "reason": None,
+                      "kind": None, "hard": False, "failStreak": 0,
+                      "callsTotal": int(d.get("callsTotal") or 0) + 1})
+            _ai_save(d)
+    except Exception:
+        pass
+
+
+def ai_fail(code, msg):
+    """A Claude call failed. code = HTTP status (None for network/timeouts). Never raises."""
+    try:
+        now = int(time.time() * 1000)
+        kind, hard = ai_classify(code, msg)
+        with _LOCK:
+            d = _ai_load()
+            d["callsTotal"] = int(d.get("callsTotal") or 0) + 1
+            d["errorsTotal"] = int(d.get("errorsTotal") or 0) + 1
+            d["failStreak"] = int(d.get("failStreak") or 0) + 1
+            d["lastError"] = f"HTTP {code}: {_scrub(msg, 300)}" if code else _scrub(msg, 300)
+            d["lastErrorAt"] = now
+            d["lastKind"] = kind
+            if hard:
+                # A 429 during a billing outage does not end the outage — only ai_ok() does.
+                d["ok"] = False
+                d["hard"] = True
+                d["kind"] = kind
+                d["downSince"] = d.get("downSince") or now
+                d["reason"] = ("Anthropic credit balance exhausted — top up the account"
+                               if kind == "billing" else
+                               f"Anthropic rejected the API key (HTTP {code}) — check/rotate it")
+            _ai_save(d)
+    except Exception:
+        pass
+
+
+def ai_alerted(flag):
+    """Persist whether the watchdog has already alerted on the current outage (survives
+    restarts so one outage = one alert). Never raises."""
+    try:
+        with _LOCK:
+            d = _ai_load()
+            d["alerted"] = bool(flag)
+            _ai_save(d)
+    except Exception:
+        pass
+
+
+def ai_health():
+    """UI/health-route-ready read of the AI dependency. ok=False only while hard-down
+    (billing/auth); transient errors show in lastError/failStreak. Never raises."""
+    base = {"ok": True, "hard": False, "kind": None, "reason": None, "lastOkAt": None,
+            "lastErrorAt": None, "lastError": None, "lastKind": None, "downSince": None,
+            "failStreak": 0, "callsTotal": 0, "errorsTotal": 0, "alerted": False}
+    try:
+        with _LOCK:
+            d = _ai_load()
+        base.update({k: d.get(k, v) for k, v in base.items()})
+        base["ok"] = not bool(base["hard"])
+        return base
+    except Exception:
+        return base
 
 
 def _status_for(rec, now):
@@ -152,6 +269,7 @@ def snapshot(now=None):
                 "loop": loop,
                 "label": rec.get("label") or loop,
                 "lastRun": rec.get("lastRun"),
+                "lastSuccessAt": rec.get("lastSuccessAt"),
                 "ageSec": None if age_sec is None else round(age_sec, 1),
                 "interval": rec.get("interval"),
                 "stale": stale,
@@ -159,6 +277,7 @@ def snapshot(now=None):
                 "lastError": rec.get("lastError"),
                 "lastErrorAt": rec.get("lastErrorAt"),
                 "errStreak": int(rec.get("errStreak") or 0),
+                "errorsTotal": int(rec.get("errorsTotal") or 0),
                 "beats": int(rec.get("beats") or 0),
             })
         out.sort(key=lambda r: r["loop"])

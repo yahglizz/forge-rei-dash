@@ -313,10 +313,40 @@ def _mock_analytics(account=None, client=None, days=7):
     }
 
 
+# --- WP-A --- a token Meta REJECTS (OAuthException / #190 / 401 / 403) is not a transient
+# outage: stop re-hitting Meta on every caller tick (Solomon's gather did it ~5k times with
+# the daycare's placeholder token). Keyed on hash(token) so a replaced token is tried at
+# once; in-process only, so a restart costs one retry. Valid tokens never enter this path.
+_AUTH_DEAD = {}            # (hash(token), account_id) -> retry-after epoch seconds
+_AUTH_DEAD_TTL = 6 * 3600
+
+
+def _is_auth_error(e):
+    # ponytail: string heuristic over _meta_error()'s "Meta <code>: <message>" text.
+    s = str(e).lower()
+    return ("oauth" in s or "access token" in s or "(#190)" in s
+            or "meta 401" in s or "meta 403" in s)
+
+
+def _auth_dead(token, acct_id=None):
+    now = time.time()
+    return any(until > now for (h, a), until in list(_AUTH_DEAD.items())
+               if h == hash(token) and (acct_id is None or a == acct_id))
+# --- /WP-A ---
+
+
 def connection():
     """Connection state — connected=True when token present, source flag included."""
     token = os.environ.get("META_ACCESS_TOKEN", "")
     has_token = bool(token)
+    if has_token and _auth_dead(token):   # WP-A — cached "not connected", no Meta call
+        return {
+            "connected": False,
+            "hasToken": True,
+            "source": "auth_error",
+            "todo": "META_ACCESS_TOKEN was rejected by Meta — replace it "
+                    "(retried after 6h or on restart).",
+        }
     return {
         "connected": has_token,
         "hasToken": has_token,
@@ -360,9 +390,13 @@ def analytics(account=None, client=None, days=7):
                     pass
         if not acct_id:
             acct_id = account or _ACCOUNTS[0]["id"]
+        if _auth_dead(token, acct_id):   # WP-A — token already rejected; skip the call
+            return _mock_analytics(account=account, client=client, days=days)
         try:
             return _live_analytics(token, acct_id, days)
         except Exception as e:
+            if _is_auth_error(e):        # WP-A — remember the rejection for 6h
+                _AUTH_DEAD[(hash(token), acct_id)] = time.time() + _AUTH_DEAD_TTL
             import sys
             print(f"[ads] live fetch failed, falling back to mock: {e}", file=sys.stderr)
     return _mock_analytics(account=account, client=client, days=days)

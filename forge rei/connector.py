@@ -25,6 +25,17 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+# --- WP-A --- phantom-module guard. systemd runs `python3 -u connector.py`, so this file
+# is `__main__`; agents_hub._engine / pixel_office._engine do `import connector` and would
+# load a SECOND copy — re-running every engine constructor and re-registering the Telegram
+# action handlers (telegram_io.set_actions / telegram_ops.register) onto stale objects.
+# Alias BEFORE any project import so they get THIS instance. No-op when imported normally
+# (the test_* files import connector as a plain module).
+import sys  # noqa: E402
+if __name__ == "__main__":
+    sys.modules.setdefault("connector", sys.modules[__name__])
+# --- /WP-A ---
+
 HERE = Path(__file__).resolve().parent
 PORT = int(os.environ.get("FORGE_PORT", "7799"))
 # Bind host. Localhost-only by default (safe on a laptop). On the 24/7 box set
@@ -525,8 +536,21 @@ def api_system_health(_q):
         disk_ok = pct is None or pct < 92
     except Exception:
         pass
+    # --- WP-A --- AI dependency health. Heartbeats wrap loops, not Claude calls, so a
+    # credit/auth outage only shows HERE: hard-down flips the whole fleet to ok:false.
+    ai = forge_heartbeat.ai_health()
+    reasons = []
+    if not ai.get("ok"):
+        reasons.append(f"AI hard-down: {ai.get('reason')}")
+    if red:
+        reasons.append("red loops: " + ", ".join(red))
+    if not disk_ok:
+        reasons.append("disk pressure")
+    # --- /WP-A ---
     return {
-        "ok": (not red) and disk_ok,
+        "ok": (not red) and disk_ok and bool(ai.get("ok")),
+        "reason": "; ".join(reasons) or None,   # WP-A — why ok is false, in one line
+        "ai": ai,   # WP-A — {ok, hard, kind, reason, lastOkAt, lastErrorAt, lastError, downSince, failStreak, callsTotal, errorsTotal, alerted}
         "loopsEnabled": LOOPS_ENABLED,
         "paused": paused,
         "active": active,
@@ -1823,6 +1847,37 @@ def _watchdog_forever():
             if forge_ops.paused():          # clocked out — everything is intentionally idle
                 time.sleep(every)
                 continue
+            # --- WP-A --- AI dependency (Anthropic credits/auth): ONE alert on hard-down,
+            # ONE on recovery. `alerted` lives in ai_health.json so a restart mid-outage
+            # doesn't re-fire it. Marked only once Telegram accepts (or isn't configured),
+            # so a transient Telegram failure retries next tick instead of losing the alert.
+            try:
+                ai = forge_heartbeat.ai_health()
+                if ai.get("hard") and not ai.get("alerted"):
+                    esc = getattr(telegram_io, "_esc", str)   # HTML parse mode — escape raw errors
+                    txt = ("🔴 FIX REQUIRED: Anthropic credits/auth — all agents' AI calls "
+                           f"failing. {esc(ai.get('reason'))}. Last error: {esc(ai.get('lastError'))}")
+                    res = telegram_io.send(txt, dedupe_key="watchdog:ai")
+                    if (res or {}).get("ok") or not telegram_io.configured():
+                        forge_heartbeat.ai_alerted(True)
+                        try:
+                            agent_bus.send("watchdog", "all", "alert", txt,
+                                           {"type": "ai_down", "kind": ai.get("kind"),
+                                            "downSince": ai.get("downSince")})
+                        except Exception:
+                            pass
+                elif ai.get("ok") and ai.get("alerted"):
+                    txt = "🟢 Anthropic AI calls recovered — agents are thinking again."
+                    res = telegram_io.send(txt, dedupe_key="watchdog-ok:ai")
+                    if (res or {}).get("ok") or not telegram_io.configured():
+                        forge_heartbeat.ai_alerted(False)
+                        try:
+                            agent_bus.send("watchdog", "all", "note", txt, {"type": "ai_up"})
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            # --- /WP-A ---
             for l in forge_heartbeat.snapshot():
                 loop = l.get("loop")
                 status = l.get("status")
