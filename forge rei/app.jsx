@@ -111,46 +111,150 @@ function navFor(ws, scope) {
   return ws.nav.filter((item) => !item[2] || item[2] === scope);
 }
 
+// --- Business archive (P1-1) + home sub-views + crash guard -------------------
+// Archive = HIDE, never delete: an archived workspace leaves the switchers but its
+// PAGE_MAPS entry and scripts still load, so "Open read-only" can still show it.
+// Server truth is /api/businesses (business_scope.py); until it answers we assume
+// the default seed so an archived business never flashes into the switcher.
+const APP_ARCHIVE_SEED = ["dropship", "agency:p"];
+
+// forge_view values. "home" = Mission Control, "workspace" = inside a business,
+// the rest are full-screen home sub-views: [title, window component name].
+const APP_SUB_VIEWS = {
+  archived: ["Archived Businesses", "ArchivedBusinessesPage"],
+  agents:   ["Agent Control Center", "AgentControlCenter"],
+  health:   ["System Health", "SystemHealthPage"],
+  costs:    ["Costs", "CostPage"],
+};
+const APP_VIEWS = ["home", "workspace"].concat(Object.keys(APP_SUB_VIEWS));
+
+// Pseudo-entry appended to the header's Workspaces menu so Archived Businesses is
+// reachable from every workspace without touching shell.jsx. switchWs intercepts it.
+const APP_ARCHIVED_ENTRY = { id: "__archived", brand: "Archived", sub: "Businesses",
+  accent: "#64748B", tag: "Hidden · reactivate or view" };
+
+// localStorage can throw (private mode, blocked storage) — never let that blank the app.
+function appRead(key, fallback) {
+  try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
+}
+function appWrite(key, value) {
+  try { localStorage.setItem(key, value); } catch (e) { /* view state just won't persist */ }
+}
+
+// One bad page (or a missing window.X) used to white-screen the whole app. This keeps
+// the crash inside the page area with a readable message + Reload.
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { err: null };
+  }
+  static getDerivedStateFromError(err) {
+    return { err };
+  }
+  componentDidCatch(err, info) {
+    console.error("[forge] page crashed:", err, info && info.componentStack);
+  }
+  render() {
+    const err = this.state.err;
+    if (!err) return this.props.children;
+    return (
+      <div className="card" style={{ margin: 24, padding: 22, maxWidth: 680, flex: "none", alignSelf: "flex-start" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>This page hit an error</div>
+        <div className="faint" style={{ fontSize: 13, marginBottom: 12 }}>
+          The rest of FORGE is fine. Switch pages, or reload to try again.
+        </div>
+        <pre className="mono" style={{ fontSize: 12, whiteSpace: "pre-wrap", color: "var(--red)", margin: "0 0 14px" }}>
+          {String((err && err.message) || err)}
+        </pre>
+        <button className="tab active" onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    );
+  }
+}
+
+// A home sub-view: "← Home" + title, then the page (or a note if it isn't loaded).
+function AppSubView({ view, onHome, onEnter }) {
+  const [title, compName] = APP_SUB_VIEWS[view];
+  const Page = window[compName];
+  return (
+    <div style={{ height: "100vh", overflowY: "auto", background: "var(--bg)", padding: "26px clamp(16px, 4vw, 52px) 60px" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <button className="tab" onClick={onHome} style={{ padding: "9px 15px", fontSize: 13, fontWeight: 600 }}>← Home</button>
+          <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.3 }}>{title}</div>
+        </div>
+        <AppErrorBoundary>
+          {Page ? <Page onHome={onHome} onEnter={onEnter} />
+                : <div className="card faint" style={{ padding: 18 }}>{title} not installed.</div>}
+        </AppErrorBoundary>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const wsList = window.WORKSPACES;
-  const [wsId, setWsId] = useStateA(() => localStorage.getItem("forge_ws") || "rei");
-  const ws = wsList.find((w) => w.id === wsId) || wsList[0];
+  const bizApi = window.useApi("/api/businesses");
+  const bizRows = bizApi.data && bizApi.data.businesses;
+  const archived = new Set(bizRows ? bizRows.filter((b) => b.archived).map((b) => b.id) : APP_ARCHIVE_SEED);
+  const activeWs = wsList.filter((w) => !archived.has(w.id));
+  // An archived workspace opened via "Open read-only" (session only — a reload drops it).
+  const [roWs, setRoWs] = useStateA(null);
+  const [wsId, setWsId] = useStateA(() => appRead("forge_ws", "rei"));
+  // A stale forge_ws pointing at an archived business falls back to rei.
+  const ws = wsList.find((w) => w.id === wsId && (!archived.has(w.id) || w.id === roWs))
+    || activeWs.find((w) => w.id === "rei") || activeWs[0] || wsList[0];
 
   // Mission Control is the front door: the app opens here (a cross-business review)
   // unless the operator already picked a business this session. "home" = landing.
-  const [view, setView] = useStateA(() => localStorage.getItem("forge_view") || "home");
+  const [view, setView] = useStateA(() => {
+    const v = appRead("forge_view", "home");
+    return APP_VIEWS.includes(v) ? v : "home";
+  });
   // Which agency lens is showing. Persisted like wsId so a reload comes back to
   // the same side of the house. Default "b" = Business (what the tab was before).
-  const [agScope, setAgScope] = useStateA(() => localStorage.getItem("forge_agency_scope") || "b");
+  // While the Personal lens is archived, a stale "p" is forced to "b".
+  const [agScopeSaved, setAgScope] = useStateA(() => appRead("forge_agency_scope", "b"));
+  const lensArchived = archived.has("agency:p");
+  const agScope = lensArchived ? "b" : agScopeSaved;
   const nav = navFor(ws, agScope);
   const [active, setActive] = useStateA(nav[0][0]);
   const titleMap = Object.fromEntries(nav.map((item) => [item[0], item[1]]));
   window.GoTo = setActive;  // let widgets jump pages via "View all"
 
+  function openView(name) {
+    const v = APP_VIEWS.includes(name) ? name : "home";
+    setView(v);
+    appWrite("forge_view", v);
+  }
   function goHome() {
-    setView("home");
-    localStorage.setItem("forge_view", "home");
+    openView("home");
   }
   // Enter a business from Mission Control — optionally landing on a specific page.
+  // An archived id opens read-only (that's what the Archived page's button calls).
   function enterBusiness(id, page) {
     const next = wsList.find((w) => w.id === id) || wsList[0];
+    setRoWs(archived.has(next.id) ? next.id : null);
     setWsId(next.id);
-    localStorage.setItem("forge_ws", next.id);
+    appWrite("forge_ws", next.id);
     // A lens-scoped agency page also flips the lens, so a jump from Mission
     // Control can never land on a page the current lens is hiding.
-    const hit = page && next.nav.find((n) => n[0] === page);
+    let hit = page && next.nav.find((n) => n[0] === page);
+    if (hit && hit[2] === "p" && lensArchived) hit = null;  // archived lens: land on Business
     let scope = agScope;
     if (hit && hit[2] && hit[2] !== scope) {
       scope = hit[2];
       setAgScope(scope);
-      localStorage.setItem("forge_agency_scope", scope);
+      appWrite("forge_agency_scope", scope);
     }
     setActive(hit ? page : navFor(next, scope)[0][0]);
-    setView("workspace");
-    localStorage.setItem("forge_view", "workspace");
+    openView("workspace");
   }
   window.forgeGoHome = goHome;         // let any page return to the front door
   window.forgeEnterBusiness = enterBusiness;
+  // forgeOpenView("home" | "archived" | "agents" | "health" | "costs" | "workspace").
+  // Unknown names go home.
+  window.forgeOpenView = openView;
   // Jump straight into a seller thread from anywhere (Scout chat, dashboard widget).
   window.openConversation = (lead) => {
     window.__forgeOpenConvo = lead;
@@ -159,10 +263,11 @@ function App() {
   };
 
   function switchWs(id) {
-    if (id === wsId) return;
+    if (id === APP_ARCHIVED_ENTRY.id) return openView("archived");
+    if (id === ws.id) return;
     const next = wsList.find((w) => w.id === id) || wsList[0];
     setWsId(id);
-    localStorage.setItem("forge_ws", id);
+    appWrite("forge_ws", id);
     setActive(navFor(next, agScope)[0][0]);  // land on the new workspace's first page
   }
 
@@ -171,7 +276,7 @@ function App() {
   function switchScope(scope) {
     if (scope === agScope) return;
     setAgScope(scope);
-    localStorage.setItem("forge_agency_scope", scope);
+    appWrite("forge_agency_scope", scope);
     setActive(navFor(ws, scope)[0][0]);
   }
 
@@ -179,7 +284,14 @@ function App() {
   const renderPage = pageMap[active] || pageMap[nav[0][0]];
 
   if (view === "home") {
-    return <window.MissionControl onEnter={enterBusiness} workspaces={wsList} />;
+    return (
+      <AppErrorBoundary key="home">
+        <window.MissionControl onEnter={enterBusiness} workspaces={activeWs} />
+      </AppErrorBoundary>
+    );
+  }
+  if (APP_SUB_VIEWS[view]) {
+    return <AppSubView key={view} view={view} onHome={goHome} onEnter={enterBusiness} />;
   }
 
   return (
@@ -187,12 +299,24 @@ function App() {
       <window.Sidebar
         active={active} onNav={setActive} onHome={goHome}
         brand={ws.brand} sub={ws.sub} nav={nav} accent={ws.accent}
-        scopes={ws.id === "agency" ? window.AGENCY_SCOPES : null} scope={agScope} onScope={switchScope} />
+        scopes={ws.id === "agency" && !lensArchived ? window.AGENCY_SCOPES : null} scope={agScope} onScope={switchScope} />
       <div className="main">
-        <window.Header title={titleMap[active]} workspaces={wsList} current={{ ...ws, nav }} onSwitch={switchWs} onNavigate={setActive} onHome={goHome} />
+        <window.Header title={titleMap[active]} workspaces={activeWs.concat([APP_ARCHIVED_ENTRY])} current={{ ...ws, nav }} onSwitch={switchWs} onNavigate={setActive} onHome={goHome} />
+        {archived.has(ws.id) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 26px", fontSize: 12.5,
+                        background: "rgba(100,116,139,.14)", borderBottom: "1px solid var(--border)" }}>
+            <span className="pill" style={{ background: "rgba(100,116,139,.25)" }}>Archived</span>
+            <span className="faint" style={{ flex: 1 }}>
+              Viewing an archived business. It's hidden from the switcher, Mission Control and agent briefs; its data is untouched.
+            </span>
+            <button className="tab" onClick={() => openView("archived")}>Manage</button>
+          </div>
+        )}
         <div className="content">
           <div key={ws.id + ":" + active} className="page-wrap">
-            {ws.id === "daycare" ? <window.DaycareWorkspace>{renderPage()}</window.DaycareWorkspace> : renderPage()}
+            <AppErrorBoundary>
+              {ws.id === "daycare" ? <window.DaycareWorkspace>{renderPage()}</window.DaycareWorkspace> : renderPage()}
+            </AppErrorBoundary>
           </div>
         </div>
       </div>

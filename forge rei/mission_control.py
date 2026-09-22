@@ -34,6 +34,15 @@ def _now_ms():
     return int(time.time() * 1000)
 
 
+def _archived():
+    """Archived business ids from business_scope. Fails OPEN (nothing archived)."""
+    try:
+        import business_scope
+        return business_scope.archived()
+    except Exception:
+        return set()
+
+
 def _sort_attention(items):
     return sorted(items, key=lambda a: _SEV_RANK.get(a.get("sev"), 9))
 
@@ -225,12 +234,14 @@ def _status_from(card):
 def snapshot(scout=None, solomon=None, midas=None, screener=None, system=None):
     """Assemble the full front-door snapshot. `system` is the dict returned by
     the connector's api_system_health (passed in so we don't re-import loops)."""
-    cards = [
-        _rei_card(scout, screener),
-        _agency_card(),
-        _daycare_card(solomon),
-        _dropship_card(midas),
-    ]
+    # Archived businesses (business_scope) get no card — and so no health pings
+    # (Dropship's Shopify/AutoDS calls only happen inside its card builder).
+    arch = _archived()
+    builders = (("rei", lambda: _rei_card(scout, screener)),
+                ("agency", _agency_card),
+                ("daycare", lambda: _daycare_card(solomon)),
+                ("dropship", lambda: _dropship_card(midas)))
+    cards = [build() for bid, build in builders if bid not in arch]
 
     sysd = system or {}
     loops = sysd.get("loops") or []
@@ -290,6 +301,7 @@ def snapshot(scout=None, solomon=None, midas=None, screener=None, system=None):
         "verdictStatus": verdict_status,
         "attentionCount": total_attention,
         "businesses": cards,
+        "archived": sorted(arch),
         "system": system_card,
         "generatedAt": _now_ms(),
     }

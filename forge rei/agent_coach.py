@@ -39,6 +39,8 @@ BUSINESS_OF = {
     "solomon": "daycare",
     "midas": "dropship",
 }
+# Every KNOWN business (valid broadcast targets). Archived ones (business_scope) are
+# filtered at read time in insights_for, so reactivating needs no code change.
 BUSINESSES = {"wholesale", "agency", "daycare", "dropship"}
 
 _FEED_REL = "Coaching/feed.md"
@@ -84,6 +86,16 @@ def _looks_like_secret(text: str) -> bool:
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _archived_businesses() -> set:
+    """BUSINESSES archived in business_scope (its "rei" is our "wholesale").
+    Fails OPEN: nothing archived."""
+    try:
+        import business_scope
+        return {{"rei": "wholesale"}.get(b, b) for b in business_scope.archived()}
+    except Exception:
+        return set()
 
 
 def _coach_messages(limit: int = 200) -> list[dict]:
@@ -181,10 +193,18 @@ def insights_for(agent: str, business: str | None = None, limit: int = 12,
     if not agent:
         return []
     business = business or BUSINESS_OF.get(agent)
+    # Archived businesses sit out of the network (entries stay on the bus + feed and
+    # flow again on reactivation): their agents get no peer lessons, and their
+    # lessons don't feed the active agents' learn().
+    arch = _archived_businesses()
+    if business in arch:
+        return []
     out = []
     for m in _coach_messages(200):
         if m.get("from") == agent:
             continue  # don't coach yourself with your own words
+        if BUSINESS_OF.get(m.get("from")) in arch:
+            continue
         tgt = m.get("to")
         if tgt == agent or tgt == "all" or (business and tgt == business):
             if since_ms and (m.get("ts") or 0) < since_ms:
