@@ -1036,6 +1036,9 @@ import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad 
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
+# --- WP-E ---
+import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead visibility, no Claude)
+# --- /WP-E ---
 import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
 # Nora (roster/family-comms) and Nova (ad ops) were merged into Solomon on 2026-07-25 —
 # one director, one brief, one Claude call. Their routes narrow his brief; see
@@ -4335,6 +4338,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/locations": lambda session: daycare_supabase.list_locations(session),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
             "/api/daycare/ghl/pending-families": lambda session: self._daycare_pending_families(session),
+            # --- WP-E --- Lead Desk: served from state, no GHL call on the request path.
+            "/api/daycare/leads": lambda session: daycare_leads.view(),
+            # --- /WP-E ---
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
@@ -4989,6 +4995,14 @@ def main():
         print(f"   Solomon: daycare director · operating brief every {daycare_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
         tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True, name="solomon")
         tsol.start()
+        # --- WP-E --- Daycare Lead Desk: reads daycare GHL every 15 min, derives lead
+        # stages + who needs a human, alerts the owner. Zero Claude calls, sends nothing.
+        print(f"   Daycare Lead Desk: read-only GHL lead sweep every {daycare_leads.INTERVAL // 60} min"
+              f" · {'GHL connected' if DAYCARE_GHL.configured else 'GHL NOT configured'}")
+        tdl = threading.Thread(target=daycare_leads.run_forever, args=(DAYCARE_GHL,),
+                               daemon=True, name="daycare_leads")
+        tdl.start()
+        # --- /WP-E ---
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work

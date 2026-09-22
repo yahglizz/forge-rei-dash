@@ -218,6 +218,42 @@ function DcxLocationScope({ children }) {
   </div>;
 }
 
+// --- WP-E --- Daycare Lead Desk (daycare_leads.py → /api/daycare/leads). Read-only: shows
+// only what GoHighLevel recorded — no availability, price or licensing text anywhere.
+function DldDuration(sec) {
+  if (sec === null || sec === undefined) return "—";
+  const s = Number(sec) || 0;
+  if (s < 90) return Math.round(s) + "s";
+  if (s < 5400) return Math.round(s / 60) + "m";
+  if (s < 172800) return Math.round(s / 3600) + "h";
+  return Math.round(s / 86400) + "d";
+}
+
+function DldLeadDesk() {
+  const desk = DcxUseResource("/leads", null, 60000);
+  const data = desk.data && !Array.isArray(desk.data) ? desk.data : {};
+  const k = data.kpis || {};
+  const d7 = k.newLeads7d || {};
+  const d30 = k.newLeads30d || {};
+  const items = data.needsHuman || [];
+  const err = desk.error ? (desk.error.message || "Lead Desk is unavailable.") : data.error;
+  const ran = Boolean(data.lastRunAt);
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head"><div><div className="card-title">Lead Desk</div><div className="faint">Enrollment leads from GoHighLevel · read-only{ran ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div><b>{items.length}</b></div>
+    {err && <div className="dc-error-text" role="alert">{err}</div>}
+    {desk.loading ? <div className="dc-inline-empty">Loading leads…</div> : ran && <>
+      <div className="dc-kpi-grid">
+        <DcxKpi label="New Leads (7d)" value={d7.total || 0} sub={"30d: " + (d30.total || 0) + " · Meta " + (d30.meta || 0) + " · organic " + (d30.organic || 0)} icon="Children"/>
+        <DcxKpi label="Lead Response Time" value={DldDuration(k.medianResponseSec)} sub={"median first reply, 30d · human " + DldDuration(k.medianHumanResponseSec)} icon="Conversations" color="#38BDF8"/>
+        <DcxKpi label="Leads Needing Human Attention" value={items.length} sub="waiting on you now" icon="Bell" color={items.length ? "#F4B860" : "#22C55E"}/>
+      </div>
+      {items.length ? <div className="dc-alert-list">{items.map((item) => <div key={item.id}><span className={"dc-severity " + (item.priority === "URGENT" ? "danger" : "warning")}/><div><b>{item.title} · {DldDuration(item.ageSec)}</b><small>{item.why}{item.ghlUrl ? <> · <a className="link" style={{ fontSize: "inherit" }} href={item.ghlUrl} target="_blank" rel="noreferrer">Open in GHL ↗</a></> : null}</small></div></div>)}</div>
+        : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>Nothing waiting on you</b><span>No unanswered replies, overdue call tasks or call-me requests.</span></div></div>}
+    </>}
+  </div>;
+}
+// --- /WP-E ---
+
 function DaycareDashboard() {
   const overview = DcxUseResource("/overview", "overview", 30000);
   const classrooms = DcxUseResource("/classrooms", "classrooms", 30000);
@@ -237,6 +273,7 @@ function DaycareDashboard() {
   return <div className="dc-page"><DcxState loading={overview.loading || classrooms.loading} error={overview.error || classrooms.error} onRetry={()=>{overview.refresh();classrooms.refresh();}}><>
     <section className="dc-hero"><div><div className="dc-eyebrow">{today.toUpperCase()} · LIVE OPERATIONS</div><h1>{center.name || "Daycare command center"}</h1><p>See what needs attention now, then move directly into the operating record shared with your families and team.</p><div className="dc-hero-actions"><button className="dc-primary" onClick={() => window.GoTo("Attendance")}><window.Icons.Attendance size={15}/> Open attendance</button><button className="dc-outline" onClick={() => window.GoTo("Messages")}><window.Icons.Conversations size={15}/> Family messages</button></div></div><div className="dc-hero-mark"><span>{checkedIn}</span><small>ON SITE NOW</small></div></section>
     <div className="dc-kpi-grid"><DcxKpi label="Enrolled" value={enrolled} sub={Math.max(0, capacity - enrolled) + " of " + capacity + " spots open"} icon="Children"/><DcxKpi label="Checked In" value={checkedIn} sub="live attendance" icon="Attendance" color="#22C55E"/><DcxKpi label="Active Staff" value={staff} sub="center team" icon="Staff" color="#8B5CF6"/><DcxKpi label="Balances Due" value={DcxMoney(amountDue)} sub={invoicesDue + " open invoices"} icon="Billing" color={invoicesDue ? "#F4B860" : "#22C55E"}/><DcxKpi label="Unread" value={unread} sub="family + team messages" icon="Bell" color={unread ? "#38BDF8" : "#22C55E"}/><DcxKpi label="Open Alerts" value={alerts.length} sub="items needing review" icon="Bell" color={alerts.length ? "#F4B860" : "#22C55E"}/></div>
+    <DldLeadDesk/>{/* --- WP-E --- */}
     <div className="dc-main-grid"><div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Center pulse</div><div className="faint">Fast paths for today’s operations</div></div><span className="dc-live"><i/> LIVE</span></div><div className="dc-day-grid">{[["Attendance","Attendance",checkedIn + " currently in"],["CareLogs","Daily Logs","Care updates"],["Incidents","Incidents","Safety records"],["Billing","Billing","Family balances"]].map((item) => { const Icon = window.Icons[item[0]] || window.Icons.Dashboard; return <button key={item[0]} onClick={() => window.GoTo(item[0])}><span><Icon size={18}/></span><b>{item[1]}</b><small>{item[2]}</small></button>; })}</div></div><div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Management alerts</div><div className="faint">Prioritized operational exceptions</div></div><b>{alerts.length}</b></div>{alerts.length ? <div className="dc-alert-list">{alerts.slice(0,5).map((alert, index) => <div key={alert.id || index}><span className={"dc-severity " + (alert.severity || "info")}/><div><b>{alert.title || alert.kind || "Needs review"}</b><small>{alert.body || alert.message || "Open the related page for details."}</small></div></div>)}</div> : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>All clear</b><span>No operational alerts right now.</span></div></div>}</div></div>
     <div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Classroom capacity</div><div className="faint">Live enrollment by room</div></div><button className="link" onClick={() => window.GoTo("Classrooms")}>Manage classrooms</button></div><div className="dc-room-strip">{rooms.length ? rooms.map((room) => { const count = Number(room.enrolled_count ?? room.child_count ?? (room.children || []).length ?? 0); const cap = Number(room.capacity) || 0; const color = room.color || DCX_ACCENT; return <div key={room.id}><div className="dc-room-top"><span style={{color}}>{room.name}</span><b>{count}/{cap}</b></div><small>{room.age_group || "Age group not set"}</small><div className="progress"><div style={{width: Math.min(100, cap ? count / cap * 100 : 0) + "%", background: color}}/></div></div>; }) : <div className="dc-inline-empty">No active classrooms yet.</div>}</div></div>
   </></DcxState></div>;

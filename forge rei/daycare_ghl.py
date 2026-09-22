@@ -430,17 +430,14 @@ def family_intake(client, contact_id: str) -> dict:
     return {"authorized_pickup": people, "notes": freeform}
 
 
-def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> list[dict]:
-    """List families submitted through the Family Contact Form (tagged FORM_TAG).
+def iter_contacts(client, *, max_pages: int = 6, page_size: int = 100):
+    """Yield every raw contact in the daycare location (read-only paging).
 
-    Read-only. GHL v2 has no server-side tag filter on the list endpoint, so we
-    page the location's contacts and filter client-side.
-    ponytail: caps at max_pages*page_size contacts (form intake is small); raise
+    GHL v2 has no server-side tag filter on the list endpoint, so callers page the
+    location's contacts and filter client-side.
+    ponytail: caps at max_pages*page_size contacts (the location is small); raise
     the cap or move to POST /contacts/search if the account grows past that.
     """
-    if client is None or not client.configured:
-        return []
-    out: list[dict] = []
     after: tuple[str, str] | None = None
     for _ in range(max_pages):
         params = {"locationId": client.location_id, "limit": page_size}
@@ -452,17 +449,28 @@ def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> lis
         contacts = (data.get("contacts") if isinstance(data, dict) else None) or []
         if not contacts:
             break
-        for contact in contacts:
-            tags = [str(t).lower() for t in (contact.get("tags") or [])]
-            # Existing-student form families (get a login) AND brand-new website inquiries
-            # (shown marked, no login) — so the inbox tells them apart instead of guessing.
-            if FORM_TAG in tags or LEAD_TAG in tags:
-                out.append(_family_from_contact(contact))
+        yield from contacts
         meta = (data.get("meta") if isinstance(data, dict) else None) or {}
         nxt_id = meta.get("startAfterId")
         if not nxt_id:
             break
         after = (str(nxt_id), str(meta.get("startAfter") or ""))
+
+
+def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> list[dict]:
+    """List families submitted through the Family Contact Form (tagged FORM_TAG).
+
+    Read-only. Pages the location's contacts (iter_contacts) and filters client-side.
+    """
+    if client is None or not client.configured:
+        return []
+    out: list[dict] = []
+    for contact in iter_contacts(client, max_pages=max_pages, page_size=page_size):
+        tags = [str(t).lower() for t in (contact.get("tags") or [])]
+        # Existing-student form families (get a login) AND brand-new website inquiries
+        # (shown marked, no login) — so the inbox tells them apart instead of guessing.
+        if FORM_TAG in tags or LEAD_TAG in tags:
+            out.append(_family_from_contact(contact))
     return out
 
 
