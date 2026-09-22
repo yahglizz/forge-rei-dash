@@ -42,7 +42,7 @@ agent, including the deliberate exceptions.
 `CLAUDE.md` §2 (autonomy rules) and §5 (agent table) stay canonical. When an
 agent's scope changes, update `CLAUDE.md` first, then its card here.
 
-Roster in code: `forge rei/agents_hub.py:55` (`AGENTS`). Creed map:
+Roster in code: `forge rei/agents_hub.py` (`AGENTS`; `registry()` for the Control Center). Creed map:
 `forge rei/agent_creed.py:28` (`CREED_FILE`).
 
 Follow-up, ACE, Autopilot and the daily brief / recap have no brain of their own;

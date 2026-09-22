@@ -22,7 +22,9 @@ Four tests import `connector` and build engines from the **real** `marcus_state/
 
 ## 2. Baseline (2026-09-22, Mac, offline suite minus the 4 above)
 
-**26 pass / 2 fail** — both pre-existing since 09-07, being fixed in WP-G:
+**26 pass / 2 fail** at audit time — both fixed in WP-G. **After wave 1: 32 pass / 0 fail**
+(the suite now includes test_ai_health, test_business_scope, test_owner_actions,
+test_agent_registry, test_daycare_leads). The two former failures:
 - `test_e2e_pipeline.py` — opt-out reason label (`scout_triage._rule_score`).
 - `test_marcus_filters.py` — macOS `/var` vs `/private/var` path spelling.
 
@@ -36,8 +38,8 @@ calls fail (credits); secret paths 404; brain `.env` read blocked after the 09-2
 | **Agency**: test prospect → queue → mark interested → follow-up task → pipeline → audit log | `agency_callsheet` / `agency_calls` self-checks; `test_agency_messages.py` | partial — no follow-up-task / audit-log assertion (needs P1-8 + P1-9) |
 | **Wholesale**: seller → AI conversation → intent → qualify → HOT → owner task → **no duplicate task** | `test_e2e_pipeline.py` (Claude/GHL faked, full pipeline), `test_ace.py`, `test_triage_fix.py`, `test_price_yes.py`, `test_sms_guard.py`, `test_optout_hardening.py` | good; owner-task dedupe asserted by `test_owner_actions.py` (WP-C) |
 | **Daycare**: simulated Meta lead → CRM → AI workflow → tour → reminder → pipeline → attribution | website `/api/enroll` (brand-kit repo); `test_daycare_leads.py` (WP-E: stage derivation, needs-human, alert dedupe) | partial — tour/reminder/attribution not built |
-| **Agent failure**: break integration → detect → retry → log → DEGRADED → owner/dev task | `test_ai_health.py` (WP-A: credit-400 → hard-down → health ok:false → one alert; recovery), `test_agent_registry.py` (WP-D: status mapping), `test_owner_actions.py` (FIX item) | building |
-| **Archive**: archive → hidden → data remains → reactivate → returns | `test_business_scope.py` (WP-B) + manual UI check | building |
+| **Agent failure**: break integration → detect → retry → log → DEGRADED → owner/dev task | `test_ai_health.py` (WP-A: credit-400 → hard-down → health ok:false → one alert; recovery), `test_agent_registry.py` (WP-D: status mapping), `test_owner_actions.py` (FIX item) | built (wave 1) |
+| **Archive**: archive → hidden → data remains → reactivate → returns | `test_business_scope.py` (WP-B) + manual UI check | built (wave 1) |
 
 ## 4. Other suites (existing)
 

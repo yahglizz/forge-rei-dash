@@ -53,7 +53,7 @@ on the Mac (autosync ships it).
 
 | Symptom | Cause / fix |
 |---|---|
-| Cost flat $0, briefs stale, chats error "credit balance too low" | **Anthropic credits exhausted** → owner tops up billing at console.anthropic.com. Verify: one agent chat succeeds, `/api/system/health` `ai.ok:true`, Solomon goes green within 15 min. |
+| Cost flat $0, briefs stale, chats error "credit balance too low" | **Anthropic credits exhausted** → owner tops up billing at console.anthropic.com. Verify: one agent chat succeeds, `/api/system/health` `ai.ok:true` (Telegram sends one 🟢 recovery). Solomon retries inside his backoff window (≤ 6 h) — force it with `POST /api/daycare/director/run`. |
 | Solomon red, `[ads] live fetch failed … Cannot parse access token` | daycare `META_ACCESS_TOKEN` invalid → owner pastes a real system-user token into `forge-daycare/config/daycare.env`, then `push.sh`. |
 | Agency Workflows shows fake clients | n8n URL returns 404 → fix `N8N_BASE_URL` in `ghl.env` or ignore (mock labeled after WP-G). |
 | Telegram approve says "proposal not found" | phantom module (fixed in WP-A) — restart service if it recurs. |

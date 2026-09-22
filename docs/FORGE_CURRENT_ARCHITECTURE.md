@@ -120,11 +120,11 @@ Mechanism (none exists yet) → [FORGE_AUTOMATION_PLAN.md](FORGE_AUTOMATION_PLAN
 ## 9. Technical debt (ranked)
 
 1. **AI brains down since 2026-08-01** — Anthropic credit balance exhausted; every Claude call 400s. Heartbeats wrap loops, not Claude calls, so health stays green → blind for 51 days.
-2. **Phantom connector module** — `agents_hub.py:107` / `pixel_office.py:102` `import connector` while it runs as `__main__` → a second copy re-registers Telegram action callbacks onto stale engine objects. Risk: approve taps on the wrong objects, stale overwrites of `scout.json`. (Static finding; needs box confirmation.)
+2. **Phantom connector module** — `agents_hub.py:107` / `pixel_office.py:102` `import connector` while it runs as `__main__` → a second copy re-registers Telegram action callbacks onto stale engine objects. Risk: approve taps on the wrong objects, stale overwrites of `scout.json`. **Fixed in WP-A** (`sys.modules.setdefault("connector", …)` alias at the top of `connector.py`; a test pins the two importers).
 3. **No agent registry** — agent lists duplicated in ≥8 places; Orion missing from most; heartbeat lacks last-success + cumulative error counts.
 4. **No generic approval queue** — 10 separate queues; only Agency has an "Approvals" page.
 5. **No durable agent action log** (spec §10) — bus capped at 200, per-engine activity lists in memory.
-6. Solomon retry storm (no backoff; ~5 k error lines) + invalid 32-char daycare Meta token.
+6. Solomon retry storm + invalid 32-char daycare Meta token — **backoff + auth-dead cache shipped in WP-A**; the token itself is an owner fix (P0-9).
 7. Hidden-fail UI: ~34 data hooks ignore errors; n8n mock shown as "connected · LIVE"; agency approvals seed data ("Bloom Dental", "Peak Fitness") when state file missing.
 8. Duplicates: 8 env loaders, ~8 Anthropic key resolvers, 4 liveness checks, 4 "morning brief" concepts, 4 task stores, 4 chat routers.
 9. Undocumented autonomy: **ACE** (supervised/full modes auto-text sellers, default off) and **Orion** (8th Claude agent) missing from CLAUDE.md; CLAUDE.md's "zero Claude calls" claim for followup/do_today is wrong.

@@ -30,7 +30,12 @@ re-run; if already up it just opens the browser. No other action needed.
 A real-estate-wholesaling + AI-agency + daycare control center. Static React UI (React
 UMD + in-browser Babel, **no build step**) served by a Python stdlib connector
 (`connector.py`, port 7799) that mirrors GoHighLevel and runs the AI agents. Lives 24/7
-on a DigitalOcean box. Three workspaces (profile switcher):
+on a DigitalOcean box. Four workspaces (profile switcher) — **Dropship and the Agency
+"Personal" lens are ARCHIVED by default** (2026-09-22, `business_scope.py` →
+`marcus_state/businesses.json`, `/api/businesses{,/set}`, Mission Control → Archived):
+hidden from the switcher, Mission Control, Owner Actions, Orion, the Agent Office,
+coaching and the Agent Control Center; data untouched; one tap Reactivates.
+Active: Agency, Wholesale, Daycare.
 
 - **REI (wholesale):** Dashboard, Leads, Conversations, Pipeline, Agents, Brain, etc.
 - **Agency (ClientForge):** Clients, Edit Requests, Agents, Ads, Social, Approvals, Brain.
@@ -204,7 +209,9 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 
 ## 5. The agents
 
-**Seven agents, on purpose.** 2026-07-25 audit: the daycare ran a director + two role
+**Seven brains, on purpose** (the Agent Control Center roster shows 12 rows: these
+brains + the brainless engines Follow-up, ACE, Autopilot and the daily brief/recap,
+which chat through their owner via `chatVia`). 2026-07-25 audit: the daycare ran a director + two role
 agents that were ~85% the same class re-reading the same tables on separate loops, and
 dropship ran a director + three specialists for a store that isn't live. Nora, Nova, Hawk,
 Blaze and Otto were retired — their skills merged into Solomon's and Midas's top skills +
@@ -317,6 +324,28 @@ update that skill if you improved the pattern.
 - Agency Call Center (`agency_calls.py` + `agency_callcenter.jsx`): tap-to-log dial tracker — Answered/No-Answer buttons, daily log, editable dial goal, streak (consecutive days ≥ goal; in-progress today never breaks it). `/api/agency/calls{,/log,/undo,/goal}`, state `marcus_state/agency_calls.json`. Internal tally only — no approval gate.
 - Agency Call Sheet (`agency_callsheet.py`, same tab): upload a PDF of biz leads (or paste text) → Claude parses to rows (`review_agent._claude`; regex fallback, pypdf/PyPDF2/pdftotext extraction chain — box has pypdf) → CRM-style table with search + status chips; per-row quick-marks New/Answered/No answer/Call back/Move on, tap-to-dial `tel:` links, inline notes, phone-dedupe on import. Marking answered/no_answer auto-bumps the daily tally. `/api/agency/callsheet{,/import-pdf,/import-text,/status,/note,/delete,/clear-dead}`, state `marcus_state/agency_callsheet.json`.
 - Bus: `/api/bus` · Brain: `/api/brain/{tree,note,search,recent,graph,activity,status}`
+- **Wave-1 surfaces (2026-09-22).** Operator guide: `docs/FORGE_APP_GUIDE.md`.
+  - **Owner Actions** (`owner_actions.py` + `owner_actions.jsx`, top of Mission Control):
+    `/api/owner-actions` — one read-only CALL/CALLBACK/APPROVE/REVIEW/FIX list across the
+    three businesses, URGENT→REVENUE→CUSTOMER→NORMAL, deduped (one row per daycare family).
+    Zero Claude calls, sends nothing. v1 Approvals = the card's Approve chip (no separate page).
+  - **Agent Control Center** (`agents_hub.registry()` + `agent_center.jsx`,
+    `window.forgeOpenView("agents")`): `/api/agents/registry` — every agent with
+    RUNNING/IDLE/WAITING FOR APPROVAL/DEGRADED/FAILED/DISABLED, last run/success, next run,
+    errors, dependency health; chat + task per agent (`/api/hub/chat`, `/api/hub/task`).
+  - **AI dependency health**: `forge_heartbeat.ai_ok/ai_fail` stamped at both Claude call
+    sites → `marcus_state/ai_health.json` → `/api/system/health` `ai` block + `reason`.
+    Billing/auth = hard-down (tracked per key fingerprint) → health `ok:false`, Owner
+    Actions FIX row, ONE Telegram alert + one on recovery. Heartbeats also carry
+    `lastSuccessAt` / `errorsTotal`. Solomon's failed briefs back off 15 m → 6 h.
+  - **Daycare Lead Desk** (`daycare_leads.py`, thread `daycare_leads`, 15 min, heartbeat
+    `daycare_leads`, knob `FORGE_DAYCARE_LEADS=0` to retire): GET-only GHL sweep → stages,
+    response time, needs-a-human list; `/api/daycare/leads` (session-gated); Daycare
+    Dashboard card; operator Telegram ping (business hours, deduped); feeds Solomon's brief
+    (`leadDesk`). Zero Claude, sends nothing to families. 429 → aborts the sweep + backs off.
+  - Views: `window.forgeOpenView(home|archived|agents|health|costs)`; top-level
+    ErrorBoundary around every page. Nightly state backup `forge-backup.timer` 03:30 ET →
+    `/root/backups` (7 kept, box-local).
 - **Agent Office** (`pixel_office.py` + `pixel_office.jsx`, nav "Agent Office" in all four
   workspaces): the visual floor — four department rooms, twelve agents as pixel characters,
   animated from REAL signals only (live job → agent_bus → open hub tasks → engine status;
@@ -341,7 +370,8 @@ update that skill if you improved the pattern.
 - **Trigger words + real task dispatch (Telegram).** Say an agent's NAME as the first word
   followed by `,` `:` or a spaced dash — "solomon, what's the ratio situation" / "midas:
   which product is winning" — and the message routes to that agent (same as `/solomon`,
-  `/midas`, `/scout`, …; all 7 now have slash commands + a `/` menu slot). A bare name with
+  `/midas`, `/scout`, …; the original 7 have slash commands + a `/` menu slot; Orion and the briefs have none —
+  `/task orion …` still reaches them). A bare name with
   no separator ("I told marcus to call") stays plain chat, so ordinary sentences don't
   hijack the session. `/task <what you need>` no longer just chats: it files a REAL job via
   `agents_hub.send_task` → hub task store + `agent_bus` message to that agent, and the
