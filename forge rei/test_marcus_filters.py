@@ -401,7 +401,10 @@ class SellerClassifierTests(unittest.TestCase):
 
         metadata = sources["playbook"]["marcus-playbook.md"]
         self.assertIn("vault-only marker", playbook)
-        self.assertEqual(str(override), metadata["path"])
+        # metadata["path"] is canonicalized via Path.resolve() (marcus_engine._skill_text)
+        # -- macOS resolves the tempdir's /var symlink to /private/var, so the expectation
+        # must go through the same resolve() boundary rather than comparing raw strings.
+        self.assertEqual(str(override.resolve()), metadata["path"])
         self.assertEqual("vault", metadata["source"])
         self.assertEqual(len("vault-only marker".encode("utf-8")), metadata["bytes"])
 

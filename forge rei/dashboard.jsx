@@ -502,7 +502,7 @@ const DO_TODAY_META = {
 
 function DoTodayCard() {
   const Icons = window.Icons;
-  const { data, loading, refresh } = window.useApi("/api/today", { interval: 30000 });
+  const { data, error, loading, refresh } = window.useApi("/api/today", { interval: 30000 });
   const [busy, setBusy] = useStateD(null);
   const [emailing, setEmailing] = useStateD(false);
   // Let Speed-to-Lead check a lead off instantly after a send (no 30s poll wait).
@@ -549,9 +549,13 @@ function DoTodayCard() {
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span style={{ color: "var(--green)" }}><Icons.Check size={18} /></span>
           <span className="card-title">Do Today</span>
-          <span className="pill" style={{ background: "rgba(34,197,94,0.12)", color: "var(--green)" }}>{done}/{total} done</span>
+          {error && !data ? (
+            <span className="pill" style={{ background: "rgba(239,68,68,0.12)", color: "var(--red)" }}>error</span>
+          ) : (
+            <span className="pill" style={{ background: "rgba(34,197,94,0.12)", color: "var(--green)" }}>{done}/{total} done</span>
+          )}
           <span className="faint" style={{ fontSize: 11 }}>
-            rebuilds 9:00 AM ET{d.emailedAt ? " · emailed " + window.timeAgo(d.emailedAt) : ""}
+            on-demand rebuild (auto 9 AM ET rebuild is off by default){d.emailedAt ? " · emailed " + window.timeAgo(d.emailedAt) : ""}
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -567,7 +571,8 @@ function DoTodayCard() {
         </div>
       )}
       {loading && !data && <window.LoadingRow label="Building today's battle plan…" />}
-      {!loading && tasks.length === 0 && ghost.length === 0 && (
+      {error && !data && <window.ErrorRow error={error} onRetry={refresh} />}
+      {!loading && !error && tasks.length === 0 && ghost.length === 0 && (
         <div className="empty" style={{ padding: "22px 8px" }}>
           <div className="empty-ico"><Icons.Check size={22} /></div>
           <div style={{ fontSize: 12.5 }}>Board's clear — no urgent moves waiting on you right now.</div>
@@ -642,19 +647,21 @@ function DoTodayCard() {
 function DashHealthDot() {
   // Fleet health at a glance: green = all loops beating, amber = warnings, red = a loop
   // is down. Tap → the full System Health tab. Grey while loops are off/UI-only.
-  const { data } = window.useApi("/api/system/health", { interval: 30000 });
+  // Red "error" (not grey "idle") when the health call itself fails — those are
+  // different facts: loops-off is a real state, an unreachable endpoint is not.
+  const { data, error } = window.useApi("/api/system/health", { interval: 30000 });
   const d = data || {};
   const loops = Array.isArray(d.loops) ? d.loops : [];
   const reds = loops.filter((l) => l.status === "red").length;
   const ambers = loops.filter((l) => l.status === "amber").length;
-  const c = !d.active ? "#64748B" : reds ? "#EF4444" : ambers ? "#F59E0B" : "#22C55E";
-  const label = !d.active ? "idle" : reds ? reds + " loop down" : ambers ? ambers + " warn" : "healthy";
+  const c = error ? "#EF4444" : !d.active ? "#64748B" : reds ? "#EF4444" : ambers ? "#F59E0B" : "#22C55E";
+  const label = error ? "health check failed" : !d.active ? "idle" : reds ? reds + " loop down" : ambers ? ambers + " warn" : "healthy";
   return (
     <span onClick={() => window.GoTo && window.GoTo("SystemHealth")}
-      title="System health — tap for detail"
+      title={error ? "System health check failed: " + error : "System health — tap for detail"}
       style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
       <span style={{ width: 9, height: 9, borderRadius: "50%", background: c, display: "inline-block",
-                     boxShadow: reds ? "0 0 0 3px rgba(239,68,68,.18)" : "none" }} />
+                     boxShadow: (reds || error) ? "0 0 0 3px rgba(239,68,68,.18)" : "none" }} />
       <span className="faint" style={{ fontSize: 11.5 }}>{label}</span>
     </span>
   );

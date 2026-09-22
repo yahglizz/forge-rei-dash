@@ -1096,23 +1096,30 @@ function DailyNonNegotiables() {
   const [g, setG] = useStateP(null);
   const [editing, setEditing] = useStateP(false);
   const [busy, setBusy] = useStateP(false);
+  const [error, setError] = useStateP(null);
 
   async function load() {
-    try { const r = await fetch("/api/goals/today"); setG(await r.json()); } catch (e) {}
+    try { setG(await window.apiGet("/api/goals/today")); setError(null); }
+    catch (e) { setError(e.message || String(e)); }
   }
   React.useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
 
   async function post(body) {
     setBusy(true);
-    try {
-      const r = await fetch("/api/goals/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      setG(await r.json());
-    } catch (e) {} finally { setBusy(false); }
+    try { setG(await window.apiPost("/api/goals/update", body)); setError(null); }
+    catch (e) { setError(e.message || String(e)); }
+    finally { setBusy(false); }
   }
   const bump = (metric, delta) => post({ metric, delta });
   const setVal = (metric, value) => post({ metric, value });
 
-  if (!g) return <div className="card card-pad"><window.LoadingRow label="Loading today's non-negotiables…" /></div>;
+  if (!g) {
+    return (
+      <div className="card card-pad">
+        {error ? <window.ErrorRow error={error} onRetry={load} /> : <window.LoadingRow label="Loading today's non-negotiables…" />}
+      </div>
+    );
+  }
 
   if (g.dealClosed) {
     return (
@@ -1144,6 +1151,8 @@ function DailyNonNegotiables() {
         </div>
         <button className="tab" onClick={() => setEditing((e) => !e)} style={{ fontSize: 11.5 }}>{editing ? "Done" : "Edit targets"}</button>
       </div>
+
+      {error && <window.ErrorRow error={error} onRetry={load} />}
 
       {g.dayComplete && (
         <div style={{ padding: "9px 13px", borderRadius: 10, background: "rgba(34,197,94,0.10)", border: "1px solid rgba(34,197,94,0.4)", color: "var(--green)", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>

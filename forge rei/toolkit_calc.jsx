@@ -49,6 +49,7 @@ function TkCalcPanels(props) {
   const [res, setRes] = useStateTk({});
   const [saveMsg, setSaveMsg] = useStateTk(null);
   const [saving, setSaving] = useStateTk(false);
+  const [calcErr, setCalcErr] = useStateTk(null);
   const timerTk = useRefTk(null);
   // AI ARV finder
   const [arvAddr, setArvAddr] = useStateTk("");
@@ -57,9 +58,9 @@ function TkCalcPanels(props) {
   const [arvErr, setArvErr] = useStateTk(null);
 
   useEffectTk(() => {
-    fetch("/api/toolkit/calc/config").then((r) => r.json())
-      .then((c) => { setRates(c.rates || null); setRateDraft(c.rates || {}); })
-      .catch(() => {});
+    window.apiGet("/api/toolkit/calc/config")
+      .then((c) => { setRates(c.rates || null); setRateDraft(c.rates || {}); setCalcErr(null); })
+      .catch((e) => setCalcErr(e.message || "couldn't load calculator config"));
   }, []);
 
   const bodyTk = () => ({
@@ -70,8 +71,8 @@ function TkCalcPanels(props) {
   useEffectTk(() => {
     if (timerTk.current) clearTimeout(timerTk.current);
     timerTk.current = setTimeout(async () => {
-      try { setRes(await window.apiPost("/api/toolkit/calc/eval", bodyTk())); }
-      catch (e) { /* server down — panels just stay empty */ }
+      try { setRes(await window.apiPost("/api/toolkit/calc/eval", bodyTk())); setCalcErr(null); }
+      catch (e) { setCalcErr(e.message || "calculation failed — panels below may be stale"); }
     }, 400);
     return () => clearTimeout(timerTk.current);
   }, [props.arv, props.repairs, props.fee, props.pct, props.asking,
@@ -80,8 +81,8 @@ function TkCalcPanels(props) {
   async function saveRates() {
     try {
       const r = await window.apiPost("/api/toolkit/calc/rates", { rates: rateDraft });
-      if (r && r.rates) { setRates(r.rates); setShowRates(false); }
-    } catch (e) {}
+      if (r && r.rates) { setRates(r.rates); setShowRates(false); setCalcErr(null); }
+    } catch (e) { setCalcErr(e.message || "couldn't save rates"); }
   }
 
   async function saveSnapshot() {
@@ -116,6 +117,12 @@ function TkCalcPanels(props) {
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, alignItems: "start" }}>
+
+      {calcErr && (
+        <div style={{ gridColumn: "1 / -1", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--red)", color: "var(--red)", fontSize: 12.5, fontWeight: 600 }}>
+          Calculator error: {calcErr}
+        </div>
+      )}
 
       {/* ---- AI ARV finder ---- */}
       <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 12 }}>

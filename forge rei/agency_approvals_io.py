@@ -30,35 +30,6 @@ STATUSES = ["pending", "approved", "revision", "rejected", "failed"]
 
 _NOW = int(time.time() * 1000)
 
-# --- MOCK SEED so the Approval Center is explorable on first load -----------
-_SEED = {
-    "seq": 2,
-    "queue": [
-        {
-            "id": "a1", "kind": "dyson", "refId": "seed-d1",
-            "title": "Dyson: Swap homepage hero — Bloom Dental",
-            "summary": "Replace hero image + headline on index. 1 file, low risk.",
-            "client": "Bloom Dental", "risk": "low",
-            "payload": {"affected": ["index.html"], "steps": [
-                "Backup current hero block",
-                "Swap <img> src + alt",
-                "Update H1 copy",
-                "Preview, then publish"]},
-            "status": "pending",
-            "createdAt": _NOW - 3600 * 1000, "decidedAt": None,
-        },
-        {
-            "id": "a2", "kind": "eco", "refId": "seed-e1",
-            "title": "Eco: 3 new ad concepts — Peak Fitness",
-            "summary": "Pause weak 'generic gym' ad; launch 3 UGC-style hooks.",
-            "client": "Peak Fitness", "risk": "medium",
-            "payload": {"ads": 3, "topAngle": "Transformation UGC"},
-            "status": "pending",
-            "createdAt": _NOW - 2 * 3600 * 1000, "decidedAt": None,
-        },
-    ],
-}
-
 
 def _load():
     if STATE.exists():
@@ -68,7 +39,7 @@ def _load():
                 return d
         except Exception:
             pass
-    return json.loads(json.dumps(_SEED))
+    return {"queue": [], "seq": 0}   # missing/corrupt file -> empty, never fake rows
 
 
 def _save(d):
