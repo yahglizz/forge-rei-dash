@@ -13,19 +13,11 @@ function MIco(props) {
   );
 }
 
-// Original FORGE guide: a cheerful fox mechanic, drawn for the mobile UI.
+// Original FORGE house mascot, generated for this mobile UI.
 function MForgePal(props) {
   const size = props.size || 42;
-  return <svg width={size} height={size} viewBox="0 0 64 64" aria-label="FORGE fox mascot" role="img">
-    <path d="M9 26 12 8l15 10M55 26 52 8 37 18" fill="#f9a65a" stroke="#18334a" strokeWidth="3" strokeLinejoin="round"/>
-    <path d="M13 25c0-12 8-19 19-19s19 7 19 19v13c0 12-8 19-19 19s-19-7-19-19Z" fill="#f9a65a" stroke="#18334a" strokeWidth="3"/>
-    <path d="M17 36c1-9 7-14 15-14s14 5 15 14c-2 8-7 13-15 13s-13-5-15-13Z" fill="#fff3dc"/>
-    <path d="M24 33h.2M40 33h.2" stroke="#18334a" strokeWidth="5" strokeLinecap="round"/>
-    <path d="M29 39q3 3 6 0" fill="none" stroke="#18334a" strokeWidth="2.5" strokeLinecap="round"/>
-    <path d="M14 20 6 23l8 6M50 20l8 3-8 6" fill="#b8eb4b" stroke="#18334a" strokeWidth="2.5" strokeLinejoin="round"/>
-    <path d="M22 54v5q10 5 20 0v-5" fill="#b8eb4b" stroke="#18334a" strokeWidth="2.5"/>
-    <circle cx="46" cy="48" r="6" fill="#74c9f5" stroke="#18334a" strokeWidth="2"/><path d="m44 48 2 2 3-4" fill="none" stroke="#18334a" strokeWidth="1.5"/>
-  </svg>;
+  return <img className="m-forge-pal" src="forge-house-mascot.png" width={size} height={size}
+    alt="" aria-hidden="true" />;
 }
 
 const MIcons = {
@@ -61,11 +53,11 @@ function MHeader(props) {
           <MIcons.Back size={22} />
         </button>
       )}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <div className="m-head-copy">
+        <div className="m-head-title">
           {props.title}
         </div>
-        {props.sub && <div className="m-fade" style={{ marginTop: 1 }}>{props.sub}</div>}
+        {props.sub && <div className="m-head-sub">{props.sub}</div>}
       </div>
       {!props.onBack && <button className="mw-header-bot" onClick={() => window.mGoTab && window.mGoTab("agents")} aria-label="Open agents">🤖</button>}
       {props.right || null}
@@ -131,7 +123,8 @@ function MChip(props) {
 
 function MEmpty(props) {
   return (
-    <div style={{ textAlign: "center", padding: "28px 10px", color: "var(--text-3)" }}>
+    <div className="m-empty">
+      <MForgePal size={62} />
       <div style={{ fontSize: 13, fontWeight: 600 }}>{props.title || "Nothing here"}</div>
       {props.sub && <div className="m-fade" style={{ marginTop: 4 }}>{props.sub}</div>}
     </div>

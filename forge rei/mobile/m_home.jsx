@@ -66,7 +66,7 @@ function MHOpsPill(props) {
   const col = paused ? "#EF4444" : "#22C55E";
   const StateIco = paused ? MHPlayIco : MHPauseIco; // shows the action a tap takes
   return (
-    <button onClick={flip} disabled={flipBusy}
+    <button className={"m-duty " + (paused ? "off" : "on")} onClick={flip} disabled={flipBusy}
       style={{
         display: "flex", alignItems: "center", gap: 6, minHeight: 44,
         padding: "8px 12px", borderRadius: 999, cursor: "pointer",
@@ -212,25 +212,23 @@ function MHApprovals(props) {
   } else {
     const shown = list.slice(0, 6);
     body = (
-      <div>
+      <div className="mh-approval-list">
         {shown.map((p, i) => {
           const cc = MH_CLS_COLOR[p.classification] || "#9FB0C7";
           const aKey = "approve" + p.id;
           const dKey = "dismiss" + p.id;
           return (
-            <div key={p.id} style={{ padding: "10px 0", borderTop: i ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-              <div className="m-row" style={{ gap: 8 }}>
-                <span style={{ ...MH_ELLIPSIS, fontSize: 13.5, fontWeight: 700, flex: 1, minWidth: 0 }}>{p.name}</span>
-                <span style={{ fontSize: 10, fontWeight: 800, color: cc, letterSpacing: "0.4px", flex: "none" }}>{p.classification}</span>
-                <span className="m-fade" style={{ fontSize: 11, flex: "none" }}>{window.timeAgoM(p.ts)}</span>
+            <div key={p.id} className="mh-approval">
+              <div className="m-row mh-approval-head">
+                <span className="mh-avatar">{String(p.name || "Lead").split(/\s+/).slice(0,2).map((n)=>n[0]).join("").toUpperCase()}</span>
+                <span className="mh-name" style={MH_ELLIPSIS}>{p.name}</span>
+                <span className="mh-class" style={{ color: cc }}>{p.classification}</span>
+                <span className="m-fade mh-time">{window.timeAgoM(p.ts)}</span>
               </div>
               {p.inbound && (
                 <div className="m-fade" style={{ marginTop: 4, ...MH_ELLIPSIS }}>They said: “{MHSnip(p.inbound, 90)}”</div>
               )}
-              <div style={{
-                marginTop: 6, padding: "8px 11px", borderRadius: 10,
-                background: "var(--card-2, #17203a)", fontSize: 13, lineHeight: 1.45,
-              }}>
+              <div className="mh-draft">
                 {MHSnip(regen[p.id] || p.suggestedReply, 220)}
                 {regen[p.id] && (
                   <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: "var(--blue, #4F7CFF)" }}>
@@ -238,7 +236,7 @@ function MHApprovals(props) {
                   </span>
                 )}
               </div>
-              <div className="m-row" style={{ marginTop: 8, gap: 6 }}>
+              <div className="m-row mh-actions">
                 <window.MBtn kind="ok" style={{ flex: 1 }} disabled={actBusy === aKey}
                   onClick={() => act("approve", p)}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -268,7 +266,7 @@ function MHApprovals(props) {
     );
   }
 
-  return <window.MCard>{body}</window.MCard>;
+  return <window.MCard style={{ padding: 0, background: "transparent", border: 0, boxShadow: "none" }}>{body}</window.MCard>;
 }
 
 // --- Scout hot leads ----------------------------------------------------------

@@ -12,7 +12,6 @@ const M_PAGES = {
   convos: () => (window.MConvosPage ? <window.MConvosPage /> : <window.MEmpty title="Convos unavailable" />),
   pipeline: () => (window.MPipelinePage ? <window.MPipelinePage /> : <window.MEmpty title="Pipeline unavailable" />),
   calc: () => (window.MCalcPage ? <window.MCalcPage /> : <window.MEmpty title="Calc unavailable" />),
-  agents: () => (window.MAgentsPage ? <window.MAgentsPage /> : <window.MEmpty title="Agents unavailable" />),
   more: () => (window.MMorePage ? <window.MMorePage /> : <window.MEmpty title="More unavailable" />),
 };
 
