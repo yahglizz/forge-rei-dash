@@ -597,6 +597,14 @@ function ConversationsPage() {
                   </a>
                 )}
               </div>
+              {active.contactId && window.AtlasCallCard && (
+                <details style={{ borderBottom: "1px solid var(--border)", padding: "8px 18px", maxHeight: "45vh", overflowY: "auto", flexShrink: 0 }}>
+                  <summary style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "var(--violet)" }}>📐 Atlas call card — internal prep for your call</summary>
+                  <div style={{ marginTop: 8 }}>
+                    <window.AtlasCallCard key={active.contactId} contactId={active.contactId} lastContact={active.lastMessageDate} />
+                  </div>
+                </details>
+              )}
               {lead
                 ? <LeadMessages key={lead.id} lead={lead} />
                 : <div className="empty" style={{ flex: 1 }}><div className="empty-ico"><Icons.Message size={24} /></div><div style={{ fontWeight: 600, color: "var(--text)" }}>No contact linked</div><div style={{ fontSize: 12 }}>This conversation has no contact record to message.</div></div>}

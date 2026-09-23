@@ -83,7 +83,7 @@ function ScrCallPrep({ cp }) {
   );
 }
 
-function ScreeningCard({ s, onChange }) {
+function ScreeningCard({ s, onChange, lastContact }) {
   const rep = s.report || {};
   const [busy, setBusy] = useStateScr(null);
   const [note, setNote] = useStateScr(s.notes || "");
@@ -128,6 +128,11 @@ function ScreeningCard({ s, onChange }) {
           {s.auto && <ScrPill text="auto" color="#8B5CF6" />}
         </div>
       </div>
+
+      {/* Atlas call card + 30-second seller header (internal prep — no send control) */}
+      {rep.interest === "interested" && window.AtlasCallCard && (
+        <window.AtlasCallCard contactId={s.contactId} lastContact={lastContact} />
+      )}
 
       {/* Situation */}
       {rep.sellerSituation && <div style={{ fontSize: 13.5, lineHeight: 1.45 }}>{rep.sellerSituation}</div>}
@@ -221,6 +226,10 @@ function ScreeningPage() {
   const Icons = window.Icons;
   const { data, refresh } = window.useApi("/api/screening/queue", { interval: 15000 });
   const st = window.useApi("/api/screening/status", { interval: 15000 });
+  // Last thread message per contact (Scout's lead list) → the Atlas card's "last contact".
+  const scoutLeads = window.useApi("/api/scout/leads", { interval: 60000 });
+  const lastByCid = {};
+  ((scoutLeads.data && scoutLeads.data.leads) || []).forEach((l) => { if (l.contactId) lastByCid[l.contactId] = l.lastMessageDate; });
   const [cid, setCid] = useStateScr("");
   const [busy, setBusy] = useStateScr(null);
   const [aud, setAud] = useStateScr(null);
@@ -332,7 +341,7 @@ function ScreeningPage() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {rows.map((s) => <ScreeningCard key={s.contactId} s={s} onChange={reload} />)}
+          {rows.map((s) => <ScreeningCard key={s.contactId} s={s} onChange={reload} lastContact={lastByCid[s.contactId]} />)}
         </div>
       )}
     </div>
