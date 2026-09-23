@@ -42,14 +42,19 @@ const MIcons = {
   Doc: (p) => <MIco {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></MIco>,
   Brain: (p) => <MIco {...p}><circle cx="12" cy="12" r="3" /><circle cx="5" cy="6" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="5" cy="18" r="2" /><circle cx="19" cy="18" r="2" /><path d="M9.8 10.4 6.6 7.4M14.2 10.4l3.2-3M9.8 13.6l-3.2 3M14.2 13.6l3.2 3" /></MIco>,
   Heart: (p) => <MIco {...p}><path d="M12 21S4 14.5 4 9a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 5.5-8 12-8 12z" /></MIco>,
+  Swap: (p) => <MIco {...p}><path d="M7 4 3 8l4 4" /><path d="M3 8h14" /><path d="m17 12 4 4-4 4" /><path d="M21 16H7" /></MIco>,
 };
 
 function MHeader(props) {
+  // Business mode (m_app.jsx) only: a classic page opened inside a business gets a back
+  // arrow (window.mBizBack); ⇄ returns to the portal (window.mSwitchBiz). Both unset in
+  // the classic app, so it renders exactly as before.
+  const onBack = props.onBack || window.mBizBack || null;
   return (
     <div className="m-head">
-      {!props.onBack && <div className="m-mascot"><MForgePal size={40} /></div>}
-      {props.onBack && (
-        <button className="m-tab" style={{ flex: "none", padding: 4 }} onClick={props.onBack}>
+      {!onBack && <div className="m-mascot"><MForgePal size={40} /></div>}
+      {onBack && (
+        <button className="m-tab" style={{ flex: "none", padding: 4 }} onClick={onBack}>
           <MIcons.Back size={22} />
         </button>
       )}
@@ -59,7 +64,9 @@ function MHeader(props) {
         </div>
         {props.sub && <div className="m-head-sub">{props.sub}</div>}
       </div>
-      {!props.onBack && <button className="mw-header-bot" onClick={() => window.mGoTab && window.mGoTab("agents")} aria-label="Open agents">🤖</button>}
+      {!onBack && window.mSwitchBiz && <button className="mw-header-bot mlg-switch" onClick={() => window.mSwitchBiz()}
+        aria-label={"Switch business" + (window.mBizActive ? " (now " + window.mBizActive + ")" : "")}><MIcons.Swap size={20} /></button>}
+      {!onBack && <button className="mw-header-bot" onClick={() => window.mGoTab && window.mGoTab("agents")} aria-label="Open agents">🤖</button>}
       {props.right || null}
     </div>
   );
@@ -76,7 +83,7 @@ const M_TABS = [
 function MTabBar(props) {
   return (
     <div className="m-tabbar">
-      {M_TABS.map((t) => {
+      {(props.tabs || M_TABS).map((t) => {
         const Ico = MIcons[t.ico] || MIcons.More;
         return (
           <button key={t.key} className={"m-tab" + (props.tab === t.key ? " active" : "")}

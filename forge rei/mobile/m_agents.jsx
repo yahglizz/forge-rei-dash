@@ -127,7 +127,16 @@ function MABusCard() {
   );
 }
 
-function MAgentsPage() {
+// Registry business → mobile business id ("rei" kept for older registries; brainless
+// engines followup/ace/autopilot already report "wholesale"). cross/system (Orion,
+// daily brief) show in every business.
+function MABizOf(a, fixed) {
+  const b = a.business || (fixed.crew === "agency" ? "agency" : fixed.crew === "rei" ? "wholesale" : "");
+  return b === "rei" ? "wholesale" : b;
+}
+
+function MAgentsPage(props) {
+  const business = props && props.business; // optional: "wholesale" | "agency" | "daycare"
   const [agentId, setAgentId] = useStateMA("marcus");
   const [busMode, setBusMode] = useStateMA(false);
   const [drafts, setDrafts] = useStateMA({});     // agentId -> draft text
@@ -138,7 +147,12 @@ function MAgentsPage() {
   const rosterM = window.useApiM("/api/agents/registry", { interval: 30000 });
   const hasRegistry = !!(rosterM.data && Array.isArray(rosterM.data.agents));
   const registered = hasRegistry ? rosterM.data.agents.filter((a) => a && a.id && !a.archived) : [];
-  const agents = (hasRegistry ? registered : MA_AGENTS).map((a, i) => {
+  const inBiz = (a) => {
+    if (!business) return true;
+    const b = MABizOf(a, MA_AGENTS.find((f) => f.id === a.id) || {});
+    return b === business || b === "cross" || b === "system";
+  };
+  const agents = (hasRegistry ? registered : MA_AGENTS).filter(inBiz).map((a, i) => {
     const fixed = MA_AGENTS.find((f) => f.id === a.id) || {};
     const agency = a.business === "agency" || fixed.crew === "agency";
     return Object.assign({}, fixed, a, {
