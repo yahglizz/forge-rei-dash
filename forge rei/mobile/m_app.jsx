@@ -22,7 +22,7 @@ function MAPWholesale(props) {
     if (props.segment) setSegment(props.segment);
   }, [props.segment]);
   const options = ["Approvals", "Hot", "Convos", "Pipeline", "Calc"];
-  const set = (next) => { setSegment(next); window.mGoTabSegment = ""; };
+  const set = (next) => { setSegment(next); window.mGoTab && window.mGoTab("wholesale", next); };
   return <React.Fragment>
     <div className="m-seg mw-business-segments">{options.map((s)=><window.MChip key={s} active={segment===s} onClick={()=>set(s)}>{s}</window.MChip>)}</div>
     {segment === "Convos" ? <window.MConvosPage/> : segment === "Pipeline" ? <window.MPipelinePage/> : segment === "Calc" ? <window.MCalcPage/> : <window.MHomePage embedded segment={segment}/>}

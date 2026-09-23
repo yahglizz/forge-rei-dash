@@ -135,18 +135,20 @@ function MAgentsPage() {
   const [pending, setPending] = useStateMA(null); // optimistic {agentId, text, ts}
   const [sendErr, setSendErr] = useStateMA(null);
   const feedRefMA = useRefMA(null);
-  const rosterM = window.useApiM("/api/agents/list", { interval: 30000 });
-  const dynamicAgents = rosterM.error ? [] : ((rosterM.data && rosterM.data.agents) || [])
-    .filter((a) => a && a.id && !MA_AGENTS.some((fixed) => fixed.id === a.id))
-    .map((a, i) => ({
-      id: a.id,
-      name: a.name || "Agent",
-      color: MA_DYNAMIC_COLORS[i % MA_DYNAMIC_COLORS.length],
-      ep: "/api/agents/chat",
-      crew: "rei",
-      role: a.role || "Outbound voice agent · Retell",
-    }));
-  const agents = MA_AGENTS.concat(dynamicAgents);
+  const rosterM = window.useApiM("/api/agents/registry", { interval: 30000 });
+  const hasRegistry = !!(rosterM.data && Array.isArray(rosterM.data.agents));
+  const registered = hasRegistry ? rosterM.data.agents.filter((a) => a && a.id && !a.archived) : [];
+  const agents = (hasRegistry ? registered : MA_AGENTS).map((a, i) => {
+    const fixed = MA_AGENTS.find((f) => f.id === a.id) || {};
+    const agency = a.business === "agency" || fixed.crew === "agency";
+    return Object.assign({}, fixed, a, {
+      color: fixed.color || MA_DYNAMIC_COLORS[i % MA_DYNAMIC_COLORS.length],
+      name: a.name || fixed.name || "Agent",
+      role: a.role || a.purpose || fixed.role || "FORGE agent",
+      crew: agency ? "agency" : "rei",
+      ep: agency ? "/api/agency/agents/chat" : (fixed.ep || "/api/hub/chat"),
+    });
+  });
 
   const active = agents.find((a) => a.id === agentId) || agents[0];
   const draft = drafts[active.id] || "";
@@ -226,6 +228,10 @@ function MAgentsPage() {
       <window.MHeader title="Agents" sub="Your AI employees — synced with Telegram" />
       <div className="m-content" style={{ gap: 10 }}>
 
+        {rosterM.error && <div className="mw-warn">Agent registry unavailable — showing the saved chat list.</div>}
+        {hasRegistry && !agents.length && <window.MEmpty title="No active agents" sub="Archived agents are hidden from mobile." />}
+        {hasRegistry && rosterM.data.ai && rosterM.data.ai.ok === false && <div className="mw-warn">AI connection needs attention{rosterM.data.ai.reason ? " — " + rosterM.data.ai.reason : ""}.</div>}
+
         {/* Agent picker + Bus toggle */}
         <div className="m-seg">
           {agents.map((a) => (
@@ -233,7 +239,7 @@ function MAgentsPage() {
               className={"m-chip" + (!busMode && agentId === a.id ? " active" : "")}
               style={{ minHeight: 44 }}
               onClick={() => { setBusMode(false); setAgentId(a.id); }}>
-              {a.name}{busyId === a.id ? " …" : ""}
+              {a.name}{a.status ? " · " + a.status.replaceAll("_", " ").toLowerCase() : ""}{busyId === a.id ? " …" : ""}
             </button>
           ))}
           <button className={"m-chip" + (busMode ? " active" : "")}
