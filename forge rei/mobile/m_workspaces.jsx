@@ -137,7 +137,7 @@ function MWDaycare() {
   const auth = leads.error && /401|403|unauthor/i.test(String(leads.error));
   async function stage() {
     if (!stageLead) return;
-    try { await window.apiPostM("/api/daycare/leads/stage", { contactId: stageLead.contactId || stageLead.id, stage: stageValue }); leads.refresh(); setStageLead(null); }
+    try { await window.apiPostM("/api/daycare/leads/stage", { contact_id: stageLead.contactId || stageLead.id, stage: stageValue }); leads.refresh(); setStageLead(null); }
     catch (e) { setNotice("Daycare stage unavailable — retry."); }
   }
   return <React.Fragment>
