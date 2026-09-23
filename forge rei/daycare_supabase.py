@@ -901,6 +901,7 @@ def guardian_contact(session: Session, guardian_profile_id: Any) -> dict[str, An
     if not rows:
         return None
     guardian = rows[0]
+    _merge_contacts(session, [guardian])
     name = guardian.get("display_name") or " ".join(
         value for value in (guardian.get("first_name"), guardian.get("last_name")) if value)
     return {
@@ -979,6 +980,27 @@ def _single(result: Any, resource: str) -> dict[str, Any]:
 # or a return=representation write, 403s the whole query — so staff/profile reads name columns.
 _STAFF_COLS = "id,profile_id,location_id,job_title,hire_date,certifications,color"
 _PROFILE_COLS = "id,location_id,role,first_name,last_name,display_name,active"
+
+
+def _merge_contacts(session: Session, profiles: list[Any]) -> None:
+    """Fill phone / auth_email / login_id onto profile dicts in place.
+
+    Those columns are service_role-only for `authenticated`; the guardian_contacts() RPC
+    (migration 202609230001) hands them back to managers/admins for their own center only.
+    Any failure leaves them None — never breaks the read that asked.
+    """
+    by_id = {str(p["id"]): p for p in profiles if isinstance(p, dict) and is_uuid(p.get("id"))}
+    if not by_id:
+        return
+    try:
+        rows = _rows(BRIDGE.rpc(session, "guardian_contacts", {"p_ids": list(by_id)}))
+    except DaycareError:
+        return
+    for row in rows:
+        target = by_id.get(str(row.get("id")))
+        if target is not None:
+            for key in ("phone", "auth_email", "login_id"):
+                target[key] = row.get(key)
 
 
 def _ensure_location_record(session: Session, table: str, record_id: Any) -> dict[str, Any]:
@@ -1084,6 +1106,7 @@ def get_children(session: Session) -> dict[str, Any]:
         },
     )
     children = _rows(rows)
+    _merge_contacts(session, [child.get("profiles") for child in children])
     for child in children:
         guardian = child.get("profiles")
         if guardian:
@@ -1157,6 +1180,7 @@ def get_staff(session: Session) -> dict[str, Any]:
             row["hourly_rate"] = rates.get(str(row.get("id")))
     except DaycareError:
         pass
+    _merge_contacts(session, [row.get("profiles") for row in _rows(rows)])
     staff_ids = _staff_ids(session)
     shifts = BRIDGE.rest(
         session,
@@ -1451,6 +1475,7 @@ def stripe_invoice_context(session: Session, invoice_id: Any) -> dict[str, Any]:
         raise DaycareError(404, "Invoice not found", "not_found")
     invoice = rows[0]
     guardian = invoice.get("profiles") or {}
+    _merge_contacts(session, [guardian])
     name = guardian.get("display_name") or " ".join(
         value for value in (guardian.get("first_name"), guardian.get("last_name")) if value) or "Family"
     return {
@@ -1904,6 +1929,10 @@ def save_staff(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "hourly_rate": require_number(_body_value(source, "hourly_rate", "hourlyRate"), "hourly_rate", maximum=Decimal("10000"), optional=True),
         "hire_date": require_date(_body_value(source, "hire_date", "hireDate"), "hire_date", optional=True),
     }
+    if not profile_update["phone"]:
+        # A blank phone usually means the form couldn't read it (column is service-role
+        # only) — dropping the key keeps the real number instead of wiping it.
+        profile_update.pop("phone")
     BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{active_location(session)}"}, body=profile_update, prefer="return=minimal")
     rows = BRIDGE.rest(session, "PATCH", "staff_members", query={"id": f"eq.{staff['id']}", "select": _STAFF_COLS}, body=member_update, prefer="return=representation")
     if "classroom_ids" in source or "classroomIds" in source:
