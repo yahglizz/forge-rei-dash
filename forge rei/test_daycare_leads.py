@@ -10,9 +10,14 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import daycare_ghl
 import daycare_leads as dl
 
 ET = dl.ET
+# W2-5: hermetic stage sources — never read/write the real mark file or child ledger.
+_TMP = Path(tempfile.mkdtemp())
+dl.STAGES_STATE = _TMP / "daycare_lead_stages.json"
+daycare_ghl._FORM_CHILD_STATE = _TMP / "daycare_form_children.json"
 CF_PARENT = "68zgbWrCHH0e9OIyuRJx"          # enroll.js GHL_FIELD.parentName
 
 
@@ -246,9 +251,13 @@ def test_sweep_and_view():
         assert "has not run yet" in dl.view()["error"]
         now = et(2026, 9, 22, 11, 0)
         sent = []
-        st = dl.run_once(FakeGHL(now), now=now, send=lambda *a: sent.append(a))
+        ghl = FakeGHL(now)
+        st = dl.run_once(ghl, now=now, send=lambda *a: sent.append(a))
         ids = {l["contactId"]: l for l in st["leads"]}
-        assert set(ids) == {"lead1", "chat1"}, ids.keys()            # family, vendor, dormant out
+        assert set(ids) == {"lead1", "chat1", "fam1"}, ids.keys()    # vendor, dormant out
+        # W2-5: the converted lead (lead + family tags) stays as ENROLLED — no thread GET.
+        assert dl.apply_stages([ids["fam1"]])[0]["stage"] == "ENROLLED" and not ids["fam1"]["reasons"]
+        assert not any("cvf" in c or "fam1" in c for c in ghl.calls), ghl.calls
         assert ids["lead1"]["stage"] == "NEEDS_HUMAN" and ids["chat1"]["kind"] == "chat"
         assert ids["chat1"]["source"] == "chat"
         assert st["error"] is None and st["kpis"]["needsHuman"] == 2
@@ -260,7 +269,7 @@ def test_sweep_and_view():
             def get(self, path, params=None):
                 raise OSError("boom")
         st = dl.run_once(Broken(now), now=now + 900, send=lambda *a: None)
-        assert st["error"] == "GHL read failed: OSError" and len(st["leads"]) == 2
+        assert st["error"] == "GHL read failed: OSError" and len(st["leads"]) == 3
         # Unconfigured client: honest error, no crash.
         st = dl.run_once(None, now=now + 1800)
         assert "not configured" in st["error"]
@@ -296,7 +305,7 @@ def test_rate_limit_aborts_sweep():
         assert quiet.calls == [] and "429" in st["error"]
         # Past it: a normal sweep, backoff cleared.
         st = dl.run_once(FakeGHL(now + 2800), now=now + 2800, send=lambda *a: None)
-        assert st["error"] is None and st["backoffUntil"] is None and len(st["leads"]) == 2
+        assert st["error"] is None and st["backoffUntil"] is None and len(st["leads"]) == 3
     assert dl._retry_after(urllib.error.HTTPError("u", 429, "x", {}, None)) == dl.INTERVAL
 
 
@@ -375,7 +384,7 @@ def test_contact_cap_truncation_note():
             dl.STATE = Path(tmp) / "daycare_leads.json"
             now = et(2026, 9, 22, 11, 0)
             st = dl.run_once(FakeGHL(now), now=now, send=lambda *a: None)
-            assert st["error"] is None and len(st["leads"]) == 2, st["error"]
+            assert st["error"] is None and len(st["leads"]) == 3, st["error"]
             assert "5-contact cap" in st["note"], st["note"]
             assert "5-contact cap" in dl.view()["error"]
     finally:
@@ -384,6 +393,99 @@ def test_contact_cap_truncation_note():
         dl.STATE = Path(tmp) / "daycare_leads.json"
         st = dl.run_once(FakeGHL(now), now=now, send=lambda *a: None)
         assert st["note"] is None and dl.view()["error"] is None
+
+
+def test_tag_stage():
+    """W2-5: GHL tags -> pipeline stage (normalized spelling, furthest wins)."""
+    assert dl.tag_stage([]) is None and dl.tag_stage(["website-lead", "loc-921-n-18th"]) is None
+    assert dl.tag_stage(["Tour Booked"]) == "TOUR_BOOKED"
+    assert dl.tag_stage(["tour_completed", "tour-booked"]) == "TOUR_COMPLETED"
+    assert dl.tag_stage(["applied", "toured"]) == "APPLICATION"
+    assert dl.tag_stage(["application", "lost"]) == "LOST"
+    assert dl.tag_stage(["lost", "Daycare Family"]) == "ENROLLED"
+    assert dl.derive(lead(["tour-booked"]), [], [], CREATED + 60)["tagStage"] == "TOUR_BOOKED"
+
+
+def test_stage_precedence():
+    """W2-5 precedence: furthest stage across ledger / GHL tag / local mark; ties credit
+    the stronger source; closed (ENROLLED/LOST) drops reasons -> out of needs-human."""
+    now = CREATED + 7200
+    needy = stage(lead(), [msg("outbound", CREATED + 180, source="workflow"),
+                           msg("inbound", now - 1200)], now=now)            # unanswered
+    assert needy["stage"] == "NEEDS_HUMAN"
+    toured = dict(needy, contactId="c2", tagStage="TOUR_BOOKED")
+    ap = lambda row, marks=None, kids=None: dl.apply_stages([row], marks or {}, kids or {})[0]  # noqa: E731
+    # No signal -> flow stage.
+    r = ap(needy)
+    assert r["stage"] == "NEEDS_HUMAN" and r["stageSource"] == "flow" and r["reasons"]
+    # GHL tag alone; open stage keeps its reasons (still needs a reply).
+    r = ap(toured)
+    assert (r["stage"], r["stageSource"]) == ("TOUR_BOOKED", "ghl_tag") and r["reasons"]
+    # Local mark ADVANCES past a tag...
+    r = ap(toured, {"c2": {"stage": "APPLICATION"}})
+    assert (r["stage"], r["stageSource"], r["localStage"]) == ("APPLICATION", "local", "APPLICATION")
+    # ...but never hides further GHL evidence.
+    r = ap(dict(toured, tagStage="APPLICATION"), {"c2": {"stage": "TOUR_BOOKED"}})
+    assert (r["stage"], r["stageSource"]) == ("APPLICATION", "ghl_tag")
+    # Tie -> stronger source credited.
+    r = ap(toured, {"c2": {"stage": "TOUR_BOOKED"}})
+    assert r["stageSource"] == "ghl_tag"
+    # Ledger child row -> ENROLLED, beats a local LOST; reasons dropped.
+    r = ap(needy, {"c1": {"stage": "LOST"}}, {"c1": "child-9"})
+    assert (r["stage"], r["stageSource"], r["reasons"]) == ("ENROLLED", "ledger", [])
+    # Local LOST closes a needy lead; clearing the mark (no entry) reopens it.
+    lost = ap(needy, {"c1": {"stage": "LOST"}})
+    assert lost["stage"] == "LOST" and lost["reasons"] == [] and lost["flowStage"] == "NEEDS_HUMAN"
+    assert ap(lost, {"c1": {"stage": "LOST"}}) == lost      # idempotent re-overlay
+    assert ap(needy)["reasons"]
+    # Owner Actions contract: one row per family, shape intact, closed families gone.
+    items = dl.needs_human({"leads": [needy, toured]}, now=now)
+    assert [i["contactId"] for i in items] == ["c1", "c2"], items
+    for i in items:
+        assert {"id", "title", "why", "ageSec", "priority", "contactId"} <= set(i)
+    daycare_ghl.record_form_child("c1", "child-9")
+    try:
+        assert [i["contactId"] for i in dl.needs_human({"leads": [needy, toured]}, now=now)] == ["c2"]
+    finally:
+        daycare_ghl._FORM_CHILD_STATE.unlink()
+
+
+def test_pipeline_kpis_unknown():
+    """W2-5: pipeline tiles are None (Unknown, '—') when nothing records the stage."""
+    now = CREATED + 7200
+    row = stage(lead(), [msg("inbound", now - 1200)], now=now)            # needs a human
+    k = dl.kpis(dl.apply_stages([row], {}, {}), now)
+    assert k["pipeline"] == {s: None for s in dl.PIPELINE} and k["needsHuman"] == 1, k
+    rows = dl.apply_stages([row, dict(row, contactId="c2", tagStage="TOUR_BOOKED"),
+                            dict(row, contactId="c3")], {"c3": {"stage": "ENROLLED"}}, {})
+    k = dl.kpis(rows, now)
+    assert k["pipeline"]["TOUR_BOOKED"] == 1 and k["pipeline"]["ENROLLED"] == 1, k
+    assert k["pipeline"]["APPLICATION"] is None and k["pipeline"]["LOST"] is None
+    assert k["needsHuman"] == 2                            # the enrolled one dropped out
+
+
+def test_set_stage_local_mark():
+    """W2-5: the one-tap mark writes only the local file, validates, and is reversible."""
+    with tempfile.TemporaryDirectory() as tmp:
+        dl.STATE = Path(tmp) / "daycare_leads.json"
+        now = et(2026, 9, 22, 11, 0)
+        dl.run_once(FakeGHL(now), now=now, send=lambda *a: None)
+        assert not dl.set_stage("", "LOST")["ok"]
+        assert not dl.set_stage("lead1", "MAYBE")["ok"]
+        assert not dl.set_stage("stranger", "LOST")["ok"]                 # desk leads only
+        assert not dl.STAGES_STATE.exists()
+        before = {i["contactId"] for i in dl.view()["needsHuman"]}
+        assert "lead1" in before
+        r = dl.set_stage("lead1", "lost")
+        assert r == {"ok": True, "contactId": "lead1", "stage": "LOST"}, r
+        v = dl.view()                                                      # shows at once
+        assert "lead1" not in {i["contactId"] for i in v["needsHuman"]}
+        assert v["kpis"]["pipeline"]["LOST"] == 1
+        assert next(l for l in v["leads"] if l["contactId"] == "lead1")["stageSource"] == "local"
+        assert dl.set_stage("lead1", None)["stage"] is None                # clear = revert
+        assert dl.load_marks() == {} and {i["contactId"] for i in dl.needs_human()} == before
+        assert dl.kpis()["pipeline"]["LOST"] is None
+    dl.STAGES_STATE.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

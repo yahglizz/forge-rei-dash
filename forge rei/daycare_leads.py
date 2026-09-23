@@ -87,6 +87,45 @@ REASONS = {
 }
 _PRIORITY_RANK = {"URGENT": 0, "REVENUE": 1, "CUSTOMER": 2, "NORMAL": 3}
 
+# ── W2-5 pipeline stages (tours / applications / enrollments) ─────────────────
+# Three sources, all internal: GHL tags (already fetched — no new GET), the contact→child
+# ledger (daycare_ghl, a Supabase child row exists = ENROLLED), and the owner's one-tap
+# LOCAL mark (marcus_state/daycare_lead_stages.json — never written to GHL, never messages
+# a family). PRECEDENCE: the furthest stage across all sources wins, rank order below
+# (ENROLLED > LOST > APPLICATION > TOUR_COMPLETED > TOUR_BOOKED); a tie credits the
+# stronger source (ledger > ghl_tag > local). So a local mark can ADVANCE a lead or reopen
+# a locally-lost one, but never hides GHL/ledger evidence; clearing the mark reverts. No
+# pipeline signal → the flow stage (NEW/CONTACTED/RESPONDED/NEEDS_HUMAN) shows. ENROLLED
+# and LOST are CLOSED: their reasons drop, so they leave needs-human, Owner Actions and
+# alerts. Open pipeline stages keep their reasons (a toured parent can still be unanswered).
+PIPELINE = ("TOUR_BOOKED", "TOUR_COMPLETED", "APPLICATION", "LOST", "ENROLLED")
+_STAGE_RANK = {s: i for i, s in enumerate(PIPELINE)}
+CLOSED = {"ENROLLED", "LOST"}
+STAGES_STATE = HERE / "marcus_state" / "daycare_lead_stages.json"
+_STAGES_LOCK = threading.Lock()
+
+
+def _norm_tag(t):
+    return "-".join(str(t).strip().lower().replace("_", " ").split())
+
+
+# ASSUMPTION: the daycare GHL has no stage-tag convention yet — these are the obvious
+# spellings (normalized: lowercase, spaces/underscores -> "-"). The family tags already
+# mean "enrolled family" (collect() treats them so), so they count as ENROLLED.
+STAGE_TAGS = {
+    "tour-booked": "TOUR_BOOKED", "tour-scheduled": "TOUR_BOOKED",
+    "tour-completed": "TOUR_COMPLETED", "tour-done": "TOUR_COMPLETED", "toured": "TOUR_COMPLETED",
+    "application": "APPLICATION", "application-submitted": "APPLICATION", "applied": "APPLICATION",
+    "lost": "LOST", "closed-lost": "LOST", "not-interested": "LOST",
+    **{_norm_tag(t): "ENROLLED" for t in FAMILY_TAGS},
+}
+
+
+def tag_stage(tags):
+    """Furthest pipeline stage named by a contact's GHL tags, else None."""
+    hits = [STAGE_TAGS[n] for n in map(_norm_tag, tags or ()) if n in STAGE_TAGS]
+    return max(hits, key=_STAGE_RANK.get) if hits else None
+
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
 def _sec(v):
@@ -213,6 +252,7 @@ def derive(contact, messages, tasks, now, kind="form"):
         "source": src or (kind if kind != "form" else "unknown"),
         "createdAt": _ms(created),
         "stage": stage,
+        "tagStage": tag_stage(tags),          # W2-5: GHL-tag pipeline stage (apply_stages)
         "reasons": reasons,
         "firstResponseSec": max(0, int(first_resp - created)) if first_resp is not None else None,
         "firstHumanSec": max(0, int(humans[0] - created)) if humans else None,
@@ -241,11 +281,70 @@ def _chat_kind(messages):
     return None
 
 
+def load_marks():
+    """The owner's local stage marks: {contactId: {"stage", "at"(ms)}}."""
+    try:
+        m = json.loads(STAGES_STATE.read_text()).get("marks")
+        return m if isinstance(m, dict) else {}
+    except Exception:  # noqa: BLE001 — missing/corrupt = no marks
+        return {}
+
+
+def apply_stages(leads, marks=None, children=None):
+    """Overlay pipeline stages on desk rows (precedence: see PIPELINE above). Returns NEW
+    dicts — saved state keeps the raw derive() rows. Idempotent. marks/children default to
+    the local mark file and the contact→child ledger."""
+    marks = load_marks() if marks is None else marks
+    if children is None:
+        try:
+            children = daycare_ghl._load_form_children()
+        except Exception:  # noqa: BLE001 — no ledger = no ledger evidence
+            children = {}
+    out = []
+    for lead in leads or []:
+        cid = lead.get("contactId") or ""
+        local = (marks.get(cid) or {}).get("stage")
+        row = dict(lead, flowStage=lead.get("flowStage") or lead.get("stage"), localStage=local)
+        cands = [(s, src) for s, src in (("ENROLLED" if cid in children else None, "ledger"),
+                                         (lead.get("tagStage"), "ghl_tag"), (local, "local"))
+                 if s in _STAGE_RANK]
+        if cands:
+            s, src = max(cands, key=lambda c: _STAGE_RANK[c[0]])   # first max = stronger source
+            row.update(stage=s, stageSource=src)
+            if s in CLOSED:
+                row["reasons"] = []
+        else:
+            row.update(stage=row["flowStage"], stageSource="flow")
+        out.append(row)
+    return out
+
+
+def set_stage(contact_id, stage):
+    """POST /api/daycare/leads/stage — the owner's one-tap LOCAL mark. Internal +
+    reversible (stage empty/None clears it). Never touches GHL, never messages anyone."""
+    cid = str(contact_id or "").strip()
+    stage = str(stage or "").strip().upper() or None
+    if not cid or len(cid) > 64:
+        return {"ok": False, "error": "contact_id required"}
+    if stage and stage not in _STAGE_RANK:
+        return {"ok": False, "error": "stage must be one of " + ", ".join(PIPELINE)}
+    if cid not in {l.get("contactId") for l in _load().get("leads") or []}:
+        return {"ok": False, "error": "not a Lead Desk lead"}
+    with _STAGES_LOCK:
+        marks = load_marks()
+        if stage:
+            marks[cid] = {"stage": stage, "at": _ms(time.time())}
+        else:
+            marks.pop(cid, None)
+        forge_atomic.atomic_write_json(STAGES_STATE, {"marks": marks})
+    return {"ok": True, "contactId": cid, "stage": stage}
+
+
 def kpis(leads=None, now=None):
-    """New Leads 7d/30d (meta vs organic), median response times, needs-human count.
-    With no args, reads the saved desk."""
+    """New Leads 7d/30d (meta vs organic), median response times, needs-human count,
+    pipeline counts. With no args, reads the saved desk (stages overlaid)."""
     if leads is None:
-        leads = _load().get("leads") or []
+        leads = apply_stages(_load().get("leads") or [])
     now = now or time.time()
 
     def recent(days):
@@ -271,8 +370,12 @@ def kpis(leads=None, now=None):
         "medianHumanResponseSec": int(statistics.median(human)) if human else None,
         "responseSample": len(auto),
         "humanSample": len(human),
-        "needsHuman": stages.get("NEEDS_HUMAN", 0),
+        "needsHuman": sum(1 for l in leads if l.get("reasons") or l.get("stage") == "NEEDS_HUMAN"),
         "stages": stages,
+        # W2-5: leads currently at each pipeline stage (desk window, 90d). Tags + marks are
+        # optional, so a missing stage is indistinguishable from "not tracked": None
+        # (Unknown, shown "—"), never a fake 0.
+        "pipeline": {s: stages.get(s) or None for s in PIPELINE},
     }
 
 
@@ -282,8 +385,8 @@ def needs_human(state=None, now=None):
     st = state if state is not None else _load()
     now = now or time.time()
     items = []
-    for lead in st.get("leads") or []:
-        if lead.get("stage") != "NEEDS_HUMAN" or not lead.get("reasons"):
+    for lead in apply_stages(st.get("leads")):    # W2-5: enrolled/lost carry no reasons
+        if not lead.get("reasons"):
             continue
         top = lead["reasons"][0]
         _text, verb, priority = REASONS[top["code"]]
@@ -427,6 +530,10 @@ def collect(client, now):
         created = _sec(contact.get("dateAdded")) or 0
         try:
             if tags & FAMILY_TAGS:
+                # W2-5: a lead that BECAME a family stays on the desk as ENROLLED (tag_stage)
+                # for the enrollment count — zero GETs, no thread, so no reasons, no alerts.
+                if tags & LEAD_TAGS and max(created, last_at) >= now - LOOKBACK_DAYS * 86400:
+                    leads.append(derive(contact, None, [], now))
                 continue                  # an enrolled family is not a lead any more
             if tags & LEAD_TAGS:
                 if max(created, last_at) < now - LOOKBACK_DAYS * 86400:
@@ -475,15 +582,16 @@ def run_once(client, now=None, send=None):
         st["lastRunAt"] = _ms(now)
         st["backoffUntil"] = _ms(now + backoff) if backoff else None
         if leads is not None:
-            st["leads"] = leads
-            st["kpis"] = kpis(leads, now)
+            st["leads"] = leads                   # raw rows; stages overlay at read time
+            shown = apply_stages(leads)           # W2-5: closed leads never alert
+            st["kpis"] = kpis(shown, now)
             st["lastOkAt"] = _ms(now)
             error = f"{failed} lead(s) could not be read this sweep" if failed else None
             # Not an error (the sweep worked) — a note so a growing location shows up.
             st["note"] = (f"Contact list hit the {CONTACT_PAGES * PAGE_SIZE}-contact cap — "
                           "older contacts were not scanned." if truncated else None)
             try:
-                process_alerts(st, leads, now, send)
+                process_alerts(st, shown, now, send)
             except Exception as e:  # noqa: BLE001 — an alert failure never loses the sweep
                 error = f"alert failed: {type(e).__name__}"
         st["error"] = error          # on failure the previous leads stay, marked stale
@@ -497,7 +605,7 @@ def run_once(client, now=None, send=None):
 def view():
     """GET /api/daycare/leads payload. Reads state only — no network on the request path."""
     st = _load()
-    leads = st.get("leads") or []
+    leads = apply_stages(st.get("leads"))     # W2-5: a one-tap mark shows immediately
     error = st.get("error") or st.get("note")
     if not st.get("lastRunAt"):
         error = error or ("Lead Desk has not run yet — it reads GHL every 15 min on the box "

@@ -4220,6 +4220,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
                 "/api/daycare/ghl/enroll",
+                "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
                 "/api/daycare/blast/send", "/api/daycare/blast/cancel",
                 "/api/daycare/blast/optout",
@@ -4300,6 +4301,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = daycare_ghl.undismiss(body.get("contact_id"))
             elif path == "/api/daycare/ghl/enroll":
                 result = self._daycare_ghl_enroll(session, body)
+            # --- W2-5 --- Lead Desk one-tap stage mark: local state file only — never
+            # written to GHL, never messages a family (internal + reversible, rule 2).
+            elif path == "/api/daycare/leads/stage":
+                result = daycare_leads.set_stage(body.get("contact_id"), body.get("stage"))
+            # --- /W2-5 ---
             elif path == "/api/daycare/blast/preview":
                 result = self._daycare_blast_preview(session, body)
             elif path == "/api/daycare/blast/create":

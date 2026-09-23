@@ -229,13 +229,32 @@ function DldDuration(sec) {
   return Math.round(s / 86400) + "d";
 }
 
+// --- W2-5 --- pipeline stages. GHL tags + contact→child ledger + the owner's one-tap LOCAL
+// mark (never written to GHL, never messages a family). Furthest stage wins server-side.
+const DLD_PIPELINE = [["TOUR_BOOKED", "Tour booked"], ["TOUR_COMPLETED", "Tour done"], ["APPLICATION", "Application"], ["ENROLLED", "Enrolled"], ["LOST", "Lost"]];
+const DLD_STAGE_LABEL = { NEW: "New", CONTACTED: "Contacted", RESPONDED: "Responded", NEEDS_HUMAN: "Needs you", ...Object.fromEntries(DLD_PIPELINE) };
+const DLD_SOURCE_LABEL = { ghl_tag: "GHL tag", ledger: "enrolled record", local: "your mark", flow: "GHL activity" };
+// --- /W2-5 ---
+
 function DldLeadDesk() {
   const desk = DcxUseResource("/leads", null, 60000);
+  const [dldBusy, setDldBusy] = useStateDcx("");
+  const [dldNote, setDldNote] = useStateDcx("");
+  const dldMark = async (contactId, stage) => {
+    setDldBusy(contactId); setDldNote("");
+    try {
+      const result = await DcxRequest("/leads/stage", { body: { contact_id: contactId, stage: stage || null } });
+      if (result.ok === false) setDldNote(result.error || "Could not save the stage.");
+      desk.setData(await DcxRequest("/leads"));
+    } catch (error) { setDldNote(error.message); } finally { setDldBusy(""); }
+  };
   const data = desk.data && !Array.isArray(desk.data) ? desk.data : {};
   const k = data.kpis || {};
   const d7 = k.newLeads7d || {};
   const d30 = k.newLeads30d || {};
   const items = data.needsHuman || [];
+  const pipe = k.pipeline || {};
+  const leads = data.leads || [];
   const err = desk.error ? (desk.error.message || "Lead Desk is unavailable.") : data.error;
   const ran = Boolean(data.lastRunAt);
   return <div className="card card-pad dc-panel">
@@ -247,8 +266,13 @@ function DldLeadDesk() {
         <DcxKpi label="Lead Response Time" value={DldDuration(k.medianResponseSec)} sub={"median first reply, 30d · human " + DldDuration(k.medianHumanResponseSec)} icon="Conversations" color="#38BDF8"/>
         <DcxKpi label="Leads Needing Human Attention" value={items.length} sub="waiting on you now" icon="Bell" color={items.length ? "#F4B860" : "#22C55E"}/>
       </div>
+      <div className="dc-kpi-grid">{DLD_PIPELINE.map(([key, label]) => <DcxKpi key={key} label={label} value={pipe[key] ?? "—"} sub={pipe[key] == null ? "not recorded yet" : "leads at this stage, 90d"} icon={key === "ENROLLED" ? "Check" : "Children"} color={key === "LOST" ? "#94A3B8" : key === "ENROLLED" ? "#22C55E" : "#8B5CF6"}/>)}</div>
       {items.length ? <div className="dc-alert-list">{items.map((item) => <div key={item.id}><span className={"dc-severity " + (item.priority === "URGENT" ? "danger" : "warning")}/><div><b>{item.title} · {DldDuration(item.ageSec)}</b><small>{item.why}{item.ghlUrl ? <> · <a className="link" style={{ fontSize: "inherit" }} href={item.ghlUrl} target="_blank" rel="noreferrer">Open in GHL ↗</a></> : null}</small></div></div>)}</div>
         : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>Nothing waiting on you</b><span>No unanswered replies, overdue call tasks or call-me requests.</span></div></div>}
+      {leads.length > 0 && <details style={{ marginTop: 12 }}><summary className="faint" style={{ cursor: "pointer" }}>All leads ({leads.length}) — mark tour / application / enrolled / lost · internal only, never sent to GHL or the family</summary>
+        {dldNote && <div className="dc-error-text" role="alert">{dldNote}</div>}
+        <div className="dc-alert-list">{leads.map((lead) => <div key={lead.contactId} style={{ alignItems: "center" }}><span className={"dc-severity " + (lead.reasons && lead.reasons.length ? "warning" : "info")}/><div style={{ flex: 1 }}><b>{lead.parentName || "New family"} · {lead.center}</b><small>{DLD_STAGE_LABEL[lead.stage] || lead.stage} · from {DLD_SOURCE_LABEL[lead.stageSource] || "GHL activity"}</small></div><select aria-label="Mark stage" value={lead.localStage || ""} disabled={dldBusy === lead.contactId} onChange={(event) => dldMark(lead.contactId, event.target.value)}><option value="">Auto</option>{DLD_PIPELINE.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>)}</div>
+      </details>}
     </>}
   </div>;
 }
