@@ -50,7 +50,7 @@ function MApp() {
   return (
     <div className="m-app">
       {render()}
-      <window.MTabBar tab={tab === "agents" ? "more" : tab} onTab={setTab} />
+      <window.MTabBar tab={tab === "agents" ? "more" : tab === "actions" ? "today" : tab} onTab={setTab} />
     </div>
   );
 }

@@ -27,9 +27,10 @@ function MPToday() {
         {items.length > 3 && <button className="mw-all-actions" onClick={()=>window.mGoTab("actions")}>See all {items.length} actions →</button>}
       </window.MCard>
       <div className="m-section"><span className="m-section-l">Your businesses</span><span className="m-section-line"/></div>
-      {mission.loading && !mission.data ? <window.MCard><window.MSpin/></window.MCard> : mission.error ? <div className="mw-warn">Business overview unavailable — retry.</div> : businesses.map((b)=><button className="mw-business" key={b.id} onClick={()=>jump(b.id)} style={{"--biz":b.accent || "#4F7CFF"}}>
-        <span className="mw-business-icon">{b.id === "daycare" ? "♥" : b.id === "agency" ? "✳" : "⌂"}</span><span className="mw-business-copy"><b>{b.name}</b><small>{b.tag || b.statusLabel || "Open workspace"}</small>{b.metrics && <small>{b.metrics.slice(0,3).map((m)=>m.label + " " + m.value).join(" · ")}</small>}</span><span className="mw-business-go">›</span>
-      </button>)}
+      {mission.loading && !mission.data ? <window.MCard><window.MSpin/></window.MCard> : mission.error ? <div className="mw-warn">Business overview unavailable — retry.</div> : businesses.map((b)=><div className="mw-business-wrap" key={b.id}>
+        <button className="mw-business" onClick={()=>jump(b.id)} style={{"--biz":b.accent || "#4F7CFF"}}><span className="mw-business-icon">{b.id === "daycare" ? "♥" : b.id === "agency" ? "✳" : "⌂"}</span><span className="mw-business-copy"><b>{b.name}</b><small>{b.tag || b.statusLabel || "Open workspace"}</small>{b.metrics && <small>{b.metrics.slice(0,3).map((m)=>m.label + " " + m.value).join(" · ")}</small>}</span><span className="mw-business-go">›</span></button>
+        {(b.attention || []).filter((a)=>a.sev === "warn").map((a,i)=><div className="mw-warn" key={i}>{a.text}</div>)}
+      </div>)}
       {registry.error ? <div className="mw-warn">Agent roster unavailable — retry.</div> : registry.data && <button className="mw-agent-strip" onClick={()=>window.mGoTab("agents")}><span>🤖</span><b>Agent crew</b><small>{(registry.data.agents || registry.data.items || []).length} agents · View roster</small><i>›</i></button>}
     </div>
   </React.Fragment>;
@@ -45,7 +46,11 @@ function MWAgency() {
   const [notice, setNotice] = useStateMW("");
   const today = calls.data && calls.data.today || {};
   const rows = sheet.data && (sheet.data.rows || sheet.data.leads || sheet.data.calls || []) || [];
-  const due = rows.filter((r) => (filter !== "Due now" || r.dueNow || r.status === "callback" || r.callbackDue) && (!query || [r.name,r.company,r.phone].join(" ").toLowerCase().includes(query.toLowerCase())));
+  const due = rows.filter((r) => {
+    const callbackTime = Date.parse(r.callbackAt || "");
+    const dueNow = r.dueNow || r.callbackDue || (r.status === "callback" && (!callbackTime || callbackTime <= Date.now()));
+    return (filter !== "Due now" || dueNow) && (!query || [r.name,r.company,r.phone].join(" ").toLowerCase().includes(query.toLowerCase()));
+  });
   async function log(outcome) {
     setBusy(true); setNotice("");
     try { await window.apiPostM("/api/agency/calls/log", { outcome }); calls.refresh(); }
@@ -53,7 +58,7 @@ function MWAgency() {
     setBusy(false);
   }
   async function mark(row, status) {
-    try { await window.apiPostM("/api/agency/callsheet/status", { id: row.id, status }); sheet.refresh(); calls.refresh(); }
+    try { await window.apiPostM("/api/agency/callsheet/status", { id: row.id, status }); sheet.refresh(); calls.refresh(); setStatusLead(null); }
     catch (e) { setNotice("Call sheet unavailable — retry."); }
   }
   return <React.Fragment>
@@ -90,7 +95,7 @@ function MWAgency() {
         <div className="mw-desktop-hint">Import a lead list from the desktop Call Center.</div>
       </window.MCard>
     </div>
-    {statusLead && <div className="m-sheet"><div className="m-sheet-head"><button className="m-tab" onClick={()=>setStatusLead(null)}>‹</button><b style={{flex:1}}>Update call status</b></div><div className="m-sheet-body"><div className="m-card"><b>{statusLead.name || statusLead.company || "Prospect"}</b><div className="m-fade" style={{marginTop:4}}>Choose the outcome for this call.</div></div>{[["new","New"],["answered","Answered"],["no_answer","No answer"],["callback","Call back"],["move_on","Move on"]].map(([value,label])=><button key={value} className="mw-stage-choice" onClick={()=>mark(statusLead,value)}>{label}</button>)}<window.MBtn kind="ghost" onClick={()=>setStatusLead(null)}>Cancel</window.MBtn></div></div>}
+    {statusLead && <div className="m-sheet"><div className="m-sheet-head"><button className="m-tab" onClick={()=>setStatusLead(null)}>‹</button><b style={{flex:1}}>Update call status</b></div><div className="m-sheet-body"><div className="m-card"><b>{statusLead.name || statusLead.company || "Prospect"}</b><div className="m-fade" style={{marginTop:4}}>Choose the outcome for this call.</div></div>{[["new","New"],["answered","Answered"],["no_answer","No answer"],["callback","Call back"],["dead","Move on"]].map(([value,label])=><button key={value} className="mw-stage-choice" onClick={()=>mark(statusLead,value)}>{label}</button>)}<window.MBtn kind="ghost" onClick={()=>setStatusLead(null)}>Cancel</window.MBtn></div></div>}
   </React.Fragment>;
 }
 
@@ -101,8 +106,9 @@ function MWDaycare() {
   const [stageLead, setStageLead] = useStateMW(null);
   const [stageValue, setStageValue] = useStateMW("TOUR_BOOKED");
   const data = leads.data || {};
-  const needs = data.needsHuman || data.needs_human || data.needsHumanList || [];
-  const stages = data.stages || {};
+  const needs = Array.isArray(data.needsHuman) ? data.needsHuman : [];
+  const kpis = data.kpis || {};
+  const stages = kpis.pipeline || kpis.stages || {};
   const auth = leads.error && /401|403|unauthor/i.test(String(leads.error));
   async function stage() {
     if (!stageLead || !window.confirm("Save this stage locally? It will not update GoHighLevel.")) return;
@@ -121,8 +127,8 @@ function MWDaycare() {
       {auth ? <div className="mw-warn">Daycare needs a session — open the desktop Daycare tab once.</div> : leads.error ? <div className="mw-warn">Daycare leads unavailable — retry.</div> : null}
       {leads.loading && !leads.data ? <window.MCard><window.MSpin/></window.MCard> : !leads.error && <>
         <window.MCard title="Lead stages">
-          <div className="mw-stats mw-stage-stats">{["newLeads","needsHuman","tourBooked","tourCompleted","application","enrolled"].map((k,i)=><MWMetric key={k} label={["New","Needs you","Tour booked","Tour complete","Application","Enrolled"][i]} value={stages[k] ?? stages[k.replace(/[A-Z]/g,(c)=>"_"+c.toLowerCase())] ?? "—"}/>)}</div>
-          {data.avgResponseTime && <div className="mw-response">Average response · {data.avgResponseTime}</div>}
+          <div className="mw-stats mw-stage-stats"><MWMetric label="New leads · 7d" value={kpis.newLeads7d ? kpis.newLeads7d.total : "—"}/><MWMetric label="Needs you" value={kpis.needsHuman ?? "—"}/>{[["TOUR_BOOKED","Tour booked"],["TOUR_COMPLETED","Tour complete"],["APPLICATION","Application"],["ENROLLED","Enrolled"]].map(([key,label])=><MWMetric key={key} label={label} value={stages[key] ?? "—"}/>)}</div>
+          <div className="mw-response">Median human response · {kpis.medianHumanResponseSec == null ? "—" : Math.max(1, Math.round(kpis.medianHumanResponseSec/60)) + " min"}</div>
         </window.MCard>
         <window.MCard title="Needs a human" right={<span className="mw-streak">{needs.length}</span>}>
           {needs.length ? needs.map((r)=><div className="mw-lead" key={r.contactId || r.id}>
