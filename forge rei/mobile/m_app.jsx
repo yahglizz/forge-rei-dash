@@ -4,6 +4,7 @@ const { useState: useStateMAP, useEffect: useEffectMAP } = React;
 
 const M_PAGES = {
   home: () => (window.MHomePage ? <window.MHomePage /> : <window.MEmpty title="Home unavailable" />),
+  actions: () => (window.MActionsPage ? <window.MActionsPage /> : <window.MEmpty title="Actions unavailable" />),
   convos: () => (window.MConvosPage ? <window.MConvosPage /> : <window.MEmpty title="Convos unavailable" />),
   pipeline: () => (window.MPipelinePage ? <window.MPipelinePage /> : <window.MEmpty title="Pipeline unavailable" />),
   calc: () => (window.MCalcPage ? <window.MCalcPage /> : <window.MEmpty title="Calc unavailable" />),

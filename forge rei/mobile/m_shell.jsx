@@ -58,6 +58,7 @@ function MHeader(props) {
 
 const M_TABS = [
   { key: "home", label: "Home", ico: "Home" },
+  { key: "actions", label: "Actions", ico: "Check" },
   { key: "convos", label: "Convos", ico: "Chat" },
   { key: "pipeline", label: "Pipeline", ico: "Board" },
   { key: "calc", label: "Calc", ico: "Calc" },
