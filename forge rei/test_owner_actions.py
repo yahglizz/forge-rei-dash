@@ -117,6 +117,25 @@ assert _down and 7100 <= _down[0]["ageSec"] <= 7300, _down
 empty = oa.build({}, sources=[])
 assert empty["ok"] and empty["items"] == [] and empty["counts"]["total"] == 0 and "generatedAt" in empty
 
+# 8. stale rows collapse to one summary row per source; FIX + fresh rows untouched
+_d = 86400
+_rows = [dict(oa._item(f"marcus:{i}", "APPROVE", "wholesale", "urgent", f"r{i}", source="marcus"), ageSec=40 * _d)
+         for i in range(3)]
+_rows += [dict(oa._item("marcus:new", "APPROVE", "wholesale", "revenue", "fresh", source="marcus"), ageSec=_d),
+          dict(oa._item("ai:down", "FIX", "system", "urgent", "ai"), ageSec=90 * _d)]
+_c = oa.collapse_stale(_rows, 30)
+_ids = sorted(r["id"] for r in _c)
+assert _ids == ["ai:down", "marcus:new", "stale:marcus"], _ids
+_s = [r for r in _c if r["id"] == "stale:marcus"][0]
+assert _s["stale"] == 3 and _s["priority"] == "normal" and _s["kind"] == "REVIEW", _s
+
+# 9. a Marcus draft whose "inbound" is our own outreach never becomes an APPROVE row (rule 4)
+class _M:
+    def proposals_list(self):
+        return [{"id": "a", "status": "pending", "inbound": "just checking in, i dont want to be a bug", "ts": 1},
+                {"id": "b", "status": "pending", "inbound": "yes I want to sell", "ts": 1}]
+assert [r["id"] for r in oa._src_marcus_proposals({"marcus": _M()})] == ["marcus:b"]
+
 print("test_owner_actions: OK")
 
 

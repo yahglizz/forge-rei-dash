@@ -19,6 +19,7 @@ Item shape:
 
 `merge_and_sort(items)` is the pure core (testable, no I/O); `build(ctx)` is the I/O shell.
 """
+import os
 import time
 from datetime import datetime
 
@@ -27,6 +28,13 @@ KINDS = ("CALL", "CALLBACK", "APPROVE", "REVIEW", "FIX")
 DAYCARE_TTL_SEC = 600          # pending_families is a paged GHL read — cache >= 10 min
 DAYCARE_FAILS_BEFORE_FIX = 3   # fail soft; only a repeated failure becomes a FIX item
 CALL_FRESH_DAYS = 5            # a screened-interested seller stays a call this long (do_today)
+# Rows older than this collapse into ONE summary row per source, so a months-old backlog
+# (e.g. the frozen legacy Marcus SMS queue) can't bury today's work. Still counted, never hidden.
+STALE_DAYS = int(os.environ.get("FORGE_OWNER_ACTIONS_STALE_DAYS") or 30)
+_STALE_LABEL = {"marcus": "old reply drafts", "scout": "old Scout leads/tags",
+                "daycare_leads": "daycare families waiting", "daycare_ghl": "old daycare inquiries",
+                "skill_forge": "old skill proposals", "agency_approvals": "old agency approvals",
+                "agency_requests": "old client requests"}
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +58,30 @@ def merge_and_sort(items):
                 -age if isinstance(age, (int, float)) else 1)
     out.sort(key=key)
     return out
+
+
+def collapse_stale(items, stale_days=None):
+    """Replace every non-FIX row older than stale_days with one REVIEW/normal summary row per
+    source (count + oldest age, same link). Pure. FIX rows are never collapsed."""
+    lim = (STALE_DAYS if stale_days is None else stale_days) * 86400
+    keep, old = [], {}
+    for it in items or []:
+        age = it.get("ageSec")
+        if it.get("kind") != "FIX" and isinstance(age, (int, float)) and lim > 0 and age > lim:
+            old.setdefault(it.get("source") or "other", []).append(it)
+        else:
+            keep.append(it)
+    for src, rows in old.items():
+        oldest = max(r["ageSec"] for r in rows)
+        keep.append({
+            "id": f"stale:{src}", "kind": "REVIEW", "business": rows[0].get("business"),
+            "priority": "normal",
+            "title": f"{len(rows)} {_STALE_LABEL.get(src, src + ' items')} older than "
+                     f"{lim // 86400}d — clear or re-engage",
+            "why": "; ".join(r.get("title", "") for r in rows[:3])[:200],
+            "ageSec": oldest, "link": rows[0].get("link") or {}, "source": src, "stale": len(rows),
+        })
+    return keep
 
 
 def _age(created_ms, now_ms):
@@ -105,10 +137,16 @@ def _src_marcus_proposals(ctx):
     marcus = ctx.get("marcus")
     if not marcus:
         return []
+    try:
+        from marcus_engine import _is_our_message
+    except Exception:
+        _is_our_message = None
     out = []
     for p in marcus.proposals_list() or []:
         if p.get("status") != "pending":
             continue
+        if _is_our_message and _is_our_message(p.get("inbound")):
+            continue   # rule 4: never ask the owner to reply to our own outreach
         hot = bool(p.get("newLead")) or p.get("classification") == "READY"
         why = ("🆕 new lead — " if p.get("newLead") else "") + (p.get("inbound") or "")
         out.append(_item(f"marcus:{p.get('id')}", "APPROVE", "wholesale",
@@ -395,7 +433,7 @@ def build(ctx, sources=None):
             items.append(_item(f"fix:{name}", "FIX", business, "urgent",
                                f"Can't read {name.replace('_', ' ')}", str(e)[:160], None,
                                {"view": "health"}, name))
-    items = merge_and_sort(items)
+    items = merge_and_sort(collapse_stale(merge_and_sort(items)))
     counts = {"total": len(items)}
     for k in KINDS:
         counts[k] = sum(1 for i in items if i["kind"] == k)
