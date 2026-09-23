@@ -164,7 +164,8 @@ function MAgentsPage(props) {
     });
   });
 
-  const noAgents = hasRegistry && !agents.length;
+  // Filtered + registry down: the fallback list may have nobody for this business.
+  const noAgents = !agents.length && (hasRegistry || (!!business && !rosterM.loading));
   const active = agents.find((a) => a.id === agentId) || agents[0] || { id: "none", name: "No active agent", color: "#64748B", crew: "rei", ep: "/api/hub/chat", role: "Archived agents are hidden on mobile" };
   const draft = drafts[active.id] || "";
   const thinking = busyId === active.id;

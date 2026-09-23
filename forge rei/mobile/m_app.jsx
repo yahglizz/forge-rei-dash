@@ -54,4 +54,93 @@ function MApp() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<MApp />);
+// ── Business portal mode ────────────────────────────────────────────────────
+// m_biz: wholesale|agency|daycare → that business's own tabs (window.M_BIZ[id]);
+// all → the classic MApp above, untouched; unset → MLoginPortal (m_login.jsx).
+// Anything missing (portal file, M_BIZ entry) falls back to the classic app.
+const MAP_BIZ_CHOICES = ["wholesale", "agency", "daycare", "all"];
+
+function MAPReadBiz() {
+  // ?biz= wins for this launch (e.g. a per-business home-screen bookmark) but is not saved.
+  const q = new URLSearchParams(window.location.search).get("biz");
+  if (MAP_BIZ_CHOICES.includes(q)) return q;
+  const s = localStorage.getItem("m_biz");
+  return MAP_BIZ_CHOICES.includes(s) ? s : null;
+}
+
+// A business page is another agent's file — one crash shows a way out, not a white screen.
+class MAPBoundary extends React.Component {
+  constructor(p) { super(p); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return <React.Fragment>
+      <window.MHeader title="Screen error" sub="This page hit a problem" />
+      <div className="m-content">
+        <window.MEmpty title="This screen couldn't load" sub={String((this.state.err && this.state.err.message) || this.state.err)} />
+        {window.mSwitchBiz && <window.MBtn kind="ghost" onClick={() => window.mSwitchBiz()}>Switch business</window.MBtn>}
+      </div>
+    </React.Fragment>;
+  }
+}
+
+function MAPBiz(props) {
+  const biz = props.biz;
+  const tabs = Array.isArray(biz.tabs) && biz.tabs.length ? biz.tabs : [{ key: "home", label: "Home", ico: "Home" }];
+  const keys = tabs.map((t) => t.key);
+  const tabStore = "m_tab_" + biz.id;
+  const [tab, setTab] = useStateMAP(() => { const s = localStorage.getItem(tabStore); return keys.includes(s) ? s : keys[0]; });
+  const [overlay, setOverlay] = useStateMAP(null); // classic page shown inside this business: {key, segment}
+  useEffectMAP(() => { localStorage.setItem(tabStore, tab); }, [tab]);
+  const goTab = (k) => { setOverlay(null); setTab(k); };
+  // mGoTab here: own tab → switch; own id ("wholesale", "Hot") → matching tab or home;
+  // any other classic page → render it inside this business (tab bar kept, header ‹ returns).
+  useEffectMAP(() => {
+    window.mGoTab = (t, segment) => {
+      const seg = segment ? String(segment).toLowerCase() : "";
+      if (keys.includes(t)) return goTab(t);
+      if (t === biz.id) {
+        if (!seg) return goTab(keys[0]);
+        if (keys.includes(seg)) return goTab(seg);
+      }
+      if (t === "wholesale" || M_PAGES[t]) setOverlay({ key: t, segment: segment || null });
+    };
+    return () => { if (window.mGoTab) delete window.mGoTab; };
+  }, [biz]);
+  window.mBizBack = overlay ? () => setOverlay(null) : null; // read by MHeader this render
+  const Page = biz.pages && biz.pages[tab];
+  let body;
+  if (overlay && overlay.key === "wholesale") body = <MAPWholesale segment={overlay.segment || "Approvals"} />;
+  else if (overlay && overlay.key === "agents") body = window.MAgentsPage ? <window.MAgentsPage business={biz.id} /> : M_PAGES.agents();
+  else if (overlay) body = M_PAGES[overlay.key]();
+  else body = Page ? <Page /> : <React.Fragment><window.MHeader title={biz.name || biz.id} /><div className="m-content"><window.MEmpty title="Page unavailable" /></div></React.Fragment>;
+  return (
+    <div className="m-app">
+      <MAPBoundary key={overlay ? "o:" + overlay.key : "t:" + tab}>{body}</MAPBoundary>
+      <window.MTabBar tabs={tabs} tab={overlay ? null : tab} onTab={goTab} />
+    </div>
+  );
+}
+
+function MAPRoot() {
+  const [biz, setBiz] = useStateMAP(MAPReadBiz);
+  const Portal = window.MLoginPortal;
+  const reg = biz && biz !== "all" && window.M_BIZ && window.M_BIZ[biz];
+  const pick = (id) => { localStorage.setItem("m_biz", id); setBiz(id); };
+  // Globals read by MHeader during this render (children render after the parent).
+  window.mBizActive = reg ? biz : null;
+  window.mBizBack = null;
+  if (reg || (Portal && biz === "all")) {
+    window.mSwitchBiz = () => {
+      localStorage.removeItem("m_biz");
+      const u = new URL(window.location.href);
+      if (u.searchParams.has("biz")) { u.searchParams.delete("biz"); window.history.replaceState(null, "", u.pathname + u.search + u.hash); }
+      setBiz(null);
+    };
+  } else delete window.mSwitchBiz;
+  if (reg) return <MAPBiz key={biz} biz={Object.assign({ id: biz }, reg)} />;
+  if (!biz && Portal) return <Portal onPick={pick} />;
+  return <MApp />;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<MAPRoot />);

@@ -397,3 +397,72 @@ body {
   .m-content { width:min(680px,100%); box-sizing:border-box; margin-inline:auto; }
   .mw-business-segments,.mw-home-actions { width:min(652px,calc(100% - 28px)); box-sizing:border-box; margin-inline:auto; }
 }
+
+/* ── Business portal (login) ── m_login.jsx MLoginPortal: FORGE take on the daycare
+   app's "Where are you headed?" page (brand block + one-tap cards). Own scroller —
+   #root/body never scroll. Also .mlg-switch = MHeader ⇄ in business mode. */
+.mlg-page {
+  height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain;
+  display:flex; flex-direction:column; background:#08265A;
+}
+.mlg-brand {
+  position:relative; isolation:isolate; overflow:hidden; flex:none; box-sizing:border-box;
+  min-height:236px; display:flex; flex-direction:column; justify-content:flex-end;
+  padding:calc(env(safe-area-inset-top, 0px) + 28px) 26px 34px; color:#fff;
+  background:radial-gradient(circle at 18% 15%, rgba(255,219,99,.20), transparent 36%),
+    linear-gradient(155deg,#0C4FB0 0%,#08265A 74%);
+}
+.mlg-brand:before, .mlg-brand:after { content:""; position:absolute; z-index:-1; border-radius:50%; }
+.mlg-brand:before { width:320px; height:320px; left:-150px; bottom:-130px; background:rgba(255,219,99,.10); }
+.mlg-brand:after { width:220px; height:220px; right:-90px; top:12%; border:1px solid rgba(255,255,255,.14); }
+.mlg-mark {
+  width:62px; height:62px; margin-bottom:18px; border-radius:20px; display:grid; place-items:center;
+  background:rgba(255,255,255,.94); box-shadow:0 16px 40px rgba(3,14,38,.28);
+}
+.mlg-mark .m-forge-pal { width:56px; height:56px; }
+.mlg-eyebrow { margin:0; color:#FFD66B; font-size:11px; font-weight:800; letter-spacing:.26em; text-transform:uppercase; }
+.mlg-title { margin:6px 0 0; font-size:52px; font-weight:950; line-height:.94; letter-spacing:-.055em; }
+.mlg-panel {
+  flex:1 0 auto; box-sizing:border-box; border-radius:28px 28px 0 0; background:var(--bg);
+  padding:28px 18px calc(env(safe-area-inset-bottom, 0px) + 28px);
+}
+.mlg-wrap { width:min(100%,540px); margin:0 auto; animation:mlg-rise .45s ease both; }
+.mlg-h1 { margin:0; color:var(--text); font-size:27px; font-weight:950; line-height:1.08; letter-spacing:-.035em; }
+.mlg-sub { margin:8px 0 22px; color:var(--text-3); font-size:14px; }
+.mlg-grid { display:grid; grid-template-columns:1fr; gap:12px; }
+.mlg-card {
+  position:relative; overflow:hidden; display:flex; align-items:center; gap:12px;
+  width:100%; min-height:76px; padding:14px 15px; box-sizing:border-box;
+  border:1px solid #E6ECF8; border-radius:20px; background:#fff; color:var(--text);
+  text-align:left; font-family:inherit; cursor:pointer;
+  box-shadow:0 8px 22px rgba(34,50,82,.07); transition:transform .18s ease, box-shadow .18s ease;
+}
+.mlg-card:before {
+  content:""; position:absolute; inset:0 auto 0 0; width:4px; background:var(--biz,#0968EA);
+  transform:scaleY(0); transition:transform .18s ease;
+}
+.mlg-card:active { transform:scale(.98); box-shadow:0 4px 12px rgba(34,50,82,.09); }
+.mlg-card:active:before { transform:scaleY(1); }
+.mlg-card.mlg-all { background:linear-gradient(135deg,#FFF9E8,#fff 70%); }
+.mlg-icon {
+  width:48px; height:48px; flex:none; display:grid; place-items:center; border-radius:16px;
+  color:var(--biz,#0968EA); background:color-mix(in srgb,var(--biz,#0968EA) 14%,white);
+}
+.mlg-copy { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.mlg-copy strong { font-size:15px; font-weight:850; letter-spacing:-.2px; }
+.mlg-copy small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-3); font-size:11.5px; }
+.mlg-copy .mlg-live { color:var(--text-2); font-weight:750; font-variant-numeric:tabular-nums; }
+.mlg-enter {
+  width:32px; height:32px; flex:none; display:grid; place-items:center; border-radius:50%;
+  color:var(--biz,#0968EA); background:color-mix(in srgb,var(--biz,#0968EA) 12%,white);
+  font-size:16px; font-weight:800;
+}
+.mlg-foot { margin:22px 0 0; color:var(--text-3); font-size:11px; text-align:center; }
+.mlg-switch { display:grid; place-items:center; color:var(--text); }
+@keyframes mlg-rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .mlg-wrap { animation:none; } .mlg-card { transition:none; } }
+@media (min-width:700px) {
+  .mlg-brand { min-height:280px; padding-inline:max(26px, calc(50% - 270px)); }
+  .mlg-grid { grid-template-columns:1fr 1fr; }
+}
+/* ── end Business portal (login) ── */
