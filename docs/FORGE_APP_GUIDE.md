@@ -75,7 +75,7 @@ A task is an assignment the agent sees in its next prompt — it is never an out
 | Eco | Agency | ad strategy + performance reads — launches only on approval |
 | Solomon | Daycare | the center's director: one ranked operating brief daily |
 | Orion | All | daily CEO brief across businesses |
-| Daily brief / recap | All | morning + evening Telegram pulses (no AI cost) |
+| Daily brief / recap | Wholesale (+ system spend / stale-agent lines) | morning + evening Telegram pulses (no AI cost) |
 | Midas | Dropship | archived — reactivate from Archived to use |
 
 Telegram shortcut: start a message with the agent's name — `solomon, what's the ratio situation`
@@ -88,8 +88,9 @@ Telegram shortcut: start a message with the agent's name — `solomon, what's th
   and Telegram alerts once (and once again on recovery).
 - **Costs** — Claude spend by agent, month to date + projection.
 - **Archived** — Dropship and the Agency "Personal" lens are archived: hidden, data kept.
-  **Reactivate** brings a business back everywhere in one tap. "Open read-only" views it
-  without reactivating.
+  **Reactivate** brings a business back everywhere in one tap. **"Open (archived)"** enters it
+  without reactivating — but it is **not read-only**: every button on those pages still works
+  (an "Archived — actions still work" banner shows). Treat it as live.
 
 ## 6. What never happens without you
 

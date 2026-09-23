@@ -35,8 +35,8 @@ Agent Control Center (spec §9) each agent can already report. Code refs are rel
 | skill_forge (per event) | `skill_forge.py` | bus notifier | yes | vault proposal; adoption needs tap | none | — |
 
 **Outside the process (systemd timers):** `forge-daily-learn` 20:00 ET → learn/run for scout,
-screening, style, review, dyson, eco (all failing: credits) · `forge-review` Mon → **broken unit
-quoting** · `forge-autopull` 60 s (deploys).
+screening, style, review, dyson, eco (all failing: credits) · `forge-review` Mon (unit quoting fixed in WP-F d141618, box confirmed
+2026-09-22; review failures now return the real error) · `forge-autopull` 60 s (deploys).
 
 ## 2. Agent roster
 

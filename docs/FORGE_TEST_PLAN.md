@@ -22,7 +22,7 @@ Four tests import `connector` and build engines from the **real** `marcus_state/
 
 ## 2. Baseline (2026-09-22, Mac, offline suite minus the 4 above)
 
-**26 pass / 2 fail** at audit time — both fixed in WP-G. **After wave 1: 32 pass / 0 fail**
+**26 pass / 2 fail** at audit time — both fixed in WP-G. **After wave 1: 32 pass / 0 fail; 33 pass / 0 fail at the wave-2 audit**
 (the suite now includes test_ai_health, test_business_scope, test_owner_actions,
 test_agent_registry, test_daycare_leads). The two former failures:
 - `test_e2e_pipeline.py` — opt-out reason label (`scout_triage._rule_score`).

@@ -209,7 +209,7 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 
 ## 5. The agents
 
-**Seven brains, on purpose** (the Agent Control Center roster shows 12 rows: these
+**Eight brains, on purpose** (the Agent Control Center roster shows 12 rows: these
 brains + the brainless engines Follow-up, ACE, Autopilot and the daily brief/recap,
 which chat through their owner via `chatVia`). 2026-07-25 audit: the daycare ran a director + two role
 agents that were ~85% the same class re-reading the same tables on separate loops, and
@@ -270,7 +270,8 @@ state in `marcus_state/`).
 
 **Validate before every deploy:**
 - Python: `python3 -c "import ast; ast.parse(open('FILE').read())"`
-- JSX: `node /tmp/valjsx.js FILE` (Babel transform + computed-tag scan)
+- JSX: `node "forge rei/deploy/valjsx.js" FILE` (Babel transform + computed-tag scan; in-repo,
+  fetches `@babel/standalone` once on first run)
 - Then deploy (two paths, both validate + SSH-verify):
 
 **Three deploy paths — same box, pick by what changed:**
@@ -343,6 +344,11 @@ update that skill if you improved the pattern.
     Billing/auth = hard-down (tracked per key fingerprint) → health `ok:false`, Owner
     Actions FIX row, ONE Telegram alert + one on recovery. Heartbeats also carry
     `lastSuccessAt` / `errorsTotal`. Solomon's failed briefs back off 15 m → 6 h.
+    Replacing a dead key recovers: `forge_heartbeat._ai_reconcile` drops hard-down entries
+    for key fingerprints no longer configured (still-configured bad keys stay down).
+  - **Weekly review** (`/api/review/run`, `forge-review.timer` Mon): a Claude failure now
+    returns `{hasReview:false, error:<reason>}` (shown on the AI Weekly Review card) instead
+    of a bare 500. Timer unit quoting fixed (WP-F); box unit confirmed 2026-09-22.
   - **Daycare Lead Desk** (`daycare_leads.py`, thread `daycare_leads`, 15 min, heartbeat
     `daycare_leads`, knob `FORGE_DAYCARE_LEADS=0` to retire): GET-only GHL sweep → stages,
     response time, needs-a-human list; `/api/daycare/leads` (session-gated); Daycare
@@ -352,7 +358,7 @@ update that skill if you improved the pattern.
     ErrorBoundary around every page. Nightly state backup `forge-backup.timer` 03:30 ET →
     `/root/backups` (7 kept, box-local).
 - **Agent Office** (`pixel_office.py` + `pixel_office.jsx`, nav "Agent Office" in all four
-  workspaces): the visual floor — four department rooms, twelve agents as pixel characters,
+  workspaces — three visible while Dropship is archived): the visual floor — four department rooms, twelve agents as pixel characters,
   animated from REAL signals only (live job → agent_bus → open hub tasks → engine status;
   an agent we can't reach reads "unknown", never "idle"). Clicking a character opens its
   status + live step log + a task box. Sending a task files it via `agents_hub.send_task`
@@ -398,6 +404,8 @@ update that skill if you improved the pattern.
   `daily_brief.py` (morning, `/api/brief{,/send,/config}`) and `daily_recap.py` (evening
   close-the-loops, `/api/recap{,/send,/config}`). Both gated by `forge_ops.paused()`, one send
   per day past the set hour (`FORGE_TZ_OFFSET` zone), heartbeat-monitored under `daily_brief`.
+  Content is **wholesale-only** (`connector._gather_brief_stats`: replies, opps, hot/warm,
+  approvals) plus system-wide spend + stale-agent lines — no agency/daycare numbers yet.
   Mobile control: More → Daily brief / End-of-day recap (toggle, hour, live preview, send-now).
 - Knobs: `FORGE_SCOUT_*` (scout.env), `AGENCY_LEARN_EVERY`, `FORGE_VAULT`, `FORGE_MARCUS`.
 - **Loop switchboard (2026-07-26) — tune spend without a deploy.** Box loop knobs live in
@@ -444,8 +452,10 @@ The **Daycare** workspace is the owner's management OS for "A Touch of Blessings
 Next.js app at `~/Desktop/the main daycare app` is the parent/staff lens. **Both are two
 front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not the code
 (one compiles, one runs in-browser Babel). The Supabase migrations in
-`forge-daycare/supabase/migrations/` and the app's `supabase/migrations/` are kept
-**byte-identical = single source of truth** (verified against the live DB).
+`forge-daycare/supabase/migrations/` and the app's `supabase/migrations/` are meant to be
+**byte-identical = single source of truth**. **Currently out of sync (checked 2026-09-22):**
+the 30 dashboard files are byte-identical to the app's copies, but the app has 39 — 9 newer
+migrations (2026-08-30..09-13) were never copied here. The app's folder is the complete set.
 
 - **Opens straight in (no login) — for the whole tailnet, as of 2026-08-23.** The box
   auto-mints an admin session so the console opens with no login screen. Gated by
@@ -567,7 +577,10 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
 
 ---
 
-## 11. Cross-Agent Coaching Network (all 7 agents coach each other, across all four businesses)
+## 11. Cross-Agent Coaching Network (all 7 business agents coach each other, across all four businesses)
+
+*(Coaching nodes = `agent_coach.BUSINESS_OF`: the 8 brains minus Orion. Archived businesses
+are filtered at read time.)*
 
 Every agent is a node in a **coaching network**: they can **ASK peers questions**,
 **LEARN from answers**, and **BROADCAST a transferable insight** (a creative angle that's

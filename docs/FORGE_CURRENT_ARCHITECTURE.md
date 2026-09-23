@@ -4,6 +4,9 @@ Source of truth for the build: `FORGE_AI_MASTER_SPEC.md` (owner's spec). This fi
 **exists today** so nothing working gets rebuilt. Read-only audit: nothing was deleted, no
 production data or schema changed. One security guard was added (see §8).
 
+**Updated after wave 1 (2026-09-22):** lines marked *[wave 1]* were true at audit time and have
+since shipped; the rest of the snapshot is unchanged.
+
 Related: [FORGE_AGENTS.md](FORGE_AGENTS.md) · [FORGE_INTEGRATIONS.md](FORGE_INTEGRATIONS.md) ·
 [FORGE_AUTOMATION_PLAN.md](FORGE_AUTOMATION_PLAN.md) · [FORGE_TEST_PLAN.md](FORGE_TEST_PLAN.md) ·
 [FORGE_RUNBOOK.md](FORGE_RUNBOOK.md)
@@ -47,17 +50,17 @@ Business-truth for the daycare lives **outside** this repo in the private
 | Frontend | React 18 UMD + in-browser Babel standalone, **no build step**. Components are `window` globals. Vendored React/Babel with SRI under `/assets/vendor/`. |
 | Backend | Python 3 **stdlib only** (`http.server`, `urllib`, `threading`). One process: `connector.py`. |
 | Persistence | JSON files in `forge rei/marcus_state/` (60+ stores, atomic writes + per-module locks), Supabase (daycare), GoHighLevel (CRM system of record for wholesale + daycare families), Obsidian vault (markdown, git-committed) for agent playbooks/reports. |
-| AI | Anthropic Messages API via `review_agent._claude` (shared) + a direct call in `marcus_engine`. Models in code: `claude-sonnet-4-5` (6 refs), `claude-haiku-4-5-20251001` (4), `claude-sonnet-5`, `claude-opus-4-8`, `claude-fable-5` (1 each). |
+| AI | Anthropic Messages API via `review_agent._claude` (shared) + a direct call in `marcus_engine`. Models in code: `review_agent.MODEL` = `claude-sonnet-4-5` (env `FORGE_REVIEW_MODEL`), `review_agent.HAIKU_MODEL` = `claude-haiku-4-5-20251001` (env `FORGE_HAIKU_MODEL`), plus a hardcoded `claude-haiku-4-5-20251001` in `marcus_engine.py`. Other ids appear only in `test_cost_tracker.py` price fixtures. |
 
 ---
 
 ## 3. Frontend
 
 - Desktop: 51 `.jsx`, all loaded, **0 orphans**, all pass `deploy/valjsx.js`, 0 name collisions, 0 computed JSX tags.
-- **Workspaces are hardcoded** in `data.jsx:68-73`: `rei` (16 nav items), `agency` (22, incl. a "Personal" lens), `daycare` (21), `dropship` (14). Only visibility state = `localStorage`. **No archive/enable flag exists anywhere.**
+- **Workspaces are hardcoded** in `data.jsx:68-73`: `rei` (16 nav items), `agency` (22, incl. a "Personal" lens), `daycare` (21), `dropship` (14). *[wave 1]* Archive flag now exists: `business_scope.py` → `marcus_state/businesses.json`, `/api/businesses{,/set}`; Dropship + the Agency Personal lens archived by default.
 - Home = **Mission Control** (`mission_control.jsx`) — per-business attention cards, Orion CEO brief, subscription spend. Closest thing to the spec's CEO home.
 - Mobile PWA (`mobile/`): 6 tabs — wholesale-only + agent chat. Daily brief / night recap config UI exists **only** on mobile.
-- No React ErrorBoundary → one bad page white-screens the app. Archiving must hide nav, never stop loading files.
+- *[wave 1]* Top-level `AppErrorBoundary` (`app.jsx`) wraps every page, so one bad page no longer white-screens the app. Archiving hides nav, never stops loading files.
 
 ## 4. Backend
 
@@ -76,9 +79,9 @@ Business-truth for the daycare lives **outside** this repo in the private
 | Dropship (archive) | Shopify / AutoDS / Meta (read) | dropship, midas |
 | Cross-business | Obsidian vault via `brain_io` | agent_bus (cap 200 msgs), hub_tasks, heartbeats, cost_tracker, spend_tracker, skill_forge, ops_clock |
 
-**Drift:** dashboard copy of Supabase migrations (`forge-daycare/supabase/migrations`) is **9 migrations behind** the parent/staff app — the "byte-identical" contract is broken.
+**Drift:** dashboard copy of Supabase migrations (`forge-daycare/supabase/migrations`) is **9 migrations behind** the parent/staff app — the "byte-identical" contract is broken (30 shared files are byte-identical; the app has 9 more, 2026-08-30..09-13).
 
-**Backups:** none. `marcus_state/` exists only on the box; box vault has no git remote.
+**Backups:** *[wave 1]* nightly `forge-backup.timer` 03:30 ET (`deploy/backup_state.sh`) → `/root/backups`, 7 kept, **box-local only** (box loss takes them too). Box vault still has no git remote.
 
 ## 6. Authentication / authorization
 
@@ -97,7 +100,8 @@ Business-truth for the daycare lives **outside** this repo in the private
 | `forge-reios.service` | DO droplet `forge-reios` (1 vCPU, 1 GB RAM + 1 GB swap, 24 GB disk, Ubuntu 24.04) | Single Python process, `Restart=always`, 0 restarts / 0 OOMs, ~90 MB RSS. All agent loops live here. |
 | `forge-autopull.timer` | box, every 60 s | `git reset --hard origin/main` → validate (py ast + jsx) → rsync code → restart → health check. Bad commit aborts; live keeps running. |
 | `forge-daily-learn.timer` | box, 20:00 ET | POSTs learn/run routes for 6 agents. |
-| `forge-review.timer` | box, Mon 08:00 UTC | **BROKEN** — unquoted JSON in `ExecStart`; weekly review never ran. |
+| `forge-backup.timer` | box, 03:30 ET | *[wave 1]* tarball of box-only state → `/root/backups` (7 kept). |
+| `forge-review.timer` | box, Mon 08:00 UTC | *[wave 1]* Fixed — `ExecStart` JSON quoted (WP-F d141618), box unit confirmed 2026-09-22. `/api/review/run` now returns the real Claude error instead of a bare 500. |
 | Tailscale Serve / Funnel | box | Serve → :7799 (tailnet only). Funnel :8443 → portal :10000 (public). |
 | ufw | box | deny incoming except 22/tcp + `tailscale0`. |
 | **Runs on the Mac (dev box)** | launchd | `com.forge.autosync` (code → GitHub), `com.agentic.brain-sync` (vault box→Mac, every 6 h), `com.graphify.brain-sync`. `~/Desktop/LeadScraper` (Apify) is Mac-only. **If the Mac is closed, production keeps running**; only vault mirroring to the Mac and lead scraping pause. |
@@ -115,13 +119,13 @@ Business-truth for the daycare lives **outside** this repo in the private
 | Shared infra (Mission Control/Orion, Agents hub, Agent Office, Brain, Costs, Health, Telegram, bus, coaching) | KEEP | becomes the spec's top-level surfaces |
 | Amazon / credit repair / Etsy | not in repo | nothing to archive |
 
-Mechanism (none exists yet) → [FORGE_AUTOMATION_PLAN.md](FORGE_AUTOMATION_PLAN.md) P1-1.
+Mechanism: *[wave 1]* `business_scope.py` (plan was [FORGE_AUTOMATION_PLAN.md](FORGE_AUTOMATION_PLAN.md) P1-1).
 
 ## 9. Technical debt (ranked)
 
 1. **AI brains down since 2026-08-01** — Anthropic credit balance exhausted; every Claude call 400s. Heartbeats wrap loops, not Claude calls, so health stays green → blind for 51 days.
 2. **Phantom connector module** — `agents_hub.py:107` / `pixel_office.py:102` `import connector` while it runs as `__main__` → a second copy re-registers Telegram action callbacks onto stale engine objects. Risk: approve taps on the wrong objects, stale overwrites of `scout.json`. **Fixed in WP-A** (`sys.modules.setdefault("connector", …)` alias at the top of `connector.py`; a test pins the two importers).
-3. **No agent registry** — agent lists duplicated in ≥8 places; Orion missing from most; heartbeat lacks last-success + cumulative error counts.
+3. ~~No agent registry~~ *[wave 1]* `agents_hub.registry()` (`/api/agents/registry`, 12 rows / 8 brains) is the roster; heartbeats now carry `lastSuccessAt` / `errorsTotal`. Some older agent lists still duplicate it.
 4. **No generic approval queue** — 10 separate queues; only Agency has an "Approvals" page.
 5. **No durable agent action log** (spec §10) — bus capped at 200, per-engine activity lists in memory.
 6. Solomon retry storm + invalid 32-char daycare Meta token — **backoff + auth-dead cache shipped in WP-A**; the token itself is an owner fix (P0-9).
@@ -138,7 +142,7 @@ Mechanism (none exists yet) → [FORGE_AUTOMATION_PLAN.md](FORGE_AUTOMATION_PLAN
 | HIGH | No operator auth behind Tailscale Serve (tailnet device = full CRM + SMS send) | By design. Mitigate with tailnet ACLs (only operator devices) + future session gate. |
 | HIGH | Daycare open mode = admin for every tailnet device | By design (CLAUDE.md §10). `FORGE_DAYCARE_OPEN=0` restores the PIN. |
 | MED | Six `*.env` files on box are mode 644, owner uid 501 (rsync from Mac) | chmod 600 + `push.sh --chmod=F600`. |
-| MED | No backups of box-only state | P0 plan. |
+| MED | No backups of box-only state | *[wave 1]* nightly box-local backup; off-box copy = owner call. |
 | LOW | `FORGE_DAYCARE_TEST_MODE=1` on production box — confirm intended | owner check |
 | LOW | Raw Meta exception text logged (`agency_ads.py:367`); refused Telegram taps log ids | cosmetic |
 | OK | Portal isolation, static-file jail, Origin checks, cookie flags, git history — verified |

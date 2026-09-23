@@ -22,7 +22,8 @@ do — screening, drafting, underwriting, ad strategy, roster management — whi
 a human keeps every hand on the wheel for anything that spends money, makes a
 promise, or goes out the door.
 
-Four businesses, one operator, one standard of care:
+Four businesses (three active; Dropship archived by default — `business_scope.py`), one
+operator, one standard of care:
 
 - **Wholesale (A Touch of Blessings Home Buyers)** — cash real-estate buying,
   nationwide, as-is. The proven playbook: speed-to-lead, relentless honest
