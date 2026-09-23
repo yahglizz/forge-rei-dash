@@ -50,6 +50,8 @@ def _load():
 
 
 def _save(d):
+    if not d.get("maintenance"):  # keep the original {"archived": [...]} shape when unused
+        d = {k: v for k, v in d.items() if k != "maintenance"}
     forge_atomic.atomic_write_json(STATE, d)
 
 
@@ -71,7 +73,7 @@ def set_archived(biz_id: str, archived: bool) -> dict:
     with _LOCK:
         cur = {b for b in _load()["archived"] if b in KNOWN}
         (cur.add if archived else cur.discard)(biz_id)
-        _save({"archived": [b for b in KNOWN if b in cur], "maintenance": sorted(maintenance())})
+        _save({"archived": [b for b in KNOWN if b in cur], "maintenance": [b for b in KNOWN if b in maintenance()]})
     return {"ok": True, "id": biz_id, "archived": archived, "businesses": listing()}
 
 
