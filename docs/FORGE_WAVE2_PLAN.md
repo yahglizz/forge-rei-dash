@@ -125,7 +125,7 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 
 ## 3. Ranked Wave-2 build list (pure code, additive, nothing outward made autonomous)
 
-**1. Cross-business morning brief + nightly report (§16/§17, zero Claude)**
+**1. Cross-business morning brief + nightly report (§16/§17, zero Claude)** — ✅ DONE 2026-09-23
 - **Files:** `connector.py:1928` `_gather_brief_stats`, `daily_brief.py:127`, `daily_recap.py:117`.
 - **Reuses:** `owner_actions.build` (top 5 + counts), `agents_hub.registry` (status counts), `agency_callsheet.list_leads` counts, `agency_io.stats()` (clients/MRR), `daycare_leads.view()` (cached state, no network).
 - **Recap adds:** what failed today (red loops + FIX rows) and tomorrow's first 5 actions.

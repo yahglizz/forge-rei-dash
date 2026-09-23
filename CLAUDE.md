@@ -405,8 +405,9 @@ update that skill if you improved the pattern.
   `daily_brief.py` (morning, `/api/brief{,/send,/config}`) and `daily_recap.py` (evening
   close-the-loops, `/api/recap{,/send,/config}`). Both gated by `forge_ops.paused()`, one send
   per day past the set hour (`FORGE_TZ_OFFSET` zone), heartbeat-monitored under `daily_brief`.
-  Content is **wholesale-only** (`connector._gather_brief_stats`: replies, opps, hot/warm,
-  approvals) plus system-wide spend + stale-agent lines — no agency/daycare numbers yet.
+  Content (wave-2, `connector._gather_brief_stats`, zero Claude): AGENCY / WHOLESALE / DAYCARE /
+  AGENTS / OWNER TASKS sections; the recap adds FAILED TODAY + TOMORROW — FIRST 5. A source that
+  fails omits its line (never a fake 0); archived businesses are skipped (`test_brief_sections.py`).
   Mobile control: More → Daily brief / End-of-day recap (toggle, hour, live preview, send-now).
 - Knobs: `FORGE_SCOUT_*` (scout.env), `AGENCY_LEARN_EVERY`, `FORGE_VAULT`, `FORGE_MARCUS`.
 - **Loop switchboard (2026-07-26) — tune spend without a deploy.** Box loop knobs live in

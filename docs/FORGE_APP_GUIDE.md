@@ -75,7 +75,7 @@ A task is an assignment the agent sees in its next prompt — it is never an out
 | Eco | Agency | ad strategy + performance reads — launches only on approval |
 | Solomon | Daycare | the center's director: one ranked operating brief daily |
 | Orion | All | daily CEO brief across businesses |
-| Daily brief / recap | Wholesale (+ system spend / stale-agent lines) | morning + evening Telegram pulses (no AI cost) |
+| Daily brief / recap | All (Agency · Wholesale · Daycare · Agents · Owner tasks) | morning + evening Telegram pulses (no AI cost) |
 | Midas | Dropship | archived — reactivate from Archived to use |
 
 Telegram shortcut: start a message with the agent's name — `solomon, what's the ratio situation`
