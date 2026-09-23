@@ -13,6 +13,21 @@ function MIco(props) {
   );
 }
 
+// Original FORGE guide: a cheerful fox mechanic, drawn for the mobile UI.
+function MForgePal(props) {
+  const size = props.size || 42;
+  return <svg width={size} height={size} viewBox="0 0 64 64" aria-label="FORGE fox mascot" role="img">
+    <path d="M9 26 12 8l15 10M55 26 52 8 37 18" fill="#f9a65a" stroke="#18334a" strokeWidth="3" strokeLinejoin="round"/>
+    <path d="M13 25c0-12 8-19 19-19s19 7 19 19v13c0 12-8 19-19 19s-19-7-19-19Z" fill="#f9a65a" stroke="#18334a" strokeWidth="3"/>
+    <path d="M17 36c1-9 7-14 15-14s14 5 15 14c-2 8-7 13-15 13s-13-5-15-13Z" fill="#fff3dc"/>
+    <path d="M24 33h.2M40 33h.2" stroke="#18334a" strokeWidth="5" strokeLinecap="round"/>
+    <path d="M29 39q3 3 6 0" fill="none" stroke="#18334a" strokeWidth="2.5" strokeLinecap="round"/>
+    <path d="M14 20 6 23l8 6M50 20l8 3-8 6" fill="#b8eb4b" stroke="#18334a" strokeWidth="2.5" strokeLinejoin="round"/>
+    <path d="M22 54v5q10 5 20 0v-5" fill="#b8eb4b" stroke="#18334a" strokeWidth="2.5"/>
+    <circle cx="46" cy="48" r="6" fill="#74c9f5" stroke="#18334a" strokeWidth="2"/><path d="m44 48 2 2 3-4" fill="none" stroke="#18334a" strokeWidth="1.5"/>
+  </svg>;
+}
+
 const MIcons = {
   Home: (p) => <MIco {...p}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></MIco>,
   Chat: (p) => <MIco {...p}><path d="M21 12a8 8 0 0 1-8 8H4l1.7-3.4A8 8 0 1 1 21 12z" /></MIco>,
@@ -40,6 +55,7 @@ const MIcons = {
 function MHeader(props) {
   return (
     <div className="m-head">
+      {!props.onBack && <div className="m-mascot"><MForgePal size={40} /></div>}
       {props.onBack && (
         <button className="m-tab" style={{ flex: "none", padding: 4 }} onClick={props.onBack}>
           <MIcons.Back size={22} />
@@ -57,12 +73,10 @@ function MHeader(props) {
 }
 
 const M_TABS = [
-  { key: "home", label: "Home", ico: "Home" },
-  { key: "actions", label: "Actions", ico: "Check" },
-  { key: "convos", label: "Convos", ico: "Chat" },
-  { key: "pipeline", label: "Pipeline", ico: "Board" },
-  { key: "calc", label: "Calc", ico: "Calc" },
-  { key: "agents", label: "Agents", ico: "Bot" },
+  { key: "today", label: "Today", ico: "Home" },
+  { key: "wholesale", label: "Wholesale", ico: "Board" },
+  { key: "agency", label: "Agency", ico: "Phone" },
+  { key: "daycare", label: "Daycare", ico: "Heart" },
   { key: "more", label: "More", ico: "More" },
 ];
 
@@ -127,4 +141,4 @@ function MSpin() {
   return <div className="m-fade" style={{ textAlign: "center", padding: 20 }}>Loading…</div>;
 }
 
-Object.assign(window, { MIcons, MHeader, MTabBar, MCard, MBtn, MChip, MEmpty, MSpin, M_TABS });
+Object.assign(window, { MIcons, MHeader, MTabBar, MCard, MBtn, MChip, MEmpty, MSpin, M_TABS, MForgePal });
