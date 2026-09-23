@@ -59,9 +59,30 @@ final class ForgeShell: NSObject, ObservableObject {
         load()
     }
 
+    // The connector sends no Cache-Control on static files, so WebKit heuristic-caches
+    // the .jsx/.css. After a box deploy that leaves the phone running stale or mixed
+    // code. Drop the HTTP cache (never localStorage) before every full load — the
+    // bundle is small and it rides Tailscale.
     func load() {
         phase = .loading
-        webView.load(URLRequest(url: ForgeConfig.baseURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20))
+        let caches: Set<String> = [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache]
+        WKWebsiteDataStore.default().removeData(ofTypes: caches, modifiedSince: .distantPast) { [weak self] in
+            guard let self else { return }
+            self.webView.load(URLRequest(url: ForgeConfig.baseURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20))
+        }
+    }
+
+    // didFinish fires before in-browser Babel has compiled and React has mounted, which
+    // showed a blank screen for several seconds. Keep the splash until .m-app exists.
+    fileprivate func waitForMount(attempt: Int = 0) {
+        webView.evaluateJavaScript("!!document.querySelector('.m-app')") { [weak self] result, _ in
+            guard let self, self.phase == .loading else { return }
+            if (result as? Bool) == true { self.phase = .ready; return }
+            if attempt >= 60 {   // 15 s: show whatever rendered rather than spin forever
+                self.phase = .ready; return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { self.waitForMount(attempt: attempt + 1) }
+        }
     }
 
     @objc private func didBackground() { backgroundedAt = Date() }
@@ -117,7 +138,7 @@ extension ForgeShell: WKNavigationDelegate {
         decisionHandler(.allow)
     }
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { phase = .ready }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { waitForMount() }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         fail(error)
