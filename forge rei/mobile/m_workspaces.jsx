@@ -40,10 +40,12 @@ function MWAgency() {
   const sheet = window.useApiM("/api/agency/callsheet", { interval: 60000 });
   const [busy, setBusy] = useStateMW(false);
   const [filter, setFilter] = useStateMW("Due now");
+  const [query, setQuery] = useStateMW("");
+  const [statusLead, setStatusLead] = useStateMW(null);
   const [notice, setNotice] = useStateMW("");
   const today = calls.data && calls.data.today || {};
   const rows = sheet.data && (sheet.data.rows || sheet.data.leads || sheet.data.calls || []) || [];
-  const due = rows.filter((r) => filter !== "Due now" || r.dueNow || r.status === "callback" || r.callbackDue);
+  const due = rows.filter((r) => (filter !== "Due now" || r.dueNow || r.status === "callback" || r.callbackDue) && (!query || [r.name,r.company,r.phone].join(" ").toLowerCase().includes(query.toLowerCase())));
   async function log(outcome) {
     setBusy(true); setNotice("");
     try { await window.apiPostM("/api/agency/calls/log", { outcome }); calls.refresh(); }
@@ -76,17 +78,19 @@ function MWAgency() {
       </window.MCard>
       {notice && <div className="mw-warn">{notice}</div>}
       <window.MCard title="Call sheet" right={<span className="m-fade">{rows.length} leads</span>}>
+        <input className="m-input" value={query} placeholder="Search names or phone" onChange={(e)=>setQuery(e.target.value)} />
         <div className="m-seg">{["Due now","All"].map((f)=><window.MChip key={f} active={filter===f} onClick={()=>setFilter(f)}>{f}</window.MChip>)}</div>
         <div className="mw-list">
           {sheet.loading && !sheet.data ? <window.MSpin/> : !sheet.error && due.length ? due.map((r)=><div className="mw-lead" key={r.id || r.phone}>
             <div className="mw-lead-main"><b>{r.name || r.company || "Prospect"}</b><small>{r.company && r.name ? r.company + " · " : ""}{r.callbackAt ? "Callback · " + r.callbackAt : (r.status || "New")}</small></div>
             {r.phone && <a className="mw-call" href={"tel:" + r.phone}>Call</a>}
-            <button className="mw-mark" onClick={()=>mark(r,"answered")} aria-label="Mark answered">✓</button>
+            <button className="mw-mark" onClick={()=>setStatusLead(r)} aria-label="Update call status">•••</button>
           </div>) : !sheet.error ? <window.MEmpty title={filter === "Due now" ? "No callbacks due" : "Your call sheet is ready"} sub="Add leads from the desktop call center."/> : null}
         </div>
         <div className="mw-desktop-hint">Import a lead list from the desktop Call Center.</div>
       </window.MCard>
     </div>
+    {statusLead && <div className="m-sheet"><div className="m-sheet-head"><button className="m-tab" onClick={()=>setStatusLead(null)}>‹</button><b style={{flex:1}}>Update call status</b></div><div className="m-sheet-body"><div className="m-card"><b>{statusLead.name || statusLead.company || "Prospect"}</b><div className="m-fade" style={{marginTop:4}}>Choose the outcome for this call.</div></div>{[["new","New"],["answered","Answered"],["no_answer","No answer"],["callback","Call back"],["move_on","Move on"]].map(([value,label])=><button key={value} className="mw-stage-choice" onClick={()=>mark(statusLead,value)}>{label}</button>)}<window.MBtn kind="ghost" onClick={()=>setStatusLead(null)}>Cancel</window.MBtn></div></div>}
   </React.Fragment>;
 }
 
