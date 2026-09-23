@@ -21,6 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -941,6 +942,25 @@ def switch_location(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "activeLocationId": resolved}
 
 
+@contextmanager
+def at_location(session: Session, location_id: Any):
+    """Stand in `location_id` for the block, then restore the caller's center.
+
+    RLS scopes classrooms/children/profiles (and guardian_contacts) to my_location(), so
+    any read about a family at ANOTHER center must happen inside this. No-op when the
+    target is empty or already active.
+    """
+    restore = None
+    if location_id and location_id != active_location(session):
+        restore = active_location(session)
+        switch_location(session, {"location_id": location_id})
+    try:
+        yield
+    finally:
+        if restore:
+            switch_location(session, {"location_id": restore})
+
+
 def validate_storage_path(path: Any) -> str:
     value = require_text(path, "path", maximum=500)
     assert value is not None
@@ -1151,10 +1171,14 @@ def find_classroom_id(session: Session, location_id: str, band_keyword: str) -> 
     blocks the enroll itself."""
     if not location_id or not band_keyword:
         return None
-    rows = _rows(BRIDGE.rest(
-        session, "GET", "classrooms",
-        query={"location_id": f"eq.{location_id}", "active": "eq.true", "select": "id,name,age_group"},
-    ))
+    try:
+        with at_location(session, location_id):
+            rows = _rows(BRIDGE.rest(
+                session, "GET", "classrooms",
+                query={"location_id": f"eq.{location_id}", "active": "eq.true", "select": "id,name,age_group"},
+            ))
+    except DaycareError:
+        return None
     needle = band_keyword.lower()
     for room in rows:
         haystack = f"{room.get('name') or ''} {room.get('age_group') or ''}".lower()
@@ -1729,8 +1753,6 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     source = body.get("child") if isinstance(body.get("child"), dict) else body
     child_id = source.get("id")
     classroom_id = require_uuid(_body_value(source, "classroom_id", "classroomId"), "classroom_id", optional=True)
-    if classroom_id:
-        _ensure_location_record(session, "classrooms", classroom_id)
     record = {
         "first_name": require_text(_body_value(source, "first_name", "firstName"), "first_name", maximum=100),
         "last_name": require_text(_body_value(source, "last_name", "lastName"), "last_name", maximum=100),
@@ -1757,6 +1779,8 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         restore_location = active_location(session)
         switch_location(session, {"location_id": target_location})
     try:
+        if classroom_id:  # after the switch: a Contact-Form family's room is at ITS center
+            _ensure_location_record(session, "classrooms", classroom_id)
         existing = _ensure_location_record(session, "children", child_id) if child_id else None
         provision: dict[str, Any] | None = None
         guardian_id = _body_value(source, "guardian_profile_id", "guardianProfileId")

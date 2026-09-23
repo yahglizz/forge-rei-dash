@@ -4132,7 +4132,9 @@ class Handler(BaseHTTPRequestHandler):
         # If this contact was already enrolled once (ledgered by a prior enroll click,
         # or by the retired auto-enroll path), pass that child id so save_child UPDATES
         # the row (and provisions the login) instead of inserting a duplicate.
-        child_body["id"] = daycare_ghl.form_child_id(contact_id) or None
+        child_body["id"] = (daycare_ghl.form_child_id(contact_id) or daycare_supabase.find_child_id(
+            session, child_body.get("location_id"), child_body["first_name"],
+            child_body["last_name"]) or None)
         # A parent login is created ONLY when the family gave an email — enrollment and
         # login are independent. save_child raises if guardian NAME is passed without an
         # email, so we attach the guardian block only when an email is present; otherwise
@@ -4174,8 +4176,15 @@ class Handler(BaseHTTPRequestHandler):
         }
 
     def _daycare_sync_family_to_ghl(self, session, child):
-        guardian = daycare_supabase.guardian_contact(
-            session, (child or {}).get("guardian_profile_id"))
+        # Read the guardian + center name at the CHILD's center: save_child has already
+        # restored the owner's active center, and RLS hides other centers' families.
+        try:
+            with daycare_supabase.at_location(session, (child or {}).get("location_id")):
+                guardian = daycare_supabase.guardian_contact(
+                    session, (child or {}).get("guardian_profile_id"))
+                center_name = self._daycare_center_name(session)
+        except daycare_supabase.DaycareError as error:
+            return {"ok": False, "synced": False, "detail": f"GHL sync skipped: {error}"}
         if not guardian:
             return {"ok": True, "synced": False,
                     "detail": "No guardian linked to this child yet — nothing to sync."}
@@ -4184,7 +4193,7 @@ class Handler(BaseHTTPRequestHandler):
                 DAYCARE_GHL,
                 name=guardian.get("name"), phone=guardian.get("phone"),
                 email=guardian.get("email"),
-                location_name=self._daycare_center_name(session),
+                location_name=center_name,
                 child_name=(child or {}).get("first_name") or "")
         except Exception as error:  # noqa: BLE001 — never leak a token, never fail the save
             return {"ok": False, "synced": False,
