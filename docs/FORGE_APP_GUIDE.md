@@ -108,5 +108,5 @@ Kill switch for everything outward: clock out (Command Center or Telegram).
 | FIX: daycare GHL read failing | check the daycare GHL key / location in `daycare.env` |
 | Anything else red | see `docs/FORGE_RUNBOOK.md` §5 |
 
-More: `docs/FORGE_RUNBOOK.md` (operations), `docs/FORGE_AGENTS.md` (agent internals),
+More: `docs/FORGE_BUILD_PLAYBOOK.md` (how builds are dispatched + shipped), `docs/FORGE_RUNBOOK.md` (operations), `docs/FORGE_AGENTS.md` (agent internals),
 `docs/FORGE_INTEGRATIONS.md` (what's connected), `agents/README.md` (one card per agent).
