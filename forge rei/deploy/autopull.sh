@@ -34,6 +34,8 @@ if [ "$LOCAL" != "$REMOTE" ]; then
   # service every 60s. Give one commit MAX_TRIES, then wait for the next push.
   read -r TSHA TN 2>/dev/null < "$TRIES" || true
   [ "${TSHA:-}" = "$REMOTE" ] || TN=0
+  case "${TN:-}" in ''|*[!0-9]*) TN=0 ;; esac          # digits only — never let file text reach $(( ))
+  case "$MAX_TRIES" in ''|*[!0-9]*) MAX_TRIES=3 ;; esac
   if [ "${TN:-0}" -ge "$MAX_TRIES" ]; then
     echo "$(date '+%F %T') commit $REMOTE failed $TN deploy attempts — skipping until a new push"
     exit 0
