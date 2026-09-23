@@ -5,6 +5,36 @@ function MWMetric(props) {
   return <div className="mw-metric"><b>{props.value}</b><span>{props.label}</span></div>;
 }
 
+function MPToday() {
+  const actions = window.useApiM("/api/owner-actions", { interval: 60000 });
+  const mission = window.useApiM("/api/mission-control", { interval: 30000 });
+  const registry = window.useApiM("/api/agents/registry", { interval: 60000 });
+  const items = actions.data && !actions.data.error && Array.isArray(actions.data.items) ? actions.data.items : [];
+  const businesses = mission.data && Array.isArray(mission.data.businesses) ? mission.data.businesses : [];
+  function jump(biz) {
+    const id = String(biz || "").toLowerCase();
+    window.mGoTab(id.includes("agency") ? "agency" : id.includes("daycare") ? "daycare" : "wholesale");
+  }
+  return <React.Fragment>
+    <window.MHeader title="FORGE Today" sub="Your business, at a glance" right={<button className="mw-header-bot" onClick={()=>window.mGoTab("agents")} aria-label="Open agents">🤖</button>} />
+    <div className="m-content mw-page">
+      <section className="mw-hero today"><div className="mw-eyebrow">YOUR DAILY DASHBOARD</div><h1>Hey, boss.<br/>Here’s the big picture.</h1><p>Quick actions for Wholesale, Agency and Daycare.</p><div className="mw-mascot-note"><window.MForgePal size={58}/><span>Your crew is on it!</span></div></section>
+      <window.MCard title="Needs you" right={<span className="mw-streak">{actions.loading && !actions.data ? "…" : actions.error ? "Retry" : items.length + " actions"}</span>}>
+        {actions.loading && !actions.data ? <window.MSpin/> : actions.error ? <div className="mw-warn">Owner actions unavailable — retry.</div> : !items.length ? <window.MEmpty title="All clear" sub="Nothing needs your attention right now."/> : items.slice(0,3).map((it)=><div className="mw-action" key={it.id}>
+          <span className="mw-action-kind">{it.kind || "REVIEW"}</span><div className="mw-lead-main"><b>{it.title || "Needs review"}</b><small>{it.why || it.business || ""}</small></div>
+          {it.phone && (it.kind === "CALL" || it.kind === "CALLBACK") ? <a className="mw-call" href={"tel:"+it.phone}>Call</a> : <button className="mw-mark" onClick={()=>jump(it.business || (it.link && it.link.ws))} aria-label="Open action">›</button>}
+        </div>)}
+        {items.length > 3 && <button className="mw-all-actions" onClick={()=>window.mGoTab("actions")}>See all {items.length} actions →</button>}
+      </window.MCard>
+      <div className="m-section"><span className="m-section-l">Your businesses</span><span className="m-section-line"/></div>
+      {mission.loading && !mission.data ? <window.MCard><window.MSpin/></window.MCard> : mission.error ? <div className="mw-warn">Business overview unavailable — retry.</div> : businesses.map((b)=><button className="mw-business" key={b.id} onClick={()=>jump(b.id)} style={{"--biz":b.accent || "#4F7CFF"}}>
+        <span className="mw-business-icon">{b.id === "daycare" ? "♥" : b.id === "agency" ? "✳" : "⌂"}</span><span className="mw-business-copy"><b>{b.name}</b><small>{b.tag || b.statusLabel || "Open workspace"}</small>{b.metrics && <small>{b.metrics.slice(0,3).map((m)=>m.label + " " + m.value).join(" · ")}</small>}</span><span className="mw-business-go">›</span>
+      </button>)}
+      {registry.error ? <div className="mw-warn">Agent roster unavailable — retry.</div> : registry.data && <button className="mw-agent-strip" onClick={()=>window.mGoTab("agents")}><span>🤖</span><b>Agent crew</b><small>{(registry.data.agents || registry.data.items || []).length} agents · View roster</small><i>›</i></button>}
+    </div>
+  </React.Fragment>;
+}
+
 function MWAgency() {
   const calls = window.useApiM("/api/agency/calls", { interval: 30000 });
   const sheet = window.useApiM("/api/agency/callsheet", { interval: 60000 });
@@ -106,4 +136,4 @@ function MWDaycare() {
   </React.Fragment>;
 }
 
-Object.assign(window, { MWAgency, MWDaycare });
+Object.assign(window, { MPToday, MWAgency, MWDaycare });

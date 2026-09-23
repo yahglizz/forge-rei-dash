@@ -3,7 +3,7 @@
 const { useState: useStateMAP, useEffect: useEffectMAP } = React;
 
 const M_PAGES = {
-  today: () => (window.MHomePage ? <window.MHomePage /> : <window.MEmpty title="Today unavailable" />),
+  today: () => (window.MPToday ? <window.MPToday /> : <window.MEmpty title="Today unavailable" />),
   home: () => (window.MHomePage ? <window.MHomePage /> : <window.MEmpty title="Today unavailable" />),
   actions: () => (window.MActionsPage ? <window.MActionsPage /> : <window.MEmpty title="Actions unavailable" />),
   agency: () => (window.MWAgency ? <window.MWAgency /> : <window.MEmpty title="Agency unavailable" />),
