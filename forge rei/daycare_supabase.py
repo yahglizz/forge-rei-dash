@@ -1615,19 +1615,20 @@ def get_reports(session: Session, start: Any = None, end: Any = None) -> dict[st
             "staff_shifts",
             query={
                 "staff_id": f"in.({','.join(staff_ids)})",
-                "started_at": [f"gte.{start_day}T00:00:00Z", f"lte.{end_day}T23:59:59.999999Z"],
-                "select": "started_at,ended_at",
+                "clocked_in_at": [f"gte.{start_day}T00:00:00Z", f"lte.{end_day}T23:59:59.999999Z"],
+                "select": "clocked_in_at,clocked_out_at,break_seconds",
                 "limit": "5000",
             },
         ))
     hours_worked = 0.0
     for shift in shifts:
-        if not shift.get("started_at") or not shift.get("ended_at"):
+        if not shift.get("clocked_in_at") or not shift.get("clocked_out_at"):
             continue
         try:
-            started = datetime.fromisoformat(str(shift["started_at"]).replace("Z", "+00:00"))
-            ended = datetime.fromisoformat(str(shift["ended_at"]).replace("Z", "+00:00"))
-            hours_worked += max(0, (ended - started).total_seconds() / 3600)
+            started = datetime.fromisoformat(str(shift["clocked_in_at"]).replace("Z", "+00:00"))
+            ended = datetime.fromisoformat(str(shift["clocked_out_at"]).replace("Z", "+00:00"))
+            worked = (ended - started).total_seconds() - int(shift.get("break_seconds") or 0)
+            hours_worked += max(0, worked / 3600)
         except ValueError:
             continue
     due_invoices = [row for row in invoices if row.get("status") in {"due", "overdue"}]
