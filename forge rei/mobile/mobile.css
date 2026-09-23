@@ -251,4 +251,6 @@ input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus 
 .mw-agent-strip>span{font-size:22px}
 .mw-agent-strip b{flex:0 0 auto}
 .mw-agent-strip small{flex:1}
+.mw-stage-choice{min-height:48px;padding:10px 13px;border:1px solid #DFE7F5;border-radius:15px;background:#fff;color:#445571;text-align:left;font:700 12px inherit;text-transform:capitalize}
+.mw-stage-choice.active{background:#E7F3CF;border-color:#B9D978;color:#456B18}
 @media(max-width:390px){.m-tab{font-size:9px}.mw-hero{padding:17px}.mw-hero h1{font-size:25px}}

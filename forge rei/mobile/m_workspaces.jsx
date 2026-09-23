@@ -94,15 +94,15 @@ function MWDaycare() {
   const leads = window.useApiM("/api/daycare/leads", { interval: 60000 });
   const brief = window.useApiM("/api/daycare/director/brief", { interval: 60000 });
   const [notice, setNotice] = useStateMW("");
+  const [stageLead, setStageLead] = useStateMW(null);
+  const [stageValue, setStageValue] = useStateMW("TOUR_BOOKED");
   const data = leads.data || {};
   const needs = data.needsHuman || data.needs_human || data.needsHumanList || [];
   const stages = data.stages || {};
   const auth = leads.error && /401|403|unauthor/i.test(String(leads.error));
-  async function stage(row) {
-    const next = prompt("Move this lead to which stage? (TOUR_BOOKED, TOUR_COMPLETED, APPLICATION, ENROLLED, LOST)");
-    if (!next) return;
-    if (!window.confirm("Save this stage locally for " + (row.parentName || "this lead") + "?")) return;
-    try { await window.apiPostM("/api/daycare/leads/stage", { contactId: row.contactId || row.id, stage: next.trim().toUpperCase() }); leads.refresh(); }
+  async function stage() {
+    if (!stageLead || !window.confirm("Save this stage locally? It will not update GoHighLevel.")) return;
+    try { await window.apiPostM("/api/daycare/leads/stage", { contactId: stageLead.contactId || stageLead.id, stage: stageValue }); leads.refresh(); setStageLead(null); }
     catch (e) { setNotice("Daycare stage unavailable — retry."); }
   }
   return <React.Fragment>
@@ -124,7 +124,7 @@ function MWDaycare() {
           {needs.length ? needs.map((r)=><div className="mw-lead" key={r.contactId || r.id}>
             <div className="mw-lead-main"><b>{r.parentName || r.name || "Family lead"}</b><small>{[r.center,r.stage,r.waiting || r.age].filter(Boolean).join(" · ")}</small></div>
             {r.phone && <a className="mw-call" href={"tel:"+r.phone}>Call</a>}
-            <button className="mw-mark" onClick={()=>stage(r)} aria-label="Mark lead stage">•••</button>
+            <button className="mw-mark" onClick={()=>{setStageLead(r);setStageValue("TOUR_BOOKED");}} aria-label="Mark lead stage">•••</button>
           </div>) : <window.MEmpty title="No follow-ups waiting" sub="New leads that need a person will show here."/>}
         </window.MCard>
       </>}
@@ -133,6 +133,7 @@ function MWDaycare() {
         {brief.loading && !brief.data ? <window.MSpin/> : brief.error ? <div className="mw-warn">Solomon's brief unavailable — retry.</div> : <div className="mw-brief">{(brief.data && (brief.data.sections || brief.data.brief?.sections) || []).map((s,i)=><section key={i}><b>{s.title || s.heading || "Update"}</b><p>{s.body || s.text || s.content || ""}</p></section>)}{!brief.data?.sections?.length && <p>{brief.data?.text || brief.data?.brief?.text || "No brief available yet."}</p>}</div>}
       </window.MCard>
     </div>
+    {stageLead && <div className="m-sheet"><div className="m-sheet-head"><button className="m-tab" onClick={()=>setStageLead(null)}>‹</button><b style={{flex:1}}>Update lead stage</b></div><div className="m-sheet-body"><div className="m-card"><b>{stageLead.parentName || stageLead.name || "Family lead"}</b><div className="m-fade" style={{marginTop:4}}>This is a local mobile note. It does not update GoHighLevel.</div></div>{["TOUR_BOOKED","TOUR_COMPLETED","APPLICATION","ENROLLED","LOST"].map((s)=><button key={s} className={"mw-stage-choice"+(stageValue===s?" active":"")} onClick={()=>setStageValue(s)}>{s.replaceAll("_"," ")}{stageValue===s?" ✓":""}</button>)}<window.MBtn kind="ok" onClick={stage}>Confirm stage</window.MBtn><window.MBtn kind="ghost" onClick={()=>setStageLead(null)}>Cancel</window.MBtn></div></div>}
   </React.Fragment>;
 }
 

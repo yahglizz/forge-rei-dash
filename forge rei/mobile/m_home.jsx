@@ -502,11 +502,8 @@ function MHomePage(props) {
       <window.MHeader title={props.embedded ? "Wholesale" : "FORGE Today"} sub={props.embedded ? "A Touch of Blessings Home Buyers" : "Your business, at a glance"} right={<MHOpsPill ops={ops} />} />
       <div className="m-content">
         {!props.embedded && <section className="mw-hero today"><div className="mw-eyebrow">YOUR DAILY DASHBOARD</div><h1>Hey, boss.<br/>Here’s the big picture.</h1><p>Quick actions for Wholesale, Agency and Daycare.</p><div className="mw-mascot-note"><window.MForgePal size={58}/><button className="mw-action-link" onClick={()=>window.mGoTab("actions")}>Review actions →</button></div></section>}
-        <MHKpis dash={dash} scout={scout} onTapStat={tileTaps} />
-        <MHSection label="Needs you" accent="#F59E0B" count={approvalsCount} />
-        <MHApprovals feed={feed} />
-        <MHSection label="Scout · hot leads" accent="#EF4444" />
-        <MHHotLeads onHandoff={feed.refresh} />
+        {(!props.embedded || props.segment === "Approvals") && <><MHKpis dash={dash} scout={scout} onTapStat={tileTaps} /><MHSection label="Needs you" accent="#F59E0B" count={approvalsCount} /><MHApprovals feed={feed} /></>}
+        {(!props.embedded || props.segment === "Hot") && <><MHSection label="Scout · hot leads" accent="#EF4444" /><MHHotLeads onHandoff={feed.refresh} /></>}
       </div>
       {leadsOpen && <MHLeadsSheet onClose={() => setLeadsOpen(false)} />}
     </React.Fragment>
