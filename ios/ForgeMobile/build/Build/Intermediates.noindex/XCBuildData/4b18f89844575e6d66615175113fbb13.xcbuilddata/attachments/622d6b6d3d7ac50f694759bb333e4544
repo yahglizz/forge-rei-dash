@@ -1,0 +1,39 @@
+{
+  "" : {
+    "diagnostics" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobile-primary.dia",
+    "emit-module-dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobile-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobile-primary-emit-module.dia",
+    "pch" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobile-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobile-primary.swiftdeps"
+  },
+  "/Users/yg4st/forge rei dash/ios/ForgeMobile/App/ContentView.swift" : {
+    "const-values" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/yg4st/forge rei dash/ios/ForgeMobile/App/ForgeMobileApp.swift" : {
+    "const-values" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp.swiftconstvalues",
+    "dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp.d",
+    "diagnostics" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp.dia",
+    "index-unit-output-path" : "/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp.o",
+    "llvm-bc" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp.bc",
+    "object" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp.o",
+    "swift-dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp.swiftdeps",
+    "swiftmodule" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/ForgeMobileApp~partial.swiftmodule"
+  },
+  "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/yg4st/forge rei dash/ios/ForgeMobile/build/Build/Intermediates.noindex/ForgeMobile.build/Debug-iphonesimulator/ForgeMobile.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}
