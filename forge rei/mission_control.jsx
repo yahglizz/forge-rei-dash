@@ -129,6 +129,34 @@ function McSystemStrip({ sys, onEnter }) {
   );
 }
 
+// Spec §15 AGENTS strip — counts from ONE agents_hub.registry() read (archived = left out).
+// A failed registry read shows its warn line, never zeros.
+function McAgentsStrip({ ag, onEnter }) {
+  if (!ag) return null;
+  const open = () => (window.forgeOpenView ? window.forgeOpenView("agents") : onEnter("rei", "Agents"));
+  const stat = (n, label, color) => (
+    <div style={{ textAlign: "center", minWidth: 62 }}>
+      <div className="tabnum" style={{ fontSize: 18, fontWeight: 700, color: color || "var(--text)" }}>{n}</div>
+      <div className="faint" style={{ fontSize: 10.5 }}>{label}</div>
+    </div>
+  );
+  return (
+    <div className="card card-pad" style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+      <div style={{ flex: 1, minWidth: 160 }}>
+        <div style={{ fontWeight: 600, fontSize: 13.5 }}>Agents</div>
+        <div className="faint" style={{ fontSize: 11, color: ag.ok ? undefined : MC_SEV.warn }}>
+          {ag.ok ? (ag.total + " active" + (ag.degraded ? " · " + ag.degraded + " degraded" : "")) : ag.warn}
+        </div>
+      </div>
+      {ag.ok && stat(ag.healthy, "Healthy", MC_COLOR.ok)}
+      {ag.ok && stat(ag.running, "Running", null)}
+      {ag.ok && stat(ag.failed, "Failed", ag.failed ? MC_COLOR.down : null)}
+      {ag.ok && stat(ag.waiting, "Waiting approval", ag.waiting ? MC_COLOR.warn : null)}
+      <button className="tab" onClick={open}>Agents →</button>
+    </div>
+  );
+}
+
 // ---- Monthly Spend: the operator's OWN subscriptions/bills, grouped by business. ----
 // Backed by /api/spend/status (spend_tracker.py). Every row is inline-editable; you keep
 // the numbers current, the dashboard keeps the running monthly/yearly total.
@@ -559,6 +587,7 @@ function MissionControl({ onEnter, workspaces = [] }) {
 
             {/* System / loops */}
             <McSystemStrip sys={d.system} onEnter={onEnter} />
+            <McAgentsStrip ag={d.agents} onEnter={onEnter} />
 
             {/* Business cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>

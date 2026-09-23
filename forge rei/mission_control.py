@@ -66,6 +66,107 @@ def _card(bid, name, tag, accent, home_page):
             "metrics": [], "attention": [], "jump": {"ws": bid, "page": home_page}}
 
 
+def _tiles(card, source, fn):
+    """Spec §15 tiles from ONE source. fn() builds the whole list before anything lands, so a
+    failing/absent source drops all its tiles and adds ONE warn line — never a fake 0 (creed)."""
+    try:
+        card["metrics"].extend(fn())
+    except Exception as e:  # noqa: BLE001
+        card["attention"].append({"sev": "warn", "text": f"{source} unavailable: {str(e)[:90]}",
+                                  "jump": card["jump"]})
+
+
+def _dur(sec):
+    if sec is None:
+        return "—"   # no sample yet = Unknown, not 0
+    sec = int(sec)
+    if sec < 60:
+        return f"{sec}s"
+    if sec < 3600:
+        return f"{sec // 60}m"
+    return f"{sec / 3600:.1f}h"
+
+
+# Wholesale CALL-producing Owner Actions sources (APPROVE-only sources skipped: no work).
+_OWNER_CALL_SOURCES = ("scout_asap", "ace_callready", "screenings")
+_LIVE_CONTRACT = ("sent", "delivered", "completed")
+
+
+def _owner_calls(scout, screener):
+    """Owner Actions' wholesale CALL count — same build() the list uses, so they can't drift."""
+    import owner_actions
+    if scout is None:
+        raise RuntimeError("Scout not loaded")
+    src = [s for s in owner_actions.SOURCES if s[0] in _OWNER_CALL_SOURCES]
+    r = owner_actions.build({"scout": scout, "screener": screener}, sources=src)
+    fix = [i for i in r["items"] if i["kind"] == "FIX"]
+    if fix:
+        raise RuntimeError(fix[0].get("why") or fix[0]["title"])
+    return [{"label": "Owner calls required", "value": r["counts"]["CALL"],
+             "jump": {"ws": "rei", "page": "Leads"}}]
+
+
+def _deal_tiles():
+    import deals
+    rows = deals.list_deals()
+    live = sum(1 for d in rows if d.get("contractStatus") in _LIVE_CONTRACT)
+    return [{"label": "Contracts", "value": live, "jump": {"ws": "rei", "page": "Contracts"}},
+            {"label": "Deals", "value": len(rows), "jump": {"ws": "rei", "page": "Pipeline"}}]
+
+
+def _callsheet_tiles():
+    import agency_callsheet
+    n = agency_callsheet.list_leads()["counts"]
+    j = {"ws": "agency", "page": "CallCenter"}
+    return [{"label": "Calls ready", "value": n["new"], "jump": j},
+            {"label": "Callbacks", "value": n["callback"], "jump": j},
+            {"label": "Interested", "value": n["interested"], "jump": j}]
+
+
+def _client_tiles():
+    import agency_io
+    s = agency_io.stats()
+    j = {"ws": "agency", "page": "Clients"}
+    return [{"label": "Clients", "value": s["activeClients"], "jump": j},
+            {"label": "MRR", "value": f"${s['mrr']:,.0f}", "jump": j}]
+
+
+def _lead_desk_tiles(card):
+    """Daycare Lead Desk (saved state only — daycare_leads.view() never hits GHL)."""
+    import daycare_leads
+    v = daycare_leads.view()
+    if not v.get("lastOkAt"):   # never swept OK → every count would be a fake 0
+        raise RuntimeError(v.get("error") or "Lead Desk has no successful sweep yet")
+    k = v["kpis"]
+    j = {"ws": "daycare", "page": "Dashboard"}
+    tiles = [{"label": "New leads (7d)", "value": k["newLeads7d"]["total"], "jump": j},
+             {"label": "Needs human", "value": k["needsHuman"], "jump": j},
+             {"label": "Response time", "value": _dur(k.get("medianResponseSec")), "jump": j}]
+    if v.get("error"):          # last good sweep still shown, but say it's stale
+        card["attention"].append({"sev": "warn", "text": "Lead Desk: " + str(v["error"])[:100],
+                                  "jump": j})
+    return tiles
+
+
+def _agents_strip():
+    """Agents strip from ONE registry() call (~2-13 ms, file/in-memory reads only).
+    DISABLED (archived / switched off) rows are left out. Healthy = IDLE+RUNNING+WAITING."""
+    try:
+        import agents_hub
+        rows = [a for a in agents_hub.registry() if a.get("status") != "DISABLED"]
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "warn": "Agent registry unavailable: " + str(e)[:90],
+                "jump": {"view": "agents"}}
+    n = {}
+    for a in rows:
+        n[a["status"]] = n.get(a["status"], 0) + 1
+    return {"ok": True, "total": len(rows),
+            "healthy": n.get("IDLE", 0) + n.get("RUNNING", 0) + n.get("WAITING FOR APPROVAL", 0),
+            "running": n.get("RUNNING", 0), "failed": n.get("FAILED", 0),
+            "degraded": n.get("DEGRADED", 0), "waiting": n.get("WAITING FOR APPROVAL", 0),
+            "jump": {"view": "agents"}}
+
+
 def _rei_card(scout, screener):
     c = _card("rei", "FORGE REI", "Wholesaling", "#4F7CFF", "Dashboard")
     try:
@@ -102,19 +203,23 @@ def _rei_card(scout, screener):
             pass
     except Exception as e:
         return _fail(c, e)
+    _tiles(c, "Owner Actions", lambda: _owner_calls(scout, screener))
+    _tiles(c, "Deals", _deal_tiles)
     c["status"] = _status_from(c)
     return c
 
 
 def _agency_card():
     c = _card("agency", "FORGE Agency", "ClientForge", "#8B5CF6", "Dashboard")
+    _tiles(c, "Call Sheet", _callsheet_tiles)       # spec §15 tiles first
+    _tiles(c, "Clients", _client_tiles)
     try:
         import agency_agents
         st = agency_agents.status() or {}
         agents = st.get("agents") or []
         online = sum(1 for a in agents if a.get("online"))
         open_tasks = sum(int(a.get("openTasks") or 0) for a in agents)
-        c["metrics"] = [
+        c["metrics"] += [
             {"label": "Agents online", "value": f"{online}/{len(agents)}",
              "jump": {"ws": "agency", "page": "Agents"}},
             {"label": "Open tasks", "value": open_tasks, "jump": {"ws": "agency", "page": "Agents"}},
@@ -142,11 +247,12 @@ def _agency_card():
 
 def _daycare_card(solomon):
     c = _card("daycare", "FORGE Daycare", "A Touch of Blessings", "#2DD4BF", "Dashboard")
+    _tiles(c, "Lead Desk", lambda: _lead_desk_tiles(c))   # spec §15 tiles first
     try:
         st = solomon.status() if solomon else {}
         systems = st.get("systems") or []
         wired = sum(1 for s in systems if s.get("connected"))
-        c["metrics"] = [
+        c["metrics"] += [
             {"label": "Systems wired", "value": f"{wired}/{len(systems)}" if systems else "—",
              "jump": {"ws": "daycare", "page": "Settings"}},
             {"label": "Director AI", "value": "Ready" if st.get("aiReady") else "Off",
@@ -264,6 +370,7 @@ def snapshot(scout=None, solomon=None, midas=None, screener=None, system=None):
         "ai": sysd.get("ai"),           # WP-A — {ok, hard, kind, reason, downSince, ...}
         "jump": {"ws": "rei", "page": "SystemHealth"},
     }
+    agents_strip = _agents_strip()
     # If the fleet is actively running and a loop is down, raise it on the REI card
     # too so it surfaces where the operator lives.
     if active and down:
@@ -305,5 +412,6 @@ def snapshot(scout=None, solomon=None, midas=None, screener=None, system=None):
         "businesses": cards,
         "archived": sorted(arch),
         "system": system_card,
+        "agents": agents_strip,     # spec §15 AGENTS: healthy/running/failed/waiting
         "generatedAt": _now_ms(),
     }
