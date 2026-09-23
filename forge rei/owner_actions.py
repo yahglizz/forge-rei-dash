@@ -255,21 +255,27 @@ def _src_screenings(ctx):
 
 
 def _src_agency_callsheet(ctx):
-    """Call Sheet: callback/interested rows individually; fresh 'new' rows as ONE dial item."""
+    """Call Sheet: due callbacks/interested rows individually; due new/ready rows as ONE dial
+    item. A future callbackAt hides the row until due (age = time since due); dnc / won /
+    lost / dead / bad_number rows never show (agency_callsheet.is_due)."""
     import agency_callsheet
     leads = (agency_callsheet.list_leads() or {}).get("leads") or []
     out, fresh = [], 0
-    for l in leads:
+    for l in agency_callsheet.call_queue(leads):
         st = l.get("status") or "new"
-        if st in ("callback", "interested"):
+        cb = l.get("callbackAt") or ""
+        if cb or st in ("callback", "interested"):
             who = l.get("company") or l.get("name") or "prospect"
-            why = l.get("note") or l.get("pain") or ""
+            why = l.get("nextAction") or l.get("note") or l.get("pain") or ""
+            if l.get("attempts"):
+                why = f"{l['attempts']} attempt{'s' if l['attempts'] != 1 else ''} · " + why
             if l.get("last_called"):
                 why = f"last called {l['last_called']} · " + why
             out.append(_item(f"callsheet:{l.get('id')}", "CALLBACK", "agency", "revenue",
                              f"Call back {who}" + (" — interested" if st == "interested" else ""),
-                             why, None, {"ws": "agency", "page": "CallCenter"}, "callsheet"))
-        elif st == "new":
+                             why, _iso_ms(cb) if cb else None,
+                             {"ws": "agency", "page": "CallCenter"}, "callsheet"))
+        else:
             fresh += 1
     if fresh:
         out.append(_item("callsheet:new", "CALL", "agency", "revenue",

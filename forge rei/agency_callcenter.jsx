@@ -23,7 +23,8 @@ function CcStat({ label, value }) {
 const CC_STATUS_LABEL = {
   new: "To call", answered: "Called", interested: "Interested",
   no_answer: "No answer", callback: "Call back", dead: "Said no",
-  bad_number: "Dead line",
+  bad_number: "Dead line", ready: "Ready", demo_booked: "Demo booked",
+  proposal: "Proposal", won: "Won", lost: "Lost", dnc: "Do not call",
 };
 const CC_STATUS_STYLE = {
   interested: { color: "#ffd479", background: "rgba(255,212,121,.16)" },
@@ -33,11 +34,35 @@ const CC_STATUS_STYLE = {
   dead: { color: "#f28b82", background: "rgba(242,139,130,.12)" },
   bad_number: { color: "#9aa0a6", background: "rgba(154,160,166,.14)" },
   new: { opacity: 0.7, background: "rgba(255,255,255,.06)" },
+  ready: { color: "#c6d2ff", background: "rgba(93,124,255,.16)" },
+  demo_booked: { color: "#d7aefb", background: "rgba(215,174,251,.14)" },
+  proposal: { color: "#78d9ec", background: "rgba(120,217,236,.13)" },
+  won: { color: "#5bd68a", background: "rgba(91,214,138,.2)" },
+  lost: { color: "#c58af9", opacity: 0.75, background: "rgba(197,138,249,.1)" },
+  dnc: { color: "#fff", background: "rgba(217,48,37,.55)" },
 };
+// Every status the backend accepts (agency_callsheet.STATUSES), in lifecycle order.
+const CC_STATUS_ORDER = ["new", "ready", "no_answer", "callback", "answered", "interested",
+  "demo_booked", "proposal", "won", "lost", "dead", "bad_number", "dnc"];
+
+// ISO (UTC) <-> <input type="datetime-local"> value (browser-local, no zone).
+function ccLocalInput(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const p = (x) => String(x).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+function ccShortWhen(iso) {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? d.toLocaleString([], { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+}
 const CC_FILTERS = [
-  ["all", "All"], ["new", "To call"], ["interested", "⭐ Interested"],
-  ["answered", "Called"], ["no_answer", "No answer"],
-  ["callback", "Call back"], ["dead", "Said no"], ["bad_number", "Dead line"],
+  ["all", "All"], ["due", "📞 Due now"], ["new", "To call"], ["ready", "Ready"],
+  ["interested", "⭐ Interested"], ["answered", "Called"], ["no_answer", "No answer"],
+  ["callback", "Call back"], ["demo_booked", "Demo booked"], ["proposal", "Proposal"],
+  ["won", "Won"], ["lost", "Lost"], ["dead", "Said no"], ["bad_number", "Dead line"],
+  ["dnc", "Do not call"],
 ];
 
 // The dial bar. Order = how often you press it. Uniform blocks so the hand
@@ -65,7 +90,14 @@ const CC_SHEET_CSS = `
   border-bottom:1px solid rgba(255,255,255,.2);border-right:1px solid rgba(255,255,255,.09)}
 .cc-sheet td{padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.07);
   border-right:1px solid rgba(255,255,255,.07);vertical-align:middle}
-.cc-sheet{min-width:1130px}
+.cc-sheet{min-width:1300px}
+.cc-sheet td:nth-child(8){min-width:170px}
+.cc-sheet .cc-st{background:transparent;border:none;color:inherit;font-size:10.5px;
+  opacity:.55;margin-top:3px;padding:0;cursor:pointer}
+.cc-sheet .cc-cb{background:transparent;border:1px solid rgba(255,255,255,.12);
+  border-radius:4px;color:inherit;font:inherit;font-size:11.5px;padding:2px 4px;width:100%;
+  color-scheme:dark}
+.cc-sheet .cc-cb.cc-late{border-color:rgba(244,184,96,.6);color:#f6c979}
 .cc-sheet td:nth-child(2){min-width:165px}
 .cc-sheet td:nth-child(3),.cc-sheet td:nth-child(5){white-space:nowrap}
 .cc-sheet td:nth-child(4){max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -159,9 +191,23 @@ function CcRow({ n, lead, busy, onMark, onNote, onDelete, onInterested }) {
           </a>
         ) : <span className="faint">—</span>}
         {lead.last_called && <div className="faint mono" style={{ fontSize: 10 }}>{lead.last_called}</div>}
+        {(lead.attempts > 0 || lead.lastContactAt) && (
+          <div className="faint" style={{ fontSize: 10 }}>
+            {lead.attempts || 0} attempt{lead.attempts === 1 ? "" : "s"}
+            {lead.lastContactAt ? " · last " + ccShortWhen(lead.lastContactAt) : ""}
+          </div>
+        )}
       </td>
       <td className="faint" style={{ fontSize: 11.5 }}>{lead.email || "—"}</td>
-      <td><CcStatusPill status={lead.status} /></td>
+      <td>
+        <CcStatusPill status={lead.status} />
+        <div>
+          <select className="cc-st" value={lead.status} disabled={busy} title="Set any status"
+            onChange={(e) => e.target.value !== lead.status && onMark(lead.id, e.target.value)}>
+            {CC_STATUS_ORDER.map((s) => <option key={s} value={s}>{CC_STATUS_LABEL[s]}</option>)}
+          </select>
+        </div>
+      </td>
       <td>
         <input className="cc-cell cc-pain" defaultValue={lead.pain}
           placeholder="what's broken for them?"
@@ -171,6 +217,17 @@ function CcRow({ n, lead, busy, onMark, onNote, onDelete, onInterested }) {
       <td>
         <input className="cc-cell" defaultValue={lead.note} placeholder="note…"
           onBlur={(e) => e.target.value !== (lead.note || "") && onNote(lead.id, e.target.value)} />
+      </td>
+      <td>
+        <input type="datetime-local" key={lead.callbackAt || "none"}
+          className={"cc-cb" + (lead.callbackAt && lead.due ? " cc-late" : "")}
+          defaultValue={ccLocalInput(lead.callbackAt)} disabled={busy}
+          title={lead.callbackAt ? (lead.due ? "Callback is due" : "Hidden from the queue until then") : "Schedule a callback"}
+          onBlur={(e) => {
+            const v = e.target.value;
+            if (v === ccLocalInput(lead.callbackAt)) return;
+            onNote(lead.id, v ? new Date(v).toISOString() : "", "callbackAt");
+          }} />
       </td>
       <td>
         <div className="cc-dial">
@@ -478,7 +535,7 @@ function CcCallSheet({ refreshTally }) {
 
   const ql = q.trim().toLowerCase();
   const filtered = leads.filter((l) => {
-    if (filter !== "all" && l.status !== filter) return false;
+    if (filter === "due" ? !l.due : filter !== "all" && l.status !== filter) return false;
     if (!ql) return true;
     return [l.name, l.company, l.phone, l.email].some((v) => (v || "").toLowerCase().includes(ql));
   });
@@ -567,6 +624,7 @@ function CcCallSheet({ refreshTally }) {
                     <th>Status</th>
                     <th>Pain point</th>
                     <th>Note</th>
+                    <th>Callback</th>
                     <th>Actions</th>
                   </tr>
                 </thead>

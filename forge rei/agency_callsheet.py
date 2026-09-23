@@ -1,7 +1,8 @@
 """agency_callsheet.py — Call Sheet: CRM-style lead tracker (Forge AI Agency).
 
 Owner uploads a PDF (or pastes text) of business leads; it becomes a table of
-businesses tracked per-row (new / answered / no_answer / callback / dead).
+businesses tracked per-row (new / answered / no_answer / callback / dead, plus the
+lifecycle ready / demo_booked / proposal / won / lost / dnc).
 Marking answered/no_answer also bumps the existing daily tally in
 agency_calls.py (log_call) — internal + reversible, mirrors agency_calls.py's
 store idiom (forge_atomic + _LOCK + _load/_save).
@@ -12,7 +13,7 @@ import re
 import subprocess
 import tempfile
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import forge_atomic
@@ -22,10 +23,17 @@ STATE = HERE / "marcus_state" / "agency_callsheet.json"
 _LOCK = threading.Lock()
 
 STATUSES = ("new", "answered", "interested", "no_answer", "callback", "dead",
-            "bad_number")
+            "bad_number", "ready", "demo_booked", "proposal", "won", "lost", "dnc")
+# Out of every call queue for good (until the operator re-marks the row).
+TERMINAL = ("dnc", "won", "lost", "dead", "bad_number")
+# Rows that are in the queue with no callbackAt set.
+QUEUED = ("new", "ready", "callback", "interested")
 
-# Fields the operator can edit inline in the sheet grid.
-EDITABLE = {"note": 300, "pain": 200}
+# Fields the operator can edit inline in the sheet grid. callbackAt is validated ISO.
+EDITABLE = {"note": 300, "pain": 200, "nextAction": 200, "category": 60, "callbackAt": 40}
+# Lifecycle fields added 2026-09-22 — old rows get these defaults on read.
+DEFAULTS = {"callbackAt": "", "attempts": 0, "lastContactAt": "", "nextAction": "",
+            "category": ""}
 
 MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB
 _PDF_RE = re.compile(r"^data:application/pdf;base64,(.+)$", re.S)
@@ -41,10 +49,11 @@ def _load():
             d = json.loads(STATE.read_text())
             if isinstance(d, dict) and isinstance(d.get("leads"), list):
                 d.setdefault("seq", 0)
+                d.setdefault("dnc", [])  # normalized phones that never re-import
                 return d
         except Exception:
             pass
-    return {"seq": 0, "leads": []}
+    return {"seq": 0, "leads": [], "dnc": []}
 
 
 def _save(d):
@@ -53,6 +62,35 @@ def _save(d):
 
 def _norm_phone(p):
     return re.sub(r"\D", "", str(p or ""))
+
+
+def _now():
+    return datetime.now(timezone.utc)
+
+
+def _when(iso):
+    """ISO string → aware datetime (naive = server-local), or None."""
+    try:
+        dt = datetime.fromisoformat(str(iso or "").strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.astimezone()
+
+
+def is_due(lead, now=None):
+    """Is this row in today's call queue? Terminal rows never are; a callbackAt hides the
+    row until it comes due; otherwise only new/ready/callback/interested rows queue."""
+    if lead.get("status") in TERMINAL:
+        return False
+    cb = _when(lead.get("callbackAt")) if lead.get("callbackAt") else None
+    if cb:
+        return cb <= (now or _now())
+    return (lead.get("status") or "new") in QUEUED
+
+
+def call_queue(leads, now=None):
+    now = now or _now()
+    return [l for l in leads if is_due(l, now)]
 
 
 def _dupe_key(lead):
@@ -65,11 +103,14 @@ def _dupe_key(lead):
 def _add_leads(d, incoming):
     """Internal — lock must already be held. Skips dupes, assigns ids. Returns count added."""
     existing = {_dupe_key(l) for l in d["leads"]}
+    blocked = set(d.get("dnc") or []) | {_norm_phone(l.get("phone")) for l in d["leads"]
+                                         if l.get("status") == "dnc"}
+    blocked.discard("")
     added = 0
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     for lead in incoming:
         key = _dupe_key(lead)
-        if key in existing:
+        if key in existing or _norm_phone(lead.get("phone")) in blocked:
             continue
         existing.add(key)
         d["seq"] += 1
@@ -86,6 +127,8 @@ def _add_leads(d, incoming):
             "note": "",
             "added": now,
             "last_called": "",
+            **DEFAULTS,
+            "category": str(lead.get("category", "") or "")[:60],
         })
         added += 1
     return added
@@ -94,11 +137,15 @@ def _add_leads(d, incoming):
 def list_leads():
     with _LOCK:
         d = _load()
-        leads = list(d["leads"])
+        leads = [dict(DEFAULTS, **l) for l in d["leads"]]
+    now = _now()
+    for l in leads:
+        l["due"] = is_due(l, now)
     counts = {s: 0 for s in STATUSES}
     for l in leads:
         counts[l.get("status", "new")] = counts.get(l.get("status", "new"), 0) + 1
     counts["total"] = len(leads)
+    counts["due"] = sum(1 for l in leads if l["due"])
     return {"ok": True, "leads": leads, "counts": counts}
 
 
@@ -109,7 +156,8 @@ def _leads_from_ai(text):
         return None
     system = (
         "Extract business leads from raw text. Output ONLY a JSON array of "
-        "objects with keys name, company, phone, email, website, location, pain "
+        "objects with keys name, company, phone, email, website, location, pain, "
+        "category (business type, e.g. dentist) "
         "(empty string when unknown). No commentary, no markdown fences.\n"
         "`pain` is the ONE specific, concrete problem with this business's web "
         "presence that the caller opens with — carry it over verbatim if the "
@@ -129,7 +177,8 @@ def _leads_from_ai(text):
         if not isinstance(row, dict):
             continue
         lead = {k: str(row.get(k, "") or "").strip() for k in
-                 ("name", "company", "phone", "email", "website", "location", "pain")}
+                 ("name", "company", "phone", "email", "website", "location", "pain",
+                  "category")}
         if lead["name"] or lead["phone"]:
             out.append(lead)
     return out
@@ -247,7 +296,14 @@ def set_status(lead_id, status):
         d = _load()
         for lead in d["leads"]:
             if lead["id"] == lead_id:
+                prev = lead.get("status")
                 lead["status"] = status
+                phone = _norm_phone(lead.get("phone"))
+                dnc = d.setdefault("dnc", [])
+                if status == "dnc" and phone and phone not in dnc:
+                    dnc.append(phone)
+                elif prev == "dnc" and status != "dnc" and phone in dnc:
+                    dnc.remove(phone)  # operator un-marked it — reversible
                 if status in ("answered", "interested", "no_answer", "callback",
                               "bad_number"):
                     lead["last_called"] = datetime.now().strftime("%m/%d %H:%M")
@@ -257,6 +313,13 @@ def set_status(lead_id, status):
                     tally_outcome = "answered"
                 elif status == "no_answer":
                     tally_outcome = "no_answer"
+                if tally_outcome:
+                    now = _now()
+                    lead["attempts"] = int(lead.get("attempts") or 0) + 1
+                    lead["lastContactAt"] = now.isoformat(timespec="seconds")
+                    cb = _when(lead.get("callbackAt")) if lead.get("callbackAt") else None
+                    if cb and cb <= now:
+                        lead["callbackAt"] = ""  # the due callback just got made
                 break
         else:
             return {"ok": False, "detail": "Lead not found."}
@@ -274,6 +337,11 @@ def set_note(lead_id, note, field="note"):
     """Inline cell edit. field defaults to "note" so the original call shape still works."""
     field = field if field in EDITABLE else "note"
     value = str(note or "").strip()[:EDITABLE[field]]
+    if field == "callbackAt" and value:
+        when = _when(value)
+        if not when:
+            return {"ok": False, "detail": "callbackAt must be an ISO date/time."}
+        value = when.astimezone(timezone.utc).isoformat(timespec="seconds")
     with _LOCK:
         d = _load()
         for lead in d["leads"]:
@@ -483,28 +551,30 @@ if __name__ == "__main__":
 
     agency_io.save_client = _fake_save  # monkeypatch
 
+    import agency_offers
     esc = escalate(lid, {"name": "Regina", "business": "Bright Start Daycare",
-                          "services": ["Website"], "offer": {"id": "website-app"},
+                          "services": ["Website"], "offer": {"id": "web-growth"},
                           "next_step": "Zoom Thu 10am", "notes": "site has no tour form"})
     assert esc["ok"], esc
     assert saved_clients[0]["status"] == "lead", saved_clients
     # a one-time build must NOT become recurring revenue
     assert saved_clients[0]["mrr"] == 0, saved_clients[0]
-    assert saved_clients[0]["plan"] == "Website + App Combo — $1,100", saved_clients[0]
-    assert "Offer quoted: Website + App Combo — $1,100" in saved_clients[0]["notes"]
+    # the quote lives in `offer` (structured), never `plan`
+    assert agency_offers.line(saved_clients[0]["offer"]) == "Growth Website — $700", saved_clients[0]
+    assert "Offer quoted: Growth Website — $700" in saved_clients[0]["notes"]
 
     assert "Phone: " in saved_clients[0]["notes"], saved_clients[0]["notes"]
     assert "Zoom Thu 10am" in saved_clients[0]["notes"], saved_clients[0]["notes"]
     lead = [l for l in esc["leads"] if l["id"] == lid][0]
     assert lead["status"] == "interested" and lead["client_id"] == "c_test1", lead
-    assert lead["offer"] == "Website + App Combo — $1,100", lead
+    assert lead["offer"] == "Growth Website — $700", lead
     assert calls == ["answered", "answered"], calls  # interested counts as a dial
 
     # a custom MONTHLY deal does set mrr, and is labelled off-sheet
     escalate(lid, {"name": "Regina", "offer": {"custom": True, "name": "Starter care",
                                                  "price": 175, "monthly": True}})
     assert saved_clients[-1]["mrr"] == 175, saved_clients[-1]
-    assert "CUSTOM" in saved_clients[-1]["plan"], saved_clients[-1]
+    assert "CUSTOM" in agency_offers.line(saved_clients[-1]["offer"]), saved_clients[-1]
 
     # re-escalating updates the SAME client, never creates a second one
     escalate(lid, {"name": "Regina", "mrr": 400})
@@ -528,5 +598,73 @@ if __name__ == "__main__":
 
     dr = delete_lead(lid)
     assert dr["counts"]["total"] == 0, dr
+
+    # --- lifecycle (wave-2 #4) ---------------------------------------------
+    import sys
+    from datetime import timedelta
+    sys.modules["agency_callsheet"] = sys.modules[__name__]  # owner_actions sees temp STATE
+    import owner_actions
+
+    # old rows (no lifecycle fields) read back with safe defaults
+    with _LOCK:
+        d = _load()
+        d["leads"].append({"id": "Lold", "name": "Legacy Co", "phone": "215-555-0000",
+                           "status": "callback", "note": ""})
+        _save(d)
+    old = [l for l in list_leads()["leads"] if l["id"] == "Lold"][0]
+    assert old["attempts"] == 0 and old["callbackAt"] == "" and old["due"], old
+
+    r = import_text("Bright Dental 215-555-7777\nCorner Cafe 215-555-8888", use_ai=False)
+    a, b = [l["id"] for l in r["leads"] if l["id"] != "Lold"]
+
+    # answered / no_answer bump attempts + lastContactAt, tally still bumps
+    calls.clear()
+    set_status(a, "no_answer")
+    r = set_status(a, "answered")
+    la = [l for l in r["leads"] if l["id"] == a][0]
+    assert la["attempts"] == 2 and la["lastContactAt"], la
+    assert calls == ["no_answer", "answered"], calls
+    set_status(a, "callback")  # CB is not a dial
+    assert [l for l in list_leads()["leads"] if l["id"] == a][0]["attempts"] == 2
+
+    # tomorrow's callback is NOT in today's list; a past one is, with a real age
+    tomorrow = (_now() + timedelta(days=1)).isoformat()
+    assert set_note(a, tomorrow, "callbackAt")["ok"]
+    assert set_note(a, "next tuesday", "callbackAt")["ok"] is False  # junk rejected
+    leads = list_leads()["leads"]
+    assert a not in [l["id"] for l in call_queue(leads)]
+    assert not [l for l in leads if l["id"] == a][0]["due"]
+    oa = {i["id"]: i for i in owner_actions._src_agency_callsheet({})}
+    assert f"callsheet:{a}" not in oa, oa
+    assert oa["callsheet:Lold"]["kind"] == "CALLBACK"   # legacy callback row still shows
+    assert oa["callsheet:new"]["title"].startswith("1 prospect"), oa  # b only
+
+    two_h_ago = (_now() - timedelta(hours=2)).isoformat()
+    set_note(a, two_h_ago, "callbackAt")
+    assert a in [l["id"] for l in call_queue(list_leads()["leads"])]
+    it = {i["id"]: i for i in owner_actions._src_agency_callsheet({})}[f"callsheet:{a}"]
+    assert it["kind"] == "CALLBACK" and it["priority"] == "revenue", it
+    assert 7000 <= it["ageSec"] <= 7300, it
+    # making the due call consumes the callback
+    set_status(a, "no_answer")
+    la = [l for l in list_leads()["leads"] if l["id"] == a][0]
+    assert la["callbackAt"] == "" and la["attempts"] == 3, la
+
+    # dnc: out of every queue, and its phone never re-imports — even after delete
+    set_status(b, "dnc")
+    assert b not in [l["id"] for l in call_queue(list_leads()["leads"])]
+    assert "callsheet:new" not in {i["id"] for i in owner_actions._src_agency_callsheet({})}
+    delete_lead(b)
+    r = import_text("Corner Cafe again (215) 555-8888", use_ai=False)
+    assert r["added"] == 0 and r["skipped"] == 1, r
+    # un-marking dnc (row still present) lifts the block
+    set_status("Lold", "dnc")
+    set_status("Lold", "new")
+    delete_lead("Lold")
+    assert import_text("Legacy Co 215-555-0000", use_ai=False)["added"] == 1
+
+    for st in ("ready", "demo_booked", "proposal", "won", "lost"):
+        assert set_status(a, st)["ok"], st
+    assert list_leads()["counts"]["lost"] == 1
 
     print("ok")
