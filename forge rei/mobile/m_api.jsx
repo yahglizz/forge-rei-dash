@@ -48,9 +48,15 @@ async function apiPostM(path, body) {
     body: JSON.stringify(body || {}),
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || (j && j.error)) throw new Error((j && j.error) || ("HTTP " + r.status));
+  if (!r.ok || (j && j.error)) { hapticM("error"); throw new Error((j && j.error) || ("HTTP " + r.status)); }
+  hapticM("success");
   if (window.ForgeLiveSync) window.ForgeLiveSync.signal(path);
   return j;
+}
+
+// Native iOS shell (ios/ForgeMobile) exposes a haptic bridge; a no-op in Safari/PWA.
+function hapticM(kind) {
+  try { window.webkit.messageHandlers.forgeHaptic.postMessage(kind || "tap"); } catch (_) {}
 }
 
 function fmtMoneyM(n) {
@@ -70,4 +76,4 @@ function timeAgoM(ts) {
   return Math.floor(s / 86400) + "d";
 }
 
-Object.assign(window, { useApiM, apiPostM, fmtMoneyM, timeAgoM });
+Object.assign(window, { useApiM, apiPostM, fmtMoneyM, timeAgoM, hapticM });

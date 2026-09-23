@@ -257,3 +257,20 @@ input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus 
 .mw-stage-choice{min-height:48px;padding:10px 13px;border:1px solid #DFE7F5;border-radius:15px;background:#fff;color:#445571;text-align:left;font:700 12px inherit;text-transform:capitalize}
 .mw-stage-choice.active{background:#E7F3CF;border-color:#B9D978;color:#456B18}
 @media(max-width:390px){.m-tab{font-size:9px}.mw-hero{padding:17px}.mw-hero h1{font-size:25px}}
+
+/* ── iOS native pass (2026-09-23) — also applies in Safari/PWA ───────────────
+   Flex order: every page renders <MHeader/> + .m-content as direct .m-app children,
+   so the Wholesale segment bar (rendered first in m_app.jsx) must be ordered under
+   the header — rendered first it sat beneath the status bar / Dynamic Island. */
+.m-app > * { order: 2; }
+.m-app > .m-head { order: 0; }
+.m-app > .mw-business-segments { order: 1; }
+.m-app > .m-tabbar { order: 9; }
+/* Hero mascot note is absolute bottom-right; reserve its band so the subtitle never
+   runs under it (collided at 390–402pt widths). */
+.mw-hero { padding-bottom: 84px; }
+/* Native feel: no 300ms tap delay / double-tap zoom, no callout or text selection when
+   long-pressing chrome. Content text stays selectable. */
+button, .m-btn, .m-chip, .m-tab, .m-list-item, a { touch-action: manipulation; }
+.m-tabbar, .m-head, .m-btn, .m-chip, .m-tab, button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.m-content { overscroll-behavior-y: contain; }
