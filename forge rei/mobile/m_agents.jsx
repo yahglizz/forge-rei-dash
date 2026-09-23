@@ -150,7 +150,8 @@ function MAgentsPage() {
     });
   });
 
-  const active = agents.find((a) => a.id === agentId) || agents[0];
+  const noAgents = hasRegistry && !agents.length;
+  const active = agents.find((a) => a.id === agentId) || agents[0] || { id: "none", name: "No active agent", color: "#64748B", crew: "rei", ep: "/api/hub/chat", role: "Archived agents are hidden on mobile" };
   const draft = drafts[active.id] || "";
   const thinking = busyId === active.id;
 
@@ -223,6 +224,7 @@ function MAgentsPage() {
     lastOut = out;
   });
 
+  if (noAgents) return <React.Fragment><window.MHeader title="Agents" sub="Live agent roster" /><div className="m-content"><window.MEmpty title="No active agents" sub="Archived agents are hidden from mobile." /></div></React.Fragment>;
   return (
     <React.Fragment>
       <window.MHeader title="Agents" sub="Your AI employees — synced with Telegram" />
@@ -239,7 +241,7 @@ function MAgentsPage() {
               className={"m-chip" + (!busMode && agentId === a.id ? " active" : "")}
               style={{ minHeight: 44 }}
               onClick={() => { setBusMode(false); setAgentId(a.id); }}>
-              {a.name}{a.status ? " · " + a.status.replaceAll("_", " ").toLowerCase() : ""}{busyId === a.id ? " …" : ""}
+              {a.name}{a.status ? " · " + a.status.replace(/_/g, " ").toLowerCase() : ""}{busyId === a.id ? " …" : ""}
             </button>
           ))}
           <button className={"m-chip" + (busMode ? " active" : "")}

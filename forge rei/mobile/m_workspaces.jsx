@@ -111,7 +111,7 @@ function MWDaycare() {
   const stages = kpis.pipeline || kpis.stages || {};
   const auth = leads.error && /401|403|unauthor/i.test(String(leads.error));
   async function stage() {
-    if (!stageLead || !window.confirm("Save this stage locally? It will not update GoHighLevel.")) return;
+    if (!stageLead) return;
     try { await window.apiPostM("/api/daycare/leads/stage", { contactId: stageLead.contactId || stageLead.id, stage: stageValue }); leads.refresh(); setStageLead(null); }
     catch (e) { setNotice("Daycare stage unavailable — retry."); }
   }
