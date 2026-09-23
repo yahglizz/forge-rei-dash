@@ -26,6 +26,20 @@ function ArchivedBusinessesPage() {
     }
   }
 
+  // Maintenance = visual flag only (greyed + badge); the business stays fully live.
+  async function toggleMaint(b) {
+    setBusyArc(b.id + ":m");
+    setErrArc(null);
+    try {
+      await window.apiPost("/api/businesses/set", { id: b.id, maintenance: !b.maintenance });
+      refresh();
+    } catch (e) {
+      setErrArc("Maintenance toggle for " + b.label + " failed: " + (e.message || String(e)));
+    } finally {
+      setBusyArc(null);
+    }
+  }
+
   function arcRow(b) {
     const isLens = b.id.indexOf(":") !== -1;
     const canOpen = b.archived && !isLens && window.forgeEnterBusiness;
@@ -40,6 +54,14 @@ function ArchivedBusinessesPage() {
                                         color: b.archived ? "var(--text-2)" : "var(--green)" }}>
           {b.archived ? "Archived" : "Active"}
         </span>
+        {b.maintenance && (
+          <span className="pill" style={{ background: "rgba(245,158,11,.18)", color: "#F59E0B" }}>🛠 Maintenance</span>
+        )}
+        {!b.archived && !isLens && (
+          <button className="tab" disabled={busyArc === b.id + ":m"} onClick={() => toggleMaint(b)}>
+            {busyArc === b.id + ":m" ? "Saving…" : b.maintenance ? "End maintenance" : "Maintenance"}
+          </button>
+        )}
         {canOpen && (
           <button className="tab" onClick={() => window.forgeEnterBusiness(b.id)}>Open (archived)</button>
         )}

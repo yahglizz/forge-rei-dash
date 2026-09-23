@@ -3841,7 +3841,10 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/ops/set":
                 result = forge_ops.set_paused(bool(body.get("paused")))
             elif parsed.path == "/api/businesses/set":  # WP-B
-                result = business_scope.set_archived(body.get("id"), body.get("archived"))
+                if "maintenance" in body:  # visual-only flag; business stays active
+                    result = business_scope.set_maintenance(body.get("id"), body.get("maintenance"))
+                else:
+                    result = business_scope.set_archived(body.get("id"), body.get("archived"))
             elif parsed.path == "/api/brief/send":
                 result = _maybe_daily_brief(force=True)
             elif parsed.path == "/api/brief/config":

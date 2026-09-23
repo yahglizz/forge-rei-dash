@@ -197,7 +197,11 @@ function App() {
   const bizApi = window.useApi("/api/businesses");
   const bizRows = bizApi.data && bizApi.data.businesses;
   const archived = new Set(bizRows ? bizRows.filter((b) => b.archived).map((b) => b.id) : APP_ARCHIVE_SEED);
-  const activeWs = wsList.filter((w) => !archived.has(w.id));
+  // MAINTENANCE (business_scope): visual only — the business stays active + clickable;
+  // switchers grey it and prefix its tag, the workspace shows a banner.
+  const maint = new Set(bizRows ? bizRows.filter((b) => b.maintenance).map((b) => b.id) : []);
+  const activeWs = wsList.filter((w) => !archived.has(w.id))
+    .map((w) => maint.has(w.id) ? { ...w, maintenance: true, tag: "🛠 Maintenance · " + (w.tag || "") } : w);
   // An archived workspace opened via "Open (archived)" (session only — a reload drops it).
   const [roWs, setRoWs] = useStateA(null);
   const [wsId, setWsId] = useStateA(() => appRead("forge_ws", "rei"));
@@ -310,6 +314,15 @@ function App() {
               Viewing an archived business — actions still work. It's hidden from the switcher, Mission Control and agent briefs; its data is untouched.
             </span>
             <button className="tab" onClick={() => openView("archived")}>Manage</button>
+          </div>
+        )}
+        {maint.has(ws.id) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 26px", fontSize: 12.5,
+                        background: "rgba(245,158,11,.12)", borderBottom: "1px solid var(--border)" }}>
+            <span className="pill" style={{ background: "rgba(245,158,11,.22)", color: "#F59E0B" }}>🛠 Maintenance</span>
+            <span className="faint" style={{ flex: 1 }}>
+              This business is under maintenance — everything is still live: agents, loops and every action work normally.
+            </span>
           </div>
         )}
         <div className="content">

@@ -48,14 +48,22 @@ function McAttention({ a, onEnter }) {
   );
 }
 
-function McCard({ card, onEnter }) {
+// maint = business flagged MAINTENANCE (business_scope): greyed + badge, still fully clickable.
+function McCard({ card, onEnter, maint }) {
   const accent = card.accent || "#4F7CFF";
   const status = card.status || "unknown";
   return (
     <div className="card card-pad" style={{
       display: "flex", flexDirection: "column", gap: 12,
       borderColor: status === "down" ? "var(--red)" : "var(--card-2)",
+      filter: maint ? "grayscale(0.85)" : undefined, opacity: maint ? 0.6 : 1,
     }}>
+      {maint && (
+        <div style={{ alignSelf: "flex-start", fontSize: 11, fontWeight: 700, letterSpacing: 0.4,
+          padding: "3px 9px", borderRadius: 999, background: "rgba(245,158,11,.18)", color: "#F59E0B" }}>
+          🛠 MAINTENANCE — still live, all actions work
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
         <div style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0,
           background: "radial-gradient(circle at 40% 35%, " + accent + ", #16224a)",
@@ -521,7 +529,7 @@ function MissionControl({ onEnter, workspaces = [] }) {
                   width: 250, padding: 8, zIndex: 50, borderRadius: 14 }}>
                   {workspaces.map((w) => (
                     <button key={w.id} onClick={() => { setMenu(false); onEnter(w.id); }}
-                      style={{ display: "flex", alignItems: "center", gap: 11, width: "100%",
+                      style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", opacity: w.maintenance ? 0.55 : 1,
                         padding: "9px 8px", borderRadius: 10, textAlign: "left", cursor: "pointer" }}>
                       <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                         background: "radial-gradient(circle at 40% 35%, " + w.accent + ", #16224a)",
@@ -591,7 +599,8 @@ function MissionControl({ onEnter, workspaces = [] }) {
 
             {/* Business cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
-              {cards.map((c) => <McCard key={c.id} card={c} onEnter={onEnter} />)}
+              {cards.map((c) => <McCard key={c.id} card={c} onEnter={onEnter}
+                maint={workspaces.some((w) => w.id === c.id && w.maintenance)} />)}
             </div>
 
             {/* Monthly spend — the operator's own subscriptions, grouped by business */}

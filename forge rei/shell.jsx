@@ -194,7 +194,7 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onN
               <div className="faint" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", padding: "6px 8px 8px" }}>Workspaces</div>
               {workspaces.map((w) => (
                 <button key={w.id} onClick={() => { onSwitch(w.id); setMenu(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "9px 8px", borderRadius: 10, background: w.id === current.id ? "var(--card-2)" : "transparent", textAlign: "left" }}>
+                  style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "9px 8px", borderRadius: 10, background: w.id === current.id ? "var(--card-2)" : "transparent", textAlign: "left", opacity: w.maintenance ? 0.55 : 1 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 9, background: "radial-gradient(circle at 40% 35%, " + w.accent + ", #16224a)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                     <Logo accent={w.accent} />
                   </div>
