@@ -255,6 +255,15 @@ function avaColor(s) {
   return AVA_COLORS[h % AVA_COLORS.length];
 }
 
+// Wave-2 §7 seller class chip (label only — bucket/tags unchanged). DNC is solid red.
+const SCOUT_CLASS_STYLE = {
+  HOT: { label: "HOT", bg: "rgba(239,68,68,0.14)", fg: "#EF4444" },
+  WARM: { label: "WARM", bg: "rgba(245,158,11,0.14)", fg: "#F59E0B" },
+  NURTURE: { label: "NURTURE", bg: "rgba(59,130,246,0.14)", fg: "var(--blue)" },
+  NOT_INTERESTED: { label: "NOT INTERESTED", bg: "var(--card-2)", fg: "var(--text)" },
+  DO_NOT_CONTACT: { label: "⛔ DO NOT CONTACT", bg: "#B91C1C", fg: "#fff" },
+};
+
 // Scout's triage list — ranked sellers to text back, by bucket. Clicking a card
 // selects the conversation so the right pane shows the thread (reply via Marcus there).
 function ScoutLeads({ bucket, activeId, onPick }) {
@@ -309,6 +318,11 @@ function ScoutLeads({ bucket, activeId, onPick }) {
               background: on ? "var(--card-2)" : "transparent", borderLeft: on ? "3px solid var(--blue)" : "3px solid transparent" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span>
+              {SCOUT_CLASS_STYLE[l.classification] && (
+                <span className="pill" title={(l.classReason || "") + (l.wrongNumber ? " · wrong number" : "")}
+                  style={{ fontSize: 9.5, fontWeight: 800, flexShrink: 0, background: SCOUT_CLASS_STYLE[l.classification].bg, color: SCOUT_CLASS_STYLE[l.classification].fg }}>
+                  {SCOUT_CLASS_STYLE[l.classification].label}</span>
+              )}
               <span title="motivation" style={{ fontSize: 12, fontWeight: 800, color: scoreColor(l.motivation), flexShrink: 0 }}>{l.motivation}</span>
             </div>
             <div className="faint mono" style={{ fontSize: 11, marginTop: 1 }}>{l.phone || "no phone"} · {window.timeAgo(l.lastMessageDate)}</div>

@@ -284,6 +284,52 @@ def _reaction_score(kind):
             "scoreSource": "reaction"}
 
 
+# -- Wave-2 §7: 5-class seller label ------------------------------------------
+# A LABEL ONLY, derived on read from what Scout already stored (bucket + reason +
+# the seller's last message). It never changes bucket, score, tags, or the pipeline,
+# so auto-tag / auto-pipe behave exactly as before and old records get a label
+# without a state rewrite. Opt-out detection reuses the compliance classifier
+# (seller_classify via marcus_engine.classify == "DNC") + marcus_engine._is_opt_out.
+SELLER_CLASSES = ("HOT", "WARM", "NURTURE", "NOT_INTERESTED", "DO_NOT_CONTACT")
+_CLASS_BY_BUCKET = {"asap": "HOT", "warm": "WARM", "nurture": "NURTURE",
+                    "dead": "NOT_INTERESTED"}
+# Timing words turn a soft-no into "not NOW" (NURTURE) instead of "not selling".
+_NOT_NOW_RE = re.compile(
+    r"\b(?:right\s+now|at\s+the\s+moment|at\s+this\s+time|for\s+now|later|yet|"
+    r"not\s+ready|right\s+time|few\s+months|next\s+(?:year|month|spring|summer)|"
+    r"someday|maybe)\b", re.IGNORECASE)
+_OPT_OUT_REASON_RE = re.compile(
+    r"opt[- ]?out|\bstop\b|do not contact|\bdnc\b|unsubscribe", re.IGNORECASE)
+
+
+def seller_class(rec):
+    """-> {classification, optOut, wrongNumber, classReason} for a Scout record."""
+    body = rec.get("lastMessage") or ""
+    reason = rec.get("reason") or ""
+    bucket = rec.get("bucket")
+    opt_out = bool(marcus_engine.classify(body) == "DNC"
+                   or marcus_engine._is_opt_out(body)
+                   or _OPT_OUT_REASON_RE.search(reason))
+    wrong = bool(marcus_engine._is_denial(body, rec.get("name"))
+                 or "wrong number" in reason.lower())
+    if opt_out:   # compliance wins over everything, incl. a wrong number who said stop
+        return {"classification": "DO_NOT_CONTACT", "optOut": True,
+                "wrongNumber": wrong, "classReason": "opted out / asked to stop"}
+    if wrong:
+        return {"classification": "NOT_INTERESTED", "optOut": False,
+                "wrongNumber": True, "classReason": "wrong number / not the seller"}
+    if rec.get("scoreSource") != "manual":   # operator override: trust the bucket
+        if marcus_engine._is_hard_no(body):
+            return {"classification": "NOT_INTERESTED", "optOut": False,
+                    "wrongNumber": False, "classReason": "flat no / not interested"}
+        if marcus_engine._is_soft_no(body) and not _NOT_NOW_RE.search(body):
+            return {"classification": "NOT_INTERESTED", "optOut": False,
+                    "wrongNumber": False, "classReason": "said not selling"}
+    cls = _CLASS_BY_BUCKET.get(bucket, "NURTURE")
+    return {"classification": cls, "optOut": False, "wrongNumber": False,
+            "classReason": f"bucket {bucket or 'unknown'}"}
+
+
 class ScoutEngine:
     def __init__(self, ghl_get, ghl_post, location_id, ghl_put=None, ghl_delete=None):
         self.ghl_get = ghl_get
@@ -767,6 +813,7 @@ class ScoutEngine:
             "pipelineStage": r.get("pipelineStage"),
             "pipelineSyncedAt": r.get("pipelineSyncedAt"),
             "scoreSource": r.get("scoreSource"),
+            **seller_class(r),   # 5-class label, computed on read (backfills old records)
         }
 
     def backfill(self, screener, limit=80):
