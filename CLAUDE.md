@@ -490,6 +490,10 @@ front-ends on ONE Supabase DB + schema** — the merge is at the data layer, not
 **byte-identical = single source of truth**. **Currently out of sync (checked 2026-09-22):**
 the 30 dashboard files are byte-identical to the app's copies, but the app has 39 — 9 newer
 migrations (2026-08-30..09-13) were never copied here. The app's folder is the complete set.
+**Those newer migrations column-grant `profiles` (login_id/auth_email/phone revoked) and
+`staff_members` (hourly_rate → `staff_pay_rates()` RPC).** Selecting a revoked column 403s the WHOLE
+PostgREST query — it took the daycare console down 2026-09-23. `daycare_supabase.py` now names
+columns (`_STAFF_COLS`/`_PROFILE_COLS`); never `select=*`/`return=representation` on those tables.
 
 - **Opens straight in (no login) — for the whole tailnet, as of 2026-08-23.** The box
   auto-mints an admin session so the console opens with no login screen. Gated by
