@@ -61,6 +61,37 @@ def _ai_health(ok, code=None, msg=None, key=None):
         pass
 
 
+# Transient Claude failures (overload / rate limit / gateway / network) retry; credit,
+# auth and bad-request errors (400/401/403, anything not listed) raise on the first try so
+# hard-down is marked immediately. Health is stamped ONCE per logical call by the caller:
+# a retried-then-successful call = one ai_ok, zero ai_fail (a swallowed 529 never counts).
+_RETRY_CODES = {429, 500, 502, 503, 529}
+# ponytail: fixed 2s/5s, no Retry-After / jitter. Ceiling: +7s on an HTTP-error bad day,
+# but a timeout retries too, so worst case is 3 x timeout + 7s. Add Retry-After if 429s persist.
+_RETRY_BACKOFF = (2, 5)
+
+
+def claude_urlopen(req, timeout):
+    """urllib.request.urlopen(req) -> parsed JSON, with <=2 retries on transient failures.
+    Re-raises the ORIGINAL exception (HTTPError body unread) so callers' except blocks
+    read the real Anthropic message exactly as before."""
+    for wait in (*_RETRY_BACKOFF, None):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            if wait is None or e.code not in _RETRY_CODES:
+                raise
+            try:
+                e.close()
+            except Exception:  # noqa: BLE001
+                pass
+        except OSError:   # URLError / socket timeout / connection reset
+            if wait is None:
+                raise
+        time.sleep(wait)
+
+
 def _claude(key, system, user, max_tokens=1200, tools=None, model=None):
     messages = [{"role": "user", "content": user}]
     use_model = model or MODEL
@@ -92,8 +123,7 @@ def _claude(key, system, user, max_tokens=1200, tools=None, model=None):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=90) as r:
-                data = json.loads(r.read().decode())
+            data = claude_urlopen(req, 90)   # <=2 transient retries (429/5xx/529/network)
         except urllib.error.HTTPError as e:
             # urllib's default str(e) is just "HTTP Error 400: Bad Request" — the
             # real reason (low credit balance, rate limit, bad model) lives in the

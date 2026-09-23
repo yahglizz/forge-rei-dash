@@ -932,8 +932,8 @@ class MarcusEngine:
                 },
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=30) as r:
-                data = json.loads(r.read().decode())
+            import review_agent   # shared transient retry (<=2, 429/5xx/529/network only)
+            data = review_agent.claude_urlopen(req, 30)
             forge_heartbeat.ai_ok(self.anthropic_key)   # shared AI-dependency signal, per-key fingerprint (never raises)
             try:  # cost telemetry — best-effort, never blocks the draft
                 import cost_tracker

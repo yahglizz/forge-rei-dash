@@ -701,6 +701,45 @@ def _probe(agent_id):
     return p
 
 
+# Scout errors that happen AFTER a good GHL fetch (scoring, learn, brain) — not a CRM fault.
+_NON_CRM_ERR = ("claude:", "learn:", "brain write:", "transcript:", "audit:", "weekly audit:",
+                "handoff to marcus")
+
+
+def _crm_health(hb_all, now):
+    """Wholesale GHL read off the Scout sweep heartbeat (it fetches GHL every tick) — no
+    network. None = unknown (no/stale heartbeat, e.g. the Mac with FORGE_MARCUS=0)."""
+    # ponytail: prefix heuristic over Scout's last_error text; a dedicated GHL stamp in
+    # connector._ghl_get would be exact if this ever misreads.
+    try:
+        import forge_heartbeat
+        rec = hb_all.get("scout")
+        if not isinstance(rec, dict):
+            return None, None
+        _status, _age, stale = forge_heartbeat._status_for(rec, now)
+        if stale:
+            return None, None
+        err = rec.get("lastError") or ""
+        if not err or err.lower().startswith(_NON_CRM_ERR):
+            return "ok", None
+        return ("down" if int(rec.get("errStreak") or 0) >= 3 else "degraded"), err
+    except Exception:
+        return None, None
+
+
+def _meta_health():
+    """Agency Meta token via agency_ads' in-process rejection cache — no network, the token
+    never leaves this function. None = no token configured / unreadable."""
+    try:
+        import agency_ads
+        token = os.environ.get("META_ACCESS_TOKEN", "")
+        if not token:
+            return None
+        return "down" if agency_ads._auth_dead(token) else "ok"
+    except Exception:
+        return None
+
+
 def registry(business=None, now=None):
     """One row per roster agent with the spec §9 fields. Archived businesses → DISABLED,
     sorted last. Never raises per agent: an unreadable source reads as None/unknown."""
@@ -714,6 +753,8 @@ def registry(business=None, now=None):
     task_rows = _load()
     jobs = _running_jobs()
     has_key = bool(review_agent._api_key())
+    crm, crm_err = _crm_health(hb_all, now)
+    meta = _meta_health()
 
     out = []
     for a in AGENTS:
@@ -769,6 +810,10 @@ def registry(business=None, now=None):
                 "keys": p.get("keys", has_key) if uses_ai else None,   # presence only
                 "heartbeat": ("none" if not a.get("hb") else "missing" if not recs
                               else forge_heartbeat._status_for(rec, now)[0]),
+                # ok / degraded / down; None = unknown; "n/a" = agent doesn't use it.
+                "crm": crm if a["business"] == "wholesale" else "n/a",
+                "crmReason": crm_err if a["business"] == "wholesale" else None,
+                "meta": meta if aid == "eco" else "n/a",
             },
             "work": p.get("work"),
             "detail": p.get("detail"),
