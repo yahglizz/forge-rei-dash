@@ -154,7 +154,7 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 - **Accept:** the `agency_callsheet` self-check is extended (dnc re-import blocked, attempts increment, tomorrow's callback not in today's list); `test_owner_actions` still green.
 - **Risk:** low. Old statuses stay valid; new fields default.
 
-**5. Daycare pipeline stages + tours / apps / enrollments (§8)**
+**5. Daycare pipeline stages + tours / apps / enrollments (§8)** — ✅ DONE 2026-09-23
 - **Files:** `daycare_leads.py:158` `derive`, `:244` `kpis`, `daycare.jsx` Lead Desk.
 - **Stages:** read TOUR_BOOKED / TOUR_COMPLETED / APPLICATION / ENROLLED / LOST from GHL tags when present, plus a one-tap **local** stage mark stored in `marcus_state/daycare_lead_stages.json` (internal, reversible, never written to GHL). ENROLLED is also derived from the contact→child ledger (`daycare_ghl.py:84`).
 - **Accept:** `test_daycare_leads.py` extended for stage precedence; tiles show "—" (Unknown) when there is no source, never 0; enrolled families stay out of needs-human.
@@ -167,12 +167,12 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 - **Accept:** `test_action_log.py` covers append, rotate, redaction, concurrent writers, and an unwritable log never blocking the action.
 - **Risk:** medium, because it touches send paths. The hooks must never gate an action.
 
-**7. Claude transient retry + wider dependency health (§11)**
+**7. Claude transient retry + wider dependency health (§11)** — ✅ DONE 2026-09-23
 - **Files:** `review_agent.py:93-106` and `marcus_engine.py:~922` — ≤2 retries with backoff on 429/500/502/503/529 and timeouts only; **never** on 400/401/403 (credits/auth). `agents_hub.py:765` `dependencyHealth` gains `crm` (heartbeat lastError / GHL health) and `meta` (`agency_ads._auth_dead`).
 - **Accept:** fake-urlopen test: 529 → 529 → 200 returns text with one `ai_ok`; a credit 400 raises at once and marks hard-down.
 - **Risk:** low-medium: adds a few seconds of latency on a bad day. It must not interact with the per-key hardBy fix already in flight elsewhere.
 
-**8. Wholesale 5-class label (§7)**
+**8. Wholesale 5-class label (§7)** — ✅ DONE 2026-09-23
 - **Files:** `scout_triage.py:377-411` — add explicit `optOut` / `wrongNumber` flags and a derived `classification` (HOT / WARM / NURTURE / NOT_INTERESTED / DO_NOT_CONTACT). Buckets are untouched. Show it in the leads UI.
 - **Accept:** a test asserts "stop" → DO_NOT_CONTACT, "not selling" → NOT_INTERESTED, reason preserved, bucket unchanged.
 - **Risk:** low.
