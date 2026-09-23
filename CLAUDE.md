@@ -392,6 +392,18 @@ update that skill if you improved the pattern.
   buildless UMD dashboard) with procedurally drawn characters, so no third-party sprite
   art ships in this public repo.
 
+- **FORGE Mobile + business portal (2026-09-23).** `forge rei/mobile/` (`/m/`) is the phone
+  app; `ios/ForgeMobile/` is its native iOS shell (SwiftUI + WKWebView loading the box `/m/` over
+  Tailscale — web edits ship by git push, NO app rebuild; `./sim-run.sh` = sim, `FORGE_URL=` overrides).
+  Launch opens a **login portal** (`m_login.jsx`, "Where are you headed?" — same pattern as the daycare
+  app's portal): one tap → **Wholesale / Agency / Daycare / Everything**. Each business opens its own
+  uncluttered side (`m_biz_{wholesale,agency,daycare}.jsx` → `window.M_BIZ.<id> = {tabs, pages}`):
+  Wholesale = Home·Inbox·Pipeline·Calc·Crew; Agency = Home·Calls·Requests·Approvals·Crew;
+  Daycare = Home·Families·Solomon·Money. "Everything" = the classic 5-tab app, unchanged. The header
+  mascot (⇄ badge) switches business; the choice persists (`localStorage.m_biz`, `?biz=` deep link).
+  Crew = `MAgentsPage business=<id>` (that business's agents + Orion/brief). No PIN — the tailnet is
+  the lock, same as the dashboard. No keys in the app: every function is the same `/api/*` the desktop
+  uses (connector holds env/keys/agents/brain). Outward actions stay tap + `confirm()` gated.
 - Telegram alerts + tap-to-approve (`telegram_io.py`): pings on hot lead / Marcus reply
   needing approval (warm+ only) / weekly missed sweep / handoffs+agency; inline buttons
   reuse Marcus's gated send + Scout handoff/dismiss. Tap **two-factor auth**: right chat AND

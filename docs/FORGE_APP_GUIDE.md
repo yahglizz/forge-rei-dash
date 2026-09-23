@@ -11,6 +11,7 @@ nothing leaves the building (texts, ads, invoices, pipeline moves) until you tap
 | Any device on your tailnet | `https://forge-reios.tail0a2dda.ts.net` |
 | Mac shortcut | say "open dashboard" (runs `open-dashboard.sh`) |
 | Phone, away from the dashboard | Telegram bot — alerts, tap-to-approve, `/solomon …`, `/task …` |
+| Phone app | `https://forge-reios.tail0a2dda.ts.net/m/` or the FORGE iOS app (`ios/ForgeMobile`) — pick **Wholesale / Agency / Daycare / Everything** on the login screen; tap the mascot (⇄) to switch business |
 
 It runs 24/7 on the box. Your Mac can be closed.
 

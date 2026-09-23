@@ -25,10 +25,10 @@ Related: [FORGE_AGENTS.md](FORGE_AGENTS.md) · [FORGE_INTEGRATIONS.md](FORGE_INT
 ### Layout
 ```
 forge rei dash/
-├── forge rei/            THE APP — ~106 Python modules + 51 desktop .jsx + 9 mobile .jsx
+├── forge rei/            THE APP — ~106 Python modules + 51 desktop .jsx + 15 mobile .jsx
 │   ├── connector.py      HTTP server + all background loops (single process)
 │   ├── FORGE REI OS.html desktop entry (loads every .jsx, then app.jsx)
-│   ├── mobile/           PWA (wholesale-centric)
+│   ├── mobile/           phone app /m/ — login portal → per-business sides (also the iOS shell's content)
 │   ├── portal.html       agency client portal (public via Funnel, separate listener)
 │   ├── deploy/           push.sh, quick-deploy.sh, deploy-pull.sh, autopull.sh, auto-sync.sh, valjsx.js, live_smoke.py
 │   └── test_*.py         ~33 test files (see FORGE_TEST_PLAN.md)
@@ -59,7 +59,7 @@ Business-truth for the daycare lives **outside** this repo in the private
 - Desktop: 51 `.jsx`, all loaded, **0 orphans**, all pass `deploy/valjsx.js`, 0 name collisions, 0 computed JSX tags.
 - **Workspaces are hardcoded** in `data.jsx:68-73`: `rei` (16 nav items), `agency` (22, incl. a "Personal" lens), `daycare` (21), `dropship` (14). *[wave 1]* Archive flag now exists: `business_scope.py` → `marcus_state/businesses.json`, `/api/businesses{,/set}`; Dropship + the Agency Personal lens archived by default.
 - Home = **Mission Control** (`mission_control.jsx`) — per-business attention cards, Orion CEO brief, subscription spend. Closest thing to the spec's CEO home.
-- Mobile PWA (`mobile/`): 6 tabs — wholesale-only + agent chat. Daily brief / night recap config UI exists **only** on mobile.
+- Mobile (`mobile/`, native shell `ios/ForgeMobile/`): login portal (`m_login.jsx`) → Wholesale / Agency / Daycare sides (`m_biz_*.jsx`, `window.M_BIZ`) or "Everything" = classic 5 tabs (Today/Wholesale/Agency/Daycare/More). Daily brief / night recap config UI exists **only** on mobile (More).
 - *[wave 1]* Top-level `AppErrorBoundary` (`app.jsx`) wraps every page, so one bad page no longer white-screens the app. Archiving hides nav, never stops loading files.
 
 ## 4. Backend
