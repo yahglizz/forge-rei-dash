@@ -35,7 +35,9 @@ Secret paths must 404: `/config/ghl.env`, `/.env`, and `/api/brain/note?path=.en
 | `./forge rei/deploy/quick-deploy.sh` | deploy now instead of waiting |
 | `./forge rei/deploy/push.sh root@24.199.81.124` | when a `*.env` secret or the vault changed (rsyncs them; gitignored) |
 
-Bad commit → deploy-pull validation aborts, live keeps running. **Rollback:** `git revert <sha>`
+Bad commit → deploy-pull validation aborts, live keeps running. Autopull compares origin/main to
+`/opt/forge/.deployed_sha` (written only after the health gate), so a killed/aborted deploy retries;
+max 3 tries per commit (`FORGE_DEPLOY_MAX_TRIES`), reset by the next push. What's live: `cat /opt/forge/.deployed_sha`. **Rollback:** `git revert <sha>`
 on the Mac (autosync ships it).
 
 ## 4. Kill switches & knobs (`/etc/default/forge-reios`, then `systemctl restart forge-reios`)

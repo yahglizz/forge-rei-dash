@@ -29,6 +29,7 @@ until the next successful call; 429/5xx/network = transient. Never raises.
 """
 import hashlib
 import json
+import os
 import re
 import shutil
 import threading
@@ -37,7 +38,8 @@ from pathlib import Path
 
 import forge_atomic
 
-_DIR = Path(__file__).resolve().parent / "marcus_state"
+HERE = Path(__file__).resolve().parent
+_DIR = HERE / "marcus_state"
 STATE = _DIR / "heartbeats.json"
 AI_STATE = _DIR / "ai_health.json"
 _LOCK = threading.Lock()
@@ -178,6 +180,46 @@ def _ai_fp(key):
         return "default"
 
 
+_KEY_LINE = re.compile(r"^\s*(?:export\s+)?[A-Z_]*ANTHROPIC_API_KEY\s*=\s*(.*)$")
+
+
+def _ai_configured_fps():
+    """Fingerprints of every Anthropic key configured anywhere an agent resolver looks:
+    any *ANTHROPIC_API_KEY env var + any *ANTHROPIC_API_KEY= line in <sibling>/config/*.env
+    (HERE.parent and ~/Desktop — the resolvers' two roots). A superset of the keys in use,
+    so a key still configured by ANY agent stays down. Keys are hashed, never kept.
+    None = nothing readable → caller skips reconciliation (never recover on a blind read)."""
+    vals = [v for k, v in os.environ.items() if k.endswith("ANTHROPIC_API_KEY")]
+    for root in (HERE.parent, Path.home() / "Desktop"):
+        try:
+            files = list(root.glob("*/config/*.env"))
+        except Exception:
+            files = []
+        for p in files:
+            try:
+                for line in p.read_text().splitlines():
+                    m = _KEY_LINE.match(line)
+                    if m:
+                        vals.append(m.group(1).strip().strip("'\""))
+            except Exception:
+                pass
+    fps = {_ai_fp(v) for v in vals if v}
+    return fps or None
+
+
+def _ai_reconcile(hb, key):
+    """Drop hardBy entries for keys no longer configured (the owner replaced them) —
+    otherwise a rotated-out key keeps health red forever. The key in hand is always kept."""
+    try:
+        fps = _ai_configured_fps()
+    except Exception:
+        fps = None
+    if fps is None:
+        return hb
+    keep = fps | {_ai_fp(key)}
+    return {fp: v for fp, v in hb.items() if fp in keep}
+
+
 def _ai_hard_by(d):
     """hardBy = {fingerprint: {kind, code, since}} — one entry per credential that is
     currently hard-down. A pre-hardBy state file with hard=True migrates to "default"."""
@@ -216,7 +258,7 @@ def ai_ok(key=None):
         now = int(time.time() * 1000)
         with _LOCK:
             d = _ai_load()
-            hb = _ai_hard_by(d)
+            hb = _ai_reconcile(_ai_hard_by(d), key)
             hb.pop(_ai_fp(key), None)
             d.update({"lastOkAt": now, "failStreak": 0,
                       "callsTotal": int(d.get("callsTotal") or 0) + 1})
@@ -234,7 +276,7 @@ def ai_fail(code, msg, key=None):
         kind, hard = ai_classify(code, msg)
         with _LOCK:
             d = _ai_load()
-            hb = _ai_hard_by(d)
+            hb = _ai_reconcile(_ai_hard_by(d), key)
             d["callsTotal"] = int(d.get("callsTotal") or 0) + 1
             d["errorsTotal"] = int(d.get("errorsTotal") or 0) + 1
             d["failStreak"] = int(d.get("failStreak") or 0) + 1

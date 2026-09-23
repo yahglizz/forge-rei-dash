@@ -280,7 +280,10 @@ state in `marcus_state/`).
    rsync CODE into the live tree, restart, health-check. **Client needs only git** — no SSH
    key, no secrets, no rsync. This is what makes Mac + PC co-equal workspaces (repo is public
    `yahglizz/forge-rei-dash`). A commit that fails validation aborts the deploy (set -e) and
-   the live version keeps running; the next good push recovers. Box clone: `/opt/forge/repo`;
+   the live version keeps running; the next good push recovers. autopull compares
+   origin/main to `/opt/forge/.deployed_sha` (written only after the health gate; falls back
+   to HEAD if missing), so a deploy killed after its `reset --hard` retries next tick; one
+   commit gets ≤3 tries (`FORGE_DEPLOY_MAX_TRIES`) so a failing health gate can't restart-loop. Box clone: `/opt/forge/repo`;
    never touches secrets (`config/*.env`), vault, `marcus_state`, `uploads`. Watch it:
    `ssh box 'journalctl -u forge-autopull.service -f'`.
 2. **`./deploy/quick-deploy.sh` (instant, needs `~/.ssh/forge_droplet`).** Same as above but

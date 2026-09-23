@@ -33,9 +33,14 @@ class _TempState(unittest.TestCase):
         self._orig = (fh.STATE, fh.AI_STATE)
         fh.STATE = Path(self._tmp.name) / "heartbeats.json"
         fh.AI_STATE = Path(self._tmp.name) / "ai_health.json"
+        # Hermetic: never read this machine's real env/env files. None = "unknown" ->
+        # reconciliation is skipped, so the per-key tests below see the raw behavior.
+        self._orig_fps = fh._ai_configured_fps
+        fh._ai_configured_fps = lambda: None
 
     def tearDown(self):
         fh.STATE, fh.AI_STATE = self._orig
+        fh._ai_configured_fps = self._orig_fps
         self._tmp.cleanup()
 
 
@@ -181,6 +186,44 @@ class AiHealthTest(_TempState):
         self.assertIn("default", ai["hardBy"])
         fh.ai_ok()
         self.assertTrue(fh.ai_health()["ok"])
+
+    def test_replaced_key_recovers_health(self):
+        """Codex review: owner swaps a dead key - the old fingerprint must not keep
+        health red forever (and must not leave `alerted` gating the NEXT outage)."""
+        fh._ai_configured_fps = lambda: {fh._ai_fp("old-key")}
+        fh.ai_fail(401, "invalid x-api-key", key="old-key")
+        fh.ai_alerted(True)
+        self.assertTrue(fh.ai_health()["hard"])
+        fh._ai_configured_fps = lambda: {fh._ai_fp("new-key")}   # owner rotated it
+        fh.ai_ok("new-key")
+        ai = fh.ai_health()
+        self.assertTrue(ai["ok"])
+        self.assertEqual(ai["hardBy"], {})
+        # ok + alerted = the watchdog's normal recovery path (sends green, clears alerted).
+        self.assertTrue(ai["alerted"])
+
+    def test_still_configured_bad_key_stays_down(self):
+        fh._ai_configured_fps = lambda: {fh._ai_fp("bad-key"), fh._ai_fp("good-key")}
+        fh.ai_fail(403, "permission_error", key="bad-key")
+        fh.ai_ok("good-key")                        # another agent's key works
+        ai = fh.ai_health()
+        self.assertTrue(ai["hard"])
+        self.assertEqual(list(ai["hardBy"]), [fh._ai_fp("bad-key")])
+
+    def test_configured_fps_reads_env_and_files_never_stores_keys(self):
+        fh._ai_configured_fps = self._orig_fps
+        root = Path(self._tmp.name) / "box"
+        (root / "forge rei").mkdir(parents=True)
+        (root / "forge-x" / "config").mkdir(parents=True)
+        (root / "forge-x" / "config" / "x.env").write_text(
+            "FOO=1\nSCOUT_ANTHROPIC_API_KEY=file-key\n# ANTHROPIC_API_KEY=commented\n")
+        env = {k: v for k, v in fh.os.environ.items() if not k.endswith("ANTHROPIC_API_KEY")}
+        env["MIDAS_ANTHROPIC_API_KEY"] = "env-key"
+        with mock.patch.object(fh, "HERE", root / "forge rei"), \
+             mock.patch.object(fh.Path, "home", return_value=root / "nohome"), \
+             mock.patch.dict(fh.os.environ, env, clear=True):
+            fps = fh._ai_configured_fps()
+        self.assertEqual(fps, {fh._ai_fp("file-key"), fh._ai_fp("env-key")})
 
     def test_ai_calls_never_raise(self):
         fh.AI_STATE = Path(self._tmp.name) / "no-such-dir" / "x" / "ai.json"

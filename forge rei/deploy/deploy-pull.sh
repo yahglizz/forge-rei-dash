@@ -94,4 +94,10 @@ hc=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/marcus_state
 [ "$hc" = 404 ] || { echo "   !! heartbeats.json served ($hc) — must 404"; exit 1; }
 
 echo "   OK: service active · endpoints 200 · state not served"
+
+# LAST step, only after the health gate: record what is actually live. autopull.sh
+# compares origin/main against THIS (not repo HEAD — the reset above moves HEAD before
+# validate/rsync/restart, so a deploy killed mid-way used to look "done" forever).
+printf '%s\n' "$AFTER" > "$LIVE/.deployed_sha.tmp" && mv "$LIVE/.deployed_sha.tmp" "$LIVE/.deployed_sha"
+rm -f "$LIVE/.deploy_attempts"
 echo "Done. Live: https://forge-reios.tail0a2dda.ts.net"
