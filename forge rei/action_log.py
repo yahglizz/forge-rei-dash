@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import re
 import sys
 import threading
@@ -48,13 +49,18 @@ _EXTRA_PATTERNS = [
     re.compile(r"-----BEGIN[^-]*-----.*?(-----END[^-]*-----|$)", re.S),
 ]
 _PATTERNS = list(_COACH_PATTERNS) + _EXTRA_PATTERNS
-# A phone-shaped run: 10-15 digits with optional separators. Dates (8 digits) survive.
-_PHONE = re.compile(r"(?<![\w])\+?\d[\d\s().\-]{8,}\d(?![\w])")
+# ONE phone number per match (Codex: a greedy run swallowed neighbours / dates and then
+# failed the length check, leaving numbers whole). NANP 3-3-4 with optional +1 / separators,
+# or a bare 11-15 digit international run. A date like 2026-09-22 (4-2-2) never matches.
+_PHONE = re.compile(r"(?<!\d)(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}(?!\d)"
+                    r"|(?<!\d)\+?\d{11,15}(?!\d)")
+# A prefix-only secret pattern (e.g. coaching's GHL `pit-` shape) must not leave the tail.
+_REDACT_TAIL = re.compile(r"\[REDACTED\][\w\-.]+")
 
 
 def _mask_phone(m):
     digits = re.sub(r"\D", "", m.group(0))
-    return f"***{digits[-4:]}" if 10 <= len(digits) <= 15 else m.group(0)
+    return "***" + digits[-4:]
 
 
 def _scrub(v, limit=300):
@@ -63,6 +69,7 @@ def _scrub(v, limit=300):
     s = str(v)
     for p in _PATTERNS:
         s = p.sub("[REDACTED]", s)
+    s = _REDACT_TAIL.sub("[REDACTED]", s)
     s = _PHONE.sub(_mask_phone, s)
     return s[:limit]
 
@@ -105,8 +112,52 @@ def record(agent=None, action="", *, business=None, trigger=None, ref=None,
     except Exception as e:  # noqa: BLE001
         _warn(e)
         return False
-    if not _LOCK.acquire(timeout=0.25):   # never stall a send path behind the log
+    # Codex P1: disk I/O never runs on the caller's thread (an SMS send / Marcus lock /
+    # contract send). Enqueue and return; a daemon worker writes. Full queue = dropped line.
+    # ponytail: lines still queued at process exit are lost — fine for an audit trail;
+    # add an atexit flush if that ever matters.
+    try:
+        _ensure_worker()
+        _Q.put_nowait(line)
+        return True
+    except Exception as e:  # noqa: BLE001 — queue.Full or a thread-start failure
+        _warn(e)
         return False
+
+
+_Q = queue.Queue(maxsize=2000)
+_WORKER = [None]
+
+
+def _ensure_worker():
+    w = _WORKER[0]
+    if w is None or not w.is_alive():
+        with _LOCK:
+            w = _WORKER[0]
+            if w is None or not w.is_alive():
+                w = threading.Thread(target=_drain, name="action_log", daemon=True)
+                w.start()
+                _WORKER[0] = w
+
+
+def _drain():
+    while True:
+        line = _Q.get()
+        try:
+            _write(line)
+        finally:
+            _Q.task_done()
+
+
+def flush(timeout=5.0):
+    """Wait (bounded) until queued lines are on disk. Tests/readers only — never a send path."""
+    end = time.time() + timeout
+    while _Q.unfinished_tasks and time.time() < end:
+        time.sleep(0.01)
+    return not _Q.unfinished_tasks
+
+
+def _write(line):
     try:
         STATE.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -120,8 +171,6 @@ def record(agent=None, action="", *, business=None, trigger=None, ref=None,
     except Exception as e:  # noqa: BLE001
         _warn(e)
         return False
-    finally:
-        _LOCK.release()
 
 
 def record_result(res, agent=None, action="", **kw):
