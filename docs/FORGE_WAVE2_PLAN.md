@@ -177,7 +177,7 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 - **Accept:** a test asserts "stop" → DO_NOT_CONTACT, "not selling" → NOT_INTERESTED, reason preserved, bucket unchanged.
 - **Risk:** low.
 
-**9. Mobile Owner Actions tab (§23)**
+**9. Mobile Owner Actions tab (§23)** — ✅ DONE 2026-09-23 (`mobile/m_actions.jsx`, Actions tab)
 - **Files:** new `mobile/m_actions.jsx` (unique hook aliases), `m_app.jsx` / `m_shell.jsx` tab, `GET /api/owner-actions`. Read-only, with the same error-row honesty as desktop.
 - **Accept:** `valjsx` on mobile; a fetch failure shows "list may be stale".
 - **Risk:** low.

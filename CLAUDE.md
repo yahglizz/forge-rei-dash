@@ -333,6 +333,7 @@ update that skill if you improved the pattern.
     `/api/owner-actions` — one read-only CALL/CALLBACK/APPROVE/REVIEW/FIX list across the
     three businesses, URGENT→REVENUE→CUSTOMER→NORMAL, deduped (one row per daycare family).
     Zero Claude calls, sends nothing. v1 Approvals = the card's Approve chip (no separate page).
+    Mobile: **Actions** tab (`mobile/m_actions.jsx`), read-only; Open deep-links only to wholesale threads / Home / Convos / More.
     Rows older than `FORGE_OWNER_ACTIONS_STALE_DAYS` (30) collapse to one "N old … — clear or
     re-engage" row per source (counted, never hidden); drafts replying to our own outreach are dropped.
   - **Agent Control Center** (`agents_hub.registry()` + `agent_center.jsx`,
