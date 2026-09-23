@@ -255,7 +255,7 @@ def _daycare_card(solomon):
         c["metrics"] += [
             {"label": "Systems wired", "value": f"{wired}/{len(systems)}" if systems else "—",
              "jump": {"ws": "daycare", "page": "Settings"}},
-            {"label": "Director AI", "value": "Ready" if st.get("aiReady") else "Off",
+            {"label": "Director AI", "value": _ai_label(st.get("aiReady")),
              "jump": {"ws": "daycare", "page": "Agents"}},
         ]
         if not st.get("aiReady"):
@@ -272,12 +272,23 @@ def _daycare_card(solomon):
     return c
 
 
+def _ai_label(ai_ready):
+    """A key being present isn't the AI working — say Down while billing/auth is hard-down."""
+    if not ai_ready:
+        return "Off"
+    try:
+        import forge_heartbeat
+        return "Down" if forge_heartbeat.ai_health().get("hard") else "Ready"
+    except Exception:
+        return "Ready"
+
+
 def _dropship_card(midas):
     c = _card("dropship", "FORGE Dropship", "Shopify · AutoDS · Meta", "#F97316", "Dashboard")
     try:
         if midas:
             st = midas.status() or {}
-            c["metrics"].append({"label": "Director AI", "value": "Ready" if st.get("aiReady") else "Off",
+            c["metrics"].append({"label": "Director AI", "value": _ai_label(st.get("aiReady")),
                                  "jump": {"ws": "dropship", "page": "Agents"}})
             if not st.get("aiReady"):
                 c["attention"].append({"sev": "warn", "text": "Midas AI off — no API key",

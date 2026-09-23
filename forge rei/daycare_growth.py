@@ -104,6 +104,9 @@ def ads_overview(account: str | None = None, days: int = 7) -> dict:
         accounts = agency_ads.accounts().get("accounts", [])
         analytics = agency_ads.analytics(
             account=account, client="daycare", days=_int(days, 7))
+        # analytics() is what discovers a rejected token — re-read so the FIRST call
+        # after a restart reports auth_error instead of "add META_AD_ACCOUNT_MAP".
+        conn = agency_ads.connection()
 
     if conn.get("source") == "auth_error":
         # WP-A — Meta REJECTED the token (agency_ads' 6h cache). Say so; the demo-account
@@ -130,6 +133,12 @@ def ads_overview(account: str | None = None, days: int = 7) -> dict:
 
 def social_overview(network: str | None = None) -> dict:
     """Metricool social connection + analytics + scheduled posts (mock until keyed)."""
+    if not (_daycare_creds().get("METRICOOL_USER_TOKEN") or "").strip():
+        # agency_social falls back to the AGENCY's Metricool brand + mock numbers and
+        # reports connected — that rendered as the daycare's LIVE social. Refuse it.
+        return {"ok": True, "configured": False, "analytics": None, "posts": [], "bestTime": None,
+                "connection": {"connected": False, "source": "not_configured",
+                               "todo": "Add METRICOOL_USER_TOKEN + METRICOOL_BLOG_ID to daycare.env."}}
     with _ENV_LOCK, _scoped_env(_SOCIAL_KEYS):
         return {
             "ok": True,

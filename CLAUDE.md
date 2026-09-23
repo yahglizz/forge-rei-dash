@@ -77,6 +77,8 @@ Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
 8. **Keep proposing.** After finishing, propose the next high-leverage build.
 9. **Seller auto-replies: adapt, then push to the call — NEVER a price by text.** Before drafting ANY text-back to a seller, Marcus reads the brain skills — `Skills/seller-reply-playbook.md` (the decision rubric: adapt to exactly what the seller said, short/simple/straightforward/powerful, one job = get them on a quick call, stand your ground), `Skills/wholesale-seller-texter.md` (voice), and `Skills/closing-plays.md` — plus the per-lead brain notes. Every reply is tailored to the seller's actual message, not a canned line. **An agent NEVER states, negotiates, hints at, or invents a price/offer/number over text — ever.** The offer is given by a human, on a phone call; the text exists only to get them on that call. If a seller asks for a number, the agent acknowledges it and pivots to a quick call; if they push again, it holds the line a different way. This is enforced in the prompt AND in code (`marcus_engine._no_price_over_text` swaps any drafted figure for a call-pivot before it ever reaches you). **Approval gate stays ON** — every seller reply is still a proposal you approve; this rule governs draft QUALITY + the price boundary, not autonomy. Flip auto-send on only when you decide the drafts are ready.
 
+10. **Audits run on Sonnet 5, to save tokens.** Any audit — `/code-review`, `/security-review`, the weekly `review_agent` run, ultrareview, or any future audit tool — defaults to model `claude-sonnet-5` (Sonnet 5) unless I say otherwise for that run. Don't default audits to Opus.
+
 *(Add your own rules below this line — they carry the same weight.)*
 
 ---

@@ -120,7 +120,14 @@ def connected_systems():
     out = []
     for key, name in _SYSTEMS:
         val = (os.environ.get(key) or creds.get(key) or "").strip()
-        out.append({"key": key, "name": name, "connected": bool(val)})
+        connected = bool(val)
+        if connected and key == "META_ACCESS_TOKEN":
+            try:  # a token Meta already rejected is present, not wired (in-process cache)
+                import agency_ads
+                connected = not agency_ads._auth_dead(val)
+            except Exception:
+                pass
+        out.append({"key": key, "name": name, "connected": connected})
     return out
 
 
