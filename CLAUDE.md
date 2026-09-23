@@ -345,6 +345,10 @@ update that skill if you improved the pattern.
     Billing/auth = hard-down (tracked per key fingerprint) → health `ok:false`, Owner
     Actions FIX row, ONE Telegram alert + one on recovery. Heartbeats also carry
     `lastSuccessAt` / `errorsTotal`. Solomon's failed briefs back off 15 m → 6 h.
+    Both Claude call sites retry via `review_agent.claude_urlopen`: ≤2 retries (2 s, 5 s) on
+    429/500/502/503/529 + connection errors only — never timeouts, never 400/401/403. One logical
+    call = one health stamp. Registry `dependencyHealth` adds `crm` (wholesale, from Scout's heartbeat)
+    and `meta` (Eco, cached token-rejection) — null = unknown.
     Replacing a dead key recovers: `forge_heartbeat._ai_reconcile` drops hard-down entries
     for key fingerprints no longer configured (still-configured bad keys stay down).
   - **Weekly review** (`/api/review/run`, `forge-review.timer` Mon): a Claude failure now
@@ -355,10 +359,17 @@ update that skill if you improved the pattern.
     response time, needs-a-human list; `/api/daycare/leads` (session-gated); Daycare
     Dashboard card; operator Telegram ping (business hours, deduped); feeds Solomon's brief
     (`leadDesk`). Zero Claude, sends nothing to families. 429 → aborts the sweep + backs off.
+    **Stages (wave-2):** TOUR_BOOKED/TOUR_COMPLETED/APPLICATION/ENROLLED/LOST from GHL tags
+    (`daycare_leads.STAGE_TAGS` — guessed names, edit to match GHL), the contact→child ledger, or a
+    one-tap LOCAL mark (`POST /api/daycare/leads/stage`, session-gated, `marcus_state/daycare_lead_stages.json`,
+    never written to GHL). Furthest stage wins; ENROLLED/LOST leave needs-human. Tiles show "—" when untracked.
   - **Wave-2 (2026-09-23):** Mission Control cards carry the §15 tiles (Agency calls ready/callbacks/interested/clients/MRR · Wholesale owner calls/contracts/deals · Daycare new leads/needs human/response time) + an Agents strip — a failed source drops its tiles with one warn line, never a 0 (`test_mission_tiles.py`). **Atlas call card** (`atlas_card.jsx`, on interested Screening cards + Conversations thread; anchors labeled INTERNAL — never text; no send control) — Owner Actions screened-CALL rows deep-link to the thread. Ad payloads carry `dataSource` live|mock|token_rejected + `dateRange` and the Eco/daycare Growth UIs badge non-live data (`test_eco_datasource.py`).
   - Views: `window.forgeOpenView(home|archived|agents|health|costs)`; top-level
     ErrorBoundary around every page. Nightly state backup `forge-backup.timer` 03:30 ET →
     `/root/backups` (7 kept, box-local).
+- **Seller 5-class label** (`scout_triage.seller_class`, computed on read): HOT/WARM/NURTURE/
+  NOT_INTERESTED/DO_NOT_CONTACT + `optOut`/`wrongNumber`/`classReason`. Label only — never moves
+  bucket, tags or pipeline (`test_seller_class.py`).
 - **Agent Office** (`pixel_office.py` + `pixel_office.jsx`, nav "Agent Office" in all four
   workspaces — three visible while Dropship is archived): the visual floor — four department rooms, twelve agents as pixel characters,
   animated from REAL signals only (live job → agent_bus → open hub tasks → engine status;
