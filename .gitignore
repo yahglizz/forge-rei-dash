@@ -38,3 +38,8 @@ __pycache__/
 # ── OS / editor ─────────────────────────────────────────────
 .DS_Store
 .thumbnail
+
+# iOS shell (ios/ForgeMobile) — local build output, never commit
+ios/**/build/
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
