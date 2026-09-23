@@ -755,6 +755,11 @@ def registry(business=None, now=None):
     has_key = bool(review_agent._api_key())
     crm, crm_err = _crm_health(hb_all, now)
     meta = _meta_health()
+    try:  # W2-6: one tail read per registry call, not per agent
+        import action_log
+        last_actions = action_log.last_by_agent()
+    except Exception:
+        last_actions = {}
 
     out = []
     for a in AGENTS:
@@ -803,6 +808,7 @@ def registry(business=None, now=None):
                            or p.get("task"),
             "pendingApprovals": pending,
             "approvalQueue": a.get("queue"),
+            "lastAction": last_actions.get(aid),   # {ts, action, ok} from action_log, or None
             "dependencyHealth": {
                 "ai": ("n/a" if not uses_ai else "unknown" if ai_ok is None
                        else "ok" if ai_ok else "down"),

@@ -1664,6 +1664,13 @@ def handle_contract_send(body):
                  closingDate=body.get("closing_date"), titleCompany=body.get("title_company"),
                  titleOfficer=body.get("title_officer"), titleEmail=body.get("title_email"))
     res = docusign_io.send_contract(email, src["seller_name"], tabs=tabs, email_subject=body.get("subject"))
+    try:  # W2-6 audit trail: envelope already sent (or failed) — ids only, no email
+        import action_log
+        action_log.record_result(res if isinstance(res, dict) else None, "operator",
+                                 "contract_send", business="wholesale",
+                                 trigger="operator_approve", ref=cid, approval_required=True)
+    except Exception:
+        pass
     if not isinstance(res, dict):
         return {"error": "DocuSign send failed: empty response"}
     if res.get("ok"):
@@ -1721,6 +1728,12 @@ def _sync_deal_pipeline(contact_id, kind, value=None, name=None):
             f"{prefix}PipelineSyncError": result.get("error") or "unknown GHL sync error",
             f"{prefix}PipelineSyncFailedAt": now,
         })
+    try:  # W2-6 audit trail: the stage move already ran — record the outcome only
+        import action_log
+        action_log.record_result(result, None, f"stage_move:{kind}", business="wholesale",
+                                 trigger="deal_lifecycle", ref=contact_id)
+    except Exception:
+        pass
     return result
 
 
@@ -2927,6 +2940,26 @@ ROUTES["/api/agents/registry"] = lambda q: agents_hub.registry_payload(
     (q.get("business", [None]) or [None])[0])
 NO_CACHE.add("/api/agents/registry")
 # --- /WP-D ---
+
+
+# --- W2-6 --- Durable agent action log (spec §10): read-only tail of
+# marcus_state/agent_actions.jsonl (the file itself 404s: marcus_state is in DENY_DIRS).
+import action_log  # noqa: E402
+
+
+def api_actions_log(q):
+    try:
+        n = int((q.get("n", ["100"]) or ["100"])[0])
+    except (TypeError, ValueError):
+        n = 100
+    agent = (q.get("agent", [None]) or [None])[0] or None
+    return {"ok": True, "actions": action_log.recent(max(1, min(n, 500)), agent=agent),
+            "generatedAt": int(time.time() * 1000)}
+
+
+ROUTES["/api/actions/log"] = api_actions_log
+NO_CACHE.add("/api/actions/log")
+# --- /W2-6 ---
 
 
 def _get_or_create_conversation(contact_id):

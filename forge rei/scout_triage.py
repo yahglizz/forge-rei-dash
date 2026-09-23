@@ -330,6 +330,16 @@ def seller_class(rec):
             "classReason": f"bucket {bucket or 'unknown'}"}
 
 
+def _audit(res, action, rec):
+    """W2-6: log an autonomous tag/pipeline write AFTER it ran. Observe-only, never raises."""
+    try:
+        import action_log
+        action_log.record_result(res, "scout", action, business="wholesale",
+                                 trigger="auto_hot", ref=rec.get("contactId"))
+    except Exception:
+        pass
+
+
 class ScoutEngine:
     def __init__(self, ghl_get, ghl_post, location_id, ghl_put=None, ghl_delete=None):
         self.ghl_get = ghl_get
@@ -1476,20 +1486,24 @@ class ScoutEngine:
             if rec.get("bucket") == "asap" and not rec.get("tagsAppliedAt") \
                     and rec.get("contactId") and rec.get("proposedTags"):
                 try:
-                    self.apply_tags(rec["convId"])
+                    res = self.apply_tags(rec["convId"])
                 except Exception as e:  # noqa: BLE001
+                    res = {"error": str(e)}
                     self.last_error = f"Auto-tag failed for {rec.get('name')}: {e}"
                     self._log("error", self.last_error, rec.get("convId"))
+                _audit(res, "auto_tag_hot", rec)
             # Hot leads also auto-land in the pipeline's Hot stage (same rationale as
             # auto-tags: internal + reversible — the opportunity can be moved/marked Lost
             # with one click). FORGE_SCOUT_AUTOPIPE_HOT=0 reverts to the gated button.
             if AUTOPIPE_HOT and rec.get("bucket") == "asap" \
                     and not rec.get("pipelineSyncedAt") and rec.get("contactId"):
                 try:
-                    self.add_to_pipeline(rec["convId"], stage="hot")
+                    res = self.add_to_pipeline(rec["convId"], stage="hot")
                 except Exception as e:  # noqa: BLE001
+                    res = {"error": str(e)}
                     self.last_error = f"Auto-pipeline failed for {rec.get('name')}: {e}"
                     self._log("error", self.last_error, rec.get("convId"))
+                _audit(res, "auto_pipeline_hot", rec)
 
     def apply_tags(self, conv_id):
         with self.lock:

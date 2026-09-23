@@ -263,6 +263,12 @@ def record_success(reservation=None, conv_id=None, contact_id=None, message=None
         cost_tracker.record_sms(1)
     except Exception:
         pass
+    try:  # W2-6 audit trail: the SMS already left. ids + kind only, never the body.
+        import action_log
+        action_log.record(None, "sms_sent", business="wholesale", trigger=kind,
+                          ref=conv_id or contact_id, result=f"contact {contact_id or '?'}")
+    except Exception:
+        pass
     if DAILY_CAP <= 0:
         return {"ok": True}
     now = _now_ms()

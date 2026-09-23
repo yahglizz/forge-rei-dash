@@ -1239,7 +1239,16 @@ class MarcusEngine:
             p = self.proposals.get(pid)
             if not p:
                 return {"error": "proposal not found or already handled"}
-            return self._send(pid, edited or p["suggestedReply"])
+            res = self._send(pid, edited or p["suggestedReply"])
+        try:  # W2-6 audit trail, after the send returned — result only, never the text
+            import action_log
+            action_log.record_result(
+                res, "marcus", "approve_send", business="wholesale",
+                trigger="autonomous" if (p.get("autonomous") or p.get("autopilot")) else "operator_approve",
+                ref=pid, approval_required=True)
+        except Exception:
+            pass
+        return res
 
     def dismiss(self, pid):
         with self.lock:

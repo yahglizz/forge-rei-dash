@@ -570,6 +570,14 @@ def _result_text(action, result):
     return labels.get(action, "✅ Done")
 
 
+# W2-6: which agent a tap acts for, by callback-action prefix (action log only).
+_TAP_AGENT = (("approve", "marcus", "wholesale"), ("mdismiss", "marcus", "wholesale"),
+              ("handoff", "scout", "wholesale"), ("scoutdismiss", "scout", "wholesale"),
+              ("ace", "ace", "wholesale"), ("dyson", "dyson", "agency"),
+              ("reqdismiss", "dyson", "agency"), ("skill", "skill_forge", None),
+              ("ops", "operator", None))
+
+
 def _handle_callback(cq, token=None, agent_chat=False):
     """Authorize, dispatch to a registered action, then ack + edit the message.
 
@@ -615,6 +623,15 @@ def _handle_callback(cq, token=None, agent_chat=False):
                 result = {"ok": True}
         except Exception as e:  # noqa: BLE001
             result = {"error": str(e)}
+
+    try:  # W2-6 audit trail: the tap already ran — record the outcome, ids only
+        import action_log
+        who, biz = next(((a, b) for k, a, b in _TAP_AGENT if action.startswith(k)),
+                        ("telegram", None))
+        action_log.record_result(result, who, f"tap:{action}", business=biz,
+                                 trigger="telegram_tap", ref=arg, approval_required=True)
+    except Exception:
+        pass
 
     summary = _result_text(action, result)
 

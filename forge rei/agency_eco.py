@@ -558,6 +558,20 @@ def _release_concept(rec_id, idx):
 
 
 def approve_ad(rec_id, concept_index=0):
+    """Operator-approved ad build (see _approve_ad). W2-6: logs the outcome AFTER it ran —
+    observe-only, the log can never change or block the result."""
+    out = _approve_ad(rec_id, concept_index)
+    try:
+        import action_log
+        action_log.record_result(out, "eco", "approve_ad_paused", business="agency",
+                                 trigger="operator_approve",
+                                 ref=f"{rec_id}#{concept_index}", approval_required=True)
+    except Exception:
+        pass
+    return out
+
+
+def _approve_ad(rec_id, concept_index=0):
     """Build a Meta ad spec from an approved concept and call agency_ads.create_ad.
 
     The ad is created PAUSED (never auto-spends). Operator un-pauses in Meta.
