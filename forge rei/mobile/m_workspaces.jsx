@@ -49,7 +49,7 @@ function MWAgency() {
   const rows = sheet.data && (sheet.data.rows || sheet.data.leads || sheet.data.calls || []) || [];
   const due = rows.filter((r) => {
     const callbackTime = Date.parse(r.callbackAt || "");
-    const dueNow = r.dueNow || r.callbackDue || (r.status === "callback" && (!callbackTime || callbackTime <= Date.now()));
+    const dueNow = r.due || r.dueNow || r.callbackDue || (r.status === "callback" && (!callbackTime || callbackTime <= Date.now()));
     return (filter !== "Due now" || dueNow) && (!query || [r.name,r.company,r.phone].join(" ").toLowerCase().includes(query.toLowerCase()));
   });
   async function log(outcome) {

@@ -59,6 +59,7 @@ function MApp() {
 // all → the classic MApp above, untouched; unset → MLoginPortal (m_login.jsx).
 // Anything missing (portal file, M_BIZ entry) falls back to the classic app.
 const MAP_BIZ_CHOICES = ["wholesale", "agency", "daycare", "all"];
+const MAP_BIZ_ALIAS = { agents: "crew", convos: "inbox" }; // classic key → biz tab key
 
 function MAPReadBiz() {
   // ?biz= wins for this launch (e.g. a per-business home-screen bookmark) but is not saved.
@@ -93,15 +94,17 @@ function MAPBiz(props) {
   const [overlay, setOverlay] = useStateMAP(null); // classic page shown inside this business: {key, segment}
   useEffectMAP(() => { localStorage.setItem(tabStore, tab); }, [tab]);
   const goTab = (k) => { setOverlay(null); setTab(k); };
-  // mGoTab here: own tab → switch; own id ("wholesale", "Hot") → matching tab or home;
-  // any other classic page → render it inside this business (tab bar kept, header ‹ returns).
+  // mGoTab here: own tab (or alias: agents→crew, convos→inbox) → switch; own id
+  // ("wholesale", "Convos") → matching tab, or home when no segment; any other classic
+  // page (incl. "wholesale","Hot") → render it inside this business (tab bar kept, header ‹ returns).
   useEffectMAP(() => {
+    const own = (k) => keys.includes(k) ? k : keys.includes(MAP_BIZ_ALIAS[k]) ? MAP_BIZ_ALIAS[k] : null;
     window.mGoTab = (t, segment) => {
       const seg = segment ? String(segment).toLowerCase() : "";
-      if (keys.includes(t)) return goTab(t);
+      if (own(t)) return goTab(own(t));
       if (t === biz.id) {
         if (!seg) return goTab(keys[0]);
-        if (keys.includes(seg)) return goTab(seg);
+        if (own(seg)) return goTab(own(seg));
       }
       if (t === "wholesale" || M_PAGES[t]) setOverlay({ key: t, segment: segment || null });
     };
