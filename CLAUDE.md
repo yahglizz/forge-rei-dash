@@ -282,7 +282,9 @@ state in `marcus_state/`).
 1. **`git push origin main` (everyday, ANY machine — Mac or the gaming PC).** The box polls
    GitHub every 60s (`forge-autopull.timer` → `autopull.sh` → `deploy-pull.sh`) and
    self-deploys any new commit: `git reset --hard origin/main`, validate (py ast + jsx),
-   rsync CODE into the live tree, restart, health-check. **Client needs only git** — no SSH
+   rsync CODE into the live tree, restart, health-check. **Restart is skipped when the diff since
+   `.deployed_sha` is only jsx/css/html/images/.md/ios/docs** (served per request / mtime-reloaded);
+   `FORGE_FORCE_RESTART=1` forces it. **Client needs only git** — no SSH
    key, no secrets, no rsync. This is what makes Mac + PC co-equal workspaces (repo is public
    `yahglizz/forge-rei-dash`). A commit that fails validation aborts the deploy (set -e) and
    the live version keeps running; the next good push recovers. autopull compares
@@ -496,6 +498,10 @@ migrations (2026-08-30..09-13) were never copied here. The app's folder is the c
 `staff_members` (hourly_rate → `staff_pay_rates()` RPC).** Selecting a revoked column 403s the WHOLE
 PostgREST query — it took the daycare console down 2026-09-23. `daycare_supabase.py` now names
 columns (`_STAFF_COLS`/`_PROFILE_COLS`); never `select=*`/`return=representation` on those tables.
+Owner-side contact fields come back via the **`guardian_contacts(uuid[])`** SECURITY DEFINER RPC
+(migration `202609230001`, manager/admin + own center only; `_merge_contacts()`); cross-center reads
+(Contact-Form families at another center) go through `daycare_supabase.at_location()`. No service-role
+key on the box. New migrations go in BOTH migration folders.
 
 - **Opens straight in (no login) — for the whole tailnet, as of 2026-08-23.** The box
   auto-mints an admin session so the console opens with no login screen. Gated by
