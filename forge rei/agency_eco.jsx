@@ -1,5 +1,5 @@
 // agency_eco.jsx — Eco, the ads strategist tab (Forge AI Agency).
-// Eco reviews a client's (mock) Meta Ads analytics and surfaces: best-performing
+// Eco reviews a client's Meta Ads analytics (badged MOCK DATA / TOKEN REJECTED when not live) and surfaces: best-performing
 // ads to scale, weak ads to pause/rework, the next 3 ads to create, and a
 // competitor-research placeholder. One button ships the rec set to the Approval
 // Center.
@@ -7,6 +7,22 @@
 // Static-React: hooks aliased (…Ec), every top-level name prefixed Ec, page
 // component is exactly AgencyEco, shipped on window at the bottom. No build step.
 const { useState: useStateEc, useEffect: useEffectEc } = React;
+
+// ---- data-source badge (creed: mock / rejected numbers are labeled, never passed as real)
+function EcDataBadge({ src, range }) {
+  if (!src) return null;
+  const live = src === "live";
+  const label = live ? "LIVE" : src === "token_rejected" ? "TOKEN REJECTED — replace it" : "MOCK DATA";
+  const color = live ? "var(--green)" : src === "token_rejected" ? "var(--red)" : "var(--orange)";
+  const win = range && range.since ? range.since + " → " + range.until : "";
+  return (
+    <span title={live ? "Live Meta data · " + win : "Not real account data — demo numbers" + (win ? " · " + win : "")}
+      style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".4px", color, background: color + "1f",
+        border: "1px solid " + color, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
+      {label}{live && win ? " · " + win : ""}
+    </span>
+  );
+}
 
 // ---- best-performing ad row -------------------------------------------------
 function EcBestRow({ ad }) {
@@ -50,7 +66,7 @@ function EcWeakRow({ ad }) {
 }
 
 // ---- section shell (icon + title + body) ------------------------------------
-function EcSection({ icon, color, title, count, children }) {
+function EcSection({ icon, color, title, count, badge, children }) {
   const Icons = window.Icons;
   const Ico = Icons[icon] || Icons.Eco;
   return (
@@ -58,6 +74,7 @@ function EcSection({ icon, color, title, count, children }) {
       <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
         <span style={{ color, display: "flex" }}><Ico size={16} /></span>
         <span className="card-title" style={{ margin: 0 }}>{title}</span>
+        {badge}
         {count != null && <span className="faint" style={{ fontSize: 12, marginLeft: "auto" }}>{count}</span>}
       </div>
       {children}
@@ -178,6 +195,8 @@ function AgencyEco() {
   const weak = (ok && data.weak) || [];
   const next = (ok && data.next) || [];
   const comp = (ok && data.competitor) || {};
+  const ecSrc = ok ? data.dataSource : null;
+  const ecBadge = <EcDataBadge src={ecSrc} range={ok ? data.dateRange : null} />;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -231,18 +250,18 @@ function AgencyEco() {
           {/* reviewing line */}
           <div className="faint" style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 7 }}>
             <span style={{ color: "var(--green)", display: "flex" }}><Spark size={13} /></span>
-            Reviewing {acct.clientName} · {acct.name}
+            Reviewing {acct.clientName} · {acct.name} {ecBadge}
           </div>
 
           {/* best-performing ads */}
-          <EcSection icon="Flame" color="var(--green)" title="Best-performing ads" count={best.length + " scaling"}>
+          <EcSection icon="Flame" color="var(--green)" title="Best-performing ads" count={best.length + " scaling"} badge={ecSrc !== "live" ? ecBadge : null}>
             {best.length === 0
               ? <div className="faint" style={{ fontSize: 12.5, paddingTop: 6 }}>No standout winners yet.</div>
               : best.map((ad, i) => <EcBestRow key={i} ad={ad} />)}
           </EcSection>
 
           {/* weak ads */}
-          <EcSection icon="Activity" color="var(--orange)" title="Weak ads — pause or rework" count={weak.length + " flagged"}>
+          <EcSection icon="Activity" color="var(--orange)" title="Weak ads — pause or rework" count={weak.length + " flagged"} badge={ecSrc !== "live" ? ecBadge : null}>
             {weak.length === 0
               ? <div className="faint" style={{ fontSize: 12.5, paddingTop: 6 }}>Nothing to pause right now.</div>
               : weak.map((ad, i) => <EcWeakRow key={i} ad={ad} />)}

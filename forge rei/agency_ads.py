@@ -13,6 +13,7 @@ Keys read from os.environ (injected from agency.env by connector.py M0):
 
 No persistence — pure read model.
 """
+import datetime
 import json
 import os
 import time
@@ -175,13 +176,31 @@ def _metrics(row):
     }
 
 
+def _date_range(days):
+    """The window a metric covers: the `days` full days before today (Meta's
+    last_Nd semantics). Sent to Meta as time_range, so the label IS the query."""
+    today = datetime.date.today()
+    return {"days": days,
+            "since": (today - datetime.timedelta(days=days)).isoformat(),
+            "until": (today - datetime.timedelta(days=1)).isoformat()}
+
+
+def _data_source(conn):
+    """Creed label for NON-live analytics: "token_rejected" when Meta refused the
+    token (WP-A cache), else "mock". Live analytics set "live" directly."""
+    return "token_rejected" if conn.get("source") == "auth_error" else "mock"
+
+
 def _live_analytics(token, account_id, days):
     """Fetch real Meta Ads insights via Graph API GET /{ad_account}/insights."""
     fields = ("spend,impressions,reach,clicks,ctr,cpc,actions,"
               "action_values,campaign_name,objective")
+    rng = _date_range(days)
     params = {
         "fields": fields,
-        "date_preset": f"last_{days}_d",
+        # was date_preset "last_{days}_d" — not a Meta preset (they are last_7d etc.),
+        # so every live call 400'd into mock. An explicit time_range works for any N.
+        "time_range": json.dumps({"since": rng["since"], "until": rng["until"]}),
         "level": "ad",
         "limit": 100,
     }
@@ -268,6 +287,8 @@ def _live_analytics(token, account_id, days):
         "weakAds": sorted(ads_out, key=lambda x: (x["roas"], x["leads"]))[:3],
         "connection": connection(),
         "source": "live",
+        "dataSource": "live",
+        "dateRange": rng,
     }
 
 
@@ -300,6 +321,7 @@ def _mock_analytics(account=None, client=None, days=7):
     weak_ads = sorted(ads, key=lambda a: (a["roas"], a["leads"]))[:3]
 
     totals = _metrics(tot)
+    conn = connection()
     return {
         "account": {"id": acct["id"], "name": acct["name"],
                     "clientName": acct["clientName"]},
@@ -308,8 +330,12 @@ def _mock_analytics(account=None, client=None, days=7):
         "campaigns": campaigns,
         "topAds": top_ads,
         "weakAds": weak_ads,
-        "connection": connection(),
+        "connection": conn,
         "source": "mock",
+        # Creed: mock numbers are labeled mock, and a rejected token says so. The
+        # window is the one the (hand-tuned) mock pretends to cover — not real data.
+        "dataSource": _data_source(conn),
+        "dateRange": _date_range(days),
     }
 
 

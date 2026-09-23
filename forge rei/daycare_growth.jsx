@@ -5,6 +5,9 @@
 const { useState: useStateDca, useEffect: useEffectDca } = React;
 
 function DcaConnBadge({ conn }) {
+  if (conn && conn.source === "auth_error") return <span className="dc-live dc-mock" style={{ color: "#EF4444", borderColor: "rgba(239,68,68,.45)" }}>
+    <i style={{ background: "#EF4444" }} /> TOKEN REJECTED — replace it
+  </span>;
   const live = conn && (conn.connected || conn.source === "live");
   return <span className={"dc-live " + (live ? "" : "dc-mock")} style={live ? null : { color: "#F4B860", borderColor: "rgba(244,184,96,.4)" }}>
     <i style={live ? null : { background: "#F4B860" }} /> {live ? "LIVE" : "NOT CONNECTED"}
@@ -14,6 +17,21 @@ function DcaConnBadge({ conn }) {
 function DcaTodo({ conn }) {
   if (!conn || conn.connected || conn.source === "live" || !conn.todo) return null;
   return <div className="dc-form-hint"><window.Icons.Shield size={14} /> {conn.todo}</div>;
+}
+
+// Creed badge beside a metric that isn't live Meta data (agency_ads.dataSource).
+function DcaDataBadge({ src }) {
+  if (!src || src === "live") return null;
+  const bad = src === "token_rejected";
+  const c = bad ? "#EF4444" : "#F4B860";
+  return <span className="dc-live dc-mock" style={{ color: c, borderColor: c }}>
+    <i style={{ background: c }} /> {bad ? "TOKEN REJECTED — replace it" : src === "none" ? "NO AD DATA" : "MOCK DATA"}
+  </span>;
+}
+
+function DcaDateRange(a) {
+  const r = a && a.dateRange;
+  return r && r.since ? r.since + " → " + r.until : (a && a.days ? a.days + "-day window" : "recent window");
 }
 
 function DcaNum(value, fallback) {
@@ -35,8 +53,9 @@ function DaycareAds() {
   return <div className="dc-page">
     <window.DcxPageHead title="Ads" eyebrow="GROWTH · META" copy="Monitor the daycare's Meta ad performance. Launching campaigns stays approval-gated." actions={<DcaConnBadge conn={conn} />} />
     <DcaTodo conn={conn} />
+    {data.analytics && <DcaDataBadge src={data.analytics.dataSource} />}
     <div className="dc-kpi-grid">
-      <window.DcxKpi label="Spend" value={window.DcxMoney(spend)} sub={(data.analytics && data.analytics.days ? data.analytics.days + "-day window" : "recent window")} icon="Dollar" />
+      <window.DcxKpi label="Spend" value={window.DcxMoney(spend)} sub={DcaDateRange(data.analytics)} icon="Dollar" />
       <window.DcxKpi label="Leads" value={leads} sub="from ads" icon="Children" color="#22C55E" />
       <window.DcxKpi label="Cost / Lead" value={window.DcxMoney(cpl)} sub="blended CPL" icon="Billing" color="#F4B860" />
       <window.DcxKpi label="Campaigns" value={campaigns.length} sub="active" icon="Doc" color="#8B5CF6" />
@@ -187,6 +206,7 @@ function DaycareNova() {
   const [st, setSt] = useStateDca({});
   const probe = window.DcxUseResource("/eco", "dc-eco", 0);
   const ctx = (probe.data && probe.data.context) || {};
+  const novaSrc = probe.data && probe.data.dataSource;
 
   const refresh = async () => {
     try {
@@ -226,6 +246,7 @@ function DaycareNova() {
       actions={<DcaCtxBadge ctx={ctx} />} />
 
     {!ctx.loaded && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Business brief not found. Add <code>forge-daycare/skills/daycare-context.md</code> so the ad studio stays on-message.</div>}
+    {novaSrc === "token_rejected" && <div className="dc-form-hint"><DcaDataBadge src={novaSrc} /> Meta rejected <code>META_ACCESS_TOKEN</code> in <code>daycare.env</code> — ideas use the brief only until it's replaced.</div>}
     {!st.metaReady && <div className="dc-form-hint"><window.Icons.Shield size={14} /> Meta isn't connected — add <code>META_ACCESS_TOKEN</code> to <code>daycare.env</code> to build campaigns.</div>}
     {!st.imageReady && <div className="dc-form-hint"><window.Icons.Shield size={14} /> The ad studio can't generate images yet — no <code>HIGGSFIELD_API_KEY</code> in <code>daycare.env</code>. It writes the prompt; generate it in Higgsfield and paste the URL back, or add the key and it becomes one tap.</div>}
 

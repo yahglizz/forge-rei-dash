@@ -190,15 +190,23 @@ def eco_ideas(account: str | None = None) -> dict:
         return built
 
     analytics_block = ""
+    live = None
     with _ENV_LOCK, _scoped_env(_ADS_KEYS):
         conn = agency_ads.connection()
         if conn.get("connected") or conn.get("source") == "live":
-            # Daycare's OWN Meta is live — fold in real numbers.
             live = agency_ads.analytics(client="daycare")
-            analytics_block = agency_eco._format_analytics_block(live)
+            # Creed: a present token is not live data — a failed fetch falls back to the
+            # AGENCY's mock (Bloom Dental). Fold numbers in only when they are real.
+            if live.get("dataSource") == "live" and not _is_demo_account(live.get("account")):
+                analytics_block = agency_eco._format_analytics_block(live)
 
     try:
         built = agency_eco.daycare_enrollment_ideas(ctx, key, analytics_block)
+        # Brief-only ideas carry no ad metrics: "none", or why the real numbers are missing.
+        built["dataSource"] = ("live" if analytics_block else
+                               "token_rejected" if conn.get("source") == "auth_error"
+                               else "none")
+        built["dateRange"] = live.get("dateRange") if analytics_block else None
     except Exception as exc:  # noqa: BLE001 — fall back to template, never 500
         built = eco_overview(account)
         built["detail"] = f"Idea generation fell back to template ({exc})."

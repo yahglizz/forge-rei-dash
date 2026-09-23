@@ -127,7 +127,13 @@ def _template_build(a, top, weak, acct):
 def _format_analytics_block(a):
     """Compact analytics summary for the Claude prompt."""
     t = a["totals"]
+    ds = a.get("dataSource") or a.get("source") or "unknown"
+    rng = a.get("dateRange") or {}
     lines = [
+        f"DATA SOURCE: {ds.upper()}"
+        + (f" | window {rng.get('since')} to {rng.get('until')}" if rng else "")
+        + ("" if ds == "live" else
+           " — NOT real account data; say so in every figure you cite."),
         f"Client: {a['account']['clientName']} | Account: {a['account']['id']}",
         f"Totals ({a['days']}d): spend ${t['spend']}, impressions {t['impressions']}, "
         f"clicks {t['clicks']}, leads {t['leads']}, conversions {t['conversions']}, "
@@ -455,6 +461,9 @@ def _build(account=None, client=None, use_ai=True, include_competitor_ai=False,
         "next": next_list,
         "competitor": competitor,
         "_source": "claude" if used_claude_recs else "template",
+        # Creed: every metric above carries where it came from + the window it covers.
+        "dataSource": a.get("dataSource", a.get("source", "mock")),
+        "dateRange": a.get("dateRange"),
     }
 
 
