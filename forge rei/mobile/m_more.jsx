@@ -1045,6 +1045,7 @@ const MM_MENU = [
   { key: "brain", label: "Brain", sub: "Search + read the Obsidian vault", ico: "Brain" },
   { key: "costs", label: "Costs", sub: "Claude + SMS spend, monthly cap", ico: "Dollar" },
   { key: "health", label: "System health", sub: "Loop heartbeats, disk, alerts", ico: "Heart" },
+  { key: "agents", label: "Agents", sub: "Chat, status and shared bus", ico: "Bot" },
 ];
 
 // ---- Daily brief — the run-from-anywhere morning pulse -------------------------------
@@ -1257,7 +1258,7 @@ function MMorePage() {
             <button key={item.key} className="m-list-item"
               style={{ width: "100%", minHeight: 56, textAlign: "left", cursor: "pointer",
                 fontFamily: "inherit", color: "inherit" }}
-              onClick={() => setOpen(item.key)}>
+              onClick={() => item.key === "agents" ? (window.mGoTab && window.mGoTab("agents")) : setOpen(item.key)}>
               <div style={{ width: 38, height: 38, borderRadius: 12, flex: "none",
                 background: "rgba(79,124,255,0.12)", color: "var(--blue, #4F7CFF)",
                 display: "flex", alignItems: "center", justifyContent: "center" }}>
