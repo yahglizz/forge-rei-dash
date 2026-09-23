@@ -1,66 +1,101 @@
-# Midas — E-com Director
+# Midas — E-com Director (dropship)
 
-**Business:** Dropship (FORGE) · **Emoji:** 🛒 · **Roster id:** `midas`
-**Role:** runs the whole store.
+> Code refs are relative to `forge rei/` unless they start with `forge-`. Verified against code 2026-09-22.
+> **Dropship is ARCHIVED by default** (`business_scope.py:37`). Archiving hides Midas in the UI and from Orion, but does **not** stop his routes, Telegram, or loop — see §5.
 
-Reads it all — Shopify, AutoDS, Meta, and the business brief **first** — and
-produces one ranked operating brief: Attention Now / Winners / Money / Ops / Ads /
-Delegations. Plus three on-demand lanes: **product research**, **creative & ads**,
-**fulfillment & support**.
+## 1. Identity
 
-## Autonomy — where the line sits
-
-**Never acts outward.** No launch, no budget change, no supplier order, no listing
-edit, no customer message, no refund. Proposals only.
-
-## Prompt order (highest wins)
-
-1. **Creed** — `dropship-evidence-discipline.md`: never invent a metric, margin, stock status, supplier price, or delivery time; margin only from real cost inputs; **account health outranks the analysis**
-2. **Always on** — `midas-decision-loop.md`, `midas-craft.md`, `dropship-account-health.md`
-3. **Lane-gated** — loaded only by the lane that consults them:
-
-| Lane | Skills added |
+| | |
 |---|---|
-| product research | `dropship-adspy-method` |
-| creative & ads | `dropship-four-triggers-ad-writer`, `dropship-creative-testing-doctrine`, `dropship-account-optimization-doctrine`, `dropship-meta-ads-diagnostician`, `dropship-ad-launch-sop`, `dropship-adspy-method` |
-| fulfillment & support | `dropship-support-macros` |
+| Business | Dropship (FORGE store) · hub id `midas` · emoji 🛒 |
+| Job | Runs the store: one ranked brief (headline, priorities, winners, money, ops, ads, delegations) + three on-demand lanes — product research, creative & ads, fulfillment & support. |
+| Engine | `forge rei/dropship_director.py` → `MidasEngine` (`dropship_director.py:269`), built `connector.py:1063` as `MIDAS` |
+| Seed folder | `forge-dropship/` (skills in `forge-dropship/skills/`) |
 
-4. Learned `midas-playbook.md` — **last**
+## 2. Triggers
 
-**Do not un-gate the lane skills.** They are ~13–15KB each; declaring all of them
-always-on costs ~24k tokens on *every* call, and the scheduled brief runs
-unattended forever. Gated, the brief carries ~12.5k and each lane gets exactly its
-own. Operator chat is deliberately **not** gated — a human question is bursty and
-can be about any lane.
+**Scheduled loop**
 
-Enforcement: `forge rei/test_dropship_skills.py` fails if a skill is on disk but
-unreachable from every prompt path, if the creed leaks into `_load_skills`, or if
-a top skill lands in `learn()`'s budget.
+| Field | Value |
+|---|---|
+| Thread | `midas` (`connector.py:5129`) |
+| Gate | `FORGE_MARCUS` != `0` **and** `FORGE_DROPSHIP_BRIEF` != `0` — **default `0` (off)** |
+| Off | `forge_heartbeat.retire("midas")` (`connector.py:5134`) |
+| Tick | 900 s, hardcoded (`dropship_director.py:46`) |
+| Brief cadence | `FORGE_DROPSHIP_BRIEF_EVERY_H` 24 · `FORGE_DROPSHIP_BRIEF_TOKENS` 5000 |
+| Clock-out | loop tick skipped on `forge_ops.paused()`; HTTP runs ignore it |
+| Heartbeat | `midas` |
+
+**Telegram**
+
+| Form | Effect |
+|---|---|
+| `/midas` · `midas, …` / `midas: …` / `midas — …` | chat → `_tg_agent_chat` → `agents_hub.chat` (`connector.py:2333`) |
+| `/task <title>` while active | `agents_hub.send_task("midas", …)` → read off the bus at next brief |
+
+**HTTP** — private network + Host + same-origin POST; no session (`_handle_dropship_get` `connector.py:4515`)
+
+| Method | Route | Calls |
+|---|---|---|
+| GET | `/api/dropship/director/{status,overview,brief,bus}` · `/api/dropship/agents` · `/api/dropship/ads` (no Claude) · `/api/dropship/{hawk,blaze,otto}/overview` | lane views |
+| POST | `/api/dropship/director/run` · `/director/learn` | `run_once` · `learn` |
+| POST | `/api/dropship/hawk/run` · `/hawk/watch` · `/research/discover` · `/research/packet` | product research lane |
+| POST | `/api/dropship/blaze/run` | `analyze_ads` (creative & ads lane) |
+| POST | `/api/dropship/otto/run` | `fulfillment_check` |
+| POST | `/api/dropship/{hawk,blaze,otto}/learn` | all alias `learn()` |
+
+(`hawk`/`blaze`/`otto` are retired-agent route names kept as lane aliases.)
+
+**Bus:** `_read_bus_inbox` (`:469`) reads `inbox("midas")` (+ `all`), ≤10, marks read — only inside `build_brief`. No role aliases.
+
+**UI:** Dropship workspace — Agents tab (`dropship_growth.jsx`), Dashboard "Midas brief" card, Watch (`dropship_watch.jsx`), Orders (`dropship_orders.jsx`) · Agent Control Center `midas` (DISABLED while archived or loop off) · Agent Office (Dropship room, hidden while archived).
+
+## 3. Reads / context load order
+
+`build_brief` (`:486`): inline rules → `north_star` → `dropship-context.md` → creed `agent_creed.block("dropship")` → `dropship-evidence-discipline.md` → skills `_load_skills(lane)` → playbook `_playbook_only()` [:4000] (seed `midas-playbook.md` + vault `Skills/midas-playbook.md`) → last 2 vault `Reports/dropship/*.md`. Payload: Shopify snapshot, AutoDS health, connectedSystems, offlineChannels, `assignedToYou` (bus).
+
+| Set | Skills |
+|---|---|
+| `TOP_SKILLS` (always) | `midas-decision-loop.md`, `midas-craft.md`, `dropship-account-health.md` |
+| lane `product research` | + `dropship-adspy-method.md` |
+| lane `creative & ads` | + `dropship-four-triggers-ad-writer.md`, `dropship-creative-testing-doctrine.md`, `dropship-account-optimization-doctrine.md`, `dropship-meta-ads-diagnostician.md`, `dropship-ad-launch-sop.md`, `dropship-adspy-method.md` |
+| lane `fulfillment & support` | + `dropship-support-macros.md` |
+| `ON_DEMAND_SKILLS` (chat only) | `dropship-store-setup.md` |
+
+Brief uses `lane=""` (core only). Enforced by `forge rei/test_dropship_skills.py`.
+
+## 4. Outputs / writes
+
+- `marcus_state/midas.json`.
+- Vault `Reports/dropship/brief-<date>.md`, `Skills/midas-playbook.md`.
+- Bus: `midas→all` status per brief + one `handoff` per delegation (≤8, can reach Telegram); `note` after a lane run; learn status.
+
+## 5. Autonomy & gates
+
+- Read + propose only: never launches, changes budget, orders from a supplier, edits a listing, messages a customer, or refunds.
+- `research_packet` stops before Claude on a kill flag or unknown price/cost; `meta_overview` refuses agency mock data.
+- Kill: `FORGE_DROPSHIP_BRIEF=0` (default) stops the loop. **Archive does not gate** routes, Telegram, or the loop.
+- Key: `DROPSHIP_ANTHROPIC_API_KEY` → `ANTHROPIC_API_KEY` → agency → wholesale.
+
+## 6. Self-improvement
+
+- `_maybe_learn`: `FORGE_DROPSHIP_LEARN_EVERY` (8 briefs) + `FORGE_DROPSHIP_LEARN_GAP_MIN` (45 min) — called only from `run_forever`, so **never fires while the loop is off**.
+- Manual: POST `/api/dropship/director/learn` (needs at least one brief). Not in `daily_learn.sh`.
+
+## 7. Chat & tasks
+
+- `/api/hub/chat {agentId:"midas"}` → `_director_chat`: creed → `dropship_context` → latest brief [:3500] → `top_skills_text()` (ALL skills incl. lane + on-demand — deliberately ungated) → `playbook_text(4000)` → `open_tasks_block("midas")` → `caveman.block()`.
+- Agent Office tasks run the same chat path.
+
+## 8. Cost
+
+Claude: yes — brief, learn, every lane `analyze()`, chat. Bucket `midas` on the loop; `operator` for HTTP; `telegram` for Telegram chat.
+
+## 9. Verify it's alive
 
 ```bash
-cd "forge rei" && python3 test_dropship_skills.py
+curl -s localhost:7799/api/agents/registry | jq '.agents[]|select(.id=="midas")|{status,archived,lastSuccessAt,lastError}'
+curl -s localhost:7799/api/dropship/director/status | jq '{aiReady,topSkills,briefCount,lastBriefAt,lastError}'
+curl -s localhost:7799/api/businesses | jq .
 ```
-
-## Where it lives
-
-- **Engine:** `forge rei/dropship_director.py` → `MidasEngine`, built at `forge rei/connector.py:1035`
-- **Integrations:** `dropship_shopify.py` · `dropship_autods.py` · `dropship_adspy.py` · `dropship_winninghunter.py` · `dropship_pipiads.py`
-- **Config + seed skills:** `forge-dropship/`
-- **Learned playbook:** vault `Skills/midas-playbook.md` (`PLAYBOOK_MD` at `dropship_director.py:341`)
-
-## Routes
-
-`/api/dropship/director/` — `status` · `overview` · `brief` · `run` · `learn` · `bus`
-Also `/api/dropship/` — `agents` · `analytics` · `ads` · `adspy/*` · `autods/*`
-
-## Knobs
-
-| Env | Default | Effect |
-|---|---|---|
-| `FORGE_DROPSHIP_BRIEF` | **0 (off)** | Scheduled brief. Off while the store is part-wired — a brief over empty data is fabrication *and* a daily bill. On-demand is unaffected. Set `1` when Shopify is connected. |
-| `FORGE_DROPSHIP_BRIEF_EVERY_H` | — | Brief cadence when on |
-| `FORGE_DROPSHIP_LEARN_EVERY` | — | Self-improve cadence |
-| `FORGE_DROPSHIP_BRIEF_TOKENS` | — | Brief token budget |
-
-> Switching a loop off must call `forge_heartbeat.retire("<loop>")` in the else
-> branch, or it stops beating, goes red forever, and trips the health card.
+Heartbeat `midas` reads retired while `FORGE_DROPSHIP_BRIEF=0`.
