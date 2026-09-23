@@ -123,14 +123,14 @@ function MBDHome() {
           {m.invoicesDue} invoice{m.invoicesDue === 1 ? "" : "s"} due →</button>}
       </window.MCard>
       <window.MCard title="Needs you" right={<span className="mw-streak">{ran ? needs.length : "—"}</span>}>
-        {leads.loading && !leads.data ? <window.MSpin/> : !ran ? <div className="m-fade">Lead Desk hasn't swept yet.</div>
+        {leads.loading && !leads.data ? <window.MSpin/> : !ld ? null : !ran ? <div className="m-fade">Lead Desk hasn't swept yet.</div>
           : !needs.length ? <window.MEmpty title="No families waiting" sub="New leads that need a person show here."/>
           : needs.slice(0, 3).map((r) => <MBDNeedRow key={r.id} row={r}/>)}
         {needs.length > 0 && <button className="mw-all-actions" onClick={() => MBDGo("families")}>See all {needs.length} →</button>}
       </window.MCard>
       <window.MCard title="Solomon says" right={b && brief.data.lastBriefAt ? <span className="m-fade">{MBDAgo(brief.data.lastBriefAt)}</span> : null}>
         {brief.loading && !brief.data ? <window.MSpin/> : !auth && MBDFailed(brief) ? <div className="mw-warn">Solomon's brief unavailable — retry.</div>
-          : !b ? <div className="m-fade">No brief yet — Solomon writes one daily on the box.</div>
+          : !(brief.data && brief.data.ok) ? null : !b ? <div className="m-fade">No brief yet — Solomon writes one daily on the box.</div>
           : <React.Fragment>
             <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.35, marginBottom: 6 }}>{b.headline}</div>
             {(b.priorities || []).slice(0, 3).map((p, i) => <div className="mw-action" key={i}>
@@ -243,7 +243,7 @@ function MBDFamilies() {
       {seg === "needs" ? <window.MCard title="Need a human" right={<button className="m-chip" onClick={leads.refresh}>Refresh</button>}>
         {!auth && MBDFailed(leads) && <div className="mw-warn">Lead Desk unavailable — retry.</div>}
         {!auth && ld && ld.error && <div className="mw-warn">Lead Desk: {ld.error}</div>}
-        {leads.loading && !leads.data ? <window.MSpin/> : !ran ? <div className="m-fade">Lead Desk hasn't swept yet.</div>
+        {leads.loading && !leads.data ? <window.MSpin/> : !ld ? null : !ran ? <div className="m-fade">Lead Desk hasn't swept yet.</div>
           : !needs.length ? <window.MEmpty title="No families waiting" sub="New leads that need a person show here."/>
           : <div className="mw-list">{needs.map((r) => <MBDNeedRow key={r.id} row={r} onMark={setMarkRow}/>)}</div>}
         {ran && <div className="mw-response">Median human response (30d) · {MBDDur(kpis.medianHumanResponseSec)}</div>}
@@ -286,7 +286,7 @@ function MBDSolomon() {
       {MBDAuth(brief) ? <MBDAuthLine/> : MBDFailed(brief) ? <div className="mw-warn">Solomon's brief unavailable — retry.</div> : null}
       {stale && <div className="mw-warn">This brief is {window.timeAgoM(at)} old — Solomon's loop may be paused or backing off.</div>}
       <window.MCard title={b ? b.headline : "Operating brief"} right={<span className="mw-streak">READ ONLY</span>}>
-        {brief.loading && !brief.data ? <window.MSpin/> : !b ? <window.MEmpty title="No brief yet" sub="Solomon writes one daily on the box."/>
+        {brief.loading && !brief.data ? <window.MSpin/> : !(brief.data && brief.data.ok) ? null : !b ? <window.MEmpty title="No brief yet" sub="Solomon writes one daily on the box."/>
           : <div className="mw-brief">
             {at && <div className="m-fade">Written {MBDAgo(at)}</div>}
             {MBD_BRIEF_SECTIONS.filter(([, k]) => Array.isArray(b[k]) && b[k].length).map(([title, k]) => <section key={k}>

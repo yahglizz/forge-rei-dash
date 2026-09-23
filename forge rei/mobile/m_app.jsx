@@ -69,6 +69,22 @@ function MAPReadBiz() {
   return MAP_BIZ_CHOICES.includes(s) ? s : null;
 }
 
+// mGoTab in business mode → {tab} | {overlay:{key,segment}} | null (ignored).
+// Own tab (or alias agents→crew, convos→inbox) → switch; own id ("wholesale","Convos")
+// → matching tab, or home with no segment; any other classic page (incl.
+// "wholesale","Hot") → shown inside this business (tab bar kept, header ‹ returns).
+function MAPBizRoute(keys, bizId, t, segment) {
+  const own = (k) => keys.includes(k) ? k : keys.includes(MAP_BIZ_ALIAS[k]) ? MAP_BIZ_ALIAS[k] : null;
+  const seg = segment ? String(segment).toLowerCase() : "";
+  if (own(t)) return { tab: own(t) };
+  if (t === bizId) {
+    if (!seg) return { tab: keys[0] };
+    if (own(seg)) return { tab: own(seg) };
+  }
+  if (t === "wholesale" || M_PAGES[t]) return { overlay: { key: t, segment: segment || null } };
+  return null;
+}
+
 // A business page is another agent's file — one crash shows a way out, not a white screen.
 class MAPBoundary extends React.Component {
   constructor(p) { super(p); this.state = { err: null }; }
@@ -94,19 +110,11 @@ function MAPBiz(props) {
   const [overlay, setOverlay] = useStateMAP(null); // classic page shown inside this business: {key, segment}
   useEffectMAP(() => { localStorage.setItem(tabStore, tab); }, [tab]);
   const goTab = (k) => { setOverlay(null); setTab(k); };
-  // mGoTab here: own tab (or alias: agents→crew, convos→inbox) → switch; own id
-  // ("wholesale", "Convos") → matching tab, or home when no segment; any other classic
-  // page (incl. "wholesale","Hot") → render it inside this business (tab bar kept, header ‹ returns).
   useEffectMAP(() => {
-    const own = (k) => keys.includes(k) ? k : keys.includes(MAP_BIZ_ALIAS[k]) ? MAP_BIZ_ALIAS[k] : null;
     window.mGoTab = (t, segment) => {
-      const seg = segment ? String(segment).toLowerCase() : "";
-      if (own(t)) return goTab(own(t));
-      if (t === biz.id) {
-        if (!seg) return goTab(keys[0]);
-        if (own(seg)) return goTab(own(seg));
-      }
-      if (t === "wholesale" || M_PAGES[t]) setOverlay({ key: t, segment: segment || null });
+      const r = MAPBizRoute(keys, biz.id, t, segment);
+      if (r && r.tab) goTab(r.tab);
+      else if (r) setOverlay(r.overlay);
     };
     return () => { if (window.mGoTab) delete window.mGoTab; };
   }, [biz]);
@@ -133,7 +141,7 @@ function MAPRoot() {
   // Globals read by MHeader during this render (children render after the parent).
   window.mBizActive = reg ? biz : null;
   window.mBizBack = null;
-  if (reg || (Portal && biz === "all")) {
+  if (reg || (Portal && biz)) { // any choice made → a way back to the portal
     window.mSwitchBiz = () => {
       localStorage.removeItem("m_biz");
       const u = new URL(window.location.href);
