@@ -105,7 +105,8 @@ def mark_sent(now_ms=None):
 def _esc(s):
     # Telegram send() uses parse_mode=HTML — escape the three special chars so a
     # seller snippet with & < > can't break the message.
-    return (str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+    # None -> blank, but 0 is a real value and must render as "0".
+    return (("" if s is None else str(s)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
 def _n(v):
@@ -124,34 +125,91 @@ def _money(v):
     return "$" + format(int(round(x)), ",")
 
 
+def archived(stats, biz):
+    """True when the connector flagged this business archived (business_scope)."""
+    return biz in ((stats or {}).get("archived") or ())
+
+
+def _dur(sec):
+    sec = int(sec)
+    return f"{sec // 60}m" if sec < 3600 else f"{sec / 3600:.1f}h"
+
+
+def business_sections(stats, open_loops=True):
+    """AGENCY / WHOLESALE / DAYCARE / AGENTS blocks from the flat stats dict. Pure.
+
+    A key the connector couldn't read is absent -> its line is omitted (never a fake 0);
+    a block with no lines drops its header; an archived business is skipped entirely.
+    open_loops=False leaves hot/replies/approvals out of WHOLESALE (the recap already
+    lists them under "Still open")."""
+    stats = stats or {}
+    out = []
+
+    def block(title, rows):
+        rows = [r for r in rows if r]
+        if rows:
+            out.extend(["", f"<b>{title}</b>"] + rows)
+
+    def r(label, val):
+        return None if val is None else f"{label}: <b>{_esc(val)}</b>"
+
+    ag = stats.get("agency") or {}
+    if not archived(stats, "agency"):
+        block("AGENCY", [r("\U0001f4de Ready to dial", ag.get("callsReady")),
+                         r("\U0001f501 Callbacks", ag.get("callbacks")),
+                         r("\U0001f91d Interested", ag.get("interested")),
+                         r("\U0001f465 Clients", ag.get("clients")),
+                         r("\U0001f4b0 MRR", _money(ag["mrr"]) if ag.get("mrr") is not None else None)])
+
+    if not archived(stats, "wholesale"):
+        rows = []
+        if open_loops:
+            hot = stats.get("hot")
+            if hot is not None:
+                warm = stats.get("warm")
+                rows.append(r("\U0001f525 Leads",
+                              str(hot) + (f" hot · {warm} warm" if warm is not None else " hot")))
+            rows.append(r("\U0001f4ac Replies waiting", stats.get("replies")))
+            if stats.get("approvals"):
+                rows.append(r("✅ Drafts to approve", stats.get("approvals")))
+        rows.append(r("\U0001f4de Owner calls required", stats.get("ownerCalls")))
+        if stats.get("openOpps") is not None:
+            rows.append(r("\U0001f4ca Pipeline",
+                          f"{stats.get('openOpps')} open · {_money(stats.get('pipelineValue'))}"))
+        if stats.get("appointments"):
+            rows.append(r("\U0001f4c5 Appointments", stats.get("appointments")))
+        block("WHOLESALE", rows)
+
+    dc = stats.get("daycare") or {}
+    if not archived(stats, "daycare"):
+        med = dc.get("medianResponseSec")
+        block("DAYCARE", [r("\U0001f476 New leads (7d)", dc.get("newLeads7d")),
+                          r("\U0001f64b Need a human", dc.get("needsHuman")),
+                          r("⏱ Median response", _dur(med) if isinstance(med, (int, float)) else None),
+                          "⚠️ Last Lead Desk sweep failed — numbers are from the last good one"
+                          if dc and dc.get("stale") else None])
+
+    a = stats.get("agents")
+    if isinstance(a, dict):
+        block("AGENTS", [" · ".join(f"{a.get(k, 0)} {k}" for k in
+                                    ("healthy", "running", "waiting approval", "degraded", "failed"))])
+    return out
+
+
+def owner_lines(items, n=5, skip_fix=False):
+    """Numbered '[KIND] title' rows from the Owner Actions list. Pure."""
+    rows = [i for i in (items or []) if not (skip_fix and i.get("kind") == "FIX")][:n]
+    return [f"{k}. [{_esc(i.get('kind'))}] {_esc(i.get('title'))}" for k, i in enumerate(rows, 1)]
+
+
 def build_text(stats):
     """Format the brief from a flat stats dict the connector assembles. Pure."""
     stats = stats or {}
     lines = ["☀️ <b>FORGE daily brief</b> — " + _esc(stats.get("date") or date_label())]
-    lines.append("")
-
-    def row(icon, label, val):
-        if val is None:
-            return
-        lines.append(f"{icon} {label}: <b>{_esc(val)}</b>")
-
-    hot = stats.get("hot")
-    if hot is not None:
-        warm = stats.get("warm")
-        htxt = str(hot) + (f" hot · {warm} warm" if warm is not None else " hot")
-        row("\U0001f525", "Leads", htxt)
-    row("\U0001f4ac", "Replies waiting", stats.get("replies"))
-    ap = stats.get("approvals")
-    if ap:
-        row("✅", "Drafts to approve", ap)
-    pv = stats.get("pipelineValue")
-    if stats.get("openOpps") is not None:
-        row("\U0001f4ca", "Pipeline", f"{stats.get('openOpps')} open · {_money(pv)}")
-    if stats.get("appointments"):
-        row("\U0001f4c5", "Appointments", stats.get("appointments"))
+    lines += business_sections(stats)
 
     top = stats.get("topLeads") or []
-    if top:
+    if top and not archived(stats, "wholesale"):
         lines.append("")
         lines.append("<b>Top hot leads</b>")
         for l in top[:3]:
@@ -159,6 +217,12 @@ def build_text(stats):
             last = (l.get("last") or "").strip().replace("\n", " ")
             snip = _esc(last[:60] + ("…" if len(last) > 60 else "")) if last else ""
             lines.append(f"• {name}" + (f" — “{snip}”" if snip else ""))
+
+    if stats.get("ownerItems") is not None:   # absent = Owner Actions unreadable → no section
+        total = (stats.get("ownerCounts") or {}).get("total")
+        lines.append("")
+        lines.append("<b>OWNER TASKS</b>" + (f" — {total} total" if total else ""))
+        lines += owner_lines(stats["ownerItems"]) or ["Nothing waiting on you."]
 
     spend = (stats.get("spendLine") or "").strip()
     if spend:

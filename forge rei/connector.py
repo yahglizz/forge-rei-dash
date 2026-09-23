@@ -1964,6 +1964,61 @@ def _gather_brief_stats():
                                 if l.get("status") == "red"]
     except Exception:
         pass
+    # Wave-2 #1 — cross-business sections (spec §16/§17). Zero Claude: every read below is
+    # an existing read-only surface. A source that errors leaves its key ABSENT so the
+    # brief omits that line (never a fake 0).
+    try:
+        stats["archived"] = [b for b in ("agency", "wholesale", "daycare")
+                             if owner_actions._is_archived(b)]
+    except Exception:
+        pass
+    try:
+        oa = api_owner_actions(None) or {}
+        if oa.get("ok"):
+            items = oa.get("items") or []
+            stats["ownerCounts"] = oa.get("counts") or {}
+            stats["ownerItems"] = [{"kind": i.get("kind"), "title": i.get("title"),
+                                    "business": i.get("business")} for i in items[:15]]
+            stats["fixes"] = [i.get("title") for i in items if i.get("kind") == "FIX"]
+            stats["ownerCalls"] = sum(1 for i in items
+                                      if i.get("kind") == "CALL" and i.get("business") == "wholesale")
+    except Exception:
+        pass
+    agency = {}
+    try:
+        c = (agency_callsheet.list_leads() or {}).get("counts") or {}
+        agency.update(callsReady=c.get("new", 0), callbacks=c.get("callback", 0),
+                      interested=c.get("interested", 0))
+    except Exception:
+        pass
+    try:
+        s = agency_io.stats() or {}
+        agency.update(clients=s.get("activeClients"), mrr=s.get("mrr"))
+    except Exception:
+        pass
+    if agency:
+        stats["agency"] = agency
+    try:
+        dl = daycare_leads.view() or {}          # cached state file, no network
+        if dl.get("lastOkAt"):                   # never swept OK → omit, don't show zeros
+            k = dl.get("kpis") or {}
+            stats["daycare"] = {"newLeads7d": (k.get("newLeads7d") or {}).get("total"),
+                                "needsHuman": k.get("needsHuman"),
+                                "medianResponseSec": k.get("medianResponseSec"),
+                                "stale": (dl.get("lastRunAt") or 0) > dl["lastOkAt"]}
+    except Exception:
+        pass
+    try:
+        by = {}
+        for a in agents_hub.registry():
+            if not a.get("archived"):
+                by[a.get("status")] = by.get(a.get("status"), 0) + 1
+        stats["agents"] = {
+            "healthy": sum(by.get(s, 0) for s in ("RUNNING", "IDLE", "WAITING FOR APPROVAL")),
+            "running": by.get("RUNNING", 0), "waiting approval": by.get("WAITING FOR APPROVAL", 0),
+            "degraded": by.get("DEGRADED", 0), "failed": by.get("FAILED", 0)}
+    except Exception:
+        pass
     return stats
 
 

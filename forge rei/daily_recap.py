@@ -11,6 +11,7 @@ import os
 import time
 from pathlib import Path
 
+import daily_brief  # shared section renderer (business_sections / owner_lines)
 import forge_atomic
 
 STATE = Path(__file__).resolve().parent / "marcus_state" / "daily_recap.json"
@@ -99,7 +100,8 @@ def mark_sent(now_ms=None):
 
 
 def _esc(s):
-    return (str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+    # None -> blank, but 0 is a real value and must render as "0".
+    return (("" if s is None else str(s)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
 def _money(v):
@@ -126,9 +128,11 @@ def build_text(stats):
             return
         lines.append(f"{icon} {label}: <b>{_esc(val)}</b>")
 
+    wholesale_on = not daily_brief.archived(stats, "wholesale")
+
     # Open loops first — the whole point of the evening ping is "clear these before bed".
-    hot = stats.get("hot")
-    ap = stats.get("approvals")
+    hot = stats.get("hot") if wholesale_on else None
+    ap = stats.get("approvals") if wholesale_on else None
     open_any = bool(hot) or bool(ap)
     if open_any:
         lines.append("<b>Still open</b>")
@@ -136,17 +140,14 @@ def build_text(stats):
         row("\U0001f525", "Hot leads to text back", hot)
     if ap:
         row("✅", "Drafts waiting on your tap", ap)
-    row("\U0001f4ac", "Conversations needing a reply", stats.get("replies"))
+    if wholesale_on:
+        row("\U0001f4ac", "Conversations needing a reply", stats.get("replies"))
 
-    # Where the pipeline stands tonight.
-    if stats.get("openOpps") is not None:
-        lines.append("")
-        row("\U0001f4ca", "Pipeline", f"{stats.get('openOpps')} open · {_money(stats.get('pipelineValue'))}")
-    if stats.get("appointments"):
-        row("\U0001f4c5", "Appointments", stats.get("appointments"))
+    # Where each business stands tonight (pipeline + appointments live in WHOLESALE).
+    lines += daily_brief.business_sections(stats, open_loops=False)
 
     top = stats.get("topLeads") or []
-    if top:
+    if top and wholesale_on:
         lines.append("")
         lines.append("<b>Don't let these go cold</b>")
         for l in top[:3]:
@@ -160,10 +161,20 @@ def build_text(stats):
         lines.append("")
         lines.append("\U0001f4b8 " + _esc(spend) + " today")
 
-    stale = stats.get("staleAgents") or []
-    if stale:
+    # What failed today: red loops + Owner Actions FIX rows. owner_actions titles a red
+    # heartbeat "Loop down: <label>", so the dict dedupes the overlap.
+    failed = list(dict.fromkeys(["Loop down: " + s for s in (stats.get("staleAgents") or [])]
+                                + list(stats.get("fixes") or [])))
+    if failed:
         lines.append("")
-        lines.append("⚠️ Stale agents: " + _esc(", ".join(stale)))
+        lines.append("<b>⚠️ FAILED TODAY</b>")
+        lines += ["• " + _esc(f) for f in failed]
+
+    if stats.get("ownerItems") is not None:   # absent = Owner Actions unreadable → no section
+        lines.append("")
+        lines.append("<b>TOMORROW — FIRST 5</b>")
+        lines += (daily_brief.owner_lines(stats["ownerItems"], skip_fix=True)
+                  or ["Nothing queued yet."])
 
     lines.append("")
     if open_any:
