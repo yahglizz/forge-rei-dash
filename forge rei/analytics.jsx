@@ -53,6 +53,7 @@ function WeeklyReview() {
     try {
       const res = await window.apiPost("/api/review/run", { days: 7 });
       if (res.needsKey) setErr(res.message || "Add ANTHROPIC_API_KEY to enable.");
+      else if (res.error) setErr(res.error);
       refresh();
     } catch (e) { setErr(e.message); }
     setRunning(false);

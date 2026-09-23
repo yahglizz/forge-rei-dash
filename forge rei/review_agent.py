@@ -214,7 +214,10 @@ def run(get_metrics):
         reports = list(ex.map(
             lambda a: _analyst(key, a[0], a[1], metrics), ANALYSTS))
 
-    report_md = _synthesize(key, metrics, reports)
+    try:
+        report_md = _synthesize(key, metrics, reports)
+    except Exception as e:  # noqa: BLE001 — surface the real reason (e.g. credits), not a bare 500
+        return {"hasReview": False, "needsKey": False, "error": str(e)[:300]}
     playbook = _extract_playbook(report_md)
 
     date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
