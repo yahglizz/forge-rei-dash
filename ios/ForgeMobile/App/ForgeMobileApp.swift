@@ -5,7 +5,7 @@ struct ForgeMobileApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .ignoresSafeArea()
+                .ignoresSafeArea(.container)
                 .preferredColorScheme(.light)
         }
     }

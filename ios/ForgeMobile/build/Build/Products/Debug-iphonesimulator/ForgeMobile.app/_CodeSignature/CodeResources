@@ -18,7 +18,7 @@
 		</data>
 		<key>ForgeMobile.debug.dylib</key>
 		<data>
-		PekPSsWHgMgYzU5hV7BztY/IG1Y=
+		C/Q88WeWuPbF5sevkCbshaqijf8=
 		</data>
 		<key>Info.plist</key>
 		<data>
@@ -31,6 +31,14 @@
 		<key>__preview.dylib</key>
 		<data>
 		w0AoVxIsWUvA2JkCWV1r9+NHFI8=
+		</data>
+		<key>state.json</key>
+		<data>
+		Rc/SMTd1QwY17OAhFzLdIzkvLG4=
+		</data>
+		<key>stats.json</key>
+		<data>
+		RA+HYceIsUlRkuHcp9C5SstC28g=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -60,7 +68,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			bRGYwliS6yqrFh8oiOWret0S4TqXKKuWQ96sKpetHMQ=
+			1QMvdlKgeDP1in2+1qX3WlpHiN96LvWJczD1trq5Mn8=
 			</data>
 		</dict>
 		<key>__preview.dylib</key>
@@ -68,6 +76,20 @@
 			<key>hash2</key>
 			<data>
 			5GsUhciFabwYjTpIePEKYLitLnInBqE8OClfCF5MNZ4=
+			</data>
+		</dict>
+		<key>state.json</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			SnBPERHRVob0SxUaFjDyGGAxZ2KBgRJ3/jrz4N6HkS8=
+			</data>
+		</dict>
+		<key>stats.json</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			PVw7e7uewkMHFn1011NGuTYKmhCu2rQ7TK/6kw+Qx74=
 			</data>
 		</dict>
 	</dict>

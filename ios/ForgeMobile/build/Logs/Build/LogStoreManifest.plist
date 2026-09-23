@@ -48,7 +48,7 @@
 			<key>uniqueIdentifier</key>
 			<string>39441C67-5F2F-45CB-9C0E-C594CFE0D47F</string>
 		</dict>
-		<key>E36A4B20-3D8C-442E-A218-6A26351C11B5</key>
+		<key>A5CAD215-9EA1-492E-A679-105B4372E46D</key>
 		<dict>
 			<key>className</key>
 			<string>IDECommandLineBuildLog</string>
@@ -57,7 +57,7 @@
 			<key>domainType</key>
 			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
 			<key>fileName</key>
-			<string>E36A4B20-3D8C-442E-A218-6A26351C11B5.xcactivitylog</string>
+			<string>A5CAD215-9EA1-492E-A679-105B4372E46D.xcactivitylog</string>
 			<key>hasPrimaryLog</key>
 			<true/>
 			<key>primaryObservable</key>
@@ -82,13 +82,13 @@
 			<key>signature</key>
 			<string>Building project ForgeMobile with scheme ForgeMobile and configuration Debug</string>
 			<key>timeStartedRecording</key>
-			<real>811829896.03054905</real>
+			<real>811830540.72694695</real>
 			<key>timeStoppedRecording</key>
-			<real>811829910.68445897</real>
+			<real>811830545.67323399</real>
 			<key>title</key>
 			<string>Building project ForgeMobile with scheme ForgeMobile and configuration Debug</string>
 			<key>uniqueIdentifier</key>
-			<string>E36A4B20-3D8C-442E-A218-6A26351C11B5</string>
+			<string>A5CAD215-9EA1-492E-A679-105B4372E46D</string>
 		</dict>
 	</dict>
 </dict>

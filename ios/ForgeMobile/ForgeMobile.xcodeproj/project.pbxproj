@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1263D89C1089BF1ED89EF492 /* stats.json in Resources */ = {isa = PBXBuildFile; fileRef = 509076F68FE83D3A52B9B4A3 /* stats.json */; };
+		4EC6FBFC8DB4EE8AE049862E /* state.json in Resources */ = {isa = PBXBuildFile; fileRef = A6274918AA359D505A4465BB /* state.json */; };
 		A79F963FE2F8ACC19C3F3FEA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39D378DB9DE666FAF3595C6D /* ContentView.swift */; };
 		C0D743F77B6F1D515DD260FC /* ForgeMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D3AE3B01F6BA7E9F7284816 /* ForgeMobileApp.swift */; };
 		CAB2CE0F8FA6CA7D11F2107D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3FDF782F517EB8A3D2DB2CFB /* Assets.xcassets */; };
@@ -16,7 +18,9 @@
 		0EEE47D1913B1600847064EC /* ForgeMobile.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ForgeMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		39D378DB9DE666FAF3595C6D /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		3FDF782F517EB8A3D2DB2CFB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		509076F68FE83D3A52B9B4A3 /* stats.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = stats.json; sourceTree = "<group>"; };
 		7D3AE3B01F6BA7E9F7284816 /* ForgeMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeMobileApp.swift; sourceTree = "<group>"; };
+		A6274918AA359D505A4465BB /* state.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = state.json; sourceTree = "<group>"; };
 		F04D23EFA562463EB067228F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -27,6 +31,15 @@
 				0EEE47D1913B1600847064EC /* ForgeMobile.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		43CC2B113FE91F988983E396 /* .claude-flow */ = {
+			isa = PBXGroup;
+			children = (
+				A7E59486D8E33A80DDA85DFE /* neural */,
+				B62A91A6F4DDDB165A3A0111 /* policy */,
+			);
+			path = ".claude-flow";
 			sourceTree = "<group>";
 		};
 		741E039D68F1FFDE98A71958 = {
@@ -44,8 +57,25 @@
 				39D378DB9DE666FAF3595C6D /* ContentView.swift */,
 				7D3AE3B01F6BA7E9F7284816 /* ForgeMobileApp.swift */,
 				F04D23EFA562463EB067228F /* Info.plist */,
+				43CC2B113FE91F988983E396 /* .claude-flow */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		A7E59486D8E33A80DDA85DFE /* neural */ = {
+			isa = PBXGroup;
+			children = (
+				509076F68FE83D3A52B9B4A3 /* stats.json */,
+			);
+			path = neural;
+			sourceTree = "<group>";
+		};
+		B62A91A6F4DDDB165A3A0111 /* policy */ = {
+			isa = PBXGroup;
+			children = (
+				A6274918AA359D505A4465BB /* state.json */,
+			);
+			path = policy;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -108,6 +138,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				CAB2CE0F8FA6CA7D11F2107D /* Assets.xcassets in Resources */,
+				4EC6FBFC8DB4EE8AE049862E /* state.json in Resources */,
+				1263D89C1089BF1ED89EF492 /* stats.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

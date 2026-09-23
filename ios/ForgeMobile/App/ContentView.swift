@@ -46,6 +46,12 @@ final class ForgeShell: NSObject, ObservableObject {
         webView.allowsBackForwardNavigationGestures = false
         webView.scrollView.bounces = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never   // web layer owns safe areas
+        // The page never scrolls as a document (.m-content is the one scroller, and those
+        // overflow scrollers are separate child scroll views that stay enabled). Left on,
+        // WebKit scrolls the whole document up when the keyboard opens and leaves it
+        // offset after it closes: the tab bar drifts and taps land on the wrong control.
+        // SwiftUI resizes the web view above the keyboard instead (see ContentView).
+        webView.scrollView.isScrollEnabled = false
         webView.isOpaque = true
         webView.backgroundColor = ForgeConfig.background
         webView.scrollView.backgroundColor = ForgeConfig.background
@@ -56,6 +62,7 @@ final class ForgeShell: NSObject, ObservableObject {
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(didBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
         nc.addObserver(self, selector: #selector(didForeground), name: UIApplication.didBecomeActiveNotification, object: nil)
+        nc.addObserver(self, selector: #selector(keyboardDidHide), name: UIResponder.keyboardDidHideNotification, object: nil)
         load()
     }
 
@@ -86,6 +93,8 @@ final class ForgeShell: NSObject, ObservableObject {
     }
 
     @objc private func didBackground() { backgroundedAt = Date() }
+
+    @objc private func keyboardDidHide() { webView.scrollView.setContentOffset(.zero, animated: false) }
 
     // Long absences (overnight, a whole shift) reload so the phone never shows a stale
     // morning. Short ones don't: live_sync's 2s poll resumes on its own.
@@ -223,8 +232,10 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             Color(ForgeConfig.background).ignoresSafeArea()
+            // .container only — NOT the keyboard region: SwiftUI shrinks the web view above
+            // the keyboard, so 100dvh is the visible area and composers sit on the keyboard.
             WebContainer(webView: shell.webView)
-                .ignoresSafeArea()
+                .ignoresSafeArea(.container)
                 .opacity(shell.phase == .ready ? 1 : 0)
             switch shell.phase {
             case .loading:
