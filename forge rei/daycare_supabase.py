@@ -974,13 +974,20 @@ def _single(result: Any, resource: str) -> dict[str, Any]:
     return rows[0]
 
 
+# staff_members is column-granted since the daycare app's 202609130003 migration: `authenticated`
+# may only SELECT these columns (hourly_rate moved behind the staff_pay_rates() RPC). A `*` select,
+# or a return=representation write, 403s the whole query — so staff/profile reads name columns.
+_STAFF_COLS = "id,profile_id,location_id,job_title,hire_date,certifications,color"
+_PROFILE_COLS = "id,location_id,role,first_name,last_name,display_name,active"
+
+
 def _ensure_location_record(session: Session, table: str, record_id: Any) -> dict[str, Any]:
     rid = require_uuid(record_id, f"{table} id")
     rows = BRIDGE.rest(
         session,
         "GET",
         table,
-        query={"id": f"eq.{rid}", "location_id": f"eq.{active_location(session)}", "select": "*", "limit": "1"},
+        query={"id": f"eq.{rid}", "location_id": f"eq.{active_location(session)}", "select": _STAFF_COLS if table == "staff_members" else "*", "limit": "1"},
     )
     return _single(rows, table.replace("_", " ").rstrip("s").title())
 
@@ -1140,10 +1147,16 @@ def get_staff(session: Session) -> dict[str, Any]:
         "staff_members",
         query={
             "location_id": f"eq.{active_location(session)}",
-            "select": "*,profiles(id,first_name,last_name,display_name,role,active,permissions),staff_classrooms(classroom_id),staff_schedules(id,weekday,start_time,end_time)",
+            "select": _STAFF_COLS + ",profiles(id,first_name,last_name,display_name,role,active,permissions),staff_classrooms(classroom_id),staff_schedules(id,weekday,start_time,end_time)",
             "order": "hire_date.asc",
         },
     )
+    try:  # pay rates live behind a role-scoped RPC now; missing = UI shows "Rate private"
+        rates = {str(r.get("staff_id")): r.get("hourly_rate") for r in _rows(BRIDGE.rpc(session, "staff_pay_rates", {}))}
+        for row in _rows(rows):
+            row["hourly_rate"] = rates.get(str(row.get("id")))
+    except DaycareError:
+        pass
     staff_ids = _staff_ids(session)
     shifts = BRIDGE.rest(
         session,
@@ -1891,8 +1904,8 @@ def save_staff(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "hourly_rate": require_number(_body_value(source, "hourly_rate", "hourlyRate"), "hourly_rate", maximum=Decimal("10000"), optional=True),
         "hire_date": require_date(_body_value(source, "hire_date", "hireDate"), "hire_date", optional=True),
     }
-    BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{active_location(session)}"}, body=profile_update, prefer="return=representation")
-    rows = BRIDGE.rest(session, "PATCH", "staff_members", query={"id": f"eq.{staff['id']}"}, body=member_update, prefer="return=representation")
+    BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{active_location(session)}"}, body=profile_update, prefer="return=minimal")
+    rows = BRIDGE.rest(session, "PATCH", "staff_members", query={"id": f"eq.{staff['id']}", "select": _STAFF_COLS}, body=member_update, prefer="return=representation")
     if "classroom_ids" in source or "classroomIds" in source:
         BRIDGE.rest(session, "DELETE", "staff_classrooms", query={"staff_id": f"eq.{staff['id']}"}, prefer="return=minimal")
         if classroom_ids:
@@ -1905,7 +1918,7 @@ def deactivate_staff(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     profile_id = require_uuid(staff.get("profile_id"), "profile_id")
     if profile_id == session.profile.get("id"):
         raise DaycareError(409, "You cannot deactivate your own active session", "self_deactivation")
-    rows = BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{active_location(session)}"}, body={"active": False}, prefer="return=representation")
+    rows = BRIDGE.rest(session, "PATCH", "profiles", query={"id": f"eq.{profile_id}", "location_id": f"eq.{active_location(session)}", "select": _PROFILE_COLS}, body={"active": False}, prefer="return=representation")
     return {"ok": True, "profile": _single(rows, "Staff profile")}
 
 
