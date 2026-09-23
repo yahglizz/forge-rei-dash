@@ -132,7 +132,7 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 - **Accept:** a new `test_brief_sections.py` passes fixture stats and asserts AGENCY / WHOLESALE / DAYCARE / AGENTS / OWNER TASKS sections; a missing source omits its line (never a fake 0); archived businesses are skipped; the dedupe keys (`connector.py:1979,2006`) are unchanged.
 - **Risk:** low. The message goes to the operator only; this replaces Orion's function while credits are down.
 
-**2. Mission Control spec tiles (§15)**
+**2. Mission Control spec tiles (§15)** — ✅ DONE 2026-09-23
 - **Files:** `mission_control.py:69/109/143/246`.
 - **Agency:** Calls ready / Callbacks / Interested / Clients / MRR.
 - **Wholesale:** + Owner calls required (Owner Actions CALL count) + Contracts / Deals (`deals.list_deals`).
@@ -141,13 +141,13 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 - **Accept:** a snapshot fixture test asserts the labels; a failing source drops its metric and adds one warn line; no network added to the snapshot path.
 - **Risk:** low, but `registry()` latency needs a check.
 
-**3. Atlas call card + 30-second seller header (P1-7, §7)**
+**3. Atlas call card + 30-second seller header (P1-7, §7)** — ✅ DONE 2026-09-23
 - **Files:** `screening.jsx` (or a new `atlas_card.jsx` added to `FORGE REI OS.html`); uses the existing `GET /api/prep/get` (`connector.py:1318`) and `POST /api/prep/run`.
 - **Shows:** property, timeline, ask, condition, motivation, last contact, anchors (labeled **INTERNAL — never text**), MAO note, comps to pull, call-card bullets. Deep-link it from the Owner Actions "Atlas call card ready" row.
 - **Accept:** `valjsx` passes; "No prep yet" state; no send or copy-to-SMS control anywhere on the card (rule 9).
 - **Risk:** low.
 
-**4. Agency call-sheet lifecycle (§6)**
+**4. Agency call-sheet lifecycle (§6)** — ✅ DONE 2026-09-23
 - **Files:** `agency_callsheet.py:24` (additive statuses: `ready`, `demo_booked`, `proposal`, `won`, `lost`, `dnc`; new fields `callbackAt`, `attempts`, `lastContactAt` ISO, `nextAction`, `category`), `owner_actions.py:257-279`, `agency_callcenter.jsx`.
 - **Queue rules:** a future `callbackAt` stays hidden until due; a due callback → REVENUE CALLBACK with a real age; `dnc` is excluded and blocks re-import by phone.
 - **Optional:** an operator-only Telegram ping when a callback comes due (deduped), which covers the §20 agency alert.
@@ -182,7 +182,7 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 - **Accept:** `valjsx` on mobile; a fetch failure shows "list may be stale".
 - **Risk:** low.
 
-**10. Eco / daycare-growth mock labeling (creed honesty)**
+**10. Eco / daycare-growth mock labeling (creed honesty)** — ✅ DONE 2026-09-23
 - **Files:** `agency_eco.py:451` — return `dataSource` + date range from `agency_ads.analytics`; `agency_eco.jsx` and the daycare Ideas view get MOCK / TOKEN REJECTED badges.
 - **Accept:** a test asserts `dataSource == "mock"` with no token.
 - **Risk:** trivial.

@@ -250,7 +250,10 @@ def _src_screenings(ctx):
             score = rep.get("score")
             out.append(_item(f"screen:{cid}", "CALL", "wholesale", "revenue",
                              f"Call {name} — screened" + (f" {score}/10," if score else ",") + " interested",
-                             why, r.get("updatedAt"), {"ws": "rei", "page": "Agents"}, "marcus"))
+                             why, r.get("updatedAt"),
+                             {"ws": "rei", "page": "Conversations", "convId": r.get("convId"),
+                              "contactId": cid, "name": name} if r.get("convId")
+                             else {"ws": "rei", "page": "Agents"}, "marcus"))
     return out
 
 

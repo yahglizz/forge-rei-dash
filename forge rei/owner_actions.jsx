@@ -29,6 +29,12 @@ function oaAge(sec) {
 function oaOpen(link) {
   if (!link) return;
   if (link.view) { if (window.forgeOpenView) window.forgeOpenView(link.view); return; }
+  // A screened seller's CALL row → straight into their thread (Atlas call card lives there).
+  if (link.convId && window.openConversation) {
+    window.openConversation({ id: link.convId, contactId: link.contactId, name: link.name });
+    if (window.forgeOpenView) window.forgeOpenView("workspace");
+    return;
+  }
   if (link.ws && window.forgeEnterBusiness) window.forgeEnterBusiness(link.ws, link.page);
 }
 
