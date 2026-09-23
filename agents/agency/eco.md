@@ -1,34 +1,87 @@
 # Eco — Ads Agent
 
-**Business:** Agency (ClientForge) · **Emoji:** 📈 · **Roster id:** `eco`
-**Role:** ad strategy, Meta performance reads, creative concepts.
+> Code refs are relative to `forge rei/` unless they start with `forge-`. Verified against code 2026-09-22.
 
-Reads campaign performance, diagnoses what is actually leaking, and drafts new
-angles and creative. Also generates ad imagery through Higgsfield.
+## 1. Identity
 
-## Autonomy — where the line sits
+| | |
+|---|---|
+| Business | Agency (ClientForge) · hub id `eco` · emoji 📈 |
+| Job | Reads client Meta performance, proposes ad concepts (hook, headline, primary text, CTA, creative direction). Recommends only; builds PAUSED ads on approval. |
+| Engine | `forge rei/agency_agents.py` (chat/task/learn) + `forge rei/agency_eco.py` (recommendations, ad build) |
+| Seed folder | `forge-agency/skills/` |
 
-**Recommends only. Launches on approval.** Spend is never Eco's to commit.
+## 2. Triggers
 
-## Where it lives
+**Scheduled loop:** none. No thread, no heartbeat, no `FORGE_MARCUS` gate.
 
-- **Engine:** `forge rei/agency_agents.py` + `forge rei/agency_eco.py`
-- **Meta data:** `forge rei/agency_ads.py` · **Imagery:** `forge rei/higgsfield_io.py`
-- **Config + seed skills:** `forge-agency/`
-- **Creed:** `agency-evidence-discipline.md` — every CPL/ROAS/spend figure carries its source **and date range**, or is Unknown; mock channels are labeled as mock
-- **Skills loaded:** `agency-four-triggers-ad-writer.md`, `agency-marketing-methodology.md`, `agency-icp.md`, `agency-context.md`
-- **Learned playbook:** vault `Skills/eco-playbook.md`
+**Telegram**
 
-## Routes
+| Form | Effect |
+|---|---|
+| `/eco` · `eco, …` / `eco: …` / `eco — …` | chat → `_tg_agency_chat` → `agency_agents.chat` |
+| `/task <title>` while Eco is active | `agency_agents.send_task` — Agency board only, not the hub store |
 
-`/api/agency/eco` · `/api/agency/eco/` — `generate` · `decision` · `image` · `competitor`
+**HTTP** (private network + Host + same-origin POST; no session)
 
-Eco's engine is also reused by the daycare under its own credentials (a locked
-env-swap in `daycare_growth.py`) to power `/api/daycare/eco/ideas`. Agency output
-is unchanged by that reuse — `extra_context` is empty for the agency.
+| Method | Routes |
+|---|---|
+| GET | `/api/agency/agents` · `/agents/history?agent=` · `/agents/tasks?agent=` · `/api/agency/eco?account=&client=` (template recs, no Claude) |
+| POST | `/api/agency/agents/chat` · `/task` · `/task/update` · `/learn` · `/api/agency/eco/generate` · `/eco/decision` · `/eco/image` · `/eco/competitor` |
 
-> **Live status:** the agency's Meta and Metricool tabs are **mock**. `agency.env`
-> has no `META_ACCESS_TOKEN`, no `META_AD_ACCOUNT_MAP`, and no
-> `METRICOOL_USER_TOKEN`, and `connector.py:199` deliberately isolates those
-> prefixes so the agency can never inherit another business's token. Three env
-> lines turn both tabs real.
+**Handoffs in:** hub `send_task` mirrors into the agency board (`agents_hub.py:490`).
+
+**Bus:** sends as `eco` (task queued, playbook updated, ad created). Reads nothing.
+
+**UI:** `window.AgencyEco` (route key `Eco`, `app.jsx:51`) — via Agents hub Console tab, not the sidebar · Agency Approvals · Agent Control Center `eco` (shows `dependencyHealth.meta`) · Agent Office (Agency room).
+
+## 3. Reads / context load order
+
+Chat / send_task (`agency_agents.py:412`):
+1. agent system prompt
+2. LIVE CONTEXT (`_eco_context`: top 3 accounts' 7-day totals)
+3. `north_star.context_block()`
+4. creed `agent_creed.block("agency")` → `agency-evidence-discipline.md`
+5. `agency-marketing-methodology.md` [:5000]
+6. `agency-four-triggers-ad-writer.md` [:5000]
+7. playbook: seed `eco-playbook.md` + vault `Skills/eco-playbook.md` [:3000]
+8. chat only: `open_tasks_block("eco")`, `caveman.block()`
+
+Generate path (`agency_eco._claude_recommendations`, `agency_eco.py:176`): playbook + extra context only — no creed. Ad payloads carry `dataSource` live|mock|token_rejected + `dateRange`.
+
+The daycare reuses Eco's engine with daycare creds (`daycare_growth.py`) — that is Solomon's lane, not this agent.
+
+## 4. Outputs / writes
+
+- `marcus_state/agency_agents.json`, `marcus_state/agency_eco.json` (rec sets).
+- Vault `Skills/eco-playbook.md`, `Reports/eco-ad-created-<ts>.md`.
+- Approval queue `agency_approvals_io.add("eco", …)`.
+
+## 5. Autonomy & gates
+
+| Alone | Needs a tap |
+|---|---|
+| Chat, recommendations, playbook rewrite, bus + coaching notes | Approve → `approve_ad` → `agency_ads.create_ad(spec, paused=True)` (`agency_eco.py:560`) — needs `META_ACCESS_TOKEN` |
+
+Never launches, activates, or changes budget. No agent-specific kill switch.
+
+## 6. Self-improvement
+
+- `_maybe_learn` inside `chat()`/`send_task()`: `AGENCY_LEARN_EVERY` (12) **and** 45 min hardcoded gap.
+- Nightly `daily_learn.sh` → POST `/api/agency/agents/learn {"agentId":"eco"}`.
+- Writes vault `Skills/eco-playbook.md`.
+
+## 7. Chat & tasks
+
+Same as Dyson: `/api/hub/chat {agentId:"eco"}` → `agency_agents.chat`; open tasks via `open_tasks_block`.
+
+## 8. Cost
+
+Claude: yes — chat, send_task, learn, generate (3200), competitor (2200). Bucket `operator` / `telegram`.
+
+## 9. Verify it's alive
+
+```bash
+curl -s localhost:7799/api/agency/agents | jq '.agents[]|select(.id=="eco")|{online,openTasks,lastActive}'
+curl -s localhost:7799/api/agents/registry | jq '.agents[]|select(.id=="eco")|{status,pendingApprovals,dependencyHealth}'
+```
