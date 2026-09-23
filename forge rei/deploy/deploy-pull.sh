@@ -76,8 +76,25 @@ else
   echo "   (NORTH_STAR.md not found in repo — skipping)"
 fi
 
-echo "==> restart forge-reios"
-systemctl restart forge-reios
+# Restart only when something the Python process loads changed. jsx/css/html/images
+# are read from disk per request and .md (skills, NORTH_STAR) is mtime hot-reloaded, so
+# a UI- or docs-only commit needs none. Mac auto-sync commits every minute; restarting on
+# each one (~4.5/h) dropped daycare sessions and in-memory caches (Meta token rejection).
+# FORGE_FORCE_RESTART=1 forces it.
+PREV="$(cat "$LIVE/.deployed_sha" 2>/dev/null || true)"
+NEED_RESTART=1
+if [ "${FORGE_FORCE_RESTART:-0}" != 1 ] && [ -n "$PREV" ] \
+   && git -C "$REPO" cat-file -e "$PREV^{commit}" 2>/dev/null \
+   && ! git -C "$REPO" diff --name-only "$PREV" "$AFTER" \
+        | grep -qvE '\.(jsx|css|html|md|png|jpe?g|svg|webp|ico|woff2?)$|^ios/|^docs/'; then
+  NEED_RESTART=0
+fi
+if [ "$NEED_RESTART" = 1 ]; then
+  echo "==> restart forge-reios"
+  systemctl restart forge-reios
+else
+  echo "==> static/docs-only change since $PREV — no restart needed"
+fi
 
 # ---------------------------------------------------------------------------
 # Post-deploy health gate — verify the box actually came back up.
