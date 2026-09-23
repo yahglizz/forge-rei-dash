@@ -511,6 +511,10 @@ class SupabaseBridge:
             return DaycareError(400, "The daycare request was not accepted", "validation_error")
         return DaycareError(502, "Daycare database request failed", "upstream_error")
 
+    # profiles.login_id / auth_email / phone are NOT selectable by `authenticated` since the
+    # daycare app's 202609030001 + 202609120003 migrations (column grants; service_role only).
+    # Selecting any of them 403s the WHOLE query (it broke login → every daycare route 401'd,
+    # 2026-09-23). Never add them back to a session select; they come back as None.
     def rest(
         self,
         session: Session,
@@ -765,7 +769,7 @@ class SupabaseBridge:
                 "id": f"eq.{profile_id}",
                 "select": (
                     "id,location_id,active_location_id,role,first_name,last_name,"
-                    "display_name,avatar_path,login_id,auth_email,phone,active,permissions"
+                    "display_name,avatar_path,active,permissions"
                 ),
                 "limit": "1",
             },
@@ -890,7 +894,7 @@ def guardian_contact(session: Session, guardian_profile_id: Any) -> dict[str, An
         query={
             "id": f"eq.{guardian_profile_id}",
             "location_id": f"eq.{active_location(session)}",
-            "select": "id,first_name,last_name,display_name,phone,auth_email",
+            "select": "id,first_name,last_name,display_name",
             "limit": "1",
         },
     ))
@@ -1068,7 +1072,7 @@ def get_children(session: Session) -> dict[str, Any]:
         "children",
         query={
             "location_id": f"eq.{active_location(session)}",
-            "select": "*,classrooms(id,name,age_group,color),profiles!children_guardian_profile_id_fkey(id,display_name,first_name,last_name,phone,auth_email,login_id)",
+            "select": "*,classrooms(id,name,age_group,color),profiles!children_guardian_profile_id_fkey(id,display_name,first_name,last_name)",
             "order": "active.desc,first_name.asc,last_name.asc",
         },
     )
@@ -1136,7 +1140,7 @@ def get_staff(session: Session) -> dict[str, Any]:
         "staff_members",
         query={
             "location_id": f"eq.{active_location(session)}",
-            "select": "*,profiles(id,first_name,last_name,display_name,role,phone,login_id,active,permissions),staff_classrooms(classroom_id),staff_schedules(id,weekday,start_time,end_time)",
+            "select": "*,profiles(id,first_name,last_name,display_name,role,active,permissions),staff_classrooms(classroom_id),staff_schedules(id,weekday,start_time,end_time)",
             "order": "hire_date.asc",
         },
     )
@@ -1154,7 +1158,7 @@ def get_staff(session: Session) -> dict[str, Any]:
         query={
             "location_id": f"eq.{active_location(session)}",
             "active": "eq.true",
-            "select": "id,first_name,last_name,display_name,role,phone,login_id,active",
+            "select": "id,first_name,last_name,display_name,role,active",
             "order": "first_name.asc,last_name.asc",
         },
     )
@@ -1386,7 +1390,7 @@ def get_billing(session: Session) -> dict[str, Any]:
         "invoices",
         query={
             "location_id": f"eq.{active_location(session)}",
-            "select": "*,children(id,first_name,last_name),profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name,login_id,auth_email),payments(*)",
+            "select": "*,children(id,first_name,last_name),profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name),payments(*)",
             "order": "issued_on.desc",
             "limit": "500",
         },
@@ -1406,7 +1410,7 @@ def get_billing(session: Session) -> dict[str, Any]:
             "location_id": f"eq.{active_location(session)}",
             "role": "eq.parent",
             "active": "eq.true",
-            "select": "id,first_name,last_name,display_name,login_id,auth_email,phone,active",
+            "select": "id,first_name,last_name,display_name,active",
             "order": "first_name.asc,last_name.asc",
         },
     )
@@ -1425,7 +1429,7 @@ def stripe_invoice_context(session: Session, invoice_id: Any) -> dict[str, Any]:
             "location_id": f"eq.{active_location(session)}",
             "select": (
                 "id,invoice_number,amount,description,due_on,status,guardian_id,"
-                "profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name,auth_email,phone)"
+                "profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name)"
             ),
             "limit": "1",
         },
