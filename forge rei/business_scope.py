@@ -42,10 +42,11 @@ def _load():
         try:
             d = json.loads(STATE.read_text())
             if isinstance(d, dict) and isinstance(d.get("archived"), list):
+                d.setdefault("maintenance", [])
                 return d
         except Exception:
             pass
-    return {"archived": list(DEFAULT_ARCHIVED)}
+    return {"archived": list(DEFAULT_ARCHIVED), "maintenance": []}
 
 
 def _save(d):
@@ -70,10 +71,37 @@ def set_archived(biz_id: str, archived: bool) -> dict:
     with _LOCK:
         cur = {b for b in _load()["archived"] if b in KNOWN}
         (cur.add if archived else cur.discard)(biz_id)
-        _save({"archived": [b for b in KNOWN if b in cur]})
+        _save({"archived": [b for b in KNOWN if b in cur], "maintenance": sorted(maintenance())})
     return {"ok": True, "id": biz_id, "archived": archived, "businesses": listing()}
 
 
+# MAINTENANCE = a visual flag only. The business stays ACTIVE: switcher, Mission
+# Control, loops, agents, routes all run exactly as before — the UI just greys it
+# out with a badge so it reads "under construction". Nothing is disabled.
+def maintenance() -> set:
+    return {b for b in _load().get("maintenance") or [] if b in KNOWN}
+
+
+def is_maintenance(biz_id: str) -> bool:
+    return str(biz_id or "") in maintenance()
+
+
+def set_maintenance(biz_id: str, on: bool) -> dict:
+    """Flag (True) or clear (False) maintenance on one known id. Visual only."""
+    if not isinstance(biz_id, str) or biz_id not in KNOWN:
+        return {"error": f"unknown business: {biz_id!r}"}
+    if not isinstance(on, bool):
+        return {"error": "maintenance must be true or false"}
+    with _LOCK:
+        d = _load()
+        cur = {b for b in d.get("maintenance") or [] if b in KNOWN}
+        (cur.add if on else cur.discard)(biz_id)
+        _save({"archived": [b for b in KNOWN if b in d["archived"]],
+               "maintenance": [b for b in KNOWN if b in cur]})
+    return {"ok": True, "id": biz_id, "maintenance": on, "businesses": listing()}
+
+
 def listing() -> list:
-    arch = archived()
-    return [{"id": b, "label": label, "archived": b in arch} for b, label in KNOWN.items()]
+    arch, maint = archived(), maintenance()
+    return [{"id": b, "label": label, "archived": b in arch, "maintenance": b in maint}
+            for b, label in KNOWN.items()]
