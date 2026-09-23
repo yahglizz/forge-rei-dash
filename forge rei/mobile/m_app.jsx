@@ -16,17 +16,16 @@ const M_PAGES = {
   more: () => (window.MMorePage ? <window.MMorePage /> : <window.MEmpty title="More unavailable" />),
 };
 
-function MAPWholesale() {
-  const [segment, setSegment] = useStateMAP("Approvals");
+function MAPWholesale(props) {
+  const [segment, setSegment] = useStateMAP(props.segment || "Approvals");
   useEffectMAP(() => {
-    if (window.mGoTabSegment) setSegment(window.mGoTabSegment);
-  }, []);
+    if (props.segment) setSegment(props.segment);
+  }, [props.segment]);
   const options = ["Approvals", "Hot", "Convos", "Pipeline", "Calc"];
   const set = (next) => { setSegment(next); window.mGoTabSegment = ""; };
   return <React.Fragment>
-    <window.MHeader title="Wholesale" sub="A Touch of Blessings Home Buyers" />
     <div className="m-seg mw-business-segments">{options.map((s)=><window.MChip key={s} active={segment===s} onClick={()=>set(s)}>{s}</window.MChip>)}</div>
-    {segment === "Convos" ? <window.MConvosPage/> : segment === "Pipeline" ? <window.MPipelinePage/> : segment === "Calc" ? <window.MCalcPage/> : <window.MHomePage/>}
+    {segment === "Convos" ? <window.MConvosPage/> : segment === "Pipeline" ? <window.MPipelinePage/> : segment === "Calc" ? <window.MCalcPage/> : <window.MHomePage embedded/>}
     {segment === "Approvals" && <div className="mw-home-actions"><window.MBtn kind="ghost" onClick={()=>window.mGoTab("actions")}>All owner actions →</window.MBtn><window.MBtn kind="ghost" onClick={()=>window.mGoTab("agents")}>Agents →</window.MBtn></div>}
   </React.Fragment>;
 }
@@ -47,7 +46,7 @@ function MApp() {
     window.mGoTabSegment = wholesaleSegment;
     return () => { if (window.mGoTab) delete window.mGoTab; };
   }, [wholesaleSegment]);
-  const render = tab === "wholesale" ? MAPWholesale : (M_PAGES[tab] || M_PAGES.today);
+  const render = tab === "wholesale" ? () => <MAPWholesale segment={wholesaleSegment}/> : (M_PAGES[tab] || M_PAGES.today);
   return (
     <div className="m-app">
       {render()}

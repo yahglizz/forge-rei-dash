@@ -183,3 +183,57 @@ input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus 
   border-radius: 50%; padding: 0;
   display: grid; place-items: center;
 }
+
+/* FORGE cartoon workspaces */
+.m-mascot{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:15px;background:#E9F5C8}
+.m-card,.m-list-item{background:#fff;border-color:#E6ECF8;box-shadow:0 4px 15px rgba(45,71,120,.05)}
+.m-card{border-radius:20px}
+.m-list-item{border-radius:16px}
+.m-input{background:#F8FAFF;color:#182541;border-color:#DFE7F5;border-radius:14px}
+.m-chip{background:#E8EEFF;color:#596987;min-height:40px}
+.m-chip.active{background:#4F7CFF;color:#fff;box-shadow:0 3px 9px rgba(79,124,255,.2)}
+.m-btn.ghost{background:#E8EEFF;color:#182541}
+.m-head{background:rgba(242,246,255,.94);border-bottom-color:#E2E9F7}
+.m-tabbar{background:rgba(255,255,255,.97);border-top-color:#E2E9F7;box-shadow:0 -8px 24px rgba(49,77,130,.06)}
+.m-tab{min-height:44px}
+.mw-page{gap:14px}
+.mw-hero{position:relative;overflow:hidden;min-height:176px;padding:20px;border-radius:24px;color:#182541}
+.mw-hero.agency{background:linear-gradient(130deg,#E5EFFF,#D8E5FF)}
+.mw-hero.daycare{background:linear-gradient(130deg,#E8F6D1,#D8F1BE)}
+.mw-hero.today{background:linear-gradient(130deg,#F0F6D9,#DBF0AE)}
+.mw-action-link{min-height:44px;padding:8px 11px;border:0;border-radius:14px;background:#fff;color:#314466;font:700 11px inherit;white-space:nowrap;box-shadow:0 4px 12px #455f8520}
+.mw-hero:after{content:"";position:absolute;width:150px;height:150px;right:-30px;top:-42px;border-radius:50%;background:rgba(255,255,255,.34)}
+.mw-eyebrow{position:relative;z-index:1;font-size:10px;font-weight:800;letter-spacing:1px;color:#536789}
+.mw-hero h1{position:relative;z-index:1;margin:8px 0 5px;font-size:27px;line-height:1.04;letter-spacing:-1px}
+.mw-hero p{position:relative;z-index:1;max-width:230px;margin:0;color:#52627D;font-size:12px;line-height:1.45}
+.mw-mascot-note{position:absolute;right:9px;bottom:8px;display:flex;align-items:center;gap:3px;z-index:2}
+.mw-mascot-note span{max-width:105px;padding:8px 10px;border-radius:14px 14px 14px 4px;background:#fff;color:#40516D;font-size:10px;font-weight:700;box-shadow:0 4px 12px #455f8520}
+.mw-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 12px}
+.mw-metric{min-width:0;display:flex;flex-direction:column;gap:2px;padding:10px 8px;border-radius:15px;background:#F2F6FF;text-align:center}
+.mw-metric b{font:800 21px/1.1 "Geist Mono",monospace;color:#274173;font-variant-numeric:tabular-nums}
+.mw-metric span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#7786A0;font-size:9px;font-weight:700}
+.mw-stage-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mw-goal{height:9px;overflow:hidden;border-radius:9px;background:#E6ECF7}
+.mw-goal span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#85D85A,#B6E84E)}
+.mw-goal-label{margin-top:6px;text-align:right;color:#75839B;font-size:11px}
+.mw-streak{padding:5px 8px;border-radius:99px;background:#FFF4D8;color:#9A6811;font-size:10px;font-weight:800;white-space:nowrap}
+.mw-call-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.mw-call-buttons .m-btn{border-radius:15px}
+.mw-undo{display:block;margin:5px auto 0;padding:8px 14px;min-height:40px;border:0;background:transparent;color:#71809A;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.mw-lead{display:flex;align-items:center;gap:8px;min-height:56px;border-bottom:1px solid #EDF1F8}
+.mw-lead:last-child{border-bottom:0}
+.mw-lead-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.mw-lead-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.mw-lead-main small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8190A8;font-size:10px}
+.mw-call,.mw-mark{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0 11px;border:0;border-radius:14px;background:#E8F1FF;color:#3869D8;font-family:inherit;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer}
+.mw-mark{min-width:42px;background:#F0F4FA;color:#7383A0;font-size:16px}
+.mw-warn{padding:10px 12px;border:1px solid #F3D99B;border-radius:14px;background:#FFF8E6;color:#835D18;font-size:12px}
+.mw-desktop-hint,.mw-response{padding-top:10px;color:#8592A9;font-size:11px}
+.mw-brief section{padding:9px 0;border-bottom:1px solid #EDF1F8}
+.mw-brief section:last-child{border-bottom:0}
+.mw-brief b{font-size:13px}
+.mw-brief p{margin:4px 0 0;color:#64738D;font-size:12px;line-height:1.5}
+.mw-business-segments{padding:8px 14px 2px;background:#F2F6FF}
+.mw-home-actions{display:flex;gap:8px;padding:0 14px 12px}
+.mw-home-actions .m-btn{flex:1;font-size:12px}
+@media(max-width:390px){.m-tab{font-size:9px}.mw-hero{padding:17px}.mw-hero h1{font-size:25px}}
