@@ -216,6 +216,9 @@ input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus 
 .mw-goal{height:9px;overflow:hidden;border-radius:9px;background:#E6ECF7}
 .mw-goal span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#85D85A,#B6E84E)}
 .mw-goal-label{margin-top:6px;text-align:right;color:#75839B;font-size:11px}
+.mw-goal-edit{display:flex;gap:8px;align-items:center;margin-top:10px}
+.mw-goal-edit .m-input{flex:1;min-width:0;min-height:44px;padding:9px 11px}
+.mw-goal-edit .m-btn{flex:none;padding:9px 12px;font-size:12px}
 .mw-streak{padding:5px 8px;border-radius:99px;background:#FFF4D8;color:#9A6811;font-size:10px;font-weight:800;white-space:nowrap}
 .mw-call-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
 .mw-call-buttons .m-btn{border-radius:15px}

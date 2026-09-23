@@ -43,6 +43,7 @@ function MWAgency() {
   const [filter, setFilter] = useStateMW("Due now");
   const [query, setQuery] = useStateMW("");
   const [statusLead, setStatusLead] = useStateMW(null);
+  const [goalInput, setGoalInput] = useStateMW("");
   const [notice, setNotice] = useStateMW("");
   const today = calls.data && calls.data.today || {};
   const rows = sheet.data && (sheet.data.rows || sheet.data.leads || sheet.data.calls || []) || [];
@@ -55,6 +56,14 @@ function MWAgency() {
     setBusy(true); setNotice("");
     try { await window.apiPostM("/api/agency/calls/log", { outcome }); calls.refresh(); }
     catch (e) { setNotice("Call tally unavailable — retry."); }
+    setBusy(false);
+  }
+  async function saveGoal() {
+    const goal = parseInt(goalInput, 10);
+    if (isNaN(goal) || goal < 0) { setNotice("Enter a whole number of calls."); return; }
+    setBusy(true); setNotice("");
+    try { await window.apiPostM("/api/agency/calls/goal", { goal }); setGoalInput(""); calls.refresh(); }
+    catch (e) { setNotice("Call goal unavailable — retry."); }
     setBusy(false);
   }
   async function mark(row, status) {
@@ -77,6 +86,7 @@ function MWAgency() {
           <div className="mw-stats"><MWMetric label="Dials" value={today.dials ?? 0}/><MWMetric label="Answered" value={today.answered ?? 0}/><MWMetric label="No answer" value={today.no_answer ?? 0}/></div>
           <div className="mw-goal"><span style={{width: Math.min(100, (today.dials || 0) / Math.max(1, calls.data.goal || 1) * 100) + "%"}}/></div>
           <div className="mw-goal-label">{today.dials || 0} of {calls.data.goal || 0} calls today</div>
+          <div className="mw-goal-edit"><input className="m-input" inputMode="numeric" value={goalInput} placeholder="Daily call goal" onChange={(e)=>setGoalInput(e.target.value.replace(/\D/g,""))}/><window.MBtn kind="ghost" disabled={busy || !goalInput} onClick={saveGoal}>Set goal</window.MBtn></div>
           <div className="mw-call-buttons"><window.MBtn kind="ok" disabled={busy} onClick={() => log("answered")}>✓ Answered</window.MBtn><window.MBtn kind="ghost" disabled={busy} onClick={() => log("no_answer")}>↗ No answer</window.MBtn></div>
           <button className="mw-undo" disabled={busy} onClick={async()=>{setBusy(true);try{await window.apiPostM("/api/agency/calls/undo",{});calls.refresh();}catch(e){setNotice("Undo unavailable — retry.");}setBusy(false);}}>Undo last call</button>
         </>}

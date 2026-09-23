@@ -10,6 +10,10 @@
 - `mobile/m_more.jsx`: retained all More destinations and grouped them under Pulses, Wholesale tools, System, and Team.
 - `mobile/index.html`, `mobile/manifest.json`: loaded the new workspace screen and matched the PWA browser chrome to the pastel UI.
 
+## Visual direction
+
+The user asked for a cartoon character and supplied a light fitness-app reference. I intentionally replaced the brief's Dark Luxury palette with a light pastel theme and drew a new FORGE fox mascot in inline SVG. No reference character or screen was copied.
+
 ## Navigation map
 
 | Previous path | New path |
