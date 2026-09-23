@@ -235,6 +235,8 @@ Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls), `bra
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back
 (agent's own key → wholesale `ghl.env` / agency `agency.env`).
 
+**Per-agent cards (triggers, reads, gates, cost, how to verify):** `agents/README.md` → `agents/<business>/<agent>.md`. Update the card whenever an agent's triggers change; `forge rei/test_agents_docs.py` fails if a roster agent has no card or a cited path is dead. Its "Known inconsistencies" section is the live code-vs-doc bug list.
+
 **Agent comms + handoff:** one shared bus (`agent_bus.py`, `/api/bus`) carries messages
 across BOTH workspaces. Scout → Marcus is now automatic: `SCOUT.on_scored` fires for every
 call-worthy lead (asap/warm) → `SCREENER.screen` produces a screening report hands-free
