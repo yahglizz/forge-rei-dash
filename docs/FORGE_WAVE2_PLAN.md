@@ -160,7 +160,7 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 - **Accept:** `test_daycare_leads.py` extended for stage precedence; tiles show "—" (Unknown) when there is no source, never 0; enrolled families stay out of needs-human.
 - **Risk:** medium. The Lead Desk ↔ Owner Actions one-row-per-family contract (`owner_actions.py:353`) must hold.
 
-**6. Durable agent action log (§10, P1-9)**
+**6. Durable agent action log (§10, P1-9)** — ✅ DONE 2026-09-23
 - **Files:** new `action_log.py` — append-only `marcus_state/agent_actions.jsonl`, size-rotated, redacts key/Bearer patterns (reuse the `agent_coach` secret guard). Fields: ts / agent / business / trigger / ref / action / result / ok / error / retry / approvalRequired.
 - **Hooks (post-action, try/except):** `sms_guard` send result, `scout_triage._autotag_hot:1421` + autopipe, marcus approve, telegram approve tap, contract stage move, `agency_eco.approve_ad`.
 - **Also:** `GET /api/actions/log`; the registry shows each agent's last action.

@@ -367,6 +367,12 @@ update that skill if you improved the pattern.
   - Views: `window.forgeOpenView(home|archived|agents|health|costs)`; top-level
     ErrorBoundary around every page. Nightly state backup `forge-backup.timer` 03:30 ET →
     `/root/backups` (7 kept, box-local).
+- **Agent action log** (`action_log.py`, wave-2): append-only `marcus_state/agent_actions.jsonl`
+  (5 MB → `.1`), written by a background worker so it never stalls a send. Observe-only hooks after:
+  every SMS send (`sms_guard.record_success`), Marcus approve, Scout HOT auto-tag/auto-pipe, Telegram
+  taps, deal stage moves, contract send, agency ad approve. Ids + outcome only — secrets redacted,
+  phones last-4. `GET /api/actions/log?agent=&n=` (≤500); registry rows carry `lastAction`.
+  `FORGE_ACTION_LOG` overrides the path (point it at a temp file when running tests).
 - **Seller 5-class label** (`scout_triage.seller_class`, computed on read): HOT/WARM/NURTURE/
   NOT_INTERESTED/DO_NOT_CONTACT + `optOut`/`wrongNumber`/`classReason`. Label only — never moves
   bucket, tags or pipeline (`test_seller_class.py`).
