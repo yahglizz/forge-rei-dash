@@ -80,9 +80,10 @@ final class ForgeShell: NSObject, ObservableObject {
     }
 
     // didFinish fires before in-browser Babel has compiled and React has mounted, which
-    // showed a blank screen for several seconds. Keep the splash until .m-app exists.
+    // showed a blank screen for several seconds. Keep the splash until React has rendered
+    // anything into #root (the app shell OR the business-portal login page).
     fileprivate func waitForMount(attempt: Int = 0) {
-        webView.evaluateJavaScript("!!document.querySelector('.m-app')") { [weak self] result, _ in
+        webView.evaluateJavaScript("!!(document.getElementById('root') || {}).firstElementChild") { [weak self] result, _ in
             guard let self, self.phase == .loading else { return }
             if (result as? Bool) == true { self.phase = .ready; return }
             if attempt >= 60 {   // 15 s: show whatever rendered rather than spin forever
