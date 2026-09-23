@@ -264,7 +264,8 @@ input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus 
    the header — rendered first it sat beneath the status bar / Dynamic Island. */
 .m-app > * { order: 2; }
 .m-app > .m-head { order: 0; }
-.m-app > .mw-business-segments { order: 1; }
+.m-app > .mw-business-segments { order: 1; flex: 0 0 auto; }
+.m-app > .mw-home-actions { flex: 0 0 auto; }
 .m-app > .m-tabbar { order: 9; }
 /* Hero mascot note is absolute bottom-right; reserve its band so the subtitle never
    runs under it (collided at 390–402pt widths). */
