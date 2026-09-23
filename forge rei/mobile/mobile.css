@@ -267,6 +267,9 @@ input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus 
 .m-app > .mw-business-segments { order: 1; flex: 0 0 auto; }
 .m-app > .mw-home-actions { flex: 0 0 auto; }
 .m-app > .m-tabbar { order: 9; }
+/* .m-content is a flex-column scroller: without this, children flex-shrink to their
+   min-height (overflow:hidden cards → 0 / their min-height) instead of scrolling. */
+.m-content > * { flex-shrink: 0; }
 /* Hero mascot note is absolute bottom-right; reserve its band so the subtitle never
    runs under it (collided at 390–402pt widths). */
 .mw-hero { padding-bottom: 84px; }
