@@ -99,6 +99,13 @@ function MWAgency() {
   </React.Fragment>;
 }
 
+function MWBriefLine(item) {
+  if (typeof item === "string") return item;
+  if (!item || typeof item !== "object") return "";
+  return [item.title || item.family || item.angle || item.summary, item.why || item.reason, item.action || item.suggestedNextStep]
+    .filter(Boolean).join(" — ");
+}
+
 function MWDaycare() {
   const leads = window.useApiM("/api/daycare/leads", { interval: 60000 });
   const brief = window.useApiM("/api/daycare/director/brief", { interval: 60000 });
@@ -109,6 +116,14 @@ function MWDaycare() {
   const needs = Array.isArray(data.needsHuman) ? data.needsHuman : [];
   const kpis = data.kpis || {};
   const stages = kpis.pipeline || kpis.stages || {};
+  const briefDoc = brief.data && brief.data.brief || {};
+  const briefSections = Array.isArray(briefDoc.sections) ? briefDoc.sections : [
+    ["Today's focus", briefDoc.headline], ["Priorities", briefDoc.priorities], ["Enrollment", briefDoc.enrollment],
+    ["Money", briefDoc.money], ["People", briefDoc.people], ["Roster & family", briefDoc.roster],
+    ["Follow-ups", briefDoc.followUps], ["Campaign health", briefDoc.campaignHealth],
+    ["Competitor read", briefDoc.competitorRead && (briefDoc.competitorRead.summary || briefDoc.competitorRead)],
+    ["Creative recommendations", briefDoc.creativeRecommendations], ["Delegations", briefDoc.delegations],
+  ].filter(([,value]) => Array.isArray(value) ? value.length : !!value).map(([title,body])=>({title,body}));
   const auth = leads.error && /401|403|unauthor/i.test(String(leads.error));
   async function stage() {
     if (!stageLead) return;
@@ -140,7 +155,7 @@ function MWDaycare() {
       </>}
       {notice && <div className="mw-warn">{notice}</div>}
       <window.MCard title="Solomon's brief" right={<span className="mw-streak">READ ONLY</span>}>
-        {brief.loading && !brief.data ? <window.MSpin/> : brief.error ? <div className="mw-warn">Solomon's brief unavailable — retry.</div> : <div className="mw-brief">{(brief.data && (brief.data.sections || brief.data.brief?.sections) || []).map((s,i)=><section key={i}><b>{s.title || s.heading || "Update"}</b><p>{s.body || s.text || s.content || ""}</p></section>)}{!brief.data?.sections?.length && <p>{brief.data?.text || brief.data?.brief?.text || "No brief available yet."}</p>}</div>}
+        {brief.loading && !brief.data ? <window.MSpin/> : brief.error ? <div className="mw-warn">Solomon's brief unavailable — retry.</div> : <div className="mw-brief">{briefSections.length ? briefSections.map((s,i)=><section key={i}><b>{s.title || s.heading || "Update"}</b>{Array.isArray(s.body) ? s.body.map((line,j)=><p key={j}>• {MWBriefLine(line)}</p>) : <p>{MWBriefLine(s.body || s.text || s.content)}</p>}</section>) : <window.MEmpty title="No brief available yet" sub="Solomon's operating brief will appear here when ready."/>}</div>}
       </window.MCard>
     </div>
     {stageLead && <div className="m-sheet"><div className="m-sheet-head"><button className="m-tab" onClick={()=>setStageLead(null)}>‹</button><b style={{flex:1}}>Update lead stage</b></div><div className="m-sheet-body"><div className="m-card"><b>{stageLead.parentName || stageLead.name || "Family lead"}</b><div className="m-fade" style={{marginTop:4}}>This is a local mobile note. It does not update GoHighLevel.</div></div>{["TOUR_BOOKED","TOUR_COMPLETED","APPLICATION","ENROLLED","LOST"].map((s)=><button key={s} className={"mw-stage-choice"+(stageValue===s?" active":"")} onClick={()=>setStageValue(s)}>{s.replaceAll("_"," ")}{stageValue===s?" ✓":""}</button>)}<window.MBtn kind="ok" onClick={stage}>Confirm stage</window.MBtn><window.MBtn kind="ghost" onClick={()=>setStageLead(null)}>Cancel</window.MBtn></div></div>}
