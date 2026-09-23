@@ -10,6 +10,7 @@ Needs ANTHROPIC_API_KEY; without it returns {needsKey: true} and the UI prompts 
 """
 
 import json
+import socket
 import os
 import time
 import urllib.error
@@ -86,8 +87,12 @@ def claude_urlopen(req, timeout):
                 e.close()
             except Exception:  # noqa: BLE001
                 pass
-        except OSError:   # URLError / socket timeout / connection reset
-            if wait is None:
+        except OSError as e:   # URLError / connection reset — fast failures only
+            # A timeout already burned the full `timeout`; retrying would triple the time a
+            # chat handler thread blocks (Codex review). Re-raise direct + wrapped timeouts.
+            timed_out = isinstance(e, (TimeoutError, socket.timeout)) or isinstance(
+                getattr(e, "reason", None), (TimeoutError, socket.timeout))
+            if wait is None or timed_out:
                 raise
         time.sleep(wait)
 

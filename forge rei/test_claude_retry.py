@@ -122,11 +122,19 @@ class ClaudeRetryTest(unittest.TestCase):
         self.assertTrue(h["ok"], "transient exhaustion is not hard-down")
         self.assertEqual(h["failStreak"], 1)
 
-    def test_timeout_retries_then_succeeds(self):
-        out, calls = self._run([urllib.error.URLError("timed out"), TimeoutError("t"), "yo"])
+    def test_connection_error_retries_then_succeeds(self):
+        out, calls = self._run([urllib.error.URLError(ConnectionResetError("reset")),
+                                ConnectionResetError("reset"), "yo"])
         self.assertEqual(out, "yo")
         self.assertEqual(len(calls), 3)
         self.assertEqual(self.ai_ok.call_count, 1)
+
+    def test_timeout_is_not_retried(self):
+        # A timeout already cost the full timeout; retrying would triple handler-thread blocking.
+        for exc in (TimeoutError("t"), urllib.error.URLError(TimeoutError("t"))):
+            out, calls = self._run([exc, "yo"])
+            self.assertIsInstance(out, Exception, exc)
+            self.assertEqual(len(calls), 1, exc)
 
     def test_marcus_engine_uses_shared_retry(self):
         src = (Path(__file__).resolve().parent / "marcus_engine.py").read_text()
