@@ -67,6 +67,7 @@ function MHeader(props) {
         </div>
         {props.sub && <div className="m-fade" style={{ marginTop: 1 }}>{props.sub}</div>}
       </div>
+      {!props.onBack && <button className="mw-header-bot" onClick={() => window.mGoTab && window.mGoTab("agents")} aria-label="Open agents">🤖</button>}
       {props.right || null}
     </div>
   );

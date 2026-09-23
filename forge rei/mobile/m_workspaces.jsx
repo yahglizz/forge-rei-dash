@@ -16,7 +16,7 @@ function MPToday() {
     window.mGoTab(id.includes("agency") ? "agency" : id.includes("daycare") ? "daycare" : "wholesale");
   }
   return <React.Fragment>
-    <window.MHeader title="FORGE Today" sub="Your business, at a glance" right={<button className="mw-header-bot" onClick={()=>window.mGoTab("agents")} aria-label="Open agents">🤖</button>} />
+    <window.MHeader title="FORGE Today" sub="Your business, at a glance" />
     <div className="m-content mw-page">
       <section className="mw-hero today"><div className="mw-eyebrow">YOUR DAILY DASHBOARD</div><h1>Hey, boss.<br/>Here’s the big picture.</h1><p>Quick actions for Wholesale, Agency and Daycare.</p><div className="mw-mascot-note"><window.MForgePal size={58}/><span>Your crew is on it!</span></div></section>
       <window.MCard title="Needs you" right={<span className="mw-streak">{actions.loading && !actions.data ? "…" : actions.error ? "Retry" : items.length + " actions"}</span>}>

@@ -1252,10 +1252,12 @@ function MMorePage() {
     <React.Fragment>
       <window.MHeader title="More" sub="Send Contract · Buyers · Deals · Contracts · Brain · Health" />
       <div className="m-content">
-        {MM_MENU.map((item) => {
+        {MM_MENU.map((item, index) => {
           const Ico = window.MIcons[item.ico] || window.MIcons.More;
           return (
-            <button key={item.key} className="m-list-item"
+            <React.Fragment key={item.key}>
+            {[0,2,6,9].includes(index) && <div className="m-section"><span className="m-section-l">{index === 0 ? "Pulses" : index === 2 ? "Wholesale tools" : index === 6 ? "System" : "Team"}</span><span className="m-section-line"/></div>}
+            <button className="m-list-item"
               style={{ width: "100%", minHeight: 56, textAlign: "left", cursor: "pointer",
                 fontFamily: "inherit", color: "inherit" }}
               onClick={() => item.key === "agents" ? (window.mGoTab && window.mGoTab("agents")) : setOpen(item.key)}>
@@ -1273,16 +1275,17 @@ function MMorePage() {
                 ›
               </span>
             </button>
+            </React.Fragment>
           );
         })}
 
         <window.MCard>
           <div style={{ textAlign: "center" }}>
             <div className="m-fade" style={{ fontWeight: 600 }}>
-              FORGE Mobile v1 · full controls on the desktop dashboard
+              FORGE Mobile · every business, one phone
             </div>
             <div className="m-fade" style={{ marginTop: 4 }}>
-              Runs on the 24/7 box — open via SSH tunnel → localhost:7799
+              Your AI crew proposes. You stay in control.
             </div>
           </div>
         </window.MCard>
