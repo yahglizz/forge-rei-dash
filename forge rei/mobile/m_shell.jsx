@@ -52,7 +52,12 @@ function MHeader(props) {
   const onBack = props.onBack || window.mBizBack || null;
   return (
     <div className="m-head">
-      {!onBack && <div className="m-mascot"><MForgePal size={40} /></div>}
+      {!onBack && (window.mSwitchBiz
+        ? <button className="m-mascot mlg-mascot-switch" onClick={() => window.mSwitchBiz()}
+            aria-label={"Switch business" + (window.mBizActive ? " (now " + window.mBizActive + ")" : "")}>
+            <MForgePal size={40} /><span className="mlg-switch-badge"><MIcons.Swap size={12} /></span>
+          </button>
+        : <div className="m-mascot"><MForgePal size={40} /></div>)}
       {onBack && (
         <button className="m-tab" style={{ flex: "none", padding: 4 }} onClick={onBack}>
           <MIcons.Back size={22} />
@@ -64,8 +69,6 @@ function MHeader(props) {
         </div>
         {props.sub && <div className="m-head-sub">{props.sub}</div>}
       </div>
-      {!onBack && window.mSwitchBiz && <button className="mw-header-bot mlg-switch" onClick={() => window.mSwitchBiz()}
-        aria-label={"Switch business" + (window.mBizActive ? " (now " + window.mBizActive + ")" : "")}><MIcons.Swap size={20} /></button>}
       {!onBack && <button className="mw-header-bot" onClick={() => window.mGoTab && window.mGoTab("agents")} aria-label="Open agents">🤖</button>}
       {props.right || null}
     </div>
