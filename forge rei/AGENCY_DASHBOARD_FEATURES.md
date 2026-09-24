@@ -122,7 +122,7 @@ operate panels are embedded, nothing removed).
 - **Roster** — a card per agent with status (ONLINE when the Anthropic key is
   present), open-task count, and message count.
 - **Open an agent** → a console with three tabs:
-  - **Chat** — talk to the agent. Real Claude (`claude-sonnet-4-5`) via the
+  - **Chat** — talk to the agent. Real Claude (`claude-sonnet-5`) via the
     agency key, grounded with live context (Dyson sees open edit requests; Eco
     sees client ad metrics). History **syncs** server-side.
   - **Tasks** — assign a task; the agent drafts a plan (Claude) and queues it.

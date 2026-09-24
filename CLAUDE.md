@@ -233,7 +233,7 @@ and a new Claude call per cycle.
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
-Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls), `brain_io`
+Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls — **Sonnet 5, adaptive thinking, explicit effort**: `effort="low"` default for chat/drafts/extraction, `"medium"` for briefs, `learn()` rewrites, Atlas, screening; Scout scoring stays Haiku; never call Sonnet 5 without an effort — it defaults to `high`. New judgment-heavy call site → pass `effort="medium"`), `brain_io`
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back
 (agent's own key → wholesale `ghl.env` / agency `agency.env`).
 

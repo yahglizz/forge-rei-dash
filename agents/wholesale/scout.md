@@ -96,7 +96,7 @@ Never: sends SMS. Filters skip our own outreach, DNC, opt-outs, denials; `reconc
 
 ## 8. Cost
 
-Claude: yes — scoring (Haiku, 1500 tok), audit, learn (Sonnet). Bucket `scout` on the loop; `operator` from HTTP/learn curls; `telegram` for Telegram chat.
+Claude: yes — scoring (Haiku, 1500 tok, no thinking), audit (Sonnet 5 low), learn (Sonnet 5 medium). Bucket `scout` on the loop; `operator` from HTTP/learn curls; `telegram` for Telegram chat.
 
 ## 9. Verify it's alive
 

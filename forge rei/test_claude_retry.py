@@ -138,7 +138,47 @@ class ClaudeRetryTest(unittest.TestCase):
 
     def test_marcus_engine_uses_shared_retry(self):
         src = (Path(__file__).resolve().parent / "marcus_engine.py").read_text()
-        self.assertIn("review_agent.claude_urlopen(req, 30)", src)
+        self.assertIn("review_agent.claude_urlopen(req, review_agent.call_timeout(", src)
+        self.assertIn("review_agent.thinking_params(review_agent.DRAFT_MODEL", src)
+
+
+class ThinkingParamsTest(unittest.TestCase):
+    """Sonnet 5 wiring: effort always explicit, headroom for thinking, older models untouched."""
+
+    def test_sonnet5_low_and_medium(self):
+        lo = review_agent.thinking_params("claude-sonnet-5", 700)
+        self.assertEqual(lo["thinking"], {"type": "adaptive"})
+        self.assertEqual(lo["output_config"], {"effort": "low"})
+        self.assertEqual(lo["max_tokens"], 700 + review_agent._THINK_HEADROOM["low"])
+        md = review_agent.thinking_params("claude-sonnet-5", 2400, "medium")
+        self.assertEqual(md["output_config"], {"effort": "medium"})
+        self.assertEqual(md["max_tokens"], 2400 + review_agent._THINK_HEADROOM["medium"])
+
+    def test_older_models_get_no_thinking_fields(self):
+        for m in ("claude-haiku-4-5-20251001", "claude-sonnet-4-5", "claude-opus-4-5"):
+            self.assertEqual(review_agent.thinking_params(m, 300, "medium"), {"max_tokens": 300}, m)
+
+    def test_claude_sends_effort_and_skips_thinking_blocks(self):
+        sent = {}
+
+        class _R(_Resp):
+            def __init__(self):
+                self._b = json.dumps({"content": [{"type": "thinking", "thinking": "", "signature": "s"},
+                                                  {"type": "text", "text": "answer"}],
+                                      "stop_reason": "end_turn", "usage": {}}).encode()
+
+        def urlopen(req, timeout=None):
+            sent.update(json.loads(req.data.decode()), _timeout=timeout)
+            return _R()
+        with mock.patch.object(fh, "ai_ok"), mock.patch.object(cost_tracker, "record_anthropic"), \
+                mock.patch("urllib.request.urlopen", urlopen):
+            out = review_agent._claude(KEY, "sys", "hi", max_tokens=5000, model="claude-sonnet-5",
+                                       effort="medium")
+        self.assertEqual(out, "answer")
+        self.assertEqual(sent["output_config"], {"effort": "medium"})
+        self.assertEqual(sent["max_tokens"], 5000 + review_agent._THINK_HEADROOM["medium"])
+        self.assertGreater(sent["_timeout"], 90, "big budgets need a longer timeout")
+        self.assertNotIn("temperature", sent)
 
 
 class DependencyHealthTest(unittest.TestCase):

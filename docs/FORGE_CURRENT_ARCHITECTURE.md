@@ -50,7 +50,7 @@ Business-truth for the daycare lives **outside** this repo in the private
 | Frontend | React 18 UMD + in-browser Babel standalone, **no build step**. Components are `window` globals. Vendored React/Babel with SRI under `/assets/vendor/`. |
 | Backend | Python 3 **stdlib only** (`http.server`, `urllib`, `threading`). One process: `connector.py`. |
 | Persistence | JSON files in `forge rei/marcus_state/` (60+ stores, atomic writes + per-module locks), Supabase (daycare), GoHighLevel (CRM system of record for wholesale + daycare families), Obsidian vault (markdown, git-committed) for agent playbooks/reports. |
-| AI | Anthropic Messages API via `review_agent._claude` (shared) + a direct call in `marcus_engine`. Models in code: `review_agent.MODEL` = `claude-sonnet-4-5` (env `FORGE_REVIEW_MODEL`), `review_agent.HAIKU_MODEL` = `claude-haiku-4-5-20251001` (env `FORGE_HAIKU_MODEL`), plus a hardcoded `claude-haiku-4-5-20251001` in `marcus_engine.py`. Other ids appear only in `test_cost_tracker.py` price fixtures. |
+| AI | Anthropic Messages API via `review_agent._claude` (shared) + a direct call in `marcus_engine`. Models in code: `review_agent.MODEL` = `claude-sonnet-5` (env `FORGE_REVIEW_MODEL`), `review_agent.HAIKU_MODEL` = `claude-haiku-4-5-20251001` (env `FORGE_HAIKU_MODEL`, Scout scoring only), `review_agent.DRAFT_MODEL` = review model (env `FORGE_DRAFT_MODEL`, Marcus drafts). Sonnet 5 calls send adaptive thinking + explicit effort: low by default, medium for briefs, learn rewrites, Atlas, screening, ARV, architect, skill_forge (`review_agent.thinking_params`). Other ids appear only in `test_cost_tracker.py` price fixtures. |
 
 ---
 

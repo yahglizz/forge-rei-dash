@@ -49,7 +49,7 @@ Both write through `brain_io.write_note`, which git-commits if the vault is a re
 
 Keys: needs **`ANTHROPIC_API_KEY`** in `ghl.env`. Without it, `run` returns
 `{needsKey: true}` and the Analytics tab prompts you to add the key and restart.
-Report model defaults to `claude-sonnet-4-5` (override `FORGE_REVIEW_MODEL`).
+Report model defaults to `claude-sonnet-5` (override `FORGE_REVIEW_MODEL`); synthesis runs at medium effort.
 
 `GET /api/review/latest` returns the last run (report, scope, elapsed, paths,
 git-committed flag, per-analyst finding counts) — or `{hasReview:false, needsKey}`.

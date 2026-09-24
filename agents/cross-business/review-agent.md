@@ -35,7 +35,7 @@ Vault `Log/forge-review-<date>.md`, `Skills/marcus-playbook.md` · `marcus_state
 
 Internal only. No clock-out check.
 
-Shared helper facts: model `FORGE_REVIEW_MODEL` (default `claude-sonnet-4-5`), `FORGE_HAIKU_MODEL` (default `claude-haiku-4-5-20251001`); prompt caching when system ≥1200 chars; retries ≤2 (2 s, 5 s) on 429/500/502/503/529 + connection errors, never on timeouts; stamps `forge_heartbeat.ai_ok/ai_fail` and `cost_tracker.record_anthropic`.
+Shared helper facts: model `FORGE_REVIEW_MODEL` (default `claude-sonnet-5`), `FORGE_HAIKU_MODEL` (default `claude-haiku-4-5-20251001`), `FORGE_DRAFT_MODEL` (Marcus drafts, default = review model); on Sonnet 5 every call sends adaptive thinking + an explicit `effort` (`_claude(..., effort="low"|"medium")`, default low) with thinking headroom added to `max_tokens` (`thinking_params`) and a budget-sized timeout (`call_timeout`); older model ids get neither field; prompt caching when system ≥1200 chars; retries ≤2 (2 s, 5 s) on 429/500/502/503/529 + connection errors, never on timeouts; stamps `forge_heartbeat.ai_ok/ai_fail` and `cost_tracker.record_anthropic`.
 
 ## 6. Self-improvement
 
