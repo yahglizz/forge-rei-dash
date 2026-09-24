@@ -27,6 +27,7 @@ triggers in the code but not roster agents.
 | Eco | Agency | [eco](agency/eco.md) | `forge rei/agency_agents.py` + `forge rei/agency_eco.py` | none (on-demand) | `/eco`, `eco, …` | `eco` | PAUSED ads only on approval |
 | Solomon | Daycare | [solomon](daycare/solomon.md) | `forge rei/daycare_director.py` | thread `solomon`, 900 s tick, brief 24 h | `/solomon`, `solomon, …` | `solomon` | read + propose only |
 | Lead Desk † | Daycare | [lead-desk](daycare/lead-desk.md) | `forge rei/daycare_leads.py` | thread `daycare_leads`, 900 s | outbound only | — | GET-only, $0 |
+| Reply Desk | Daycare | [daycare_replies](daycare/daycare_replies.md) | `forge rei/daycare_replies.py` | thread `daycare_replies`, 300 s | — | `daycare_replies` → Solomon | drafts only |
 | Midas | Dropship (archived) | [midas](dropship/midas.md) | `forge rei/dropship_director.py` | thread `midas` — **off** (`FORGE_DROPSHIP_BRIEF=0`) | `/midas`, `midas, …` | `midas` | read + propose only |
 | Orion | Cross | [orion](cross-business/orion.md) | `forge rei/mission_control_agent.py` | `brief` thread, daily 07:00 | **none** | `orion` | read + propose only |
 | Daily brief | System | [daily-brief](cross-business/daily-brief.md) | `forge rei/daily_brief.py` | `brief` thread, 08:00 | outbound only | `briefs` → Orion | operator Telegram only, $0 |
@@ -61,6 +62,7 @@ Not documented as agents (no brain, no agent role): `do_today` (thread `do_today
 | `atlas` | hardcoded 900; `FORGE_PREP_AUTO` (1) | `atlas` |
 | `solomon` | hardcoded 900 tick; `FORGE_SOLOMON_BRIEF_EVERY_H` (24) | `solomon` |
 | `daycare_leads` | `FORGE_DAYCARE_LEADS` (1), `FORGE_DAYCARE_LEADS_INTERVAL` (900) | `daycare_leads` |
+| `daycare_replies` | `FORGE_DAYCARE_REPLIES` (1), `FORGE_DAYCARE_REPLIES_INTERVAL` (300) | `daycare_replies` |
 | `midas` | `FORGE_DROPSHIP_BRIEF` (**0 = off**) | `midas` (retired) |
 | `do_today` | `FORGE_TODAY_LOOP` (**0 = off**) | `do_today` (retired) |
 | `brief` | `FORGE_BRIEF_CHECK_SEC` (300): daily brief, recap, Orion, sync monitor | `daily_brief` |
