@@ -264,7 +264,7 @@ def run_once(client, now=None, drafter=None):
             st.update(lastRunAt=int(now * 1000), error=err)
             _save(st)
         return {"ok": False, "error": err}
-    held, drafted, reads, errors = {}, 0, 0, 0
+    held, drafted, reads, errors, ai_err = {}, 0, 0, 0, None
     convs = client.get("/conversations/search", {
         "locationId": client.location_id, "limit": 100, "sortBy": "last_message_date"})
     with _LOCK:
@@ -315,11 +315,12 @@ def run_once(client, now=None, drafter=None):
                 "status": "pending" if res["action"] != "no_reply" else "no_reply",
                 "createdAt": int(now * 1000), **res,
             }
-        except Exception as e:  # noqa: BLE001 — one bad thread never kills the sweep
-            if getattr(e, "code", None) == 429:
-                break                             # GHL rate limit: stop, next sweep retries
+        except Exception as e:  # noqa: BLE001 — one bad thread never kills the sweep...
             errors += 1
             print(f"[daycare_replies] {cid}: {type(e).__name__}: {str(e)[:160]}")
+            if getattr(e, "code", None) == 429 or str(e).startswith("Anthropic API error"):
+                ai_err = str(e)[:200] if str(e).startswith("Anthropic") else None
+                break                             # ...but GHL 429 / Claude billing is account-wide
     cutoff = (now - KEEP_SEC) * 1000
     drafts = {k: v for k, v in drafts.items()
               if v.get("status") == "pending" or (v.get("createdAt") or 0) >= cutoff}
@@ -332,10 +333,10 @@ def run_once(client, now=None, drafter=None):
             if v.get("status") != "pending" and k in drafts and drafts[k].get("inboundId") == v.get("inboundId"):
                 drafts[k] = v
         st.update(drafts=drafts, lastRunAt=int(now * 1000), lastSweep=summary,
-                  error=f"{errors} thread(s) failed" if errors else None)
+                  error=ai_err or (f"{errors} thread(s) failed" if errors else None))
         _save(st)
     print(f"[daycare_replies] sweep: {drafted} drafted, {reads} read, held={held}")
-    return {"ok": True, **summary}
+    return {"ok": True, **summary, "error": ai_err}
 
 
 def _close(cid, status, **extra):
@@ -399,8 +400,7 @@ def run_forever(client):
         err = None
         try:
             if not forge_ops.paused():
-                r = run_once(client)
-                err = r.get("error") if not r.get("ok") else None
+                err = run_once(client).get("error")
         except Exception as e:  # noqa: BLE001
             err = type(e).__name__
         forge_heartbeat.beat("daycare_replies", INTERVAL, "Daycare Reply Desk", error=err)

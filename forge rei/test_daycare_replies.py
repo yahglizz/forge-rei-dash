@@ -109,9 +109,24 @@ def test_sweep_and_approve():
     assert "8am" in dr.approve(cl, "c1", now=NOW)["error"]
 
 
+def test_ai_down_stops_sweep():
+    dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
+    convs = [{"id": f"v{i}", "contactId": f"c{i}", "lastMessageDirection": "inbound",
+              "lastMessageDate": int((NOW - 30 * MIN) * 1000)} for i in range(3)]
+    calls = []
+
+    def broke(contact, ev, now):
+        calls.append(1)
+        raise RuntimeError("Anthropic API error (400): Your credit balance is too low")
+    r = dr.run_once(FakeClient(convs, [msg(1, "inbound", "hi are you open", 30 * MIN)]),
+                    now=NOW, drafter=broke)
+    assert len(calls) == 1 and "credit" in r["error"] and "credit" in dr.view()["error"], r
+
+
 if __name__ == "__main__":
     os.environ.setdefault("FORGE_ACTION_LOG", str(Path(tempfile.mkdtemp()) / "a.jsonl"))
     test_gate()
     test_flags()
     test_sweep_and_approve()
+    test_ai_down_stops_sweep()
     print("test_daycare_replies: all passed")
