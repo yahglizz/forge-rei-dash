@@ -70,7 +70,7 @@ does not come back, and does not refer.
 
 ## What's Already Running
 
-- **Enrollment offer:** $100 gift card OR $100 off tuition, after the family enrolls and stays 60 days. **Expires September 12, 2026** — countdown timers on the site are hardcoded to that date. Plan the successor by Sept 5 or the site goes stale.
+- **Enrollment offer:** $100 gift card OR $100 off tuition, after the family enrolls and stays 60 days. **Expires September 12, 2026** — countdown timers on the site are hardcoded to that date. Plan the successor by Sept 5 or the site goes stale. **→ 2026-09-23: EXPIRED, no successor on record, site banner still shows it. Agents must not offer it.**
 - **Referral mechanic (owner-confirmed Aug 16, flyer version is canonical):** refer a friend and **both families get $100 cash toward tuition**. The older website wording — referrer gets a gift card *or* tuition credit — has been corrected to match. Whether the referral bonus *stacks* with the enrollment bonus is **still undecided** — could reach $300 per referred family. Get the rule in writing before a parent asks.
 - No enrollment fee, limited time.
 - Ad angle library built: urgency, trust, offer-led. Seasonal variants: back-to-school, summer, holiday.
@@ -103,7 +103,7 @@ wrong side; surface the conflict instead.
 | `WWW.ATOUCHOFBLESSINGS1.COM` on the 921 awning | Real site is `atouchofblessing.com` (no "1") |
 | `921 W. 18th St.` on the 921 awning | Site, schema and DHS records all say **N** 18th St |
 | `6 Wks–13 Yrs Old` on the 921 awning | Everything digital says 6 weeks – 12 years |
-| `267-910-5650` on the 2318 sign | Site lists no number for that location |
+| `267-910-5650` on the 2318 sign | Site says call **(215) 236-5439** for 2318 "until further notice" (verified 2026-09-23) |
 
 Four different phone numbers are in circulation across the business: 215-236-5439 (921),
 215-787-0100 (1923), 844-708-6824 (2 & 3, DHS record), 267-910-5650 (2318 signage).

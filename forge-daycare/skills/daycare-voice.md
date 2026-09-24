@@ -69,6 +69,10 @@ comma-chained, light natural typos — the same register family as the wholesale
 > the location address is 2318 Cecil B. Moore Ave, Philadelphia, PA 19121 thats the info
 > you need for the transfer"
 
+*(That example is verbatim, so it keeps the number staff typed that day. In a new draft,
+use only the phone numbers on the fact sheet in `daycare-parent-reply.md` — 267-457-0519 is
+not one of them.)*
+
 ### Voice rules — how ATOB actually types (Register 2)
 
 - **Lowercase, conversational, run-on flow.** Commas chain clauses instead of periods
