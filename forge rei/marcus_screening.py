@@ -414,7 +414,7 @@ class Screener:
         user = (triage + "\n\nSELLER TEXT THREAD (oldest first):\n" + transcript
                 + "\n\nReturn the screening report JSON now.")
         try:
-            raw = review_agent._claude(key, system, user, max_tokens=1400)
+            raw = review_agent._claude(key, system, user, max_tokens=1400, effort="medium")
         except Exception as e:  # noqa: BLE001
             self.last_error = f"claude: {e}"
             return {"error": f"claude: {e}"}
@@ -790,7 +790,7 @@ class Screener:
         except Exception:
             pass
         try:
-            new_md = review_agent._claude(key, system, user, max_tokens=2400)
+            new_md = review_agent._claude(key, system, user, max_tokens=2400, effort="medium")
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 200:

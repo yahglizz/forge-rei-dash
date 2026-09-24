@@ -619,7 +619,7 @@ class SolomonEngine:
             + "\n\nProduce the operating brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS, effort="medium"))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"
@@ -746,7 +746,7 @@ class SolomonEngine:
         except Exception:
             pass
         try:
-            new_md = review_agent._claude(key, system, user, max_tokens=2400)
+            new_md = review_agent._claude(key, system, user, max_tokens=2400, effort="medium")
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 200:

@@ -551,7 +551,7 @@ class MidasEngine:
             + "\n\nProduce the operating brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS, effort="medium"))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"
@@ -655,7 +655,7 @@ class MidasEngine:
         except Exception:
             pass
         try:
-            new_md = review_agent._claude(key, system, user, max_tokens=2400)
+            new_md = review_agent._claude(key, system, user, max_tokens=2400, effort="medium")
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 200:
@@ -804,7 +804,7 @@ class MidasEngine:
                      + json.dumps(data, indent=2, default=str))
         user += "\n\nRespond with ONLY the JSON your playbook's output contract specifies."
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=max_tokens))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=max_tokens, effort="medium"))
         except Exception as e:  # noqa: BLE001
             self.last_error = str(e)
             return {"ok": False, "error": f"claude: {e}"}

@@ -298,7 +298,7 @@ def find_arv(address, sqft=None, beds=None, baths=None):
               "then return the JSON object.")
     try:
         reply = review_agent._claude(key, _ARV_SYSTEM, user,
-                                     max_tokens=1500, tools=_ARV_TOOLS)
+                                     max_tokens=1500, tools=_ARV_TOOLS, effort="medium")
     except Exception as e:  # noqa: BLE001
         return {"error": f"ARV lookup failed: {e}"}
     parsed = _parse_arv_json(reply)

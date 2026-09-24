@@ -582,7 +582,7 @@ def learn(agent_id, auto=False):
     except Exception:
         pass
     try:
-        new_md = review_agent._claude(key, system, user, max_tokens=2000)
+        new_md = review_agent._claude(key, system, user, max_tokens=2000, effort="medium")
     except Exception as e:  # noqa: BLE001
         return {"error": f"claude: {e}"}
     if not new_md or len(new_md) < 200:

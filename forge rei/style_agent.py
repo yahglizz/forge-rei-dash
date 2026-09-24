@@ -153,7 +153,7 @@ def _distill(key, corpus, n_pairs):
         f"Here are {n_pairs} real seller->Yahjair text exchanges:\n\n"
         f"{corpus[:14000]}\n\nReturn the labeled lines now."
     )
-    txt = review_agent._claude(key, system, user, max_tokens=1800)
+    txt = review_agent._claude(key, system, user, max_tokens=1800, effort="medium")
     parsed = _parse_lines(txt)
     if not parsed["voice"]["summary"] and not parsed["skills"]:
         raise ValueError("could not parse learning output")

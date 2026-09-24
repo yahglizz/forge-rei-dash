@@ -916,15 +916,17 @@ class MarcusEngine:
             system_payload = (
                 [{"type": "text", "text": sys_prompt, "cache_control": {"type": "ephemeral"}}]
                 if len(sys_prompt) >= 1200 else sys_prompt)
+            import review_agent   # shared model/thinking + transient retry (<=2, 429/5xx/529/network only)
+            payload = {
+                "model": review_agent.DRAFT_MODEL,
+                "system": system_payload,
+                "messages": [{"role": "user", "content":
+                              f"Conversation so far:\n{convo}\n\nWrite Marcus's reply:"}],
+                **review_agent.thinking_params(review_agent.DRAFT_MODEL, 300, "low"),
+            }
             req = urllib.request.Request(
                 "https://api.anthropic.com/v1/messages",
-                data=json.dumps({
-                    "model": "claude-haiku-4-5-20251001",
-                    "max_tokens": 300,
-                    "system": system_payload,
-                    "messages": [{"role": "user", "content":
-                                  f"Conversation so far:\n{convo}\n\nWrite Marcus's reply:"}],
-                }).encode(),
+                data=json.dumps(payload).encode(),
                 headers={
                     "x-api-key": self.anthropic_key,
                     "anthropic-version": "2023-06-01",
@@ -932,14 +934,13 @@ class MarcusEngine:
                 },
                 method="POST",
             )
-            import review_agent   # shared transient retry (<=2, 429/5xx/529/network only)
-            data = review_agent.claude_urlopen(req, 30)
+            data = review_agent.claude_urlopen(req, review_agent.call_timeout(payload["max_tokens"], 30))
             forge_heartbeat.ai_ok(self.anthropic_key)   # shared AI-dependency signal, per-key fingerprint (never raises)
             try:  # cost telemetry — best-effort, never blocks the draft
                 import cost_tracker
                 u = data.get("usage") or {}
                 cost_tracker.record_anthropic(
-                    "claude-haiku-4-5-20251001", u.get("input_tokens"), u.get("output_tokens"),
+                    review_agent.DRAFT_MODEL, u.get("input_tokens"), u.get("output_tokens"),
                     cache_write_tokens=u.get("cache_creation_input_tokens"),
                     cache_read_tokens=u.get("cache_read_input_tokens"))
             except Exception:

@@ -357,7 +357,7 @@ class DealPrep:
                 user + "\n\nYour previous reply was not valid JSON. Return ONLY the raw JSON "
                 "object — no prose, no markdown, no code fences. Start with { and end with }.")
             try:
-                raw = review_agent._claude(key, system, u, max_tokens=900)
+                raw = review_agent._claude(key, system, u, max_tokens=900, effort="medium")
             except Exception as e:  # noqa: BLE001
                 self.last_error = f"claude: {e}"
                 return {"error": f"claude: {e}"}
@@ -535,7 +535,7 @@ class DealPrep:
         except Exception:
             pass
         try:
-            new_md = review_agent._claude(key, system, user, max_tokens=2200)
+            new_md = review_agent._claude(key, system, user, max_tokens=2200, effort="medium")
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 200:

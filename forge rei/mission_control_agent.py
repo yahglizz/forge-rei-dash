@@ -295,7 +295,7 @@ class OrionEngine:
             + "\n\nProduce the brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=2400))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=2400, effort="medium"))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"
@@ -398,7 +398,7 @@ class OrionEngine:
         except Exception:
             pass
         try:
-            new_md = review_agent._claude(key, system, user, max_tokens=2000)
+            new_md = review_agent._claude(key, system, user, max_tokens=2000, effort="medium")
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 150:

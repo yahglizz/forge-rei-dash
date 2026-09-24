@@ -26,10 +26,37 @@ HERE = Path(__file__).resolve().parent
 STATE_DIR = HERE / "marcus_state"
 STATE_DIR.mkdir(exist_ok=True)
 LATEST_FILE = STATE_DIR / "review_latest.json"
-MODEL = os.environ.get("FORGE_REVIEW_MODEL", "claude-sonnet-4-5")
+MODEL = os.environ.get("FORGE_REVIEW_MODEL", "claude-sonnet-5")
 # Cheap tier for high-volume, low-judgment calls (structured classification/scoring) —
 # callers opt in with _claude(..., model=HAIKU_MODEL). Default model above is unchanged.
 HAIKU_MODEL = os.environ.get("FORGE_HAIKU_MODEL", "claude-haiku-4-5-20251001")
+# Marcus's seller-reply drafts (marcus_engine._ai_draft), low effort.
+# FORGE_DRAFT_MODEL=claude-haiku-4-5-20251001 reverts drafts to the old cheap tier.
+DRAFT_MODEL = os.environ.get("FORGE_DRAFT_MODEL", MODEL)
+
+# Adaptive thinking + output_config.effort exist only on these families. Older ids
+# (sonnet-4-5, haiku-4-5) 400 on effort, so a FORGE_REVIEW_MODEL revert sends neither.
+_ADAPTIVE = ("sonnet-5", "opus-5", "opus-4-6", "opus-4-7", "opus-4-8", "fable", "mythos")
+# Thinking tokens count against max_tokens, so each caller's output budget gets this on
+# top (billed only if used). Effort: "low" = chat, drafts, extraction, directives;
+# "medium" = briefs, playbook rewrites, underwriting, screening (Sonnet 5 medium ~= Sonnet
+# 4.6 high). Never omit it: Sonnet 5 with no effort runs adaptive at "high".
+_THINK_HEADROOM = {"low": 2048, "medium": 6144}
+
+
+def thinking_params(model, max_tokens, effort="low"):
+    """Request fields for `model`: max_tokens (+ thinking headroom) and, on models that
+    support it, adaptive thinking at `effort`. Older models get max_tokens unchanged."""
+    if not any(f in (model or "") for f in _ADAPTIVE):
+        return {"max_tokens": max_tokens}
+    return {"max_tokens": max_tokens + _THINK_HEADROOM.get(effort, _THINK_HEADROOM["low"]),
+            "thinking": {"type": "adaptive"}, "output_config": {"effort": effort}}
+
+
+def call_timeout(max_tokens, floor=90):
+    # ponytail: sized for the whole budget at a slow ~40 tok/s. Output speed is not
+    # measured on the box; tighten it once the Costs tab shows real latencies.
+    return max(floor, max_tokens // 40)
 # Below this, a cached system prompt wouldn't hit Anthropic's per-model minimum
 # (1024 tokens Sonnet/Opus, 2048 Haiku) anyway — skip the wrapper for tiny prompts.
 _CACHE_MIN_CHARS = 1200
@@ -97,7 +124,7 @@ def claude_urlopen(req, timeout):
         time.sleep(wait)
 
 
-def _claude(key, system, user, max_tokens=1200, tools=None, model=None):
+def _claude(key, system, user, max_tokens=1200, tools=None, model=None, effort="low"):
     messages = [{"role": "user", "content": user}]
     use_model = model or MODEL
     # System prompts here are mostly static (creed/playbook/brief text reloaded from
@@ -111,9 +138,9 @@ def _claude(key, system, user, max_tokens=1200, tools=None, model=None):
         system_payload = system
     payload = {
         "model": use_model,
-        "max_tokens": max_tokens,
         "system": system_payload,
         "messages": messages,
+        **thinking_params(use_model, max_tokens, effort),
     }
     if tools:
         # e.g. [{"type": "web_search_20250305", "name": "web_search", "max_uses": 4}]
@@ -128,7 +155,7 @@ def _claude(key, system, user, max_tokens=1200, tools=None, model=None):
             method="POST",
         )
         try:
-            data = claude_urlopen(req, 90)   # <=2 transient retries (429/5xx/529/network)
+            data = claude_urlopen(req, call_timeout(payload["max_tokens"]))   # <=2 transient retries
         except urllib.error.HTTPError as e:
             # urllib's default str(e) is just "HTTP Error 400: Bad Request" — the
             # real reason (low credit balance, rate limit, bad model) lives in the
@@ -214,7 +241,7 @@ def _synthesize(key, metrics, analysts):
         user += agent_coach.insights_block("marcus", "wholesale")
     except Exception:
         pass
-    return _claude(key, system, user, max_tokens=2000)
+    return _claude(key, system, user, max_tokens=2000, effort="medium")
 
 
 def _extract_playbook(report_md):
