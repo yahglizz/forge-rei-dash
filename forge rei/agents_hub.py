@@ -116,6 +116,12 @@ AGENTS = [
      "blurb": "Ops, enrollment, money, people, roster + family follow-ups, and the "
               "enrollment ads. Ranks it all, owns enrollment, never acts outward.",
      "hb": ["solomon"]},
+    {"id": "daycare_replies", "name": "Reply Desk", "business": "daycare", "emoji": "💬",
+     "role": "Family Reply Drafts — Solomon's family-comms lane",
+     "blurb": "Drafts the next text to any parent owed a reply, in the center's real "
+              "voice. Yields to the GHL speed-to-lead/nurture workflows and STOP/HELP "
+              "auto-replies. You tap send — Solomon answers for it in chat.",
+     "hb": ["daycare_replies"], "queue": "daycare_replies", "chatVia": "solomon"},
     {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "🛒",
      "role": "E-com Director — the whole store",
      "blurb": "Product research, creative + ads, fulfillment and support. Ranks the "
@@ -632,6 +638,9 @@ def _pending(agent_id, queue):
             import agency_approvals_io
             rows = agency_approvals_io.list_queue("pending").get("queue") or []
             return sum(1 for x in rows if x.get("kind") == agent_id)
+        if queue == "daycare_replies":
+            import daycare_replies
+            return len(daycare_replies.view().get("pending") or [])
     except Exception:
         pass
     return 0
@@ -686,6 +695,14 @@ def _probe(agent_id):
             p.update(enabled=bool(st.get("enabled")),
                      lastRun=log[0].get("ts") if log else None,
                      work=f"{st.get('sentToday', 0)}/{st.get('cap')} sent today")
+        elif agent_id == "daycare_replies":
+            import daycare_replies
+            v = daycare_replies.view()
+            sweep = v.get("lastSweep") or {}
+            p.update(lastRun=v.get("lastRunAt"), lastError=v.get("error"),
+                     work=f"{len(v.get('pending') or [])} draft(s) waiting on you",
+                     detail=f"last sweep: {sweep.get('drafted', 0)} drafted, "
+                            f"{sweep.get('read', 0)} read" if sweep else None)
         elif agent_id == "briefs":
             import daily_brief
             import daily_recap
