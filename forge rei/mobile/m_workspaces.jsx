@@ -116,6 +116,12 @@ function MWBriefLine(item) {
     .filter(Boolean).join(" — ");
 }
 
+// A GHL first name of "I" (or blank) is not a name — fall back to the child, then a label.
+function MWFamName(r) {
+  const n = String(r.parentName || r.name || "").trim();
+  return n.length >= 2 ? n : r.childName ? r.childName + "'s family" : "Family lead";
+}
+
 function MWDaycare() {
   const leads = window.useApiM("/api/daycare/leads", { interval: 60000 });
   const brief = window.useApiM("/api/daycare/director/brief", { interval: 60000 });
@@ -141,7 +147,7 @@ function MWDaycare() {
     catch (e) { setNotice("Daycare stage unavailable — retry."); }
   }
   return <React.Fragment>
-    <window.MHeader title="Daycare" sub="A Touch of Blessings · Lead Desk" />
+    <window.MHeader title="Daycare" sub="A Touch of Blessings · Solomon · Leads" />
     <div className="m-content mw-page">
       <section className="mw-hero daycare">
         <div className="mw-eyebrow">A LITTLE CARE GOES A LONG WAY</div>
@@ -157,7 +163,7 @@ function MWDaycare() {
         </window.MCard>
         <window.MCard title="Needs a human" right={<span className="mw-streak">{needs.length}</span>}>
           {needs.length ? needs.map((r)=><div className="mw-lead" key={r.contactId || r.id}>
-            <div className="mw-lead-main"><b>{r.parentName || r.name || "Family lead"}</b><small>{[r.center,r.stage,r.waiting || r.age].filter(Boolean).join(" · ")}</small></div>
+            <div className="mw-lead-main"><b>{MWFamName(r)}</b><small>{[r.center,r.stage,r.waiting || r.age].filter(Boolean).join(" · ")}</small></div>
             {r.phone && <a className="mw-call" href={"tel:"+r.phone}>Call</a>}
             <button className="mw-mark" onClick={()=>{setStageLead(r);setStageValue("TOUR_BOOKED");}} aria-label="Mark lead stage">•••</button>
           </div>) : <window.MEmpty title="No follow-ups waiting" sub="New leads that need a person will show here."/>}
@@ -168,7 +174,7 @@ function MWDaycare() {
         {brief.loading && !brief.data ? <window.MSpin/> : brief.error ? <div className="mw-warn">Solomon's brief unavailable — retry.</div> : <div className="mw-brief">{briefSections.length ? briefSections.map((s,i)=><section key={i}><b>{s.title || s.heading || "Update"}</b>{Array.isArray(s.body) ? s.body.map((line,j)=><p key={j}>• {MWBriefLine(line)}</p>) : <p>{MWBriefLine(s.body || s.text || s.content)}</p>}</section>) : <window.MEmpty title="No brief available yet" sub="Solomon's operating brief will appear here when ready."/>}</div>}
       </window.MCard>
     </div>
-    {stageLead && <div className="m-sheet"><div className="m-sheet-head"><button className="m-tab" onClick={()=>setStageLead(null)}>‹</button><b style={{flex:1}}>Update lead stage</b></div><div className="m-sheet-body"><div className="m-card"><b>{stageLead.parentName || stageLead.name || "Family lead"}</b><div className="m-fade" style={{marginTop:4}}>This is a local mobile note. It does not update GoHighLevel.</div></div>{["TOUR_BOOKED","TOUR_COMPLETED","APPLICATION","ENROLLED","LOST"].map((s)=><button key={s} className={"mw-stage-choice"+(stageValue===s?" active":"")} onClick={()=>setStageValue(s)}>{s.replaceAll("_"," ")}{stageValue===s?" ✓":""}</button>)}<window.MBtn kind="ok" onClick={stage}>Confirm stage</window.MBtn><window.MBtn kind="ghost" onClick={()=>setStageLead(null)}>Cancel</window.MBtn></div></div>}
+    {stageLead && <div className="m-sheet"><div className="m-sheet-head"><button className="m-tab" onClick={()=>setStageLead(null)}>‹</button><b style={{flex:1}}>Update lead stage</b></div><div className="m-sheet-body"><div className="m-card"><b>{MWFamName(stageLead)}</b><div className="m-fade" style={{marginTop:4}}>This is a local mobile note. It does not update GoHighLevel.</div></div>{["TOUR_BOOKED","TOUR_COMPLETED","APPLICATION","ENROLLED","LOST"].map((s)=><button key={s} className={"mw-stage-choice"+(stageValue===s?" active":"")} onClick={()=>setStageValue(s)}>{s.replaceAll("_"," ")}{stageValue===s?" ✓":""}</button>)}<window.MBtn kind="ok" onClick={stage}>Confirm stage</window.MBtn><window.MBtn kind="ghost" onClick={()=>setStageLead(null)}>Cancel</window.MBtn></div></div>}
   </React.Fragment>;
 }
 

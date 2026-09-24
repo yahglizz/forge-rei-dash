@@ -472,3 +472,128 @@ body {
 .m-mascot.mlg-mascot-switch { position:relative; border:0; padding:0; cursor:pointer; font:inherit; }
 .mlg-switch-badge { position:absolute; right:1px; bottom:1px; width:20px; height:20px; border-radius:50%;
   display:grid; place-items:center; background:#fff; color:var(--text); box-shadow:0 2px 6px rgba(20,40,80,.22); }
+
+/* ── Daycare management (m_biz_daycare.jsx) — A Touch of Blessings look, mirrored from the
+   family/staff daycare app's globals.css: purple + gold on cream, Fraunces display,
+   Manrope body. Scoped to .biz-daycare (MAPBiz root) so no other business changes. ── */
+.biz-daycare {
+  --dc-purple:#5b2c8e; --dc-deep:#32154f; --dc-light:#7950a4; --dc-wash:#f7f3fa; --dc-mist:#eee7f3;
+  --dc-gold:#c9962b; --dc-gold-wash:#fbf5e6; --dc-cream:#fcfaf7; --dc-cream-deep:#f6efe5;
+  --dc-ink:#1b1425; --dc-slate:#4d4756; --dc-muted:#7d7585; --dc-border:#e9e2eb;
+  --dc-green:#2e9e5e; --dc-red:#d04848; --dc-blue:#3b82c4;
+  --bg:var(--dc-cream); --card:#fff; --card-2:var(--dc-wash); --text:var(--dc-ink); --text-2:var(--dc-slate);
+  --text-3:var(--dc-muted); --blue:var(--dc-purple);
+  background:var(--dc-cream); color:var(--dc-ink);
+  font-family:"Manrope",-apple-system,BlinkMacSystemFont,sans-serif; letter-spacing:-.008em;
+}
+.biz-daycare button, .biz-daycare input, .biz-daycare select, .biz-daycare textarea { font-family:inherit; }
+.biz-daycare .m-head { background:rgba(252,250,247,.9); border-bottom:1px solid rgba(91,44,142,.08); }
+.biz-daycare .m-head-title, .biz-daycare .mbd-display, .biz-daycare .mbd-section h3 {
+  font-family:"Fraunces",Georgia,serif; font-weight:590; letter-spacing:-.025em; }
+.biz-daycare .m-head-title { font-size:21px; }
+.biz-daycare .m-mascot { background:var(--dc-wash); border:1px solid rgba(91,44,142,.08); }
+.biz-daycare .mbd-emblem { width:40px; height:40px; object-fit:contain; }
+.biz-daycare .mw-header-bot { background:var(--dc-wash); }
+.biz-daycare .m-card { background:rgba(255,255,255,.92); border:1px solid rgba(91,44,142,.095); border-radius:18px; box-shadow:0 7px 22px rgba(38,22,61,.04); }
+.biz-daycare .m-btn { border-radius:13px; background:var(--dc-purple); box-shadow:0 8px 20px rgba(91,44,142,.22); }
+.biz-daycare .m-btn.ok { background:var(--dc-purple); }
+.biz-daycare .m-btn.ghost { background:var(--dc-wash); color:var(--dc-purple); box-shadow:none; }
+.biz-daycare .m-chip { background:#fff; color:var(--dc-slate); border:1px solid var(--dc-border); min-height:40px; }
+.biz-daycare .m-chip.active { background:var(--dc-purple); color:#fff; border-color:var(--dc-purple); box-shadow:0 6px 15px rgba(91,44,142,.2); }
+.biz-daycare .m-input { background:#fff; border:1px solid var(--dc-border); border-radius:12px; color:var(--dc-ink); font-size:16px; }
+.biz-daycare .m-input:focus { outline:0; border-color:var(--dc-purple); box-shadow:0 0 0 3px var(--dc-wash); }
+.biz-daycare .m-tabbar { background:rgba(255,255,255,.96); border-top:1px solid var(--dc-border); box-shadow:none; gap:1px; }
+.biz-daycare .m-tab { color:#948ba4; font-size:9.5px; font-weight:700; border-radius:13px; min-height:53px; justify-content:center; }
+.biz-daycare .m-tab.active { color:var(--dc-purple); background:var(--dc-wash); }
+.biz-daycare .m-tab.active:after { display:none; }
+.biz-daycare .m-sheet { background:var(--dc-cream); }
+.biz-daycare .m-sheet-head, .biz-daycare .m-sheet-foot { background:rgba(252,250,247,.96); border-color:var(--dc-border); }
+.biz-daycare .m-sheet-head .m-tab { min-height:0; background:none; }
+.biz-daycare .m-bubble.in { background:#fff; border:1px solid var(--dc-border); box-shadow:none; }
+.biz-daycare .m-bubble.out { background:var(--dc-purple); }
+.biz-daycare .m-tg-sendbtn { background:var(--dc-purple); color:#fff; border:0; }
+.biz-daycare .m-tg-feed { background:var(--dc-wash); }
+.biz-daycare .m-tg-bubble.out { background:var(--dc-purple); }
+.biz-daycare .m-tg-sendbtn:disabled { opacity:.4; }
+.biz-daycare .mw-stage-choice.active { border-color:var(--dc-purple); color:var(--dc-purple); background:var(--dc-wash); }
+.mbd-page { gap:12px; }
+.mbd-hero { position:relative; overflow:hidden; padding:20px; border-radius:20px; color:#fff;
+  background:radial-gradient(circle at 12% 10%, rgba(201,150,43,.2), transparent 38%), linear-gradient(145deg,var(--dc-purple),var(--dc-deep));
+  box-shadow:0 14px 32px rgba(91,44,142,.25); }
+.mbd-hero:after { content:""; position:absolute; right:-50px; bottom:-100px; width:210px; height:210px; border:1px solid rgba(255,255,255,.13); border-radius:50%; }
+.mbd-hero-top { position:relative; z-index:1; display:flex; gap:13px; align-items:center; }
+.mbd-hero-top img { width:54px; height:54px; flex:none; border-radius:16px; background:rgba(255,255,255,.95); padding:4px; box-sizing:border-box; object-fit:contain; }
+.mbd-hero small { color:#dbab3a; font-size:9.5px; font-weight:800; letter-spacing:.2em; }
+.mbd-hero h2 { margin:2px 0 0; font:600 24px/1.1 "Fraunces",Georgia,serif; letter-spacing:-.02em; }
+.mbd-hero p { margin:3px 0 0; color:rgba(255,255,255,.7); font-size:12px; text-transform:capitalize; }
+.mbd-locs { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+.mbd-loc { flex:none; min-height:36px; padding:7px 12px; border:1px solid rgba(255,255,255,.25); border-radius:99px; background:rgba(255,255,255,.08); color:#fff; font-size:11.5px; font-weight:700; }
+.mbd-loc.active { background:#fff; color:var(--dc-purple); border-color:#fff; }
+.mbd-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.mbd-stat { position:relative; overflow:hidden; padding:15px; min-height:104px; box-sizing:border-box; background:rgba(255,255,255,.92); border:1px solid rgba(91,44,142,.095); border-radius:18px; }
+.mbd-stat:after { content:""; position:absolute; right:-22px; top:-24px; width:74px; height:74px; border-radius:50%; background:var(--dc-wash); }
+.mbd-stat-ico { position:relative; z-index:1; display:grid; place-items:center; width:34px; height:34px; border-radius:12px; color:var(--dc-purple); background:var(--dc-wash); }
+.mbd-stat strong { display:block; margin-top:10px; font:600 27px/1 "Fraunces",Georgia,serif; color:var(--dc-ink); }
+.mbd-stat small { display:block; margin-top:5px; color:var(--dc-muted); font-size:11px; }
+.mbd-section { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 2px -2px; }
+.mbd-section h3 { margin:0; font-size:20px; color:var(--dc-ink); }
+.mbd-list { padding:4px 14px; }
+.mbd-row { display:flex; align-items:center; gap:11px; min-height:62px; padding:10px 0; border-bottom:1px solid rgba(91,44,142,.08); width:100%; box-sizing:border-box; }
+.mbd-row:last-child { border-bottom:0; }
+button.mbd-row { border-left:0; border-right:0; border-top:0; background:none; text-align:left; color:inherit; font:inherit; cursor:pointer; }
+button.mbd-row:last-child { border-bottom:0; }
+.mbd-row-main { flex:1; min-width:0; }
+.mbd-row-main strong { display:block; font-size:13.5px; color:var(--dc-ink); }
+.mbd-row-main small { display:block; margin-top:3px; color:var(--dc-muted); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mbd-row .mbd-dot + .mbd-row-main small, .mbd-row-main small.wrap { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.mbd-row-open { flex:1; min-width:0; display:flex; align-items:center; gap:11px; padding:0; border:0; background:none; text-align:left; color:inherit; font:inherit; cursor:pointer; }
+.mbd-row-side { display:flex; flex-direction:column; align-items:flex-end; gap:4px; color:var(--dc-muted); font-size:10.5px; }
+.mbd-row-ico { display:grid; place-items:center; width:38px; height:38px; flex:none; border-radius:12px; color:var(--dc-purple); background:var(--dc-wash); }
+.mbd-chev { color:var(--dc-muted); font-size:18px; font-weight:700; }
+.mbd-avatar { display:grid; place-items:center; width:40px; height:40px; flex:none; border-radius:50%; color:var(--dc-purple); background:var(--dc-mist); font-size:12.5px; font-weight:800; }
+.mbd-badge { display:inline-flex; align-items:center; padding:5px 9px; border-radius:99px; color:var(--dc-purple); background:var(--dc-wash); font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+.mbd-badge.green { color:#277a4c; background:#e7f4ec; }
+.mbd-badge.red { color:#a63333; background:#fbeaea; }
+.mbd-badge.gold { color:#805c13; background:var(--dc-gold-wash); }
+.mbd-dot { width:10px; height:10px; flex:none; margin:0 4px; border-radius:50%; background:#c9c2cf; box-shadow:0 0 0 4px #f1eef3; }
+.mbd-dot.ok { background:var(--dc-green); box-shadow:0 0 0 4px #e7f4ec; }
+.mbd-dot.warn { background:var(--dc-gold); box-shadow:0 0 0 4px var(--dc-gold-wash); }
+.mbd-dot.bad { background:var(--dc-red); box-shadow:0 0 0 4px #fbeaea; }
+.mbd-dot.key { background:#fff; border:2px solid var(--dc-light); box-sizing:border-box; box-shadow:0 0 0 4px var(--dc-wash); }
+.mbd-actions { display:flex; gap:8px; margin-top:12px; }
+.mbd-actions .m-btn { flex:1; }
+.mbd-note { padding:10px 12px; border-radius:14px; background:var(--dc-wash); color:var(--dc-purple); font-size:12px; border:1px solid rgba(91,44,142,.08); }
+.mbd-room { padding:11px 0; border-bottom:1px solid rgba(91,44,142,.08); }
+.mbd-room:last-child { border-bottom:0; }
+.mbd-room-head { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:7px; }
+.mbd-room-head strong { font-size:13.5px; }
+.mbd-room-head small { color:var(--dc-slate); font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+.mbd-bar { height:8px; border-radius:8px; overflow:hidden; background:var(--dc-mist); margin-bottom:5px; }
+.mbd-bar i { display:block; height:100%; border-radius:8px; }
+.mbd-draft { display:flex; flex-direction:column; gap:9px; }
+.mbd-draft-head { display:flex; align-items:center; gap:10px; }
+.mbd-quote { padding:10px 12px; border-radius:14px; background:var(--dc-cream-deep); color:var(--dc-slate); font-size:13px; line-height:1.45; }
+.mbd-flags { display:flex; gap:5px; flex-wrap:wrap; }
+.mbd-link { border:0; background:none; color:var(--dc-purple); font-size:12px; font-weight:800; padding:8px; }
+textarea.mbd-input { line-height:1.45; resize:vertical; }
+.mbd-call, .mbd-pill { display:grid; place-items:center; flex:none; min-width:40px; height:40px; padding:0 10px; box-sizing:border-box; border:0; border-radius:12px; background:var(--dc-wash); color:var(--dc-purple); font-size:12px; font-weight:800; text-decoration:none; cursor:pointer; }
+.mbd-pill { background:var(--dc-purple); color:#fff; padding:0 14px; }
+.mbd-pill.ghost { background:var(--dc-wash); color:var(--dc-purple); }
+.mbd-pill:disabled { opacity:.5; }
+.mbd-bubble-meta { margin-top:4px; font-size:10px; opacity:.6; }
+.mbd-pipe { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; overflow:hidden; border-radius:18px; background:rgba(91,44,142,.1); border:1px solid rgba(91,44,142,.095); }
+.mbd-pipe > div { padding:12px 4px; text-align:center; background:#fff; }
+.mbd-pipe b { display:block; font:600 22px/1 "Fraunces",Georgia,serif; color:var(--dc-purple); }
+.mbd-pipe small { display:block; margin-top:4px; color:var(--dc-muted); font-size:10px; font-weight:700; }
+.mbd-sub { padding:10px 0 4px; color:var(--dc-slate); font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.mbd-create { display:flex; align-items:center; gap:12px; width:100%; padding:14px; border:1px dashed rgba(91,44,142,.35); border-radius:18px; background:var(--dc-gold-wash); text-align:left; color:inherit; font:inherit; cursor:pointer; }
+.mbd-login-line { margin-top:6px; }
+.mbd-idchip { border:1px solid rgba(91,44,142,.15); border-radius:8px; padding:4px 8px; background:var(--dc-wash); color:var(--dc-purple); font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.04em; }
+.mbd-form { display:flex; flex-direction:column; gap:10px; }
+.mbd-two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.mbd-field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.mbd-field span { color:var(--dc-slate); font-size:11.5px; font-weight:700; }
+.mbd-creds { display:flex; flex-direction:column; gap:4px; }
+.mbd-creds small { margin-top:8px; color:var(--dc-muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.mbd-creds b { font:700 24px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dc-purple); letter-spacing:.06em; }
+/* ── end Daycare management ── */

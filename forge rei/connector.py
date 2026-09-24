@@ -4265,7 +4265,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/media/sign-upload", "/api/daycare/location/switch",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
-                "/api/daycare/ghl/enroll",
+                "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
                 "/api/daycare/replies/run", "/api/daycare/replies/approve",
                 "/api/daycare/replies/dismiss",
@@ -4363,6 +4363,11 @@ class Handler(BaseHTTPRequestHandler):
                                                  body.get("text"))
             elif path == "/api/daycare/replies/dismiss":
                 result = daycare_replies.dismiss(body.get("contact_id"))
+            elif path == "/api/daycare/ghl/reply":
+                # Owner-typed text from the Messages tab: the confirm tap IS the approval
+                # (rule 2); texting window / opt-out / DND are re-checked server-side.
+                result = daycare_replies.send_manual(DAYCARE_GHL, body.get("contact_id"),
+                                                     body.get("text"))
             elif path == "/api/daycare/blast/preview":
                 result = self._daycare_blast_preview(session, body)
             elif path == "/api/daycare/blast/create":
@@ -4471,6 +4476,11 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/leads": lambda session: daycare_leads.view(),
             "/api/daycare/replies": lambda session: daycare_replies.view(),
             # --- /WP-E ---
+            # Messages tab: live daycare GHL threads (GET only on the request path).
+            "/api/daycare/ghl/conversations": lambda session: daycare_replies.inbox(
+                DAYCARE_GHL, q.get("limit", ["60"])[0]),
+            "/api/daycare/ghl/thread": lambda session: daycare_replies.thread(
+                DAYCARE_GHL, q.get("contact_id", [None])[0]),
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
@@ -5129,7 +5139,7 @@ def main():
         # stages + who needs a human, alerts the owner. Zero Claude calls, sends nothing.
         # FORGE_DAYCARE_LEADS=0 switches it off (retired, so the health card stays quiet).
         if os.environ.get("FORGE_DAYCARE_LEADS", "1") != "0":
-            print(f"   Daycare Lead Desk: read-only GHL lead sweep every {daycare_leads.INTERVAL // 60} min"
+            print(f"   Solomon · Leads: read-only GHL lead sweep every {daycare_leads.INTERVAL // 60} min"
                   f" · {'GHL connected' if DAYCARE_GHL.configured else 'GHL NOT configured'}")
             tdl = threading.Thread(target=daycare_leads.run_forever, args=(DAYCARE_GHL,),
                                    daemon=True, name="daycare_leads")
@@ -5141,7 +5151,7 @@ def main():
         # 5 min, yielding to GHL automations. Draft-only — the owner's tap sends.
         # FORGE_DAYCARE_REPLIES=0 switches it off.
         if os.environ.get("FORGE_DAYCARE_REPLIES", "1") != "0":
-            print(f"   Daycare Reply Desk: parent-reply drafts every {daycare_replies.INTERVAL // 60} min"
+            print(f"   Solomon · Replies: parent-reply drafts every {daycare_replies.INTERVAL // 60} min"
                   f" · model {daycare_replies.MODEL} · owner sends")
             tdr = threading.Thread(target=daycare_replies.run_forever, args=(DAYCARE_GHL,),
                                    daemon=True, name="daycare_replies")

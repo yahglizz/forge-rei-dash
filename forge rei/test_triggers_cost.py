@@ -49,6 +49,8 @@ def test_cost_attribution():
         seen[name] = cost_tracker._who()
 
     for name, want in (("scout", "scout"), ("midas", "midas"),
+                       # Solomon's lane threads bill to Solomon, not "operator"
+                       ("daycare_replies", "solomon"), ("daycare_leads", "solomon"),
                        ("Thread-7 (process_request)", "operator"),
                        ("MainThread", "operator")):
         th = threading.Thread(target=grab, args=(name,), name=name)

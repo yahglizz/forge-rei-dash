@@ -152,10 +152,51 @@ def test_daycare_lead_desk_contract():
         del sys.modules["daycare_leads"]
     assert len(rows) == 1 and rows[0]["id"] == "daycare:c1", rows
     assert rows[0]["priority"] == "revenue" and 2390 <= rows[0]["ageSec"] <= 2410, rows
+    assert rows[0]["why"] == "Solomon · Leads: unanswered 40m", rows      # Solomon's lane
     dup = oa._item("daycare:c1", "CALL", "daycare", "revenue", "Call Jo — new enrollment inquiry")
     assert len(oa.merge_and_sort(rows + [dup])) == 1
+
+
+def test_daycare_reply_drafts():
+    # Solomon · Replies: one APPROVE row per pending draft, keyed like the lead desk so a
+    # family with a ready draft is ONE row — and it inherits the lead's URGENT priority.
+    import sys, types
+    now = int(time.time() * 1000)
+    fake_r = types.ModuleType("daycare_replies")
+    fake_r.view = lambda: {"pending": [
+        {"contactId": "c1", "parentName": "Jo", "center": "921 N 18th St", "action": "draft",
+         "category": "tour", "flags": ["money"], "inboundAt": now - 600_000,
+         "inboundText": "PRIVATE parent text"},
+        {"contactId": "c2", "parentName": "I", "action": "escalate", "category": "medical",
+         "inboundAt": now - 60_000}]}
+    fake_l = types.ModuleType("daycare_leads")
+    fake_l.needs_human = lambda: [{"contactId": "c1", "title": "Reply to Jo", "ageSec": 900,
+                                   "why": "Parent message unanswered 15+ min",
+                                   "priority": "URGENT"}]
+    saved = {m: sys.modules.get(m) for m in ("daycare_replies", "daycare_leads")}
+    sys.modules.update(daycare_replies=fake_r, daycare_leads=fake_l)
+    try:
+        rows = oa._src_daycare_replies({}) + oa._src_daycare_leads({})
+    finally:
+        for m, mod in saved.items():
+            if mod is None:
+                sys.modules.pop(m, None)
+            else:
+                sys.modules[m] = mod
+    got = {r["id"]: r for r in oa.merge_and_sort(rows)}
+    assert set(got) == {"daycare:c1", "daycare:c2"}, got                  # one row per family
+    c1, c2 = got["daycare:c1"], got["daycare:c2"]
+    assert c1["kind"] == "APPROVE" and c1["source"] == "daycare_replies", c1
+    assert c1["priority"] == "urgent" and 590 <= c1["ageSec"] <= 700, c1   # never demoted
+    assert c1["title"] == "Approve Solomon's reply to Jo — 921 N 18th St", c1
+    assert c1["why"].startswith("Solomon · Replies: tour") and "money" in c1["why"], c1
+    assert "unanswered" in c1["why"] and "PRIVATE" not in c1["why"], c1   # no message text
+    assert c2["priority"] == "customer" and "a parent" in c2["title"], c2  # "I" is no name
+    assert "escalated (medical)" in c2["title"], c2
 
 
 if __name__ == "__main__":
     test_daycare_lead_desk_contract()
     print("test_daycare_lead_desk_contract: OK")
+    test_daycare_reply_drafts()
+    print("test_daycare_reply_drafts: OK")

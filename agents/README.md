@@ -3,7 +3,7 @@
 One card per agent/worker, filed by business. Every card has the same 9 sections:
 Identity · Triggers · Reads · Outputs · Autonomy & gates · Self-improvement · Chat & tasks ·
 Cost · Verify it's alive. Code refs are relative to `forge rei/`. Last verified against code
-2026-09-22.
+2026-09-22 (daycare lanes 2026-09-24).
 
 **These cards are documentation, not behavior.** Editing one changes nothing at runtime. What
 agents actually load: creed (`forge-*/skills/<business>-evidence-discipline.md`, human-only,
@@ -13,7 +13,8 @@ invisible to `learn()`) → top skills (human-only) → learned playbook (vault
 ## Index
 
 Roster = `agents_hub.AGENTS` (12 rows, the Agent Control Center). Workers marked † are real
-triggers in the code but not roster agents.
+triggers in the code but not roster agents. Lanes marked ‡ are loops that belong to an agent:
+they keep their own thread + heartbeat but report on the owner's row, card and chat.
 
 | Agent | Business | Card | Engine | Scheduled trigger | Telegram | Hub id | Autonomy |
 |---|---|---|---|---|---|---|---|
@@ -26,8 +27,8 @@ triggers in the code but not roster agents.
 | Dyson | Agency | [dyson](agency/dyson.md) | `forge rei/agency_agents.py` + `forge rei/agency_dyson.py` | none (on-demand) | `/dyson`, `dyson, …` | `dyson` | ships only on approval |
 | Eco | Agency | [eco](agency/eco.md) | `forge rei/agency_agents.py` + `forge rei/agency_eco.py` | none (on-demand) | `/eco`, `eco, …` | `eco` | PAUSED ads only on approval |
 | Solomon | Daycare | [solomon](daycare/solomon.md) | `forge rei/daycare_director.py` | thread `solomon`, 900 s tick, brief 24 h | `/solomon`, `solomon, …` | `solomon` | read + propose only |
-| Lead Desk † | Daycare | [lead-desk](daycare/lead-desk.md) | `forge rei/daycare_leads.py` | thread `daycare_leads`, 900 s | outbound only | — | GET-only, $0 |
-| Reply Desk | Daycare | [daycare_replies](daycare/daycare_replies.md) | `forge rei/daycare_replies.py` | thread `daycare_replies`, 300 s | — | `daycare_replies` → Solomon | drafts only |
+| Solomon · Replies ‡ | Daycare | [solomon §10](daycare/solomon.md) | `forge rei/daycare_replies.py` | thread `daycare_replies`, 300 s | — (ask Solomon) | lane of `solomon` | drafts only; owner taps send |
+| Solomon · Leads ‡ | Daycare | [solomon §11](daycare/solomon.md) | `forge rei/daycare_leads.py` | thread `daycare_leads`, 900 s | outbound only | lane of `solomon` | GET-only, $0 |
 | Midas | Dropship (archived) | [midas](dropship/midas.md) | `forge rei/dropship_director.py` | thread `midas` — **off** (`FORGE_DROPSHIP_BRIEF=0`) | `/midas`, `midas, …` | `midas` | read + propose only |
 | Orion | Cross | [orion](cross-business/orion.md) | `forge rei/mission_control_agent.py` | `brief` thread, daily 07:00 | **none** | `orion` | read + propose only |
 | Daily brief | System | [daily-brief](cross-business/daily-brief.md) | `forge rei/daily_brief.py` | `brief` thread, 08:00 | outbound only | `briefs` → Orion | operator Telegram only, $0 |
@@ -49,9 +50,11 @@ Not documented as agents (no brain, no agent role): `do_today` (thread `do_today
 
 - Every loop starts only when `FORGE_MARCUS` != `0` (`LOOPS_ENABLED`, `connector.py:45`). The box
   runs them; a UI-only Mac sets `FORGE_MARCUS=0`. With it off, no thread starts and nothing is retired.
-- Each loop names its thread; that name is also its cost bucket (`cost_tracker.AGENT_THREADS`).
+- Each loop names its thread; that name is also its cost bucket (`cost_tracker.AGENT_THREADS`),
+  except lane threads, which bill to their owner (`cost_tracker.THREAD_ALIAS`: `daycare_replies`,
+  `daycare_leads` → `solomon`).
 - A loop switched off by its own knob must call `forge_heartbeat.retire("<loop>")`. Only
-  `daycare_leads`, `midas`, `do_today` do (`connector.py:5113/5134/5147`).
+  `daycare_leads`, `daycare_replies`, `midas`, `do_today` do (`connector.main`).
 - Most loops also stand down on clock-out (`forge_ops.paused()`); exceptions are in each card.
 
 | Thread | Knob (default) | Heartbeat |
@@ -61,8 +64,8 @@ Not documented as agents (no brain, no agent role): `do_today` (thread `do_today
 | `followup` | `FORGE_FOLLOWUP_INTERVAL` (1800) | `followup` |
 | `atlas` | hardcoded 900; `FORGE_PREP_AUTO` (1) | `atlas` |
 | `solomon` | hardcoded 900 tick; `FORGE_SOLOMON_BRIEF_EVERY_H` (24) | `solomon` |
-| `daycare_leads` | `FORGE_DAYCARE_LEADS` (1), `FORGE_DAYCARE_LEADS_INTERVAL` (900) | `daycare_leads` |
-| `daycare_replies` | `FORGE_DAYCARE_REPLIES` (1), `FORGE_DAYCARE_REPLIES_INTERVAL` (300) | `daycare_replies` |
+| `daycare_leads` (Solomon · Leads) | `FORGE_DAYCARE_LEADS` (1), `FORGE_DAYCARE_LEADS_INTERVAL` (900) | `daycare_leads` |
+| `daycare_replies` (Solomon · Replies) | `FORGE_DAYCARE_REPLIES` (1), `FORGE_DAYCARE_REPLIES_INTERVAL` (300) | `daycare_replies` |
 | `midas` | `FORGE_DROPSHIP_BRIEF` (**0 = off**) | `midas` (retired) |
 | `do_today` | `FORGE_TODAY_LOOP` (**0 = off**) | `do_today` (retired) |
 | `brief` | `FORGE_BRIEF_CHECK_SEC` (300): daily brief, recap, Orion, sync monitor | `daily_brief` |
@@ -119,8 +122,8 @@ Follow-up, ACE, Autopilot and the briefs are **not** reachable as Telegram chat 
 ### 5. Bus roles and tasks
 
 - `agent_bus.inbox(name)` returns messages to `name` **or `all`**. Only two agents read the bus:
-  Solomon (`BUS_ROLES` = solomon, family-comms, enrollment, ads, growth, nora, nova) and Midas
-  (`midas`), both inside their brief.
+  Solomon (`BUS_ROLES` = solomon, family-comms, enrollment, ads, growth, nora, nova,
+  daycare_replies, daycare_leads) and Midas (`midas`), both inside their brief.
 - Everyone else sees assigned work only through `agents_hub.open_tasks_block(<id>)` in their **chat**
   prompt (`agents_chat._tasks`, `marcus_chat._hub_tasks`, `agency_agents`, `_director_chat`). A
   `chatVia` agent's tasks show in its owner's block.
@@ -130,7 +133,8 @@ Follow-up, ACE, Autopilot and the briefs are **not** reachable as Telegram chat 
 ### 6. Cost buckets
 
 `cost_tracker._who()` = thread name if in `AGENT_THREADS` (scout, marcus, atlas, followup, solomon,
-midas, dyson, eco, do_today, telegram, brief, graphify), else `operator`. So: unnamed threads
+midas, dyson, eco, do_today, telegram, brief, graphify), after `THREAD_ALIAS` maps Solomon's lane
+threads (`daycare_replies`, `daycare_leads`) to `solomon`; else `operator`. So: unnamed threads
 (auto-screen, ACE, Telegram handoff, skill_forge), every HTTP call, the systemd learn curls, and the
 `telegram_agent` bot all bill to `operator`. Orion bills to `brief`.
 
@@ -169,7 +173,7 @@ Docs-only pass — none of these were fixed.
 17. ACE question drafts carry `reengage: true` because they pass a `hint` (`marcus_engine.py:1092`, `ace.py:674`), contradicting `autopilot.py:143-148`; shadow-mode drafts also count as Follow-up approvals (`agents_hub.py:624`). Unknown — verify with a shadow-mode test.
 18. Scout's weekly audit ignores clock-out (`scout_triage.py:1854-1855`) and still calls Claude.
 19. Midas's auto-learn only runs from `run_forever` (`dropship_director.py:1133`), so it never fires while the loop is off (the default). Archiving dropship gates no route, Telegram path, or loop.
-20. `_director_chat` checks only `review_agent._api_key()` (`agents_hub.py:298`) — Solomon/Midas/Orion chat can say "no key" while their own `*_ANTHROPIC_API_KEY` is set. Solomon's chat gets no top skills (no `top_skills_text` in `daycare_director`).
+20. `_director_chat` checks only `review_agent._api_key()` for Midas/Orion — their chat can say "no key" while their own `*_ANTHROPIC_API_KEY` is set. (Solomon's chat uses `_solomon_key()` since 2026-09-24.) Solomon's chat gets no top skills (no `top_skills_text` in `daycare_director`).
 21. No chat surface loads the wholesale creed (Scout/Marcus/Atlas chat, `agents_chat.py`, `marcus_chat.py`); only their scoring/screening/drafting/prep prompts do. Dyson's draft generator and Eco's generate path skip the agency creed (`agency_dyson.py:269`, `agency_eco.py:176`).
 22. `daily_learn.sh` runs `/api/review/run {"days":1}` nightly, overwriting the Monday 7-day playbook; its `{"auto":true}` bodies are ignored and bypass learn rate limits (`connector.py:3702`, `:3755`); Atlas, Solomon, Midas, Orion aren't in it.
 23. No `retire()` in the off branch for `marcus_sms` (`connector.py:5083-5087`). Intervals with no env knob: Marcus SMS 60 s, Atlas 900 s, Solomon/Midas 900 s tick, agency 45-min learn gap.

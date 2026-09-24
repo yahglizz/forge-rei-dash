@@ -32,7 +32,9 @@ CALL_FRESH_DAYS = 5            # a screened-interested seller stays a call this 
 # (e.g. the frozen legacy Marcus SMS queue) can't bury today's work. Still counted, never hidden.
 STALE_DAYS = int(os.environ.get("FORGE_OWNER_ACTIONS_STALE_DAYS") or 30)
 _STALE_LABEL = {"marcus": "old reply drafts", "scout": "old Scout leads/tags",
-                "daycare_leads": "daycare families waiting", "daycare_ghl": "old daycare inquiries",
+                "daycare_leads": "daycare families waiting (Solomon · Leads)",
+                "daycare_replies": "old parent-reply drafts (Solomon · Replies)",
+                "daycare_ghl": "old daycare inquiries",
                 "skill_forge": "old skill proposals", "agency_approvals": "old agency approvals",
                 "agency_requests": "old client requests"}
 
@@ -348,7 +350,7 @@ def _src_daycare_inquiries(ctx):
             items.append(_item(f"daycare:{cid}", "CALL", "daycare", "revenue",
                                f"Call {f.get('parent_name') or 'family'} — new enrollment inquiry",
                                " · ".join(map(str, bits)), _iso_ms(f.get("created_at")),
-                               {"ws": "daycare", "page": "ParentLogins"}, "daycare_ghl"))
+                               {"ws": "daycare", "page": "ParentLogins", "mobile": "families"}, "daycare_ghl"))
         _DC.update(at=now, items=items, fails=0, err="")
     except Exception as e:  # noqa: BLE001 — fail soft, back off, surface only if repeated
         _DC.update(at=now, fails=_DC["fails"] + 1, err=str(e)[:120])
@@ -359,10 +361,55 @@ def _src_daycare_inquiries(ctx):
     return list(_DC["items"])
 
 
+def _src_daycare_replies(ctx):
+    """Solomon · Replies (daycare_replies.view(), state file only): a parent-reply draft
+    waiting on the owner's tap → one APPROVE row per family. Keyed daycare:<contactId> and
+    run BEFORE the lead desk, so one family is ONE row and a ready draft beats "Reply to X".
+    Takes the lead desk's priority + reasons for that family when it has them, so the
+    dedupe never demotes an URGENT lead or hides an overdue call task."""
+    import daycare_replies
+    pending = (daycare_replies.view() or {}).get("pending") or []
+    if not pending:
+        return []
+    try:
+        import daycare_leads
+        leads = {r.get("contactId"): r for r in daycare_leads.needs_human() or []
+                 if isinstance(r, dict)}
+    except Exception:  # noqa: BLE001 — the drafts still list without the lead desk
+        leads = {}
+    out = []
+    for d in pending:
+        cid = d.get("contactId")
+        if not cid:
+            continue
+        name = str(d.get("parentName") or "").strip()
+        who = name if len(name) >= 2 else "a parent"      # 1-letter GHL field = no name
+        where = f" — {d['center']}" if d.get("center") else ""
+        lead = leads.get(cid) or {}
+        cat = str(d.get("category") or "other")
+        # No message text here: /api/owner-actions is not the session-gated daycare router.
+        if d.get("action") == "escalate":
+            title = f"Answer {who}{where} — Solomon escalated ({cat})"
+            why = f"Solomon · Replies: {cat} — holding line only, this one needs you"
+        else:
+            title = f"Approve Solomon's reply to {who}{where}"
+            why = f"Solomon · Replies: {cat} — draft ready for your tap"
+        if d.get("flags"):
+            why += " · check: " + ", ".join(map(str, d["flags"]))
+        if lead.get("why"):
+            why += " · Leads: " + str(lead["why"])
+        out.append(_item(f"daycare:{cid}", "APPROVE", "daycare",
+                         str(lead.get("priority") or "customer").lower(), title, why,
+                         d.get("inboundAt"), {"ws": "daycare", "page": "Dashboard", "mobile": "messages"},
+                         "daycare_replies"))
+    return out
+
+
 def _src_daycare_leads(ctx):
-    """Daycare Lead Desk (daycare_leads.needs_human): {id, title, why, ageSec,
-    priority URGENT|REVENUE|NORMAL, contactId, ...}. Keyed daycare:<contactId> like the
-    inquiry source so one family is ONE row; this source runs first, so it wins."""
+    """Solomon · Leads — the Lead Desk (daycare_leads.needs_human): {id, title, why,
+    ageSec, priority URGENT|REVENUE|NORMAL, contactId, ...}. Keyed daycare:<contactId> like
+    the inquiry source so one family is ONE row; this source runs before the inquiries, so
+    it wins (only a Solomon · Replies draft for the same family outranks it)."""
     try:
         import daycare_leads
     except ImportError:
@@ -376,8 +423,9 @@ def _src_daycare_leads(ctx):
         created = now - int(age) * 1000 if isinstance(age, (int, float)) else None
         out.append(_item(f"daycare:{r['contactId']}", "CALL", "daycare",
                          str(r.get("priority") or "urgent").lower(),
-                         r.get("title") or "Call family — needs a human", r.get("why"),
-                         created, {"ws": "daycare", "page": "Dashboard"}, "daycare_leads",
+                         r.get("title") or "Call family — needs a human",
+                         "Solomon · Leads: " + str(r.get("why") or "needs a human"),
+                         created, {"ws": "daycare", "page": "Dashboard", "mobile": "families"}, "daycare_leads",
                          now_ms=now))
     return out
 
@@ -422,7 +470,8 @@ SOURCES = [
     ("agency_callsheet", "agency", _src_agency_callsheet),
     ("agency_approvals", "agency", _src_agency_approvals),
     ("agency_requests", "agency", _src_agency_requests),
-    ("daycare_leads", "daycare", _src_daycare_leads),   # first: richer row wins the dedupe
+    ("daycare_replies", "daycare", _src_daycare_replies),   # a ready draft wins the family row
+    ("daycare_leads", "daycare", _src_daycare_leads),   # then the lead desk beats the inquiry
     ("daycare_inquiries", "daycare", _src_daycare_inquiries),
     ("system", "system", _src_system),
     ("skill_forge", "system", _src_skill_forge),

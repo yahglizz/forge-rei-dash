@@ -218,8 +218,9 @@ function DcxLocationScope({ children }) {
   </div>;
 }
 
-// --- WP-E --- Daycare Lead Desk (daycare_leads.py → /api/daycare/leads). Read-only: shows
-// only what GoHighLevel recorded — no availability, price or licensing text anywhere.
+// --- WP-E --- Solomon · Leads — Solomon's enrollment-lead lane, the Lead Desk
+// (daycare_leads.py → /api/daycare/leads). Read-only: shows only what GoHighLevel
+// recorded — no availability, price or licensing text anywhere.
 function DldDuration(sec) {
   if (sec === null || sec === undefined) return "—";
   const s = Number(sec) || 0;
@@ -235,6 +236,14 @@ const DLD_PIPELINE = [["TOUR_BOOKED", "Tour booked"], ["TOUR_COMPLETED", "Tour d
 const DLD_STAGE_LABEL = { NEW: "New", CONTACTED: "Contacted", RESPONDED: "Responded", NEEDS_HUMAN: "Needs you", ...Object.fromEntries(DLD_PIPELINE) };
 const DLD_SOURCE_LABEL = { ghl_tag: "GHL tag", ledger: "enrolled record", local: "your mark", flow: "GHL activity" };
 // --- /W2-5 ---
+
+// Same fallback as daycare_leads.display_name: a 1-letter parent field ("I") is no name.
+function DldWho(lead) {
+  const parent = String(lead.parentName || "").trim();
+  if (parent.length >= 2) return parent;
+  const child = String(lead.childName || "").trim();
+  return child.length >= 2 ? child + "'s family" : "New family";
+}
 
 function DldLeadDesk() {
   const desk = DcxUseResource("/leads", null, 60000);
@@ -255,10 +264,10 @@ function DldLeadDesk() {
   const items = data.needsHuman || [];
   const pipe = k.pipeline || {};
   const leads = data.leads || [];
-  const err = desk.error ? (desk.error.message || "Lead Desk is unavailable.") : data.error;
+  const err = desk.error ? (desk.error.message || "Solomon · Leads is unavailable.") : data.error;
   const ran = Boolean(data.lastRunAt);
   return <div className="card card-pad dc-panel">
-    <div className="dc-panel-head"><div><div className="card-title">Lead Desk</div><div className="faint">Enrollment leads from GoHighLevel · read-only{ran ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div><b>{items.length}</b></div>
+    <div className="dc-panel-head"><div><div className="card-title">Solomon · Leads</div><div className="faint">Enrollment leads from GoHighLevel · read-only{ran ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div><b>{items.length}</b></div>
     {err && <div className="dc-error-text" role="alert">{err}</div>}
     {desk.loading ? <div className="dc-inline-empty">Loading leads…</div> : ran && <>
       <div className="dc-kpi-grid">
@@ -271,7 +280,7 @@ function DldLeadDesk() {
         : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>Nothing waiting on you</b><span>No unanswered replies, overdue call tasks or call-me requests.</span></div></div>}
       {leads.length > 0 && <details style={{ marginTop: 12 }}><summary className="faint" style={{ cursor: "pointer" }}>All leads ({leads.length}) — mark tour / application / enrolled / lost · internal only, never sent to GHL or the family</summary>
         {dldNote && <div className="dc-error-text" role="alert">{dldNote}</div>}
-        <div className="dc-alert-list">{leads.map((lead) => <div key={lead.contactId} style={{ alignItems: "center" }}><span className={"dc-severity " + (lead.reasons && lead.reasons.length ? "warning" : "info")}/><div style={{ flex: 1 }}><b>{lead.parentName || "New family"} · {lead.center}</b><small>{DLD_STAGE_LABEL[lead.stage] || lead.stage} · from {DLD_SOURCE_LABEL[lead.stageSource] || "GHL activity"}</small></div><select aria-label="Mark stage" value={lead.localStage || ""} disabled={dldBusy === lead.contactId} onChange={(event) => dldMark(lead.contactId, event.target.value)}><option value="">Auto</option>{DLD_PIPELINE.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>)}</div>
+        <div className="dc-alert-list">{leads.map((lead) => <div key={lead.contactId} style={{ alignItems: "center" }}><span className={"dc-severity " + (lead.reasons && lead.reasons.length ? "warning" : "info")}/><div style={{ flex: 1 }}><b>{DldWho(lead)} · {lead.center}</b><small>{DLD_STAGE_LABEL[lead.stage] || lead.stage} · from {DLD_SOURCE_LABEL[lead.stageSource] || "GHL activity"}</small></div><select aria-label="Mark stage" value={lead.localStage || ""} disabled={dldBusy === lead.contactId} onChange={(event) => dldMark(lead.contactId, event.target.value)}><option value="">Auto</option>{DLD_PIPELINE.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>)}</div>
       </details>}
     </>}
   </div>;

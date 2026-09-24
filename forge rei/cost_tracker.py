@@ -99,6 +99,9 @@ _CACHE_READ_MULT = 0.10
 # thread — is operator-initiated work and buckets under "operator".
 AGENT_THREADS = {"scout", "marcus", "atlas", "followup", "solomon", "midas",
                  "dyson", "eco", "do_today", "telegram", "brief", "graphify"}
+# Lane threads that bill to the agent that owns them: Solomon's Replies + Leads lanes
+# (daycare_replies drafts with Claude; daycare_leads makes no Claude call today).
+THREAD_ALIAS = {"daycare_replies": "solomon", "daycare_leads": "solomon"}
 
 
 def _who():
@@ -106,6 +109,7 @@ def _who():
         n = threading.current_thread().name
     except Exception:
         return "operator"
+    n = THREAD_ALIAS.get(n, n)
     return n if n in AGENT_THREADS else "operator"
 
 

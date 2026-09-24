@@ -126,7 +126,7 @@ function MAPBiz(props) {
   else if (overlay) body = M_PAGES[overlay.key]();
   else body = Page ? <Page /> : <React.Fragment><window.MHeader title={biz.name || biz.id} /><div className="m-content"><window.MEmpty title="Page unavailable" /></div></React.Fragment>;
   return (
-    <div className="m-app">
+    <div className={"m-app biz-" + biz.id}>
       <MAPBoundary key={overlay ? "o:" + overlay.key : "t:" + tab}>{body}</MAPBoundary>
       <window.MTabBar tabs={tabs} tab={overlay ? null : tab} onTab={goTab} />
     </div>

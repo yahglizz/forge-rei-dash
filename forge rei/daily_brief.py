@@ -186,7 +186,7 @@ def business_sections(stats, open_loops=True):
         block("DAYCARE", [r("\U0001f476 New leads (7d)", dc.get("newLeads7d")),
                           r("\U0001f64b Need a human", dc.get("needsHuman")),
                           r("⏱ Median response", _dur(med) if isinstance(med, (int, float)) else None),
-                          "⚠️ Last Lead Desk sweep failed — numbers are from the last good one"
+                          "⚠️ Last Solomon · Leads sweep failed — numbers are from the last good one"
                           if dc and dc.get("stale") else None])
 
     a = stats.get("agents")

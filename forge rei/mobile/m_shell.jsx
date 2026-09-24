@@ -42,6 +42,8 @@ const MIcons = {
   Doc: (p) => <MIco {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></MIco>,
   Brain: (p) => <MIco {...p}><circle cx="12" cy="12" r="3" /><circle cx="5" cy="6" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="5" cy="18" r="2" /><circle cx="19" cy="18" r="2" /><path d="M9.8 10.4 6.6 7.4M14.2 10.4l3.2-3M9.8 13.6l-3.2 3M14.2 13.6l3.2 3" /></MIco>,
   Heart: (p) => <MIco {...p}><path d="M12 21S4 14.5 4 9a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 5.5-8 12-8 12z" /></MIco>,
+  Key: (p) => <MIco {...p}><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 8.7-8.7M16 7l2.5 2.5M18.5 4.5 21 7" /></MIco>,
+  Pulse: (p) => <MIco {...p}><path d="M3 12h4l3-8 4 16 3-8h4" /></MIco>,
   Swap: (p) => <MIco {...p}><path d="M7 4 3 8l4 4" /><path d="M3 8h14" /><path d="m17 12 4 4-4 4" /><path d="M21 16H7" /></MIco>,
 };
 
@@ -55,9 +57,9 @@ function MHeader(props) {
       {!onBack && (window.mSwitchBiz
         ? <button className="m-mascot mlg-mascot-switch" onClick={() => window.mSwitchBiz()}
             aria-label={"Switch business" + (window.mBizActive ? " (now " + window.mBizActive + ")" : "")}>
-            <MForgePal size={40} /><span className="mlg-switch-badge"><MIcons.Swap size={12} /></span>
+            {props.logo || <MForgePal size={40} />}<span className="mlg-switch-badge"><MIcons.Swap size={12} /></span>
           </button>
-        : <div className="m-mascot"><MForgePal size={40} /></div>)}
+        : <div className="m-mascot">{props.logo || <MForgePal size={40} />}</div>)}
       {onBack && (
         <button className="m-tab" style={{ flex: "none", padding: 4 }} onClick={onBack}>
           <MIcons.Back size={22} />

@@ -15,8 +15,21 @@ their data reads are the _gather_roster/_gather_blasts/_gather_campaign/_gather_
 methods below, and their old routes narrow this brief via roster_view()/adops_view().
 One brief, one Claude call, one auto-admin session — instead of three of each.
 
+2026-09-24: Solomon is the daycare's ONE agent and owns three lanes:
+  • the brief (this engine)  — the director's operating brief, every
+    FORGE_SOLOMON_BRIEF_EVERY_H hours (heartbeat `solomon`);
+  • Solomon · Replies        — daycare_replies.py (the Reply Desk): drafts the next text
+    to every parent owed a reply; the OWNER approves + sends each one (heartbeat
+    `daycare_replies`, knob FORGE_DAYCARE_REPLIES);
+  • Solomon · Leads          — daycare_leads.py (the Lead Desk): GET-only GHL enrollment
+    lead sweep, zero Claude (heartbeat `daycare_leads`, knob FORGE_DAYCARE_LEADS).
+The lane loops keep their own threads, state files and routes; they report here —
+reply_desk_state() / lead_desk_state() feed the brief (replyDesk / leadDesk), his chat
+and his Agent Control Center row, and their spend bills to `solomon`.
+
 Solomon never takes an outward or irreversible action. No SMS, invoice send, ad
-launch, or Supabase/GHL write. He proposes + delegates; a human taps to execute.
+launch, or Supabase/GHL write. He proposes + delegates; a human taps to execute. (His Replies lane drafts family
+texts, but only the owner's tap sends one — the brief itself never writes family text.)
 His ONLY autonomous writes are his own brain playbook (learn()) and bus notes —
 same rule as Scout.
 
@@ -45,8 +58,11 @@ PLAYBOOK_REL = "Skills/solomon-playbook.md"
 BRIEF_DIR_REL = "Reports/daycare"          # living operating record written every brief
 # Bus identities Solomon answers to. The role names Nora and Nova used are kept so
 # delegations already on the bus (and anything Solomon addresses to a role in his own
-# brief) still get consumed now that he owns those lanes himself.
-BUS_ROLES = ("solomon", "family-comms", "enrollment", "ads", "growth", "nora", "nova")
+# brief) still get consumed now that he owns those lanes himself. Same for his Replies
+# and Leads lanes: a task filed to the old `daycare_replies` hub id, or anything sent to
+# `daycare_leads`, lands in his brief.
+BUS_ROLES = ("solomon", "family-comms", "enrollment", "ads", "growth", "nora", "nova",
+             "daycare_replies", "daycare_leads")
 RECENT_BLASTS = 5                          # blast history depth for the follow-up lane
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
 LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_SOLOMON_LEARN_GAP_MIN", "45")) * 60 * 1000
@@ -102,6 +118,46 @@ def _solomon_key():
     except Exception:
         pass
     return review_agent._api_key()
+
+
+def reply_desk_state(now_ms=None):
+    """Solomon · Replies (daycare_replies — the Reply Desk): parent-reply drafts waiting on
+    the owner's tap. State file only — no network, no Claude — and never raises, so the
+    brief, his chat and the registry all still work without it."""
+    try:
+        import daycare_replies
+        v = daycare_replies.view() or {}
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"reply desk unavailable: {type(e).__name__}"}
+    pending = v.get("pending") or []
+    now_ms = now_ms or int(time.time() * 1000)
+    oldest = min((d["inboundAt"] for d in pending if d.get("inboundAt")), default=None)
+    return {
+        "pending": len(pending),
+        # safety / custody / medical / complaint / billing threads: a holding line only
+        "escalations": sum(1 for d in pending if d.get("action") == "escalate"),
+        "oldestPendingAgeSec": max(0, (now_ms - oldest) // 1000) if oldest else None,
+        "lastRunAt": v.get("lastRunAt"),
+        "lastSweep": v.get("lastSweep"),
+        "error": v.get("error"),
+    }
+
+
+def lead_desk_state():
+    """Solomon · Leads (daycare_leads — the Lead Desk): enrollment lead flow from its saved
+    state — no network. KPIs + who needs a human right now. Never raises."""
+    try:
+        import daycare_leads
+        desk = daycare_leads.view()
+    except Exception as e:  # noqa: BLE001 — the brief still works without it
+        return {"error": f"lead desk unavailable: {type(e).__name__}"}
+    return {
+        "kpis": desk.get("kpis"),
+        "needsHuman": [{k: i.get(k) for k in ("title", "why", "ageSec", "priority", "center")}
+                       for i in (desk.get("needsHuman") or [])[:10]],
+        "lastRunAt": desk.get("lastRunAt"),
+        "error": desk.get("error"),
+    }
 
 
 def connected_systems():
@@ -483,20 +539,8 @@ class SolomonEngine:
 
     # --- WP-E ---
     def _gather_leads(self):
-        """Enrollment leads from the Lead Desk's saved state (daycare_leads) — no network.
-        Gives the enrollment lane real lead flow: KPIs + who needs a human right now."""
-        try:
-            import daycare_leads
-            desk = daycare_leads.view()
-        except Exception as e:  # noqa: BLE001 — the brief still works without it
-            return {"error": f"lead desk unavailable: {type(e).__name__}"}
-        return {
-            "kpis": desk.get("kpis"),
-            "needsHuman": [{k: i.get(k) for k in ("title", "why", "ageSec", "priority", "center")}
-                           for i in (desk.get("needsHuman") or [])[:10]],
-            "lastRunAt": desk.get("lastRunAt"),
-            "error": desk.get("error"),
-        }
+        """Enrollment leads from his Leads lane's saved state — see lead_desk_state()."""
+        return lead_desk_state()
     # --- /WP-E ---
 
     def _gather_competitor(self, key):
@@ -554,9 +598,15 @@ class SolomonEngine:
             "FAMILY-COMMS lane (roster gaps, ratio/capacity, who needs a follow-up after "
             "a Family Text Blast — see your roster-craft skill) and the AD-OPS lane "
             "(Meta campaign health, competitor read, which live angle needs fresh "
-            "creative — see your ad-ops-craft skill). Never draft the outbound family "
-            "text and never launch, activate, or re-budget a campaign; name who/why and "
-            "what to run, the owner taps to execute. "
+            "creative — see your ad-ops-craft skill). Two live lanes also report to you: "
+            "SOLOMON · REPLIES (replyDesk below — parent texts your Reply Desk drafted, each "
+            "waiting on the OWNER's approve tap; escalations are safety/custody/medical/"
+            "complaint/billing threads that need him, not a canned reply) and SOLOMON · "
+            "LEADS (leadDesk below — enrollment lead flow + who needs a human). Drafts or "
+            "escalations waiting on the owner are Attention Now material. This brief never "
+            "drafts outbound family text — family replies come only from your Replies lane "
+            "and every one waits for the owner's tap — and you never launch, activate, or "
+            "re-budget a campaign; name who/why and what to run, the owner taps to execute. "
             "EVIDENCE DISCIPLINE (outranks everything else): every number or status you "
             "state must come from the real data below or the brief — never from what "
             "sounds plausible. If you cannot reach a fact, say it is unknown and make "
@@ -605,6 +655,7 @@ class SolomonEngine:
             "offlineChannels": offline,
         }
         live["leadDesk"] = self._gather_leads()  # --- WP-E --- GHL enrollment leads (read-only)
+        live["replyDesk"] = reply_desk_state()   # Solomon · Replies — drafts awaiting the owner
         user = (
             "TODAY'S LIVE CENTER DATA (ground the brief in these — do not invent "
             "numbers):\n" + json.dumps(live, indent=2)
@@ -854,6 +905,14 @@ class SolomonEngine:
         return self._lane("adops", "Ad Ops",
                           ("campaignHealth", "competitorRead", "creativeRecommendations",
                            "campaign"))
+
+    # Solomon · Replies / Solomon · Leads: those lanes run their own loops, so the view
+    # carries their LIVE state (not a copy frozen into the last brief) beside his headline.
+    def replies_view(self):
+        return {**self._lane("replies", "Solomon · Replies", ()), "live": reply_desk_state()}
+
+    def leads_view(self):
+        return {**self._lane("leads", "Solomon · Leads", ()), "live": lead_desk_state()}
 
     # --- background loop (box only, FORGE_MARCUS gate) -----------------------
     def run_once(self, session=None):

@@ -213,7 +213,9 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 
 **Eight brains, on purpose** (the Agent Control Center roster shows 12 rows: these
 brains + the brainless engines Follow-up, ACE, Autopilot and the daily brief/recap,
-which chat through their owner via `chatVia`). 2026-07-25 audit: the daycare ran a director + two role
+which chat through their owner via `chatVia`. Solomon's two live **lanes** — Solomon ·
+Replies (`daycare_replies`) and Solomon · Leads (`daycare_leads`) — are not rows: they
+report on his row, card and chat; 2026-09-24). 2026-07-25 audit: the daycare ran a director + two role
 agents that were ~85% the same class re-reading the same tables on separate loops, and
 dropship ran a director + three specialists for a store that isn't live. Nora, Nova, Hawk,
 Blaze and Otto were retired — their skills merged into Solomon's and Midas's top skills +
@@ -229,7 +231,7 @@ and a new Claude call per cycle.
 | **Atlas** (`deal_prep.py`) | REI | **UNDERWRITES** every screened-interested seller: extracts facts from the thread, derives offer anchors (open/target/walkaway) from the SELLER'S stated ask, spells out the MAO math + what comps to pull, writes the negotiation call card. Auto-preps every 15 min. | Never contacts anyone. Prep numbers are INTERNAL — never sent to a seller. Reports to Marcus. |
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
-| **Solomon** (`daycare_director.py`) | Daycare | **Runs the whole center.** One ranked operating brief: ops, enrollment, money, people, **roster + family follow-ups** (was Nora), **campaign health + competitor read + creative direction** (was Nova). Owns enrollment. See §10. | Never texts/invoices/launches ads/writes the DB. Proposes only. Self-improves. |
+| **Solomon** (`daycare_director.py`) | Daycare | **Runs the whole center — the daycare's ONE agent.** One ranked operating brief: ops, enrollment, money, people, **roster + family follow-ups** (was Nora), **campaign health + competitor read + creative direction** (was Nova). Owns enrollment. Plus two live lanes on his row: **Solomon · Replies** (`daycare_replies.py`, the Reply Desk — drafts every parent text-back) and **Solomon · Leads** (`daycare_leads.py`, the Lead Desk — GET-only enrollment-lead sweep). See §10. | Never texts/invoices/launches ads/writes the DB. Replies lane drafts only — the owner taps send. Proposes only. Self-improves. |
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
@@ -337,9 +339,10 @@ update that skill if you improved the pattern.
 - **Wave-1 surfaces (2026-09-22).** Operator guide: `docs/FORGE_APP_GUIDE.md`.
   - **Owner Actions** (`owner_actions.py` + `owner_actions.jsx`, top of Mission Control):
     `/api/owner-actions` — one read-only CALL/CALLBACK/APPROVE/REVIEW/FIX list across the
-    three businesses, URGENT→REVENUE→CUSTOMER→NORMAL, deduped (one row per daycare family).
+    three businesses, URGENT→REVENUE→CUSTOMER→NORMAL, deduped (one row per daycare family:
+    a pending Solomon · Replies draft = APPROVE and wins the row, else Solomon · Leads = CALL).
     Zero Claude calls, sends nothing. v1 Approvals = the card's Approve chip (no separate page).
-    Mobile: **Actions** tab (`mobile/m_actions.jsx`), read-only; Open deep-links only to wholesale threads / Home / Convos / More.
+    Mobile: **Actions** tab (`mobile/m_actions.jsx`), read-only; Open deep-links to wholesale threads / Home / Convos / More, and daycare rows to the daycare Messages / Families tab (`link.mobile`; in the Everything app they land on the Daycare page).
     Rows older than `FORGE_OWNER_ACTIONS_STALE_DAYS` (30) collapse to one "N old … — clear or
     re-engage" row per source (counted, never hidden); drafts replying to our own outreach are dropped.
   - **Agent Control Center** (`agents_hub.registry()` + `agent_center.jsx`,
@@ -360,11 +363,13 @@ update that skill if you improved the pattern.
   - **Weekly review** (`/api/review/run`, `forge-review.timer` Mon): a Claude failure now
     returns `{hasReview:false, error:<reason>}` (shown on the AI Weekly Review card) instead
     of a bare 500. Timer unit quoting fixed (WP-F); box unit confirmed 2026-09-22.
-  - **Daycare Lead Desk** (`daycare_leads.py`, thread `daycare_leads`, 15 min, heartbeat
-    `daycare_leads`, knob `FORGE_DAYCARE_LEADS=0` to retire): GET-only GHL sweep → stages,
-    response time, needs-a-human list; `/api/daycare/leads` (session-gated); Daycare
-    Dashboard card; operator Telegram ping (business hours, deduped); feeds Solomon's brief
-    (`leadDesk`). Zero Claude, sends nothing to families. 429 → aborts the sweep + backs off.
+  - **Solomon · Leads — the Daycare Lead Desk, Solomon's enrollment-lead lane**
+    (`daycare_leads.py`, thread `daycare_leads`, 15 min, heartbeat `daycare_leads` labeled
+    "Solomon · Leads", knob `FORGE_DAYCARE_LEADS=0` to retire): GET-only GHL sweep → stages,
+    response time, needs-a-human list; `/api/daycare/leads` (session-gated); "Solomon · Leads"
+    Dashboard card; operator Telegram ping + bus alert sent as `solomon` (business hours,
+    deduped); feeds Solomon's brief (`leadDesk`), chat and registry row. A parent name under 2
+    characters (a GHL field typed "I") counts as missing → child's name → "New family". Zero Claude, sends nothing to families. 429 → aborts the sweep + backs off.
     **Stages (wave-2):** TOUR_BOOKED/TOUR_COMPLETED/APPLICATION/ENROLLED/LOST from GHL tags
     (`daycare_leads.STAGE_TAGS` — guessed names, edit to match GHL), the contact→child ledger, or a
     one-tap LOCAL mark (`POST /api/daycare/leads/stage`, session-gated, `marcus_state/daycare_lead_stages.json`,
@@ -403,11 +408,28 @@ update that skill if you improved the pattern.
   app's portal): one tap → **Wholesale / Agency / Daycare / Everything**. Each business opens its own
   uncluttered side (`m_biz_{wholesale,agency,daycare}.jsx` → `window.M_BIZ.<id> = {tabs, pages}`):
   Wholesale = Home·Inbox·Pipeline·Calc·Crew; Agency = Home·Calls·Requests·Approvals·Crew;
-  Daycare = Home·Families·Solomon·Money. "Everything" = the classic 5-tab app, unchanged. The header
+  Daycare = Home·Messages·Families·Logins (the **management app**, below). "Everything" = the classic 5-tab app, unchanged. The header
   mascot (⇄ badge) switches business; the choice persists (`localStorage.m_biz`, `?biz=` deep link).
   Crew = `MAgentsPage business=<id>` (that business's agents + Orion/brief). No PIN — the tailnet is
   the lock, same as the dashboard. No keys in the app: every function is the same `/api/*` the desktop
   uses (connector holds env/keys/agents/brain). Outward actions stay tap + `confirm()` gated.
+  - **Daycare management app (2026-09-24, `m_biz_daycare.jsx`).** Styled after the family/staff
+    daycare app (purple `#5b2c8e` + gold, Fraunces/Manrope, emblem `assets/daycare-emblem.png`) via a
+    `.biz-daycare` scope in `mobile.css` (MAPBiz root class `biz-<id>`) — no other business changes.
+    Signed in as Management by the box auto-admin. **Home** = diagnostics: center hero + center
+    switcher (`/location/switch`), today stats, Needs-you links, Solomon card (brief sheet + chat via
+    Crew), classroom capacity, System check (Supabase, GHL, Claude, Solomon brief/Replies/Leads
+    heartbeats; Stripe/Meta/Metricool = "key on file", never shown as live). **Messages** = GHL-central:
+    Solomon's drafts (edit → Send via `/replies/approve`, Skip) + every parent thread
+    (`GET /api/daycare/ghl/conversations`, `GET /api/daycare/ghl/thread?contact_id=`); an owner-typed
+    text goes out via `POST /api/daycare/ghl/reply` (`daycare_replies.send_manual` — same gates as
+    approve: 8am–9pm ET, opt-out, DND, ≤640 chars; retires a pending draft; action-logged; test
+    `test_daycare_messages.py`). **Families** = Lead-sweep call-backs (>30 d collapsed) + Contact-Form
+    enroll + local stage marks. **Logins** = parent/staff Login IDs (tap to copy), Reset PIN, Quick
+    create (new family = child + parent login via `/child/save`; staff via `/staff/save`; "Add login"
+    for a child with no guardian resends every child field — save_child PATCHes the full row). Every
+    send/create/reset is a tap + `confirm()`; PINs show once. No Money or Solomon tab — billing stays
+    on the desktop; Solomon is chat (🤖) + the Home card.
 - Telegram alerts + tap-to-approve (`telegram_io.py`): pings on hot lead / Marcus reply
   needing approval (warm+ only) / weekly missed sweep / handoffs+agency; inline buttons
   reuse Marcus's gated send + Scout handoff/dismiss. Tap **two-factor auth**: right chat AND
@@ -431,7 +453,8 @@ update that skill if you improved the pattern.
 - **Per-agent API cost.** `cost_tracker` buckets every Claude call by
   `threading.current_thread().name`; `connector` names each loop thread (`scout`, `marcus`,
   `atlas`, `followup`, `solomon`, `midas`, `do_today`, `telegram`, `brief`, `graphify`), so
-  attribution needed zero changes at the 47 `_claude()` call sites. Anything on an HTTP
+  attribution needed zero changes at the 47 `_claude()` call sites. Lane threads bill to their
+  owner via `cost_tracker.THREAD_ALIAS`: `daycare_replies` + `daycare_leads` → `solomon`. Anything on an HTTP
   handler thread (chat, a brief button, the UI) buckets under `operator`.
   `/api/cost/status` → `mtd.byAgent` = `[{agent, usd, calls, projMonthUSD}]`, biggest first.
 - **New-lead speed ping:** the first time Marcus ever proposes for a contact (tracked in
@@ -455,9 +478,9 @@ update that skill if you improved the pattern.
   | `FORGE_DROPSHIP_BRIEF` | **0 (off)** | Midas's scheduled brief. Off while the store has 0/7 systems wired — a brief over empty data is fabrication AND a daily bill. On-demand (chat, `/task`, `/api/dropship/director/run`, all 3 lanes) is unaffected. Set `1` when Shopify connects. |
   | `FORGE_TODAY_LOOP` | **0 (off)** | DoToday's scheduled rebuild + 9 AM email. Paused by operator request. Costs $0 either way (DoToday makes no Claude call); `view()` self-rebuilds so `/today` + `/done` still work. |
   | `FORGE_SCOUT_INTERVAL` | 180 | Wholesale sweep. The money loop — leave hot. |
-  | `FORGE_DAYCARE_LEADS` | 1 (on) | Daycare Lead Desk sweep (15 min, GET-only on the daycare GHL, zero Claude). `0` stops it and retires its heartbeat. |
+  | `FORGE_DAYCARE_LEADS` | 1 (on) | Solomon · Leads — the Daycare Lead Desk sweep (15 min, GET-only on the daycare GHL, zero Claude). `0` stops it and retires its heartbeat. |
 | `FORGE_SOLOMON_BRIEF_EVERY_H` | 24 | Daycare brief. Raise to 48 if enrollment goes quiet. |
-  | `FORGE_DAYCARE_REPLIES` | 1 (on) | Daycare Reply Desk — parent-reply drafts every 5 min, ≤8 Sonnet calls/sweep, only when a parent is owed a reply. `0` stops it and retires its heartbeat. |
+  | `FORGE_DAYCARE_REPLIES` | 1 (on) | Solomon · Replies — the Daycare Reply Desk: parent-reply drafts every 5 min, ≤8 Sonnet calls/sweep, only when a parent is owed a reply. Bills to `solomon`. `0` stops it and retires its heartbeat. |
   | `FORGE_SCOUT_LEARN_EVERY` / `FORGE_ATLAS_LEARN_EVERY` | 25 / 12 | Self-improve cadence — the other real Claude cost. |
 
   **Switching a loop OFF must call `forge_heartbeat.retire("<loop>")`** in the else branch,
@@ -466,7 +489,7 @@ update that skill if you improved the pattern.
   *(Corrected 2026-09-22 audit:)* `followup` DOES call Claude (it drafts re-engage bumps via
   `_ai_draft`; autopilot's legit verdict too), the `do_today` loop runs `legit_check` +
   `marcus_lead` directives (Claude), and the `brief` thread runs **Orion's** daily CEO brief
-  (Claude). Spend is Scout, Marcus, Atlas, followup, Solomon, Midas, Orion, `skill_forge`,
+  (Claude). Spend is Scout, Marcus, Atlas, followup, Solomon (incl. his Replies lane), Midas, Orion, `skill_forge`,
   `style_agent`, and your chats. **`FORGE_TODAY_LOOP=0` also stops the scheduled legit audit +
   Marcus lead directives** (they only run inside `DoTodayEngine.run_forever`). Per-agent truth: `/api/cost/status` →
   `mtd.byAgent`, rendered on the Costs tab ("Spend by agent").
@@ -561,8 +584,12 @@ key on the box. New migrations go in BOTH migration folders.
   (`GHL_API_KEY`/`GHL_LOCATION_ID`, separate from wholesale+agency). `daycare_ghl.py`
   texts families their payment link. **Owner-initiated only** (the "Text" button IS the
   approval gate — never autonomous). Routes `/api/daycare/ghl/{health,text-invoice}`.
-- **Reply Desk — parent-reply drafts (Solomon family-comms, 2026-09-23).** `daycare_replies.py`
-  sweeps the daycare GHL every 5 min (thread `daycare_replies`, knob `FORGE_DAYCARE_REPLIES=0` to
+  Parent messaging inbox (mobile Messages tab): `GET /api/daycare/ghl/{conversations,thread}`
+  (read-only) + `POST /api/daycare/ghl/reply` (owner-typed, tap-gated — see §9 FORGE Mobile).
+- **Solomon · Replies — the Reply Desk, Solomon's family-comms lane (parent-reply drafts,
+  2026-09-23; folded into Solomon's row 2026-09-24).** `daycare_replies.py`
+  sweeps the daycare GHL every 5 min (thread `daycare_replies`, heartbeat `daycare_replies`
+  labeled "Solomon · Replies", knob `FORGE_DAYCARE_REPLIES=0` to
   retire) and drafts the next text to every parent owed an answer — Sonnet 5
   (`FORGE_DAYCARE_REPLY_MODEL`), prompt = creed → `daycare-context.md` →
   `forge-daycare/skills/daycare-parent-reply.md` (rubric + fact sheet verified against the live
@@ -571,7 +598,9 @@ key on the box. New migrations go in BOTH migration folders.
   own those words, anything already answered is skipped, a 5-min grace lets stop-on-response and
   live staff go first. **Draft-only** — `POST /api/daycare/replies/approve` is the owner's tap
   (8am–9pm ET, re-checks the live thread, refuses if anyone replied since). Auto-send is NOT
-  built; turning it on is an operator decision. Card: `agents/daycare/solomon.md` §10.
+  built; turning it on is an operator decision. Pending drafts = Solomon's approval queue on
+  the Agent Control Center + one APPROVE row each in Owner Actions; the brief reads them as
+  `replyDesk`; spend bills to `solomon`. Card: `agents/daycare/solomon.md` §10 (Leads lane §11).
 - **Contact-Form intake is ONE-TAP, not auto-enroll** (changed — auto-enroll on inbox
   load was removed; `FORGE_DAYCARE_AUTOENROLL` no longer exists). `GET
   /api/daycare/ghl/pending-families` is strictly **read-only** — prefetching the Parent
@@ -613,8 +642,15 @@ key on the box. New migrations go in BOTH migration folders.
   workspace). Routes `/api/daycare/director/{status,overview,brief,run,learn,bus}`. His
   "access to the env files" = reading which systems are **wired** (presence only, never
   the secret value) via `connected_systems()`. He answers to every bus role he absorbed
-  (`BUS_ROLES` = solomon · family-comms · enrollment · ads · growth · nora · nova), so a
-  delegation addressed to any of them still lands. **Before adding a role agent under him,
+  (`BUS_ROLES` = solomon · family-comms · enrollment · ads · growth · nora · nova ·
+  daycare_replies · daycare_leads), so a delegation addressed to any of them still lands.
+  **Three lanes, one agent (2026-09-24):** the brief (above), **Solomon · Replies**
+  (`daycare_replies.py`, the Reply Desk — drafts parent text-backs the OWNER approves; the
+  brief itself never writes family text) and **Solomon · Leads** (`daycare_leads.py`, the
+  Lead Desk). The lanes keep their own threads, heartbeats, knobs, routes and state files;
+  `reply_desk_state()` / `lead_desk_state()` feed his brief, his chat (`agents_hub._lanes_block`)
+  and his single Agent Control Center row (lane heartbeats fold into his status, pending drafts
+  are his approval queue). Chat uses `_solomon_key()`. **Before adding a role agent under him,
   ask whether a new brief section would do the job** — that is what the 2026-07-25
   consolidation concluded for the last two.
   - **His skills (see §4a — creed + top skills outrank the playbook).** Prompt order:

@@ -392,8 +392,127 @@ def approve(client, contact_id, text=None, now=None):
     return res
 
 
+# ── Messages tab (owner console): live GHL inbox, one thread, owner-typed reply ──
+MANUAL_MAX_CHARS = 640                 # 4 SMS segments
+
+
+def _not_configured():
+    return {"ok": False, "connected": False,
+            "error": "Daycare GHL not configured — add GHL_API_KEY + GHL_LOCATION_ID to daycare.env."}
+
+
+def inbox(client, limit=60):
+    """GET /api/daycare/ghl/conversations — newest daycare threads (one GHL GET) with
+    the Reply Desk's pending-draft flag. Read-only."""
+    if client is None or not getattr(client, "configured", False):
+        return _not_configured()
+    try:
+        limit = max(1, min(int(limit), 100))
+    except (TypeError, ValueError):
+        limit = 60
+    data = client.get("/conversations/search", {
+        "locationId": client.location_id, "limit": limit, "sortBy": "last_message_date"})
+    drafts = {k for k, v in (_load().get("drafts") or {}).items() if v.get("status") == "pending"}
+    rows = []
+    for c in (data.get("conversations") if isinstance(data, dict) else None) or []:
+        cid = c.get("contactId")
+        if not cid:
+            continue
+        label, _ = _center({str(t).strip().lower() for t in c.get("tags") or []})
+        at = daycare_leads._sec(c.get("lastMessageDate"))
+        rows.append({
+            "contactId": cid, "conversationId": c.get("id"),
+            "name": c.get("fullName") or c.get("contactName") or c.get("phone") or "Unknown",
+            "phone": c.get("phone") or "", "center": label,
+            "lastMessage": str(c.get("lastMessageBody") or "")[:160],
+            "lastAt": int(at * 1000) if at else None,
+            "direction": c.get("lastMessageDirection") or "",
+            "type": str(c.get("lastMessageType") or c.get("type") or "").replace("TYPE_", "").lower(),
+            "unread": int(c.get("unreadCount") or 0),
+            "draft": cid in drafts,
+        })
+    return {"ok": True, "connected": True, "conversations": rows,
+            "pendingDrafts": len(drafts), "inHours": daycare_leads.in_hours(time.time())}
+
+
+def thread(client, contact_id, now=None):
+    """GET /api/daycare/ghl/thread — one family's messages (oldest first), who they are,
+    whether a reply can go out right now, and the pending draft if any. Read-only."""
+    now = now or time.time()
+    cid = str(contact_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "contact_id required"}
+    if client is None or not getattr(client, "configured", False):
+        return _not_configured()
+    conv = daycare_leads._conversation(client, cid)
+    msgs = []
+    for m in daycare_leads._messages(client, conv):
+        t = daycare_leads._sec(m.get("dateAdded") or m.get("date"))
+        d = m.get("direction")
+        mtype = str(m.get("messageType") or m.get("type") or "").upper()
+        if t is None or d not in ("inbound", "outbound") or "ACTIVITY" in mtype:
+            continue
+        body = str(m.get("body") or "")
+        msgs.append({"id": str(m.get("id") or ""), "at": int(t * 1000), "dir": d, "body": body,
+                     "kind": mtype.replace("TYPE_", "").lower() or "sms",
+                     "auto": d == "outbound" and (
+                         str(m.get("source") or "").lower() in daycare_leads.AUTO_SOURCES
+                         or any(s in body.lower() for s in OUR_SIGNATURES))})
+    msgs.sort(key=lambda e: e["at"])
+    contact = _contact(client, cid)
+    fam = daycare_ghl._family_from_contact(contact) if contact else {}
+    label, brand = _center({str(t).strip().lower() for t in contact.get("tags") or []})
+    opted = any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in msgs)
+    block = ("parent opted out" if opted
+             else "on Do Not Disturb in GHL" if contact.get("dnd")
+             else None if daycare_leads.in_hours(now)
+             else "outside the 8am–9pm ET texting window")
+    d = (_load().get("drafts") or {}).get(cid)
+    name = " ".join(x for x in (contact.get("firstName"), contact.get("lastName")) if x) \
+        or contact.get("contactName") or contact.get("phone") or "Unknown"
+    return {"ok": True, "contactId": cid, "conversationId": conv.get("id"),
+            "name": name, "parentName": fam.get("parent_name") or fam.get("parent_first") or "",
+            "phone": contact.get("phone") or "", "center": label, "brand": brand,
+            "tags": sorted(str(t) for t in contact.get("tags") or [])[:20],
+            "messages": msgs[-80:], "canSend": block is None, "blockReason": block,
+            "draft": d if d and d.get("status") == "pending" else None}
+
+
+def send_manual(client, contact_id, text, now=None):
+    """POST /api/daycare/ghl/reply — the owner typed this and tapped send; that tap IS the
+    approval (rule 2). Same gates as approve(): texting window, opt-out, DND."""
+    now = now or time.time()
+    cid = str(contact_id or "").strip()
+    body = (text or "").strip()
+    if not cid or not body:
+        return {"ok": False, "error": "contact and message are required"}
+    if len(body) > MANUAL_MAX_CHARS:
+        return {"ok": False, "error": f"message too long — keep it under {MANUAL_MAX_CHARS} characters"}
+    if client is None or not getattr(client, "configured", False):
+        return _not_configured()
+    if not daycare_leads.in_hours(now):
+        return {"ok": False, "error": "outside 8am–9pm ET texting window — send after 8am"}
+    ev = _events(daycare_leads._messages(client, daycare_leads._conversation(client, cid)))
+    if any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in ev):
+        return {"ok": False, "error": "parent opted out — not sent"}
+    if _contact(client, cid).get("dnd"):
+        return {"ok": False, "error": "contact is on Do Not Disturb in GHL — not sent"}
+    res = daycare_ghl.send_sms(client, contact_id=cid, message=body)
+    try:
+        import action_log
+        action_log.record("operator", "daycare_manual_send", business="daycare", trigger="owner_tap",
+                          ref=cid, result="sent" if res.get("ok") else "failed",
+                          ok=bool(res.get("ok")), approval_required=True)
+    except Exception:  # noqa: BLE001 — the log never blocks a send
+        pass
+    d = (_load().get("drafts") or {}).get(cid)
+    if res.get("ok") and d and d.get("status") == "pending":
+        _close(cid, "sent", sentText=body, edited=True, manual=True)
+    return res
+
+
 def run_forever(client):
-    """Background loop (thread `daycare_replies` — its own Costs-tab bucket)."""
+    """Background loop (thread `daycare_replies` — Solomon's Replies lane; bills to Solomon)."""
     last = (_load().get("lastRunAt") or 0) / 1000
     time.sleep(max(0, min(INTERVAL, last + INTERVAL - time.time())))
     while True:
@@ -403,5 +522,5 @@ def run_forever(client):
                 err = run_once(client).get("error")
         except Exception as e:  # noqa: BLE001
             err = type(e).__name__
-        forge_heartbeat.beat("daycare_replies", INTERVAL, "Daycare Reply Desk", error=err)
+        forge_heartbeat.beat("daycare_replies", INTERVAL, "Solomon · Replies", error=err)
         time.sleep(INTERVAL)

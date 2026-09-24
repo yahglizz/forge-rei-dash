@@ -1,4 +1,10 @@
-"""daycare_leads.py — the Daycare Lead Desk (read-only enrollment-lead visibility).
+"""daycare_leads.py — Solomon · Leads: the Daycare Lead Desk, Solomon's enrollment-lead lane
+(read-only enrollment-lead visibility).
+
+Solomon (daycare_director) is the daycare's ONE agent; this loop is one of his lanes, not a
+separate identity. Its owner alerts and bus notes go out as Solomon, its heartbeat label is
+"Solomon · Leads" (the loop key stays `daycare_leads`), and its state feeds his brief
+(`leadDesk`) and his Agent Control Center row.
 
 Why: the 2026-09-12 re-engagement audit found the enrollment leak is human follow-through,
 not capture — website leads land in GHL and get one templated text, then tours, call-backs
@@ -238,8 +244,8 @@ def derive(contact, messages, tasks, now, kind="form"):
 
     # GHL first_name is the CHILD (enroll.js); daycare_ghl resolves the parent from the
     # parent-name custom field, handling pre-2026-07-21 contacts too.
-    parent = (daycare_ghl._family_from_contact(contact).get("parent_name")
-              or str(cf.get(CF_PARENT_FIRST) or "").strip())
+    fam = daycare_ghl._family_from_contact(contact)
+    parent = _name(fam.get("parent_name")) or _name(cf.get(CF_PARENT_FIRST))
     loc = next((t for t in sorted(tags) if t.startswith("loc-")), "")
     src = next((t[len("source-"):] for t in sorted(tags) if t.startswith("source-")), "")
     location_id = contact.get("locationId") or ""
@@ -247,6 +253,7 @@ def derive(contact, messages, tasks, now, kind="form"):
         "contactId": cid,
         "kind": kind,
         "parentName": parent,
+        "childName": _name(fam.get("child_first")),   # display fallback when no parent name
         "center": CENTER_LABEL.get(loc) or loc or "Center unknown",
         "centerTag": loc,
         "source": src or (kind if kind != "form" else "unknown"),
@@ -379,6 +386,23 @@ def kpis(leads=None, now=None):
     }
 
 
+def _name(v):
+    """A usable display name, or "". A GHL custom field typed as one letter ("I") is junk,
+    not a name — under 2 characters counts as missing."""
+    v = str(v or "").strip()
+    return v if len(v) >= 2 else ""
+
+
+def display_name(lead, first_only=False):
+    """Who a lead row is about, for owner-facing text: the parent's name → the child's
+    ("Ava's family") → "New family". Guards rows saved before the 2-char rule too."""
+    parent = _name(lead.get("parentName"))
+    if parent:
+        return (_name(parent.split(" ")[0]) or parent) if first_only else parent
+    child = _name(lead.get("childName"))
+    return f"{child}'s family" if child else "New family"
+
+
 def needs_human(state=None, now=None):
     """Owner Actions feed: [{id, title, why, ageSec, priority, contactId, ...}], most
     urgent first. ageSec = seconds since the top reason began (recomputed per call)."""
@@ -390,7 +414,7 @@ def needs_human(state=None, now=None):
             continue
         top = lead["reasons"][0]
         _text, verb, priority = REASONS[top["code"]]
-        who = lead.get("parentName") or "new family"
+        who = display_name(lead)
         items.append({
             "id": "daycare-lead:" + lead["contactId"],
             "title": f"{verb} {who} — {lead.get('center')}",
@@ -418,9 +442,9 @@ def _notify(text, data, key):
     watchdog: bus for the dashboard record, telegram_io.send for the phone. `text` may
     carry a parent's first name — Telegram only; the bus copy is name-free (id + codes)."""
     import agent_bus
-    bus_text = ((f"Daycare lead needs you (contact {data['contactId']}): "
+    bus_text = ((f"Solomon · Leads — daycare lead needs you (contact {data['contactId']}): "
                  + ", ".join(data.get("reasons") or [])) if data.get("contactId") else text)
-    agent_bus.send("daycare_leads", "operator", "alert", bus_text, data)
+    agent_bus.send("solomon", "operator", "alert", bus_text, data)   # Solomon's lane
     try:
         import telegram_io
         telegram_io.send(html.escape(text), dedupe_key="daycare-lead:" + key)
@@ -448,14 +472,14 @@ def process_alerts(st, leads, now, send=None):
                 alerted[_alert_key(lead, r)] = stamp
         st["seeded"] = True
         if fresh and in_hours(now):
-            send(f"Daycare Lead Desk is live: {len(fresh)} lead(s) need a human — "
+            send(f"Solomon · Leads is live: {len(fresh)} lead(s) need a human — "
                  "open the Daycare dashboard.", {"type": "daycare_lead_summary",
                                                  "count": len(fresh)}, "seed")
             sent = 1
     elif in_hours(now):
         for lead, new in fresh:
-            who = (lead.get("parentName") or "").split(" ")[0] or "A new family"
-            send(f"Daycare lead needs you: {who} ({lead.get('center')}) — "
+            who = display_name(lead, first_only=True)
+            send(f"Solomon · Leads — daycare lead needs you: {who} ({lead.get('center')}) — "
                  + "; ".join(r["text"] for r in new),
                  {"type": "daycare_lead", "contactId": lead["contactId"],
                   "reasons": [r["code"] for r in new]},
@@ -608,8 +632,8 @@ def view():
     leads = apply_stages(st.get("leads"))     # W2-5: a one-tap mark shows immediately
     error = st.get("error") or st.get("note")
     if not st.get("lastRunAt"):
-        error = error or ("Lead Desk has not run yet — it reads GHL every 15 min on the box "
-                          "(loops are off on a UI-only machine).")
+        error = error or ("The lead sweep has not run yet — it reads GHL every 15 min on "
+                          "the box (loops are off on a UI-only machine).")
     return {
         "ok": True,
         "kpis": kpis(leads),
@@ -633,5 +657,5 @@ def run_forever(client):
                 err = run_once(client).get("error")
         except Exception as e:  # noqa: BLE001
             err = type(e).__name__
-        forge_heartbeat.beat("daycare_leads", INTERVAL, "Daycare Lead Desk", error=err)
+        forge_heartbeat.beat("daycare_leads", INTERVAL, "Solomon · Leads", error=err)
         time.sleep(INTERVAL)

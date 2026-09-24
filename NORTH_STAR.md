@@ -146,7 +146,12 @@ and the **ad-ops** lane (campaign health, competitor intel, creative direction
 against the real Meta account). He never touches Higgsfield or Meta's ad manager
 himself — no tool access from the background loop; that stays a human or a
 chat-session action — and he consumes bus delegations addressed to any of those
-role names.
+role names. Two live lanes run beside the brief and report to him — he is still
+the daycare's ONE agent: **Solomon · Replies** (`forge rei/daycare_replies.py`,
+the Reply Desk) drafts the next text to every parent owed a reply, in the
+center's real voice, and the owner taps to send each one; **Solomon · Leads**
+(`forge rei/daycare_leads.py`, the Lead Desk) watches GHL enrollment leads
+(GET-only, zero Claude) and pings the owner when a family needs a human.
 
 **Tone & voice:** warm and trustworthy, never corporate ("your child deserves
 more than just childcare," not "enroll now"). Visual style: photorealistic,
@@ -204,7 +209,7 @@ directly, not stuffed into every agent's live prompt (the loader in
 | Wholesale | Atlas | `forge rei/deal_prep.py` | `forge-marcus/skills/` (rides on Marcus's folder — "Atlas reports to Marcus" is literal) | `Skills/atlas-underwriter.md` | `wholesale-evidence-discipline.md` |
 | Agency | Dyson | `forge rei/agency_agents.py` (`agent_id="dyson"`) | `forge-agency/skills/` | `Skills/dyson-playbook.md` | `agency-evidence-discipline.md` |
 | Agency | Eco | `forge rei/agency_agents.py` (`agent_id="eco"`) | `forge-agency/skills/` | `Skills/eco-playbook.md` | `agency-evidence-discipline.md` |
-| Daycare | Solomon (director + roster/family-comms + ad ops) | `forge rei/daycare_director.py` | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md`, `solomon-roster-craft.md`, `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
+| Daycare | Solomon (director + roster/family-comms + ad ops; live lanes Solomon · Replies + Solomon · Leads) | `forge rei/daycare_director.py` (lanes: `forge rei/daycare_replies.py`, `forge rei/daycare_leads.py`) | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md`, `solomon-roster-craft.md`, `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
 | Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` — 11 skills total: always-on `midas-decision-loop.md`, `midas-craft.md`, `dropship-account-health.md`; lane-gated `dropship-adspy-method.md` (research), `dropship-four-triggers-ad-writer.md`/`dropship-meta-ads-diagnostician.md`/`dropship-ad-launch-sop.md`/`dropship-creative-testing-doctrine.md`/`dropship-account-optimization-doctrine.md`/`dropship-adspy-method.md` (creative & ads), `dropship-support-macros.md` (fulfillment); on-demand `dropship-store-setup.md` (chat only) | *(none yet — `Skills/midas-playbook.md` is written by Midas's FIRST `learn()`; until then the seed `forge-dropship/skills/midas-playbook.md` IS the live playbook)* | `dropship-evidence-discipline.md` |
 
 Shared infra used by every agent above: `review_agent._claude`/`review_agent.MODEL`

@@ -19,6 +19,9 @@ TMP = Path(tempfile.mkdtemp(prefix="agent_registry_test_"))
 
 import agent_bus          # noqa: E402
 import agents_hub         # noqa: E402
+import daycare_ghl        # noqa: E402
+import daycare_leads      # noqa: E402
+import daycare_replies    # noqa: E402
 import forge_heartbeat    # noqa: E402
 
 agents_hub.TASKS = TMP / "hub_tasks.json"
@@ -27,6 +30,11 @@ forge_heartbeat.STATE = TMP / "heartbeats.json"
 agents_hub._engine = lambda _aid: None          # no connector, no live engines
 for _mod in ("ace", "autopilot", "daily_brief", "daily_recap", "test_mode"):
     __import__(_mod).STATE = TMP / f"{_mod}.json"
+# Solomon's lanes (Replies + Leads) are read on his row — never the real marcus_state.
+daycare_replies.STATE = TMP / "daycare_replies.json"
+daycare_leads.STATE = TMP / "daycare_leads.json"
+daycare_leads.STAGES_STATE = TMP / "daycare_lead_stages.json"
+daycare_ghl._FORM_CHILD_STATE = TMP / "daycare_form_children.json"
 
 NOW = int(time.time() * 1000)
 REQUIRED = ("id", "name", "business", "purpose", "status", "lastRun", "lastSuccessAt",
@@ -208,6 +216,52 @@ def test_delegate_tasks_reach_their_brain():
     assert "hold thread 123" in block and "(for ACE)" in block, block
     assert agents_hub.open_tasks_block("atlas") == "" or "hold thread" not in \
         agents_hub.open_tasks_block("atlas")
+
+
+def test_solomon_owns_reply_and_lead_lanes():
+    """The Reply Desk + Lead Desk are Solomon's lanes, not rows: their drafts are his
+    approval queue, their loop health folds into his status, his chat sees their state."""
+    import json
+    assert "daycare_replies" not in agents_hub._BY_ID                 # a lane, not a row
+    assert agents_hub._BY_ID["solomon"]["hb"] == ["solomon", "daycare_replies", "daycare_leads"]
+    daycare_replies.STATE.write_text(json.dumps({"lastRunAt": NOW, "drafts": {
+        "c1": {"contactId": "c1", "status": "pending", "action": "draft",
+               "inboundAt": NOW - 600_000},
+        "c2": {"contactId": "c2", "status": "pending", "action": "escalate",
+               "inboundAt": NOW - 60_000},
+        "c3": {"contactId": "c3", "status": "sent", "inboundAt": NOW}}}))
+    forge_heartbeat.beat("solomon", 900, "Solomon director")
+    forge_heartbeat.beat("daycare_replies", 300, "Solomon · Replies")
+    forge_heartbeat.beat("daycare_leads", 900, "Solomon · Leads", error="GHL read failed: 500")
+    real_ai = agents_hub._ai_health
+    agents_hub._ai_health = lambda: {"ok": True}
+    try:
+        s = {r["id"]: r for r in agents_hub.registry()}["solomon"]
+        forge_heartbeat.beat("daycare_leads", 900, "Solomon · Leads")    # lane recovers
+        s2 = {r["id"]: r for r in agents_hub.registry()}["solomon"]
+        # a task filed under the retired Reply Desk id still reaches Solomon's prompt
+        agents_hub._save(agents_hub._load() + [{"id": "tfold", "agentId": "daycare_replies",
+                                                "agentName": "Reply Desk", "status": "open",
+                                                "title": "check the Jones draft"}])
+        tasks_block = agents_hub.open_tasks_block("solomon")
+        ctx = agents_hub._delegate_context("solomon")
+        lanes = agents_hub._lanes_block("solomon")
+    finally:
+        agents_hub._ai_health = real_ai
+        for loop in ("solomon", "daycare_replies", "daycare_leads"):
+            forge_heartbeat.retire(loop)
+        daycare_replies.STATE.unlink()
+    assert s["pendingApprovals"] == 2 and s["approvalQueue"] == "daycare_replies", s
+    assert s["status"] == "DEGRADED", s                     # a sick lane shows on his row
+    assert s["lastError"].startswith("Solomon · Leads: GHL read failed"), s["lastError"]
+    assert s["dependencyHealth"]["heartbeat"] == "amber", s["dependencyHealth"]
+    assert "Replies: 2 draft(s) waiting on you" in s["work"], s["work"]
+    assert s2["status"] == "WAITING FOR APPROVAL" and s2["lastError"] is None, s2
+    assert "check the Jones draft" in tasks_block, tasks_block
+    r = ctx["replies"]
+    assert (r["pending"], r["escalations"]) == (2, 1) and 590 <= r["oldestPendingAgeSec"] <= 700, r
+    assert "leads" in ctx and "YOUR LIVE LANES" in lanes
+    assert agents_hub._lanes_block("midas") == ""           # only directors with lanes
 
 
 def test_chat_error_text_is_surfaced():

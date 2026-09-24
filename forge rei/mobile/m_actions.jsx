@@ -27,11 +27,13 @@ function moaAge(sec) {
 }
 
 // Desktop link → what the phone can open. {thread} = in-page MCThread, {tab} = mGoTab.
-// Agency/daycare pages have no mobile screen → null (row just expands its why).
+// Daycare rows carry link.mobile (messages|families) → that daycare tab. Agency pages
+// have no mobile screen → null (row just expands its why).
 function moaTarget(link) {
   if (!link) return null;
   if (link.ws === "rei" && link.contactId) return { thread: { contactId: link.contactId, id: link.convId, name: link.name } };
   if (link.view === "health") return { tab: "more", label: "More → Health" };
+  if (link.ws === "daycare" && link.mobile) return { tab: "daycare", seg: link.mobile, label: "Daycare → " + link.mobile[0].toUpperCase() + link.mobile.slice(1) };
   if (link.ws === "rei") {
     if (link.page === "Conversations") return { tab: "convos", label: "Convos" };
     if (link.page === "Leads" || link.page === "Agents") return { tab: "home", label: "Home" }; // hot leads + Marcus inbox
@@ -49,7 +51,7 @@ function MOARow(props) {
   function go(e) {
     e.stopPropagation();
     if (tgt.thread) props.onThread(tgt.thread);
-    else if (window.mGoTab) window.mGoTab(tgt.tab);
+    else if (window.mGoTab) window.mGoTab(tgt.tab, tgt.seg);
   }
   return (
     <div className="m-list-item" onClick={() => setOpen(!open)}

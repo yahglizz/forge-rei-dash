@@ -145,6 +145,17 @@ def test_names_source_center():
     assert stage(lead())["ghlUrl"].endswith("/v2/location/LOC/contacts/detail/c1")
 
 
+def test_junk_parent_name_falls_back():
+    # A parent-name field typed as one letter ("I") is not a name: child → "New family".
+    row = stage(lead(["pref-call-30", "loc-921-n-18th"], cf={CF_PARENT: "I"}))
+    assert row["parentName"] == "" and row["childName"] == "Ava", row
+    assert dl.display_name(row) == "Ava's family"
+    assert dl.needs_human({"leads": [row]})[0]["title"] == "Call Ava's family — 921 N 18th St"
+    # A row saved before the guard (parentName "I", no childName) still never shows "I".
+    assert dl.display_name({"parentName": "I"}) == "New family"
+    assert dl.display_name({"parentName": "Jordan Smith"}, first_only=True) == "Jordan"
+
+
 def test_kpis():
     now = et(2026, 9, 22, 12)
     day = 86400 * 1000
@@ -190,7 +201,8 @@ def test_alert_dedupe_and_owner_items():
     dl.process_alerts(st, [row3], morning + 900, send)
     assert len(sent) == 2, sent
     text, data, _key = sent[1]
-    assert text.startswith("Daycare lead needs you: Jordan (921 N 18th St)") and "Smith" not in text
+    assert text.startswith("Solomon · Leads — daycare lead needs you: Jordan (921 N 18th St)") \
+        and "Smith" not in text, text
     assert data == {"type": "daycare_lead", "contactId": "c1", "reasons": ["overdue_task"]}
 
     # Owner Actions shape (WP-C imports needs_human()).

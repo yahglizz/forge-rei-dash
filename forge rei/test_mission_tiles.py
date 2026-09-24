@@ -24,6 +24,7 @@ def boom(*_a, **_k):
 
 fake("business_scope", archived=lambda: {"dropship"}, is_archived=lambda b: b == "dropship")
 fake("send_ledger", last_reply_msg_date=lambda conv: None)
+fake("daycare_replies", view=lambda: {"pending": []})   # Owner Actions: Solomon · Replies
 fake("agency_agents", status=lambda: {"connected": True, "agents": [{"online": True}]})
 fake("agency_approvals_io", list_queue=lambda s: {"counts": {"pending": 0}, "queue": []})
 cs = fake("agency_callsheet", list_leads=lambda: {"counts": {
@@ -100,7 +101,7 @@ assert "dropship" not in [c["id"] for c in s["businesses"]]   # archived stays h
 aio.stats = boom
 ace.call_ready_list = boom
 hub.registry = boom
-dl.view = lambda: {"lastOkAt": None, "error": "Lead Desk has not run yet", "kpis": {
+dl.view = lambda: {"lastOkAt": None, "error": "Has not run yet", "kpis": {
     "newLeads7d": {"total": 0}, "needsHuman": 0, "medianResponseSec": None}}
 s = mc.snapshot(scout=Scout(), screener=Screener(), solomon=Solomon(), system={})
 agc, reic, dcc = card(s, "agency"), card(s, "rei"), card(s, "daycare")
@@ -111,7 +112,7 @@ assert "Owner calls required" not in labels(reic) and labels(reic)["Deals"] == 3
 assert len([w for w in warns(reic) if w.startswith("Owner Actions unavailable")]) == 1
 for lab in ("New leads (7d)", "Needs human", "Response time"):
     assert lab not in labels(dcc), labels(dcc)          # never a fake 0
-assert len([w for w in warns(dcc) if w.startswith("Lead Desk unavailable")]) == 1, warns(dcc)
+assert len([w for w in warns(dcc) if w.startswith("Solomon · Leads unavailable")]) == 1, warns(dcc)
 assert s["agents"]["ok"] is False and "healthy" not in s["agents"]
 assert s["agents"]["warn"].startswith("Agent registry unavailable")
 
@@ -120,7 +121,7 @@ dl.view = lambda: dict(LEAD_OK, error="GHL read failed: HTTPError 500",
                        kpis=dict(LEAD_OK["kpis"], medianResponseSec=None))
 dcc = card(mc.snapshot(scout=Scout(), screener=Screener(), solomon=Solomon(), system={}), "daycare")
 assert labels(dcc)["Response time"] == "—" and labels(dcc)["Needs human"] == 2
-assert len([w for w in warns(dcc) if w.startswith("Lead Desk:")]) == 1, warns(dcc)
+assert len([w for w in warns(dcc) if w.startswith("Solomon · Leads:")]) == 1, warns(dcc)
 
 # 4. missing count key = failing source (strict read), not a silent 0
 cs.list_leads = lambda: {"counts": {"total": 0}}

@@ -132,19 +132,19 @@ def _client_tiles():
 
 
 def _lead_desk_tiles(card):
-    """Daycare Lead Desk (saved state only — daycare_leads.view() never hits GHL)."""
+    """Solomon · Leads — the Lead Desk (saved state only; daycare_leads.view() never hits GHL)."""
     import daycare_leads
     v = daycare_leads.view()
     if not v.get("lastOkAt"):   # never swept OK → every count would be a fake 0
-        raise RuntimeError(v.get("error") or "Lead Desk has no successful sweep yet")
+        raise RuntimeError(v.get("error") or "no successful sweep yet")
     k = v["kpis"]
     j = {"ws": "daycare", "page": "Dashboard"}
     tiles = [{"label": "New leads (7d)", "value": k["newLeads7d"]["total"], "jump": j},
              {"label": "Needs human", "value": k["needsHuman"], "jump": j},
              {"label": "Response time", "value": _dur(k.get("medianResponseSec")), "jump": j}]
     if v.get("error"):          # last good sweep still shown, but say it's stale
-        card["attention"].append({"sev": "warn", "text": "Lead Desk: " + str(v["error"])[:100],
-                                  "jump": j})
+        card["attention"].append({"sev": "warn", "jump": j,
+                                  "text": "Solomon · Leads: " + str(v["error"])[:100]})
     return tiles
 
 
@@ -247,7 +247,7 @@ def _agency_card():
 
 def _daycare_card(solomon):
     c = _card("daycare", "FORGE Daycare", "A Touch of Blessings", "#2DD4BF", "Dashboard")
-    _tiles(c, "Lead Desk", lambda: _lead_desk_tiles(c))   # spec §15 tiles first
+    _tiles(c, "Solomon · Leads", lambda: _lead_desk_tiles(c))   # spec §15 tiles first
     try:
         st = solomon.status() if solomon else {}
         systems = st.get("systems") or []

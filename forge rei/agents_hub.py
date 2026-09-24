@@ -8,7 +8,9 @@ across all three businesses.
     wholesale  Marcus (lead agent) · Scout (triage) · Atlas (underwriter)
                + Follow-up · ACE · Autopilot (no brain of their own — Marcus answers)
     agency     Dyson (build) · Eco (ads)
-    daycare    Solomon (director — ops, enrollment, roster/family-comms, ad ops)
+    daycare    Solomon (director — ops, enrollment, roster/family-comms, ad ops) with
+               two live lanes on his row: Solomon · Replies (daycare_replies) and
+               Solomon · Leads (daycare_leads)
     dropship   Midas (director)
     cross      Orion (CEO brief)   ·   system  Daily brief / recap (Orion answers)
     voice      any Retell outbound agent (personas, testable in text)
@@ -111,17 +113,17 @@ AGENTS = [
      "role": "Ads Agent — strategy + Meta",
      "blurb": "Ad strategy, performance reads, creative concepts. Launches on approval.",
      "queue": "agency"},
+    # Solomon is the daycare's ONE agent. His Replies lane (daycare_replies — the Reply
+    # Desk) and Leads lane (daycare_leads — the Lead Desk) keep their own loops, but report
+    # on this row: their heartbeats fold into his status, their pending drafts are his
+    # approval queue, and _probe/_delegate_context add their live state.
     {"id": "solomon", "name": "Solomon", "business": "daycare", "emoji": "🏛️",
      "role": "Executive Director — the whole center",
      "blurb": "Ops, enrollment, money, people, roster + family follow-ups, and the "
-              "enrollment ads. Ranks it all, owns enrollment, never acts outward.",
-     "hb": ["solomon"]},
-    {"id": "daycare_replies", "name": "Reply Desk", "business": "daycare", "emoji": "💬",
-     "role": "Family Reply Drafts — Solomon's family-comms lane",
-     "blurb": "Drafts the next text to any parent owed a reply, in the center's real "
-              "voice. Yields to the GHL speed-to-lead/nurture workflows and STOP/HELP "
-              "auto-replies. You tap send — Solomon answers for it in chat.",
-     "hb": ["daycare_replies"], "queue": "daycare_replies", "chatVia": "solomon"},
+              "enrollment ads. Lanes: Solomon · Replies drafts every parent text-back "
+              "(you tap send) and Solomon · Leads watches enrollment leads. Ranks it all, "
+              "owns enrollment, never acts outward.",
+     "hb": ["solomon", "daycare_replies", "daycare_leads"], "queue": "daycare_replies"},
     {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "🛒",
      "role": "E-com Director — the whole store",
      "blurb": "Product research, creative + ads, fulfillment and support. Ranks the "
@@ -140,6 +142,9 @@ AGENTS = [
 ]
 
 _BY_ID = {a["id"]: a for a in AGENTS}
+# Retired roster ids folded into an agent (2026-09-24: the Reply Desk row became Solomon's
+# Replies lane). Open tasks filed under the old id still show in the owner's prompt.
+_FOLDED = {"solomon": ("daycare_replies",)}
 
 
 # ── task store (mirrors the agency_io pattern: lock + _load/_save) ─────────────
@@ -256,7 +261,8 @@ def _history_block(history, limit=8):
 
 def _open_tasks_block(agent_id):
     # Plus tasks for the agents this brain answers for (ACE/Follow-up/Autopilot → Marcus).
-    ids = {agent_id} | {a["id"] for a in AGENTS if a.get("chatVia") == agent_id}
+    ids = ({agent_id} | {a["id"] for a in AGENTS if a.get("chatVia") == agent_id}
+           | set(_FOLDED.get(agent_id, ())))
     rows = [t for t in _load()
             if t.get("agentId") in ids and t.get("status") == "open"]
     if not rows:
@@ -301,7 +307,14 @@ def _director_chat(agent_id, message, history):
     business = meta["business"]
     env_name, ctx_mod, pb_mod, org = _DIRECTOR[business]
 
-    key = review_agent._api_key()
+    key = None
+    if agent_id == "solomon":   # his own key chain (SOLOMON_ANTHROPIC_API_KEY → … → shared)
+        try:
+            import daycare_director
+            key = daycare_director._solomon_key()
+        except Exception:
+            key = None
+    key = key or review_agent._api_key()
     if not key:
         return {"needsKey": True,
                 "reply": f"Add an Anthropic key to {env_name} so I can answer."}
@@ -355,6 +368,7 @@ def _director_chat(agent_id, message, history):
         + (("\n\n=== YOUR TOP SKILLS (these OUTRANK the playbook below; when they "
             "conflict, these win) ===\n" + skills) if skills else "")
         + (("\n\n=== YOUR PLAYBOOK ===\n" + playbook) if playbook else "")
+        + _lanes_block(agent_id)
         + _open_tasks_block(agent_id)
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
@@ -366,10 +380,24 @@ def _director_chat(agent_id, message, history):
     return {"reply": reply or "On it.", "agent": meta["name"]}
 
 
+def _lanes_block(agent_id):
+    """A director's own live lanes (Solomon · Replies + Leads) for his chat prompt."""
+    lanes = _delegate_context(agent_id)
+    if not lanes:
+        return ""
+    return ("\n\n=== YOUR LIVE LANES (read-only state — ground lane answers here) ===\n"
+            + json.dumps(lanes, default=str)[:2500])
+
+
 def _delegate_context(agent_id):
     """Live state of an agent with no brain of its own (ACE, Follow-up, Autopilot, the
-    briefs) — handed to the brain that answers for it. Read-only; {} when unreachable."""
+    briefs) — handed to the brain that answers for it — and of Solomon's own lanes (his
+    chat gets it via _lanes_block). Read-only, no network; {} when unreachable."""
     try:
+        if agent_id == "solomon":
+            import daycare_director
+            return {"replies": daycare_director.reply_desk_state(),   # Solomon · Replies
+                    "leads": daycare_director.lead_desk_state()}      # Solomon · Leads
         if agent_id == "ace":
             import ace
             st = ace.status()
@@ -564,6 +592,7 @@ def bus(agent_id=None, limit=40):
 # Every field comes from a real signal (heartbeat, engine status, task store, approval
 # queue, AI health) or is None = unknown. Status mapping: docs/FORGE_AGENTS.md §4.
 STATUSES = ("RUNNING", "IDLE", "WAITING FOR APPROVAL", "DEGRADED", "FAILED", "DISABLED")
+_HB_RANK = {"green": 0, "amber": 1, "red": 2}
 
 
 def status_of(recs, now, enabled=True, archived=False, running=False, pending=0,
@@ -638,7 +667,7 @@ def _pending(agent_id, queue):
             import agency_approvals_io
             rows = agency_approvals_io.list_queue("pending").get("queue") or []
             return sum(1 for x in rows if x.get("kind") == agent_id)
-        if queue == "daycare_replies":
+        if queue == "daycare_replies":   # Solomon · Replies drafts waiting on the owner
             import daycare_replies
             return len(daycare_replies.view().get("pending") or [])
     except Exception:
@@ -695,14 +724,6 @@ def _probe(agent_id):
             p.update(enabled=bool(st.get("enabled")),
                      lastRun=log[0].get("ts") if log else None,
                      work=f"{st.get('sentToday', 0)}/{st.get('cap')} sent today")
-        elif agent_id == "daycare_replies":
-            import daycare_replies
-            v = daycare_replies.view()
-            sweep = v.get("lastSweep") or {}
-            p.update(lastRun=v.get("lastRunAt"), lastError=v.get("error"),
-                     work=f"{len(v.get('pending') or [])} draft(s) waiting on you",
-                     detail=f"last sweep: {sweep.get('drafted', 0)} drafted, "
-                            f"{sweep.get('read', 0)} read" if sweep else None)
         elif agent_id == "briefs":
             import daily_brief
             import daily_recap
@@ -713,6 +734,22 @@ def _probe(agent_id):
                      work=f"brief {b.get('hour')}:00 · recap {r.get('hour')}:00")
     except Exception as e:  # noqa: BLE001
         p["lastError"] = f"status read failed: {e}"[:300]
+    if agent_id == "solomon":   # his Replies + Leads lanes (state files only, no network)
+        try:
+            import daycare_director
+            r, l = daycare_director.reply_desk_state(), daycare_director.lead_desk_state()
+            nh = (l.get("kpis") or {}).get("needsHuman")
+            sweep = r.get("lastSweep") or {}
+            lanes = (f"Replies: {r.get('pending', '?')} draft(s) waiting on you · "
+                     f"Leads: {'?' if nh is None else nh} need a human")
+            p["work"] = f"{p['work']} · {lanes}" if p.get("work") else lanes
+            p["detail"] = " · ".join(x for x in (
+                (f"Replies last sweep: {sweep.get('drafted', 0)} drafted, "
+                 f"{sweep.get('read', 0)} read") if sweep else None,
+                f"Replies: {r['error']}" if r.get("error") else None,
+                f"Leads: {l['error']}" if l.get("error") else None) if x) or None
+        except Exception as e:  # noqa: BLE001
+            p["detail"] = f"lanes unreadable: {e}"[:300]
     if agent_id == "midas":   # scheduled brief off by default (CLAUDE.md loop switchboard)
         p["enabled"] = os.environ.get("FORGE_DROPSHIP_BRIEF", "0") != "0"
     return p
@@ -795,6 +832,9 @@ def registry(business=None, now=None):
         status = status_of(recs, now, enabled=p.get("enabled", True), archived=archived,
                            running=aid in jobs, pending=pending, ai_ok=ai_ok)
         last_run = rec.get("lastRun") or p.get("lastRun")
+        # A lane loop's error (Solomon · Replies / Leads) names the lane it came from.
+        lane_err = next((f"{r.get('label') or 'lane'}: {r['lastError']}"
+                         for r in recs[1:] if r.get("lastError")), None)
         interval = rec.get("interval")
         out.append({
             "id": aid, "name": a["name"], "emoji": a["emoji"], "role": a["role"],
@@ -820,7 +860,7 @@ def registry(business=None, now=None):
             "openTasks": len(open_t),
             # errorsTotal = cumulative (WP-A); errStreak = consecutive; None = no loop.
             "errorCount": (rec.get("errorsTotal", rec.get("errStreak", 0)) if rec else None),
-            "lastError": rec.get("lastError") or p.get("lastError"),
+            "lastError": rec.get("lastError") or p.get("lastError") or lane_err,
             "currentTask": jobs.get(aid) or (open_t[-1].get("title") if open_t else None)
                            or p.get("task"),
             "pendingApprovals": pending,
@@ -832,7 +872,8 @@ def registry(business=None, now=None):
                 "aiReason": (ai.get("reason") or ai.get("lastError")) if ai_ok is False else None,
                 "keys": p.get("keys", has_key) if uses_ai else None,   # presence only
                 "heartbeat": ("none" if not a.get("hb") else "missing" if not recs
-                              else forge_heartbeat._status_for(rec, now)[0]),
+                              else max((forge_heartbeat._status_for(r, now)[0] for r in recs),
+                                       key=_HB_RANK.get)),   # worst loop (lanes too)
                 # ok / degraded / down; None = unknown; "n/a" = agent doesn't use it.
                 "crm": crm if a["business"] == "wholesale" else "n/a",
                 "crmReason": crm_err if a["business"] == "wholesale" else None,
