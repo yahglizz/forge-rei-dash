@@ -916,7 +916,10 @@ class SolomonEngine:
                         session = None
                     ok = False
                     try:
-                        ok = bool((self.build_brief(session) or {}).get("ok"))
+                        result = self.build_brief(session) or {}
+                        ok = bool(result.get("ok"))
+                        if not ok:
+                            self.last_error = result.get("error") or "brief failed (no error detail)"
                     finally:
                         self._note_brief_result(ok, now)   # WP-A — an exception counts as a fail
                 self._maybe_learn(key)
