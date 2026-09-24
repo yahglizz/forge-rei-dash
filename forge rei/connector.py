@@ -1038,6 +1038,7 @@ import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 # --- WP-E ---
 import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead visibility, no Claude)
+import daycare_replies  # noqa: E402 — Solomon family-comms: drafts parent replies, owner sends
 # --- /WP-E ---
 import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
 # Nora (roster/family-comms) and Nova (ad ops) were merged into Solomon on 2026-07-25 —
@@ -4266,6 +4267,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
                 "/api/daycare/ghl/enroll",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
+                "/api/daycare/replies/run", "/api/daycare/replies/approve",
+                "/api/daycare/replies/dismiss",
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
                 "/api/daycare/blast/send", "/api/daycare/blast/cancel",
                 "/api/daycare/blast/optout",
@@ -4351,6 +4354,15 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/daycare/leads/stage":
                 result = daycare_leads.set_stage(body.get("contact_id"), body.get("stage"))
             # --- /W2-5 ---
+            # Reply desk: run = draft-only sweep (sends nothing); approve IS the owner's
+            # send tap (rule 2) and re-checks the live thread first; dismiss is internal.
+            elif path == "/api/daycare/replies/run":
+                result = daycare_replies.run_once(DAYCARE_GHL)
+            elif path == "/api/daycare/replies/approve":
+                result = daycare_replies.approve(DAYCARE_GHL, body.get("contact_id"),
+                                                 body.get("text"))
+            elif path == "/api/daycare/replies/dismiss":
+                result = daycare_replies.dismiss(body.get("contact_id"))
             elif path == "/api/daycare/blast/preview":
                 result = self._daycare_blast_preview(session, body)
             elif path == "/api/daycare/blast/create":
@@ -4457,6 +4469,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/ghl/pending-families": lambda session: self._daycare_pending_families(session),
             # --- WP-E --- Lead Desk: served from state, no GHL call on the request path.
             "/api/daycare/leads": lambda session: daycare_leads.view(),
+            "/api/daycare/replies": lambda session: daycare_replies.view(),
             # --- /WP-E ---
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),
@@ -5124,6 +5137,17 @@ def main():
         else:
             forge_heartbeat.retire("daycare_leads")
         # --- /WP-E ---
+        # Daycare Reply Desk (Solomon family-comms): drafts replies to parent texts every
+        # 5 min, yielding to GHL automations. Draft-only — the owner's tap sends.
+        # FORGE_DAYCARE_REPLIES=0 switches it off.
+        if os.environ.get("FORGE_DAYCARE_REPLIES", "1") != "0":
+            print(f"   Daycare Reply Desk: parent-reply drafts every {daycare_replies.INTERVAL // 60} min"
+                  f" · model {daycare_replies.MODEL} · owner sends")
+            tdr = threading.Thread(target=daycare_replies.run_forever, args=(DAYCARE_GHL,),
+                                   daemon=True, name="daycare_replies")
+            tdr.start()
+        else:
+            forge_heartbeat.retire("daycare_replies")
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work
