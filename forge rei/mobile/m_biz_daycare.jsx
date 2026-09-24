@@ -133,6 +133,9 @@ function MBDHome() {
 
   const auth = MBDAuth(ov) || MBDAuth(locs) || MBDAuth(leads);
   const prof = (me.data && me.data.profile) || null;
+  // auth/status can race the first data call that mints the tailnet auto-admin cookie —
+  // once center data is in, re-read who we are.
+  useEffectBD(() => { if (ov.data && ov.data.ok && me.data && !me.data.profile) me.refresh(); }, [ov.data]);
   const locList = (locs.data && locs.data.ok && locs.data.locations) || [];
   const activeLoc = locs.data && locs.data.activeLocationId;
   const center = (ov.data && ov.data.center && ov.data.center.name) || (locList.find((l) => l.id === activeLoc) || {}).name || "A Touch of Blessings";
@@ -168,7 +171,7 @@ function MBDHome() {
         <div className="mbd-hero-top"><img src="/assets/daycare-emblem.png" alt="" /><div>
           <small>SIGNED IN AS MANAGEMENT</small>
           <h2>{center}</h2>
-          <p>{prof ? (prof.display_name || [prof.first_name, prof.last_name].filter(Boolean).join(" ")) + " · " + prof.role : "Connecting to the center…"}</p>
+          <p>{prof ? (prof.display_name || [prof.first_name, prof.last_name].filter(Boolean).join(" ")) + " · " + String(prof.role || "").replace(/^./, (c) => c.toUpperCase()) : "Connecting to the center…"}</p>
         </div></div>
         {locList.length > 1 && <div className="mbd-locs">{locList.map((l) => <button key={l.id}
           className={"mbd-loc" + (l.id === activeLoc ? " active" : "")} disabled={!!switching}
