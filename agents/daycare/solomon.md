@@ -95,3 +95,28 @@ curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="solomon")
 # needs a daycare session (auto-admin via loopback/Serve):
 curl -s localhost:7799/api/daycare/director/status | jq '{aiReady,creedLoaded,topSkills,briefCount,lastBriefAt,nextBriefAt,failStreak}'
 ```
+
+## 10. Family-comms Reply Desk (parent-reply drafter, added 2026-09-23)
+
+His `family-comms` lane made concrete: drafts the next text back to every parent who texted the daycare GHL number and is owed an answer. **Draft-only — the owner's tap sends.**
+
+| Field | Value |
+|---|---|
+| Engine | `forge rei/daycare_replies.py` (self-check `forge rei/test_daycare_replies.py`) |
+| Thread | `daycare_replies` (own Costs-tab bucket), heartbeat `daycare_replies` |
+| Gate | `FORGE_MARCUS` != `0` **and** `FORGE_DAYCARE_REPLIES` != `0` (default on; `0` retires the heartbeat) |
+| Tick | `FORGE_DAYCARE_REPLIES_INTERVAL` 300 s · ≤`FORGE_DAYCARE_REPLY_MAX` 8 Claude calls + ≤40 thread GETs per sweep |
+| Model | `FORGE_DAYCARE_REPLY_MODEL`, default `claude-sonnet-5` · key = `_solomon_key()` |
+| Reads, in order | creed → `forge-daycare/skills/daycare-context.md` → `forge-daycare/skills/daycare-parent-reply.md` (rubric + verified fact sheet) → `forge-daycare/skills/daycare-voice.md`. Never caveman. |
+| Writes | `marcus_state/daycare_replies.json` only |
+
+**Yields to GHL automations first** (`gate()`, pure): already answered by a workflow or a person → skip · STOP/HELP/START keywords → GHL auto-replies own them · any opt-out or DND → never · speed-to-lead tag on and first touch not out yet (15 min) or `speed-to-lead-queued` → the workflow/8am flush owns the first text · inbound younger than `FORGE_DAYCARE_REPLY_GRACE_MIN` (5) → grace so stop-on-response and live staff go first · non-SMS or older than 7 days → Lead Desk's job.
+
+**Output** per thread: `draft` / `escalate` (safety, custody, medical, complaint, billing dispute — holding line only, owner calls) / `no_reply`, plus `unknowns` and code `flags` (`unverified_phone`, `money`, `emoji`, `long`).
+
+**Send path** — `POST /api/daycare/replies/approve {contact_id, text?}` is the owner's tap: refuses outside 8am–9pm ET, re-reads the live thread and retires the draft if anyone replied since or the parent opted out, then one `daycare_ghl.send_sms` + `action_log`. `POST /api/daycare/replies/run` (sweep now, sends nothing) · `/replies/dismiss` · `GET /api/daycare/replies`. An Anthropic billing/auth error stops the sweep and shows on the heartbeat.
+
+```bash
+curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="daycare_replies")'
+curl -s localhost:7799/api/daycare/replies | jq '{lastRunAt,lastSweep,error,pending:[.pending[]|{center,category,action,flags,draft}]}'
+```

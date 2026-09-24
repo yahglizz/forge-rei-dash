@@ -457,6 +457,7 @@ update that skill if you improved the pattern.
   | `FORGE_SCOUT_INTERVAL` | 180 | Wholesale sweep. The money loop — leave hot. |
   | `FORGE_DAYCARE_LEADS` | 1 (on) | Daycare Lead Desk sweep (15 min, GET-only on the daycare GHL, zero Claude). `0` stops it and retires its heartbeat. |
 | `FORGE_SOLOMON_BRIEF_EVERY_H` | 24 | Daycare brief. Raise to 48 if enrollment goes quiet. |
+  | `FORGE_DAYCARE_REPLIES` | 1 (on) | Daycare Reply Desk — parent-reply drafts every 5 min, ≤8 Sonnet calls/sweep, only when a parent is owed a reply. `0` stops it and retires its heartbeat. |
   | `FORGE_SCOUT_LEARN_EVERY` / `FORGE_ATLAS_LEARN_EVERY` | 25 / 12 | Self-improve cadence — the other real Claude cost. |
 
   **Switching a loop OFF must call `forge_heartbeat.retire("<loop>")`** in the else branch,
@@ -560,6 +561,17 @@ key on the box. New migrations go in BOTH migration folders.
   (`GHL_API_KEY`/`GHL_LOCATION_ID`, separate from wholesale+agency). `daycare_ghl.py`
   texts families their payment link. **Owner-initiated only** (the "Text" button IS the
   approval gate — never autonomous). Routes `/api/daycare/ghl/{health,text-invoice}`.
+- **Reply Desk — parent-reply drafts (Solomon family-comms, 2026-09-23).** `daycare_replies.py`
+  sweeps the daycare GHL every 5 min (thread `daycare_replies`, knob `FORGE_DAYCARE_REPLIES=0` to
+  retire) and drafts the next text to every parent owed an answer — Sonnet 5
+  (`FORGE_DAYCARE_REPLY_MODEL`), prompt = creed → `daycare-context.md` →
+  `forge-daycare/skills/daycare-parent-reply.md` (rubric + fact sheet verified against the live
+  site) → `daycare-voice.md` (built from 136 real outbound SMS). **Yields to GHL automations:**
+  speed-to-lead owns the first touch (incl. the overnight queue), STOP/HELP keyword auto-replies
+  own those words, anything already answered is skipped, a 5-min grace lets stop-on-response and
+  live staff go first. **Draft-only** — `POST /api/daycare/replies/approve` is the owner's tap
+  (8am–9pm ET, re-checks the live thread, refuses if anyone replied since). Auto-send is NOT
+  built; turning it on is an operator decision. Card: `agents/daycare/solomon.md` §10.
 - **Contact-Form intake is ONE-TAP, not auto-enroll** (changed — auto-enroll on inbox
   load was removed; `FORGE_DAYCARE_AUTOENROLL` no longer exists). `GET
   /api/daycare/ghl/pending-families` is strictly **read-only** — prefetching the Parent
