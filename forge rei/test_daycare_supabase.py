@@ -344,6 +344,20 @@ class DaycareSecurityTests(unittest.TestCase):
         self.assertEqual(error.exception.status, 400)
         self.assertIn("guardian_email", error.exception.message)
 
+    def test_enrollment_date_defaults_to_the_eastern_calendar_day(self):
+        # 01:30 UTC on Jan 2 is still 8:30pm on Jan 1 in Philadelphia.
+        class Clock(daycare.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return daycare.datetime(2030, 1, 2, 1, 30, tzinfo=daycare.timezone.utc).astimezone(tz)
+        active = session()
+        with mock.patch.object(daycare, "datetime", Clock), \
+                mock.patch.object(daycare.BRIDGE, "rest", side_effect=lambda *a, **k: [k["body"]]) as rest:
+            result = daycare.save_child(active, {"child": {
+                "first_name": "Sam", "last_name": "Test", "birth_date": "2022-01-01"}})
+        self.assertEqual("2030-01-01", rest.call_args.kwargs["body"]["enrollment_date"])
+        self.assertEqual("2030-01-01", result["child"]["enrollment_date"])
+
     def test_staff_edit_preserves_nested_profile_role_when_ui_omits_role(self):
         active = session(profile={
             "id": PROFILE_ID,

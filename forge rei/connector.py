@@ -4153,11 +4153,14 @@ class Handler(BaseHTTPRequestHandler):
             # A brand-new login: text the parent their sign-in. The owner's Create-login
             # click is the approval (rule 2); send_manual re-checks the 8am–9pm ET window,
             # opt-out and DND and logs the send. No pin (existing account) = no text.
+            # close_draft=False: the body carries the PIN — never persisted, and a pending
+            # Reply-Desk draft for this parent stays open.
             # A failed text NEVER fails the enroll — the modal says share it in person.
             try:
                 sent = daycare_replies.send_manual(DAYCARE_GHL, contact_id, daycare_ghl.login_text(
                     family.get("parent_first"), family.get("child_first") or child_body.get("first_name"),
-                    provision.get("login_id"), provision["pin"], child_body.get("location_id")))
+                    provision.get("login_id"), provision["pin"], child_body.get("location_id")),
+                    close_draft=False)
                 provision["texted"] = {"ok": bool(sent.get("ok")), "error": None if sent.get("ok")
                                        else sent.get("error") or sent.get("detail") or "send failed"}
             except Exception as error:  # noqa: BLE001 — never leak a token, never fail the enroll

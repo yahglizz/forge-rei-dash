@@ -323,7 +323,8 @@ def _family_from_contact(contact: dict) -> dict:
     # created before that fix have it the other way (firstName/lastName = parent,
     # CF_CHILD_NAME = child). CF_PARENT_NAME's presence tells us which regime applies.
     parent_full = cf.get(CF_PARENT_NAME) or ""
-    child_cf = cf.get(CF_CHILD_NAME) or ""
+    # A multi-child inquiry stores "Maria Lopez, Juan Lopez" — the card is the first child.
+    child_cf = str(cf.get(CF_CHILD_NAME) or "").split(",")[0].strip()
     if parent_full:
         # GET /contacts/ (iter_contacts) returns firstName/lastName LOWERCASED, so a
         # child saved from them lands in the roster as "maria lopez". The child-name
@@ -353,8 +354,9 @@ def _family_from_contact(contact: dict) -> dict:
         "contact_id": contact.get("id"),
         # website-lead vs family-contact-form — roster dedup only makes sense for a
         # lead who already enrolled elsewhere; an existing-student form submission
-        # being in the roster is expected, not a reason to hide it.
-        "is_lead": LEAD_TAG in tl,
+        # being in the roster is expected, not a reason to hide it. Forms ADD tags, so a
+        # former lead who later filled the Contact Form carries both — enrolled wins.
+        "is_lead": LEAD_TAG in tl and not enrolled,
         # age-band keyword ("Infant"/"Toddler"/"Pre-K"/"School-Age") for auto-matching
         # a Supabase classroom on one-click enroll — "" when the form had no age tag.
         "classroom_label": classroom_label,
@@ -509,8 +511,10 @@ def login_text(parent_first, child_first, login_id, pin, location_id) -> str:
         brand, link = "A Touch of Blessings", "https://atouchofblessing.com/get-app"
     greet = parent if len(parent) > 1 else "there"
     whose = f"{child}'s" if len(child) > 1 else "Your child's"
+    # Legacy accounts / non-Latin names fall back to a BL- Login ID (same rule as the modal).
+    label = "Login ID" if str(login_id or "").startswith("BL-") else "Sign in with your name"
     return (f"Hi {greet}! {whose} {brand} family app is ready.\n"
-            f"Sign in with your name: {login_id}\n"
+            f"{label}: {login_id}\n"
             f"PIN: {pin}\n"
             f"Get the app: {link}\n"
             "Keep your PIN private. Questions? Just ask a staff member.")

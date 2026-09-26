@@ -478,9 +478,11 @@ def thread(client, contact_id, now=None):
             "draft": d if d and d.get("status") == "pending" else None}
 
 
-def send_manual(client, contact_id, text, now=None):
+def send_manual(client, contact_id, text, now=None, close_draft=True):
     """POST /api/daycare/ghl/reply — the owner typed this and tapped send; that tap IS the
-    approval (rule 2). Same gates as approve(): texting window, opt-out, DND."""
+    approval (rule 2). Same gates as approve(): texting window, opt-out, DND.
+    close_draft=False (the Create-login text, which carries a PIN): leaves any pending
+    Reply-Desk draft untouched and never writes the body to disk."""
     now = now or time.time()
     cid = str(contact_id or "").strip()
     body = (text or "").strip()
@@ -500,12 +502,13 @@ def send_manual(client, contact_id, text, now=None):
     res = daycare_ghl.send_sms(client, contact_id=cid, message=body)
     try:
         import action_log
-        action_log.record("operator", "daycare_manual_send", business="daycare", trigger="owner_tap",
+        action_log.record("operator", "daycare_manual_send" if close_draft else "daycare_login_text",
+                          business="daycare", trigger="owner_tap",
                           ref=cid, result="sent" if res.get("ok") else "failed",
                           ok=bool(res.get("ok")), approval_required=True)
     except Exception:  # noqa: BLE001 — the log never blocks a send
         pass
-    d = (_load().get("drafts") or {}).get(cid)
+    d = (_load().get("drafts") or {}).get(cid) if close_draft else None
     if res.get("ok") and d and d.get("status") == "pending":
         _close(cid, "sent", sentText=body, edited=True, manual=True)
     return res

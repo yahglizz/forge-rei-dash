@@ -28,6 +28,7 @@ from decimal import Decimal, InvalidOperation
 from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 
 HERE = Path(__file__).resolve().parent
@@ -1762,7 +1763,7 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "allergies": require_text(source.get("allergies"), "allergies", maximum=1000, optional=True),
         "medical_notes": require_text(_body_value(source, "medical_notes", "medicalNotes"), "medical_notes", maximum=4000, optional=True),
         "pickup_notes": require_text(_body_value(source, "pickup_notes", "pickupNotes"), "pickup_notes", maximum=4000, optional=True),
-        "enrollment_date": require_date(_body_value(source, "enrollment_date", "enrollmentDate") or date.today().isoformat(), "enrollment_date"),
+        "enrollment_date": require_date(_body_value(source, "enrollment_date", "enrollmentDate") or datetime.now(ZoneInfo("America/New_York")).date().isoformat(), "enrollment_date"),
         "active": bool(source.get("active", True)),
     }
     # Auto-route provisioning to the family's center. When the caller passes a target
