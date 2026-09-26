@@ -325,9 +325,13 @@ def _family_from_contact(contact: dict) -> dict:
     parent_full = cf.get(CF_PARENT_NAME) or ""
     child_cf = cf.get(CF_CHILD_NAME) or ""
     if parent_full:
-        c_first = (contact.get("firstName") or "").strip()
-        c_last = (contact.get("lastName") or "").strip()
-        child_full = (c_first + " " + c_last).strip() or child_cf
+        # GET /contacts/ (iter_contacts) returns firstName/lastName LOWERCASED, so a
+        # child saved from them lands in the roster as "maria lopez". The child-name
+        # field keeps exactly what the parent typed, so it wins.
+        child_full = child_cf or " ".join(
+            p for p in ((contact.get("firstName") or "").strip(),
+                        (contact.get("lastName") or "").strip()) if p)
+        c_first, c_last = _split_name(child_full)
         p_first, p_last = _split_name(parent_full)
     else:
         p_first = (contact.get("firstName") or "").strip()
