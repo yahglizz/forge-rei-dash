@@ -518,6 +518,39 @@ class DaycareSecurityTests(unittest.TestCase):
         self.assertEqual("PATCH", rest.call_args.args[1])
         self.assertEqual({"active": False}, rest.call_args.kwargs["body"])
 
+    # ── Blessings Pass ───────────────────────────────────────────────────────
+    def test_get_pass_reads_active_center_tables_then_leaderboard_rpc(self):
+        active = session()
+        season_id = "99999999-9999-4999-8999-999999999999"
+        with mock.patch.object(
+            daycare.BRIDGE, "rest",
+            side_effect=[[{"id": season_id}], [{"id": "r1"}], [{"id": "k1"}], [{"id": "c1"}]],
+        ) as rest, mock.patch.object(
+            daycare.BRIDGE, "rpc", return_value=[{"child_id": "x", "days": 3}]
+        ) as rpc:
+            result = daycare.get_pass(active)
+        calls = rest.call_args_list
+        self.assertEqual(["pass_seasons", "pass_rewards", "pass_ranks", "pass_claims"],
+                         [call.args[2] for call in calls])
+        self.assertEqual({"GET"}, {call.args[1] for call in calls})
+        self.assertEqual(f"eq.{LOCATION_ID}", calls[0].kwargs["query"]["location_id"])
+        self.assertEqual(f"in.({season_id})", calls[1].kwargs["query"]["season_id"])
+        self.assertEqual(f"eq.{LOCATION_ID}", calls[2].kwargs["query"]["location_id"])
+        rpc.assert_called_once_with(active, "pass_leaderboard", {})
+        self.assertEqual([{"child_id": "x", "days": 3}], result["leaderboard"])
+        self.assertEqual(1, len(result["claims"]))
+
+    def test_fulfill_pass_claim_calls_rpc_with_validated_id(self):
+        active = session()
+        claim_id = "99999999-9999-4999-8999-999999999999"
+        with mock.patch.object(daycare.BRIDGE, "rpc", return_value={"id": claim_id}) as rpc:
+            result = daycare.fulfill_pass_claim(active, {"claimId": claim_id})
+            with self.assertRaises(daycare.DaycareError) as bad:
+                daycare.fulfill_pass_claim(active, {"claim_id": "not-a-uuid"})
+        rpc.assert_called_once_with(active, "fulfill_pass_claim", {"p_claim": claim_id})
+        self.assertEqual({"ok": True, "claim": {"id": claim_id}}, result)
+        self.assertEqual(400, bad.exception.status)
+
 
 if __name__ == "__main__":
     unittest.main()

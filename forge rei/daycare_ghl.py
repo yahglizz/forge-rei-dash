@@ -489,3 +489,24 @@ def send_sms(client, *, contact_id: str, message: str) -> dict:
     result = client.post("/conversations/messages", payload)
     return {"ok": True, "sent": True, "conversationId": conv_id,
             "messageId": result.get("messageId") or result.get("id")}
+
+
+AMT_LOCATION_PREFIX = "44444444"  # A Mother's Touch (1923 Cecil B. Moore) — its own brand + app link
+
+
+def login_text(parent_first, child_first, login_id, pin, location_id) -> str:
+    """The SMS a parent gets when the owner clicks Create login. Pure — no I/O.
+    A name under 2 characters (a GHL field typed "I") counts as missing."""
+    parent = str(parent_first or "").strip()
+    child = str(child_first or "").strip()
+    if str(location_id or "").startswith(AMT_LOCATION_PREFIX):
+        brand, link = "A Mother's Touch", "https://atouchofblessing.com/get-app-mothers-touch"
+    else:
+        brand, link = "A Touch of Blessings", "https://atouchofblessing.com/get-app"
+    greet = parent if len(parent) > 1 else "there"
+    whose = f"{child}'s" if len(child) > 1 else "Your child's"
+    return (f"Hi {greet}! {whose} {brand} family app is ready.\n"
+            f"Sign in with your name: {login_id}\n"
+            f"PIN: {pin}\n"
+            f"Get the app: {link}\n"
+            "Keep your PIN private. Questions? Just ask a staff member.")
