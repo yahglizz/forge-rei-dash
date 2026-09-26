@@ -4259,6 +4259,12 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/coins/redeem": daycare_supabase.redeem_reward,
             "/api/daycare/reward-item/save": daycare_supabase.save_reward_item,
             "/api/daycare/reward-item/active": daycare_supabase.set_reward_item_active,
+            "/api/daycare/pass/season/save": daycare_supabase.save_pass_season,
+            "/api/daycare/pass/reward/save": daycare_supabase.save_pass_reward,
+            "/api/daycare/pass/reward/delete": daycare_supabase.delete_pass_reward,
+            "/api/daycare/pass/rank/save": daycare_supabase.save_pass_rank,
+            "/api/daycare/pass/rank/delete": daycare_supabase.delete_pass_rank,
+            "/api/daycare/pass/claim/fulfill": daycare_supabase.fulfill_pass_claim,
         }
         if path not in handlers and path not in {
                 "/api/daycare/auth/login", "/api/daycare/auth/test-login", "/api/daycare/auth/logout",
@@ -4443,6 +4449,7 @@ class Handler(BaseHTTPRequestHandler):
                 session, q.get("from", [None])[0], q.get("to", [None])[0]),
             "/api/daycare/settings": lambda session: daycare_supabase.get_settings(session),
             "/api/daycare/rewards": lambda session: daycare_supabase.get_rewards(session),
+            "/api/daycare/pass": lambda session: daycare_supabase.get_pass(session),
             "/api/daycare/ads": lambda session: daycare_growth.ads_overview(
                 q.get("account", [None])[0], q.get("days", ["7"])[0]),
             "/api/daycare/social": lambda session: daycare_growth.social_overview(

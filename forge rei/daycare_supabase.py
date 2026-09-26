@@ -2235,6 +2235,115 @@ def set_reward_item_active(session: Session, body: dict[str, Any]) -> dict[str, 
     return {"ok": True, "item": _single(rows, "Reward item")}
 
 
+
+# ── Blessings Pass ──────────────────────────────────────────────────────────────
+# Season XP and lifetime rank are COMPUTED in the database from attendance + behavior
+# (pass_progress / pass_leaderboard RPCs, migration 202609250001_blessings_pass.sql);
+# this console reads them and edits the config tables (seasons, rewards, ranks) through
+# the management write policies. Money perks (free day, discount…) are typed in by the
+# owner and never touch invoices — a claimed prize waits here until it is handed over.
+_PASS_SEASON_COLS = "id,location_id,name,starts_on,ends_on,xp_per_level,max_level,created_at"
+_PASS_REWARD_COLS = "id,season_id,level,title,description,kind,coin_amount"
+_PASS_RANK_COLS = "id,location_id,min_days,name,perk"
+
+
+def get_pass(session: Session) -> dict[str, Any]:
+    location = active_location(session)
+    seasons = _rows(BRIDGE.rest(session, "GET", "pass_seasons", query={
+        "location_id": f"eq.{location}", "select": _PASS_SEASON_COLS, "order": "starts_on.desc"}))
+    season_ids = [str(row["id"]) for row in seasons if is_uuid(row.get("id"))]
+    rewards = _rows(BRIDGE.rest(session, "GET", "pass_rewards", query={
+        "season_id": f"in.({','.join(season_ids)})", "select": _PASS_REWARD_COLS, "order": "level.asc,title.asc"})) if season_ids else []
+    ranks = _rows(BRIDGE.rest(session, "GET", "pass_ranks", query={
+        "location_id": f"eq.{location}", "select": _PASS_RANK_COLS, "order": "min_days.asc"}))
+    claims = _rows(BRIDGE.rest(session, "GET", "pass_claims", query={
+        "select": "id,child_id,claimed_at,fulfilled_at,pass_rewards(title,level,kind,coin_amount),children(id,first_name,last_name,preferred_name)",
+        "order": "claimed_at.desc", "limit": "200"}))
+    # RLS scopes claims to the manager's active centre; the RPC does the same for the board.
+    leaderboard = _rows(BRIDGE.rpc(session, "pass_leaderboard", {}))
+    return {"ok": True, "seasons": seasons, "rewards": rewards, "ranks": ranks, "claims": claims, "leaderboard": leaderboard}
+
+
+def save_pass_season(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    source = body.get("season") if isinstance(body.get("season"), dict) else body
+    starts = require_date(_body_value(source, "starts_on", "startsOn"), "starts_on")
+    ends = require_date(_body_value(source, "ends_on", "endsOn"), "ends_on")
+    if ends < starts:
+        raise DaycareError(400, "The season has to end on or after the day it starts", "validation_error")
+    payload = {
+        "name": require_text(source.get("name"), "name", maximum=80),
+        "starts_on": starts,
+        "ends_on": ends,
+        "xp_per_level": require_int(_body_value(source, "xp_per_level", "xpPerLevel") or 400, "xp_per_level", 50, 5000),
+        "max_level": require_int(_body_value(source, "max_level", "maxLevel") or 20, "max_level", 1, 100),
+    }
+    if source.get("id"):
+        season = _ensure_location_record(session, "pass_seasons", source.get("id"))
+        rows = BRIDGE.rest(session, "PATCH", "pass_seasons", query={"id": f"eq.{season['id']}"},
+                           body=payload, prefer="return=representation")
+    else:
+        payload["location_id"] = active_location(session)
+        rows = BRIDGE.rest(session, "POST", "pass_seasons", body=payload, prefer="return=representation")
+    return {"ok": True, "season": _single(rows, "Season")}
+
+
+def save_pass_reward(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    source = body.get("reward") if isinstance(body.get("reward"), dict) else body
+    season = _ensure_location_record(session, "pass_seasons", _body_value(source, "season_id", "seasonId"))
+    kind = enum_value(source.get("kind"), "kind", {"coins", "prize"})
+    payload = {
+        "season_id": season["id"],
+        "level": require_int(source.get("level"), "level", 1, int(season.get("max_level") or 100)),
+        "title": require_text(source.get("title"), "title", maximum=120),
+        "description": require_text(source.get("description"), "description", maximum=500, optional=True),
+        "kind": kind,
+        # DB constraint pass_reward_amount: coins need an amount, prizes must not have one.
+        "coin_amount": require_int(_body_value(source, "coin_amount", "coinAmount"), "coin_amount", 1, _COIN_MAX) if kind == "coins" else None,
+    }
+    reward_id = require_uuid(source.get("id"), "reward id", optional=True)
+    if reward_id:
+        rows = BRIDGE.rest(session, "PATCH", "pass_rewards", query={"id": f"eq.{reward_id}"},
+                           body=payload, prefer="return=representation")
+    else:
+        rows = BRIDGE.rest(session, "POST", "pass_rewards", body=payload, prefer="return=representation")
+    return {"ok": True, "reward": _single(rows, "Reward")}
+
+
+def delete_pass_reward(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    # A reward someone already claimed can't be deleted — pass_claims holds a
+    # non-cascading FK to it, so PostgREST refuses and the family's history survives.
+    reward_id = require_uuid(body.get("id"), "reward id")
+    rows = BRIDGE.rest(session, "DELETE", "pass_rewards", query={"id": f"eq.{reward_id}"}, prefer="return=representation")
+    return {"ok": True, "reward": _single(rows, "Reward")}
+
+
+def save_pass_rank(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    source = body.get("rank") if isinstance(body.get("rank"), dict) else body
+    payload = {
+        "name": require_text(source.get("name"), "name", maximum=60),
+        "min_days": require_int(_body_value(source, "min_days", "minDays"), "min_days", 0, 10000),
+        "perk": require_text(source.get("perk"), "perk", maximum=300, optional=True),
+    }
+    if source.get("id"):
+        rank = _ensure_location_record(session, "pass_ranks", source.get("id"))
+        rows = BRIDGE.rest(session, "PATCH", "pass_ranks", query={"id": f"eq.{rank['id']}"},
+                           body=payload, prefer="return=representation")
+    else:
+        payload["location_id"] = active_location(session)
+        rows = BRIDGE.rest(session, "POST", "pass_ranks", body=payload, prefer="return=representation")
+    return {"ok": True, "rank": _single(rows, "Rank")}
+
+
+def delete_pass_rank(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    rank = _ensure_location_record(session, "pass_ranks", body.get("id"))
+    rows = BRIDGE.rest(session, "DELETE", "pass_ranks", query={"id": f"eq.{rank['id']}"}, prefer="return=representation")
+    return {"ok": True, "rank": _single(rows, "Rank")}
+
+
+def fulfill_pass_claim(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    claim_id = require_uuid(_body_value(body, "claim_id", "claimId") or body.get("id"), "claim id")
+    return {"ok": True, "claim": BRIDGE.rpc(session, "fulfill_pass_claim", {"p_claim": claim_id})}
+
 def save_log(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     source = body.get("log") if isinstance(body.get("log"), dict) else body
     child = _ensure_location_record(session, "children", source.get("child_id") or source.get("childId"))
