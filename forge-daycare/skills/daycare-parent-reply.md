@@ -60,10 +60,11 @@ in `daycare-context.md` is **Unknown** — confirm it, don't answer it.*
 
 ### Offers — check the date before you mention one
 
-- **Enrollment bonus ($100 gift card or $100 off tuition after 60 days): EXPIRED 2026-09-12.**
-  No successor is on record. **Do not offer it or any other enrollment deal.** If a parent asks
-  about it, say you'll check what's running now and get right back to them. (The site banner
-  still shows it — that's a site fix for the owner, not a live promise.)
+- **Enrollment bonus ($100 gift card or $100 off tuition after 60 days): ACTIVE through
+  2026-10-23** (owner extended it 2026-09-26 from 2026-09-12; the site shows October 23, 2026).
+  You may mention it, with its end date ("it ends Oct 23"). **After 2026-10-23 it is EXPIRED** —
+  no successor is on record, so then do not offer it or any other enrollment deal; if a parent
+  asks, say you'll check what's running now and get right back to them.
 - **Referral:** owner-confirmed Aug 16, 2026 — refer a friend and **both families get $100
   toward tuition**. Mention only if the parent asks about referrals. Whether it stacks with any
   other offer is **undecided** — say you'll confirm.

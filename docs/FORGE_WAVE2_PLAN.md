@@ -204,7 +204,7 @@ Legend: **DONE** · **PARTIAL** · **MISSING** · **OWNER** (needs money, keys, 
 3. **Daycare Meta token** is invalid (32 chars, OAuth 190). Replace it in `daycare.env` and run `push.sh` (P0-9).
 4. **Daycare compliance items** (licensing and staffing) outrank growth work (P0-8). Licensing paperwork for 921 and 1923 and the STARS rating are not on file (`daycare-context.md:53`).
 5. **Daycare facts only you have:** open seats by age band per center (`daycare-context.md:63,139`); whether the referral bonus stacks (`:74`); tuition figures. These block item 5's verified vacancy and any AI parent answers.
-6. **The daycare enrollment offer expired 2026-09-12** (`daycare-context.md:73`). The site countdown and the agents' context still reference it; a successor offer is needed.
+6. **The daycare enrollment offer expired 2026-09-12** (`daycare-context.md:73`). The site countdown and the agents' context still reference it; a successor offer is needed. **→ 2026-09-26: owner extended it to 2026-10-23; site and agent context updated. A successor is still needed for after Oct 23.**
 7. **Tour booking:** decide on a GHL calendar and tag convention (tour-booked / tour-completed / application).
 8. **Agency prospect engine on the box:** needs an Apify key and spend there, or accept that it stays on the Mac (P1-8).
 9. **Dashboard authentication policy:** the tailnet is the only gate, and `FORGE_DAYCARE_OPEN=1`. Review tailnet members and the ACL (P0-10, §22).

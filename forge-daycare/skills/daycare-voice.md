@@ -39,7 +39,7 @@ Rules for this register:
 - Always names the specific center (921 N 18th St / 2318 Cecil B. Moore / 1923 Cecil B.
   Moore) — never a generic "our center."
 - Always ends with the live enrollment bonus line if the offer is still running, and its
-  expiry if there is one ("it ends Sept 12").
+  expiry if there is one ("it ends Oct 23").
 - One question at the end, never a list of questions.
 - First message to a fresh inbound lead also carries a compliance line: **"Reply STOP to
   opt out."** Keep it on any first-touch or blast-style send; drop it on live back-and-forth

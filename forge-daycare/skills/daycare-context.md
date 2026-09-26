@@ -70,7 +70,7 @@ does not come back, and does not refer.
 
 ## What's Already Running
 
-- **Enrollment offer:** $100 gift card OR $100 off tuition, after the family enrolls and stays 60 days. **Expires September 12, 2026** — countdown timers on the site are hardcoded to that date. Plan the successor by Sept 5 or the site goes stale. **→ 2026-09-23: EXPIRED, no successor on record, site banner still shows it. Agents must not offer it.**
+- **Enrollment offer:** $100 gift card OR $100 off tuition, after the family enrolls and stays 60 days. **Expires October 23, 2026** — countdown timers on the site are hardcoded to that date. Plan the successor by Oct 16 or the site goes stale. **→ 2026-09-26: owner extended it from September 12 to October 23, 2026; site updated. Agents may offer it through 2026-10-23, not after.**
 - **Referral mechanic (owner-confirmed Aug 16, flyer version is canonical):** refer a friend and **both families get $100 cash toward tuition**. The older website wording — referrer gets a gift card *or* tuition credit — has been corrected to match. Whether the referral bonus *stacks* with the enrollment bonus is **still undecided** — could reach $300 per referred family. Get the rule in writing before a parent asks.
 - No enrollment fee, limited time.
 - Ad angle library built: urgency, trust, offer-led. Seasonal variants: back-to-school, summer, holiday.
@@ -139,5 +139,5 @@ but the app itself is not this agent's concern. This file stays scoped to enroll
 - Open seats by age band at each of the 3 locations (37 licensed at 2 & 3 is the ceiling, not the vacancy)
 - Whether the referral bonus stacks with the enrollment bonus
 - Current monthly ad budget available (last stated: $25/day, with a $60/day option on the table)
-- The successor offer for after September 12
+- The successor offer for after October 23
 - Current Keystone STARS rating
