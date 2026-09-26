@@ -47,7 +47,7 @@ const AGENCY_SCOPES = [["p", "Personal"], ["b", "Business"]];
 const DAYCARE_NAV = [
   ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"],
   ["Children", "Children"], ["Attendance", "Attendance"],
-  ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Rewards", "Blessing Coins"], ["Classrooms", "Classrooms"],
+  ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Rewards", "Blessing Coins"], ["Pass", "Blessings Pass"], ["Classrooms", "Classrooms"],
   ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["ParentLogins", "Parent Logins"], ["Messages", "Messages"],
   ["Announcements", "Announcements"], ["Blast", "Text Blast"],
   ["Billing", "Billing"], ["Payroll", "Payroll"],

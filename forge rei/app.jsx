@@ -68,6 +68,7 @@ const DAYCARE_PAGES = {
   CareLogs:   () => <window.DaycareCareLogs />,
   Incidents:  () => <window.DaycareIncidents />,
   Rewards:    () => <window.DaycareRewards />,
+  Pass:       () => <window.DaycarePass />,
   Classrooms: () => <window.DaycareClassrooms />,
   Staff:      () => <window.DaycareStaff />,
   Enrollment: () => <window.DaycareEnrollment />,
