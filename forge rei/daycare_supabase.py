@@ -31,6 +31,15 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 
+_ET = ZoneInfo("America/New_York")
+
+
+def _today_et() -> date:
+    """The center's calendar day, pinned to Eastern — never the process/system clock's
+    zone (the box's system clock is UTC, where after 8pm ET it is already tomorrow)."""
+    return datetime.now(_ET).date()
+
+
 HERE = Path(__file__).resolve().parent
 COOKIE_NAME = "forge_daycare_session"
 SESSION_ABSOLUTE_SECONDS = 12 * 60 * 60
@@ -1228,7 +1237,7 @@ def get_staff(session: Session) -> dict[str, Any]:
 
 
 def get_attendance(session: Session, attendance_date: Any = None) -> dict[str, Any]:
-    day = require_date(attendance_date or date.today().isoformat(), "date")
+    day = require_date(attendance_date or _today_et().isoformat(), "date")
     ids = _child_ids(session)
     if not ids:
         return {"ok": True, "date": day, "attendance": []}
@@ -1247,7 +1256,7 @@ def get_attendance(session: Session, attendance_date: Any = None) -> dict[str, A
 
 
 def get_behavior(session: Session, behavior_date: Any = None) -> dict[str, Any]:
-    day = require_date(behavior_date or date.today().isoformat(), "date")
+    day = require_date(behavior_date or _today_et().isoformat(), "date")
     ids = _child_ids(session)
     if not ids:
         return {"ok": True, "date": day, "behavior": []}
@@ -1275,7 +1284,7 @@ def behavior_week_summary(session: Session) -> dict[str, Any]:
     ids = _child_ids(session)
     if not ids:
         return empty
-    today = date.today()
+    today = _today_et()
     start = (today - timedelta(days=6)).isoformat()
     rows = _rows(BRIDGE.rest(
         session,
@@ -1312,8 +1321,8 @@ def behavior_week_summary(session: Session) -> dict[str, Any]:
 
 
 def _range_query(session: Session, table: str, timestamp_column: str, start: Any, end: Any) -> list[dict[str, Any]]:
-    start_day = require_date(start or (date.today().replace(day=1)).isoformat(), "from")
-    end_day = require_date(end or date.today().isoformat(), "to")
+    start_day = require_date(start or (_today_et().replace(day=1)).isoformat(), "from")
+    end_day = require_date(end or _today_et().isoformat(), "to")
     if start_day > end_day:
         raise DaycareError(400, "from must be on or before to", "validation_error")
     ids = _child_ids(session)
@@ -1544,7 +1553,7 @@ def get_overview(session: Session) -> dict[str, Any]:
     staff = get_staff(session)["staff"]
     attendance = get_attendance(session)["attendance"]
     invoices = get_billing(session)["invoices"]
-    incidents = get_incidents(session, date.today().replace(day=1).isoformat(), date.today().isoformat())["incidents"]
+    incidents = get_incidents(session, _today_et().replace(day=1).isoformat(), _today_et().isoformat())["incidents"]
     announcements = get_announcements(session)["announcements"]
     notifications = get_notifications(session)["notifications"]
     center = get_status(session).get("location") or {}
@@ -1583,8 +1592,8 @@ def get_overview(session: Session) -> dict[str, Any]:
 
 
 def get_reports(session: Session, start: Any = None, end: Any = None) -> dict[str, Any]:
-    start_day = require_date(start or date.today().replace(day=1).isoformat(), "from")
-    end_day = require_date(end or date.today().isoformat(), "to")
+    start_day = require_date(start or _today_et().replace(day=1).isoformat(), "from")
+    end_day = require_date(end or _today_et().isoformat(), "to")
     if start_day > end_day:
         raise DaycareError(400, "from must be on or before to", "validation_error")
     ids = _child_ids(session)
@@ -1763,9 +1772,11 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "allergies": require_text(source.get("allergies"), "allergies", maximum=1000, optional=True),
         "medical_notes": require_text(_body_value(source, "medical_notes", "medicalNotes"), "medical_notes", maximum=4000, optional=True),
         "pickup_notes": require_text(_body_value(source, "pickup_notes", "pickupNotes"), "pickup_notes", maximum=4000, optional=True),
-        "enrollment_date": require_date(_body_value(source, "enrollment_date", "enrollmentDate") or datetime.now(ZoneInfo("America/New_York")).date().isoformat(), "enrollment_date"),
+        "enrollment_date": require_date(_body_value(source, "enrollment_date", "enrollmentDate") or _today_et().isoformat(), "enrollment_date"),
         "active": bool(source.get("active", True)),
     }
+    if child_id and not _body_value(source, "enrollment_date", "enrollmentDate"):
+        del record["enrollment_date"]  # an update keeps the stored date unless one is sent
     # Auto-route provisioning to the family's center. When the caller passes a target
     # location_id (the Contact-Form inbox routes a family to the center they picked on the
     # form), switch the session's active center so the guardian AND child both land there —
@@ -2005,7 +2016,7 @@ def save_schedule(session: Session, body: dict[str, Any]) -> dict[str, Any]:
 
 def set_attendance(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     child = _ensure_location_record(session, "children", body.get("child_id") or body.get("childId"))
-    day = require_date(body.get("date") or date.today().isoformat(), "date")
+    day = require_date(body.get("date") or _today_et().isoformat(), "date")
     action = enum_value(body.get("action"), "action", {"check-in", "check-out"})
     existing = _rows(BRIDGE.rest(session, "GET", "attendance", query={"child_id": f"eq.{child['id']}", "attendance_date": f"eq.{day}", "select": "*", "limit": "1"}))
     timestamp = now_iso()
@@ -2021,7 +2032,7 @@ def set_attendance(session: Session, body: dict[str, Any]) -> dict[str, Any]:
 
 
 def sign_out_all(session: Session, body: dict[str, Any]) -> dict[str, Any]:
-    day = require_date(body.get("date") or date.today().isoformat(), "date")
+    day = require_date(body.get("date") or _today_et().isoformat(), "date")
     ids = _child_ids(session)
     if not ids:
         return {"ok": True, "count": 0, "attendance": []}
@@ -2041,7 +2052,7 @@ def set_behavior(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     # One row per chart MOVE (append-only). A wrong tap is corrected by tapping
     # the right color (a newer row), so there is no update/delete path.
     child = _ensure_location_record(session, "children", body.get("child_id") or body.get("childId"))
-    day = require_date(body.get("date") or date.today().isoformat(), "date")
+    day = require_date(body.get("date") or _today_et().isoformat(), "date")
     color = enum_value(body.get("color"), "color", {"green", "yellow", "red"})
     note = require_text(body.get("note"), "note", maximum=1000, optional=True)
     record = {"child_id": child["id"], "behavior_date": day, "color": color, "note": note, "recorded_by": session.profile["id"]}
@@ -2352,7 +2363,7 @@ def save_log(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     record = {
         "child_id": child["id"],
         "author_id": session.profile["id"],
-        "log_date": require_date(_body_value(source, "log_date", "logDate") or date.today().isoformat(), "log_date"),
+        "log_date": require_date(_body_value(source, "log_date", "logDate") or _today_et().isoformat(), "log_date"),
         "activity": require_text(source.get("activity"), "activity", maximum=1000, optional=True),
         "mood": require_text(source.get("mood"), "mood", maximum=100, optional=True),
         "meal": require_text(source.get("meal"), "meal", maximum=1000, optional=True),
@@ -2527,14 +2538,14 @@ def save_invoice(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "child_id": child_id,
         "invoice_number": require_text(
             _body_value(source, "invoice_number", "invoiceNumber")
-            or f"DC-{date.today().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}",
+            or f"DC-{_today_et().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}",
             "invoice_number",
             maximum=80,
         ),
         "description": require_text(source.get("description"), "description", maximum=1000),
         "amount": require_number(source.get("amount"), "amount", maximum=Decimal("1000000")),
         "status": enum_value(status, "status", {"draft", "due", "paid", "void", "overdue"}),
-        "issued_on": require_date(_body_value(source, "issued_on", "issuedOn") or date.today().isoformat(), "issued_on"),
+        "issued_on": require_date(_body_value(source, "issued_on", "issuedOn") or _today_et().isoformat(), "issued_on"),
         "due_on": require_date(_body_value(source, "due_on", "dueOn"), "due_on"),
     }
     if record["due_on"] < record["issued_on"]:

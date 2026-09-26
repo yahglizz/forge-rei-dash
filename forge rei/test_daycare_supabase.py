@@ -7,6 +7,14 @@ import daycare_supabase as daycare
 
 LOCATION_ID = "11111111-1111-4111-8111-111111111111"
 PROFILE_ID = "22222222-2222-4222-8222-222222222222"
+CHILD_ID = "33333333-3333-4333-8333-333333333333"
+
+
+class ETEveningClock(daycare.datetime):
+    """01:30 UTC on Jan 2, 2030 = 8:30pm Jan 1 in Philadelphia (the box's UTC day is ahead)."""
+    @classmethod
+    def now(cls, tz=None):
+        return daycare.datetime(2030, 1, 2, 1, 30, tzinfo=daycare.timezone.utc).astimezone(tz)
 
 
 def config(**overrides):
@@ -345,18 +353,35 @@ class DaycareSecurityTests(unittest.TestCase):
         self.assertIn("guardian_email", error.exception.message)
 
     def test_enrollment_date_defaults_to_the_eastern_calendar_day(self):
-        # 01:30 UTC on Jan 2 is still 8:30pm on Jan 1 in Philadelphia.
-        class Clock(daycare.datetime):
-            @classmethod
-            def now(cls, tz=None):
-                return daycare.datetime(2030, 1, 2, 1, 30, tzinfo=daycare.timezone.utc).astimezone(tz)
         active = session()
-        with mock.patch.object(daycare, "datetime", Clock), \
+        with mock.patch.object(daycare, "datetime", ETEveningClock), \
                 mock.patch.object(daycare.BRIDGE, "rest", side_effect=lambda *a, **k: [k["body"]]) as rest:
             result = daycare.save_child(active, {"child": {
                 "first_name": "Sam", "last_name": "Test", "birth_date": "2022-01-01"}})
         self.assertEqual("2030-01-01", rest.call_args.kwargs["body"]["enrollment_date"])
         self.assertEqual("2030-01-01", result["child"]["enrollment_date"])
+
+    def test_child_update_keeps_the_stored_enrollment_date_unless_one_is_sent(self):
+        active = session()
+        child = {"first_name": "Sam", "last_name": "Test", "birth_date": "2022-01-01", "id": CHILD_ID}
+        existing = {"id": CHILD_ID, "guardian_profile_id": PROFILE_ID}
+        for sent, expected in ((None, None), ("2025-09-02", "2025-09-02")):
+            body = dict(child, enrollment_date=sent) if sent else child
+            with mock.patch.object(daycare, "_ensure_location_record", return_value=existing), \
+                    mock.patch.object(daycare.BRIDGE, "rest", side_effect=lambda *a, **k: [k["body"]]) as rest:
+                daycare.save_child(active, {"child": body})
+            method, table = rest.call_args.args[1:3]
+            self.assertEqual(("PATCH", "children"), (method, table))
+            self.assertEqual(expected, rest.call_args.kwargs["body"].get("enrollment_date"))
+            self.assertEqual(sent is not None, "enrollment_date" in rest.call_args.kwargs["body"])
+
+    def test_behavior_move_defaults_to_the_eastern_calendar_day(self):
+        active = session()
+        with mock.patch.object(daycare, "datetime", ETEveningClock), \
+                mock.patch.object(daycare, "_ensure_location_record", return_value={"id": CHILD_ID}), \
+                mock.patch.object(daycare.BRIDGE, "rest", side_effect=lambda *a, **k: [k["body"]]) as rest:
+            daycare.set_behavior(active, {"child_id": CHILD_ID, "color": "yellow"})
+        self.assertEqual("2030-01-01", rest.call_args.kwargs["body"]["behavior_date"])
 
     def test_staff_edit_preserves_nested_profile_role_when_ui_omits_role(self):
         active = session(profile={
