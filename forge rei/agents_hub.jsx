@@ -107,7 +107,7 @@ function HubRail({ agents, businesses, sel, onSel }) {
         </button>;
       })}
     </div>)}
-  </div>;
+  </aside>;
 }
 
 // ── chat ──────────────────────────────────────────────────────────────────────
