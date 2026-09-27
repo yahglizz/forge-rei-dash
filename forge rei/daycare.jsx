@@ -163,7 +163,13 @@ function DaycareWorkspace({ children }) {
   }, []);
   useEffectDcx(() => {
     check();
-    const expire = () => setState((current) => ({ ...current, loading: false, authenticated: false, reason: "Your secure session expired. Sign in again to continue.", profile: null }));
+    // Re-check first: the box re-mints an auto-admin session, so the owner never sees a login
+    // screen. Only if that still fails does the sign-in form appear.
+    let rechecking = false;
+    const expire = async () => {
+      if (rechecking) return; rechecking = true;
+      try { await check(); } finally { rechecking = false; }
+    };
     window.addEventListener("forge-daycare-auth-expired", expire);
     return () => window.removeEventListener("forge-daycare-auth-expired", expire);
   }, [check]);

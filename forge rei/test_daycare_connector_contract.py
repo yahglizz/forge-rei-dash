@@ -56,6 +56,13 @@ class DaycareConnectorContractTests(unittest.TestCase):
         self.assertIn("sid if secure else None", source)
         self.assertIn('result["secureRequired"] = True', source)
 
+    def test_auth_status_auto_admins_over_a_stale_cookie(self):
+        # Sessions are in-memory; after a box restart the browser's cookie is dead. Auto-admin
+        # must run for a dead cookie too, or the owner lands on the login screen.
+        source = inspect.getsource(connector.Handler._handle_daycare_get)
+        self.assertIn("if secure and not sid_ok:", source)
+        self.assertNotIn("if secure and not sid:", source)
+
     def test_expected_error_statuses_are_supported(self):
         source = inspect.getsource(connector.Handler._handle_daycare_post)
         self.assertIn("DaycareError", source)
