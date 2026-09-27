@@ -186,6 +186,21 @@ function PixelOfficeFloor({ departments, selected, onSelect }) {
       const depts = deptRef.current || [];
       poRect(c, 0, 0, PO_W, PO_H, "#050B18");
 
+      // Keep unused floor space intentional when a department has no active agents.
+      Object.entries(PO_ROOM_POS).forEach(([id, pos]) => {
+        if (depts.some((d) => d.id === id)) return;
+        const rx = pos[0] * PO_ROOM_W;
+        const ry = pos[1] * PO_ROOM_H;
+        poRect(c, rx, ry, PO_ROOM_W, PO_ROOM_H, "#0b1422");
+        for (let x = rx + 3; x < rx + PO_ROOM_W; x += 16) poRect(c, x, ry + 20, 1, PO_ROOM_H - 23, "rgba(255,255,255,.025)");
+        for (let y = ry + 20; y < ry + PO_ROOM_H; y += 16) poRect(c, rx + 3, y, PO_ROOM_W - 6, 1, "rgba(255,255,255,.025)");
+        c.fillStyle = "#526579";
+        c.font = "bold 9px ui-monospace, monospace";
+        c.textAlign = "center";
+        c.fillText("NO ACTIVE AGENTS", rx + PO_ROOM_W / 2, ry + PO_ROOM_H / 2);
+        c.textAlign = "left";
+      });
+
       depts.forEach((d) => {
         const pos = PO_ROOM_POS[d.id] || [0, 0];
         const rx = pos[0] * PO_ROOM_W;
