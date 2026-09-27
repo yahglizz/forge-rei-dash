@@ -66,10 +66,11 @@ function HubControlLine({ c }) {
   </div>;
 }
 
-function HubDot({ ok, title }) {
-  return <span title={title || (ok ? "ready" : "not ready")} style={{
+function HubDot({ ok, status, title }) {
+  const tone = status === "FAILED" ? "#EF4444" : status === "DEGRADED" || status === "WAITING FOR APPROVAL" ? "#F59E0B" : ok ? "#22C55E" : "#6B7280";
+  return <span title={title || status || (ok ? "ready" : "not ready")} style={{
     display: "inline-block", width: 7, height: 7, borderRadius: 9,
-    background: ok ? "#22C55E" : "#6B7280", flex: "0 0 auto",
+    background: tone, flex: "0 0 auto",
   }} />;
 }
 
@@ -99,7 +100,8 @@ function HubRail({ agents, businesses, sel, onSel }) {
           <span className="hub-agent-copy">
             <span className="hub-agent-name">
               <b>{a.name}</b>
-              <HubDot ok={ready} title={ready ? "brain ready" : "no API key"} />
+              <HubDot ok={ready} status={a.control && a.control.status}
+                title={a.control && a.control.status ? a.control.status : ready ? "brain ready" : "no API key"} />
             </span>
             <span className="hub-agent-role">{a.role}</span>
           </span>

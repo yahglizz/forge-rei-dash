@@ -285,7 +285,7 @@ function PixelOfficePanel({ agent, job, onDispatch, sending, err }) {
       <div className="card" style={{ padding: 18, height: "100%" }}>
         <div style={{ fontWeight: 600, marginBottom: 6 }}>Pick an agent</div>
         <div className="faint" style={{ fontSize: 12.5, lineHeight: 1.6 }}>
-          Click a character on the floor. You'll get their status, a live log of what
+          Select an agent on the floor or in the list. You'll get their status, a live log of what
           they're doing, and a box to hand them a task — the same brain the Agents tab
           uses, so the work is real. Outward actions stay approval-gated.
         </div>

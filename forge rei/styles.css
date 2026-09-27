@@ -898,6 +898,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .hub-message { max-width: 95%; }
   .hub-message-bubble { font-size: 12px; }
   .hub-composer .input { font-size: 12px; }
+  .office-roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .office-roster button { min-width: 0; padding: 8px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .nav-item, .hub-agent, .btn, .office-roster button { transition: none; }
