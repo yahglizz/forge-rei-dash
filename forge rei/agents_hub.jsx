@@ -52,18 +52,17 @@ function HubControlLine({ c }) {
   const HubPill = window.AccStatusPill || null;
   const ago = window.accAgo || ((ms) => (ms ? new Date(ms).toLocaleString() : "—"));
   const err = c.lastError || (c.dependencyHealth || {}).aiReason;
-  return <div style={{
-    fontSize: 11.5, opacity: .8, marginTop: 5, display: "flex", gap: 6,
-    flexWrap: "wrap", alignItems: "center",
-  }}>
-    {HubPill && <HubPill status={c.status} />}
-    <span>last run {ago(c.lastRun)}</span>
-    <span>· last success {ago(c.lastSuccessAt)}</span>
-    <span>· errors {c.errorCount == null ? "—" : c.errorCount}</span>
-    <span>· tasks {c.tasksCompleted} done / {c.tasksFailed} failed</span>
-    {c.pendingApprovals > 0 && <span>· {c.pendingApprovals} awaiting approval</span>}
-    {c.currentTask && <span>· now: {c.currentTask}</span>}
-    {err && <span style={{ color: "#EF4444", flexBasis: "100%", wordBreak: "break-word" }}>⚠ {err}</span>}
+  return <div className="hub-control">
+    <div className="hub-control-stats">
+      {HubPill && <HubPill status={c.status} />}
+      <span>Last run <b>{ago(c.lastRun)}</b></span>
+      <span>Last success <b>{ago(c.lastSuccessAt)}</b></span>
+      <span>Errors <b>{c.errorCount == null ? "—" : c.errorCount}</b></span>
+      <span>Tasks <b>{c.tasksCompleted} done / {c.tasksFailed} failed</b></span>
+      {c.pendingApprovals > 0 && <span>{c.pendingApprovals} awaiting approval</span>}
+    </div>
+    {c.currentTask && <div className="hub-now">Working on: {c.currentTask}</div>}
+    {err && <div className="hub-error" role="status">⚠ {err}</div>}
   </div>;
 }
 
@@ -80,34 +79,31 @@ function HubRail({ agents, businesses, sel, onSel }) {
     .map((b) => ({ ...b, rows: agents.filter((a) => a.business === b.id) }))
     .filter((g) => g.rows.length);
 
-  return <div className="card" style={{ padding: 10, overflowY: "auto", minHeight: 0 }}>
-    {groups.map((g) => <div key={g.id} style={{ marginBottom: 14 }}>
-      <div style={{
-        fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em",
-        opacity: .55, padding: "4px 8px", fontWeight: 600,
-      }}>{g.label}</div>
+  return <aside className="card hub-rail">
+    <div className="hub-rail-heading">
+      <span className="hub-eyebrow">Agent directory</span>
+      <strong>Your team</strong>
+      <small>Select an agent to see their work and messages.</small>
+    </div>
+    {groups.map((g) => <div key={g.id} className="hub-rail-group">
+      <div className="hub-group-label">{g.label}</div>
       {g.rows.map((a) => {
         const on = a.id === sel;
         const color = HUB_BIZ_COLOR[a.business] || "#4F7CFF";
         const ready = a.status && a.status.aiReady !== undefined
           ? !!a.status.aiReady : true;
-        return <button key={a.id} onClick={() => onSel(a.id)} style={{
-          display: "flex", gap: 10, alignItems: "center", width: "100%",
-          padding: "9px 8px", marginBottom: 2, borderRadius: 9, cursor: "pointer",
-          textAlign: "left", border: "1px solid " + (on ? color : "transparent"),
-          background: on ? color + "1A" : "transparent", color: "inherit",
-        }}>
-          <span style={{ fontSize: 18, lineHeight: 1 }}>{a.emoji}</span>
-          <span style={{ minWidth: 0, flex: 1 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <b style={{ fontSize: 13 }}>{a.name}</b>
+        return <button key={a.id} onClick={() => onSel(a.id)}
+          className={"hub-agent" + (on ? " selected" : "")}
+          style={{ "--agent-accent": color }} aria-current={on ? "true" : undefined}>
+          <span className="hub-agent-avatar">{a.emoji}</span>
+          <span className="hub-agent-copy">
+            <span className="hub-agent-name">
+              <b>{a.name}</b>
               <HubDot ok={ready} title={ready ? "brain ready" : "no API key"} />
             </span>
-            <span style={{
-              display: "block", fontSize: 11, opacity: .6, whiteSpace: "nowrap",
-              overflow: "hidden", textOverflow: "ellipsis",
-            }}>{a.role}</span>
+            <span className="hub-agent-role">{a.role}</span>
           </span>
+          <span className="hub-agent-arrow" aria-hidden="true">›</span>
         </button>;
       })}
     </div>)}
@@ -156,39 +152,36 @@ function HubChat({ agent, agents }) {
   }
 
   const color = HUB_BIZ_COLOR[agent.business] || "#4F7CFF";
-  return <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-    <div style={{ flex: 1, overflowY: "auto", padding: "4px 2px", minHeight: 0 }}>
-      {!msgs.length && !busy && <div style={{ opacity: .55, fontSize: 13, padding: 18, textAlign: "center" }}>
-        Talk to {agent.name} — ask what they're seeing, or give them work.
-        <div style={{ fontSize: 12, opacity: .8, marginTop: 6 }}>{agent.blurb}</div>
+  return <div className="hub-chat" style={{ "--agent-accent": color }}>
+    <div className="hub-chat-feed">
+      {!msgs.length && !busy && <div className="hub-chat-empty">
+        <span className="hub-chat-empty-icon">{agent.emoji}</span>
+        <strong>Start a conversation with {agent.name}</strong>
+        <p>Ask what they're seeing, or give them work.</p>
+        <small>{agent.blurb}</small>
       </div>}
       {msgs.map((m, i) => {
         const mine = m.role === "user";
-        return <div key={i} style={{
-          display: "flex", justifyContent: mine ? "flex-end" : "flex-start", marginBottom: 8,
-        }}>
-          <div style={{
-            maxWidth: "78%", padding: "9px 12px", borderRadius: 12, fontSize: 13,
-            lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word",
-            background: mine ? color : "rgba(255,255,255,.06)",
-            color: mine ? "#fff" : "inherit",
-          }}>{m.text}</div>
+        return <div key={i} className={"hub-message" + (mine ? " mine" : "")}>
+          {!mine && <span className="hub-message-avatar">{agent.emoji}</span>}
+          <div className="hub-message-body">
+            {!mine && <span className="hub-message-author">{agent.name}</span>}
+            <div className="hub-message-bubble">{m.text}</div>
+          </div>
         </div>;
       })}
-      {busy && <div style={{ opacity: .6, fontSize: 12, padding: "4px 6px" }}>
-        {agent.name} is thinking…
-      </div>}
+      {busy && <div className="hub-thinking"><span className="typing"><span/><span/><span/></span>{agent.name} is thinking…</div>}
       <div ref={endRef} />
     </div>
-    {err && <div style={{ color: "#EF4444", fontSize: 12, padding: "4px 6px" }}>{err}</div>}
-    <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
+    {err && <div className="hub-error" role="alert">{err}</div>}
+    <div className="hub-composer">
       <input
         className="input"
         value={text}
         placeholder={"Message " + agent.name + "… (or assign work: \"pull the 5 hottest leads\")"}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-        style={{ flex: 1 }}
+        aria-label={"Message " + agent.name}
       />
       <button className="btn btn-primary" onClick={send} disabled={busy || !text.trim()}>Send</button>
     </div>
@@ -432,39 +425,29 @@ function HubAgentsPage({ ws }) {
       : tab === "coach" ? <HubCoachFeed agent={agent} agents={agents} />
         : <HubConsole agent={agent} />;
 
-  return <div style={{
-    display: "grid", gridTemplateColumns: "260px 1fr", gap: 14,
-    height: "calc(100vh - 150px)", minHeight: 480,
-  }}>
+  return <div className="hub-layout">
     <HubRail agents={agents} businesses={businesses} sel={agent.id} onSel={(id) => { setSel(id); setTab("chat"); }} />
 
-    <div className="card" style={{ display: "flex", flexDirection: "column", padding: 14, minHeight: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 10 }}>
-        <span style={{ fontSize: 26 }}>{agent.emoji}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <b style={{ fontSize: 16 }}>{agent.name}</b>
-            <span style={{
-              fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 600,
-              background: color + "26", color: color,
-            }}>{agent.businessLabel}</span>
+    <section className="card hub-panel" style={{ "--agent-accent": color }}>
+      <div className="hub-panel-head">
+        <span className="hub-panel-avatar">{agent.emoji}</span>
+        <div className="hub-panel-identity">
+          <div className="hub-panel-name">
+            <b>{agent.name}</b>
+            <span className="hub-business-pill">{agent.businessLabel}</span>
           </div>
-          <div style={{ fontSize: 12, opacity: .6 }}>{agent.role}</div>
-          <HubControlLine c={agent.control} />
+          <div className="hub-panel-role">{agent.role}</div>
         </div>
-        <div style={{ display: "flex", gap: 5 }}>
-          {TABS.map(([id, label]) => <button key={id} onClick={() => setTab(id)} style={{
-            padding: "6px 13px", borderRadius: 8, fontSize: 12, cursor: "pointer",
-            fontWeight: tab === id ? 600 : 400,
-            border: "1px solid " + (tab === id ? color : "rgba(255,255,255,.12)"),
-            background: tab === id ? color + "1A" : "transparent", color: "inherit",
-          }}>{label}</button>)}
+        <div className="hub-tabs" role="tablist" aria-label={agent.name + " views"}>
+          {TABS.map(([id, label]) => <button key={id} onClick={() => setTab(id)}
+            className={tab === id ? "active" : ""} role="tab" aria-selected={tab === id}>{label}</button>)}
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0, borderTop: "1px solid rgba(255,255,255,.07)", paddingTop: 12 }}>
+      <HubControlLine c={agent.control} />
+      <div className="hub-panel-body" role="tabpanel">
         {panel}
       </div>
-    </div>
+    </section>
   </div>;
 }
 
