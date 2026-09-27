@@ -282,7 +282,7 @@ function PixelOfficePanel({ agent, job, onDispatch, sending, err }) {
   const running = job && job.status === "running";
 
   return (
-    <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, height: "100%", minHeight: 0 }}>
+    <div className="card office-panel" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
         <div style={{ width: 40, height: 40, borderRadius: 11, background: "var(--card-2)", display: "grid", placeItems: "center", fontSize: 20 }}>{agent.emoji}</div>
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -415,15 +415,15 @@ function PixelOfficePage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div className="card" style={{ padding: "13px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      <div className="card office-head">
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>Agent Office</div>
+          <div className="office-head-title" style={{ fontWeight: 700 }}>Agent Office <span className="office-live">Live</span></div>
           <div className="faint" style={{ fontSize: 11.5 }}>
             {((state && state.departments) || []).length} departments, live. {agents.length} agents · {busy} working right now.
           </div>
         </div>
         <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div className="office-legend">
           {legend.map((k) => (
             <span key={k} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
               <span style={{ width: 8, height: 8, borderRadius: 9, background: poMeta(k).color }} />
@@ -435,13 +435,13 @@ function PixelOfficePage() {
 
       {err && <div className="card" style={{ padding: 14, color: "var(--red)", fontSize: 12.5 }}>Office feed: {err}</div>}
 
-      <div className="office-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 330px", gap: 14, alignItems: "start" }}>
-        <div>
+      <div className="office-grid">
+        <div className="card office-floor-card">
           <PixelOfficeFloor
             departments={(state && state.departments) || []}
             selected={selected}
             onSelect={setSelected} />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8, marginTop: 12 }}>
+          <div className="office-roster">
             {agents.map((a) => {
               const m = poMeta(a.activity);
               return (
