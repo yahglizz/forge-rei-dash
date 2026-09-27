@@ -65,6 +65,7 @@ const DAYCARE_PAGES = {
   Director:   () => <window.DaycareDirector />,
   Children:   () => <window.DaycareChildren />,
   Attendance: () => <window.DaycareAttendance />,
+  TimeSheets: () => <window.DaycareTimesheets />,
   CareLogs:   () => <window.DaycareCareLogs />,
   Incidents:  () => <window.DaycareIncidents />,
   Rewards:    () => <window.DaycareRewards />,

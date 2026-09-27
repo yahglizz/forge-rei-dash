@@ -46,7 +46,7 @@ const AGENCY_SCOPES = [["p", "Personal"], ["b", "Business"]];
 // Daycare workspace — center operations, families, staff, enrollment, and billing.
 const DAYCARE_NAV = [
   ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"],
-  ["Children", "Children"], ["Attendance", "Attendance"],
+  ["Children", "Children"], ["Attendance", "Attendance"], ["TimeSheets", "Time Sheets"],
   ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Rewards", "Blessing Coins"], ["Pass", "Blessings Pass"], ["Classrooms", "Classrooms"],
   ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["ParentLogins", "Parent Logins"], ["Messages", "Messages"],
   ["Announcements", "Announcements"], ["Blast", "Text Blast"],

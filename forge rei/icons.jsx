@@ -69,6 +69,7 @@ const Icons = {
   // --- Daycare operations icons ---
   Children: (p) => <I {...p}><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 21v-2a5 5 0 0 1 10 0v2M14 16.5a4 4 0 0 1 7 2.5v2"/></I>,
   Attendance: (p) => <I {...p}><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18m-13 5 2 2 5-5"/></I>,
+  TimeSheets: (p) => <I {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5"/><path d="M14 2v6h6v3M8 9h3M8 13h4M8 17h2"/><circle cx="17" cy="17" r="4"/><path d="M17 15v2l1.5 1"/></I>,
   Classrooms: (p) => <I {...p}><path d="M3 21V6l9-4 9 4v15M3 9h18M8 13h2M14 13h2M8 17h2M14 17h2"/></I>,
   Staff: (p) => <I {...p}><circle cx="8" cy="8" r="3"/><circle cx="17" cy="7" r="2"/><path d="M2 21v-2a6 6 0 0 1 12 0v2M14 14a5 5 0 0 1 8 4v3"/></I>,
   Enrollment: (p) => <I {...p}><path d="M4 3h13l3 3v15H4zM17 3v4h4M8 12h8M8 16h5"/><path d="M10 7H8v2"/></I>,

@@ -17,7 +17,7 @@ function DcoChildForm({ classrooms, child, enrollmentMode, initial, onClose, onS
     try { const payload = await window.DcxRequest("/child/save", { body: { child: { ...form, id: child && child.id, active: true } } }); onSaved(payload.provision || null); }
     catch (requestError) { setError(requestError.message); } finally { setBusy(false); }
   };
-  return <window.DcxModal wide title={child ? "Edit child record" : enrollmentMode ? "Enroll child" : "Add child"} copy="Saved securely to the shared daycare database." onClose={onClose}>{error && <div className="dc-form-error">{error}</div>}{!child && form.location_name && <div className="dc-form-hint"><window.Icons.Properties size={14}/> Enrolling into <b>{form.location_name}</b> — the center from the family's form.</div>}<div className="dc-section-label">Child information</div><div className="dc-form-grid"><window.DcxField label="First name *"><input autoFocus value={form.first_name} onChange={(e)=>setForm({...form,first_name:e.target.value})}/></window.DcxField><window.DcxField label="Last name *"><input value={form.last_name} onChange={(e)=>setForm({...form,last_name:e.target.value})}/></window.DcxField><window.DcxField label="Preferred name"><input value={form.preferred_name || ""} onChange={(e)=>setForm({...form,preferred_name:e.target.value})}/></window.DcxField><window.DcxField label="Birth date *"><input type="date" value={form.birth_date || ""} onChange={(e)=>setForm({...form,birth_date:e.target.value})}/></window.DcxField><window.DcxField label="Classroom"><select value={form.classroom_id || ""} onChange={(e)=>setForm({...form,classroom_id:e.target.value})}><option value="">Unassigned</option>{classrooms.map((room)=><option key={room.id} value={room.id}>{room.name}</option>)}</select></window.DcxField><window.DcxField label="Allergies"><input value={form.allergies || ""} onChange={(e)=>setForm({...form,allergies:e.target.value})}/></window.DcxField><window.DcxField label="Medical notes" wide><textarea rows="2" value={form.medical_notes || ""} onChange={(e)=>setForm({...form,medical_notes:e.target.value})}/></window.DcxField><window.DcxField label="Authorized pickup notes" wide><textarea rows="2" value={form.pickup_notes || ""} onChange={(e)=>setForm({...form,pickup_notes:e.target.value})}/></window.DcxField></div>{!child && <><div className="dc-section-label">Parent login (optional)</div><div className="dc-form-grid"><window.DcxField label="Guardian first name"><input value={form.guardian_first_name} onChange={(e)=>setForm({...form,guardian_first_name:e.target.value})}/></window.DcxField><window.DcxField label="Guardian last name"><input value={form.guardian_last_name} onChange={(e)=>setForm({...form,guardian_last_name:e.target.value})}/></window.DcxField><window.DcxField label="Guardian phone"><input type="tel" value={form.guardian_phone} onChange={(e)=>setForm({...form,guardian_phone:e.target.value})}/></window.DcxField><window.DcxField label="Guardian email"><input type="email" value={form.guardian_email} onChange={(e)=>setForm({...form,guardian_email:e.target.value})} placeholder="family@example.com"/></window.DcxField></div><div className="dc-form-hint"><window.Icons.Shield size={14}/> The child is enrolled as soon as you save — with or without a parent login. Fill these in now to also generate their Login ID + one-time PIN, or leave blank and add a login later from Parent Logins.</div></>}<div className="dc-modal-actions"><button className="dc-quiet" onClick={onClose}>Cancel</button><button className="dc-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : child ? "Save changes" : "Create enrollment"}</button></div></window.DcxModal>;
+  return <window.DcxModal wide title={child ? "Edit child record" : enrollmentMode ? "Enroll child" : "Add child"} copy="Saved securely to the shared daycare database." onClose={onClose}>{error && <div className="dc-form-error">{error}</div>}{!child && form.location_name && <div className="dc-form-hint"><window.Icons.Properties size={14}/> Enrolling into <b>{form.location_name}</b> — the center from the family's form.</div>}<div className="dc-section-label">Child information</div><div className="dc-form-grid"><window.DcxField label="First name *"><input autoFocus value={form.first_name} onChange={(e)=>setForm({...form,first_name:e.target.value})}/></window.DcxField><window.DcxField label="Last name *"><input value={form.last_name} onChange={(e)=>setForm({...form,last_name:e.target.value})}/></window.DcxField><window.DcxField label="Preferred name"><input value={form.preferred_name || ""} onChange={(e)=>setForm({...form,preferred_name:e.target.value})}/></window.DcxField><window.DcxField label="Birth date *"><input type="date" value={form.birth_date || ""} onChange={(e)=>setForm({...form,birth_date:e.target.value})}/></window.DcxField><window.DcxField label="Classroom"><select value={form.classroom_id || ""} onChange={(e)=>setForm({...form,classroom_id:e.target.value})}><option value="">Unassigned</option>{classrooms.map((room)=><option key={room.id} value={room.id}>{room.name}</option>)}</select></window.DcxField><window.DcxField label="Allergies"><input value={form.allergies || ""} onChange={(e)=>setForm({...form,allergies:e.target.value})}/></window.DcxField><window.DcxField label="Medical notes" wide><textarea rows="2" value={form.medical_notes || ""} onChange={(e)=>setForm({...form,medical_notes:e.target.value})}/></window.DcxField><window.DcxField label="Authorized pickup notes" wide><textarea rows="2" value={form.pickup_notes || ""} onChange={(e)=>setForm({...form,pickup_notes:e.target.value})}/></window.DcxField><window.DcxField label="Subsidy"><label className="dc-switch-row"><input type="checkbox" checked={Boolean(form.ccis)} onChange={(e)=>setForm({...form,ccis:e.target.checked,ccis_case_id:form.ccis_case_id || "" /* kept when leaving CCIS: past CCIS sheets still need it */})}/><span>CCIS (Child Care Works)</span></label></window.DcxField>{form.ccis && <window.DcxField label="CCIS case ID (optional)"><input maxLength={40} value={form.ccis_case_id || ""} onChange={(e)=>setForm({...form,ccis_case_id:e.target.value})}/></window.DcxField>}</div>{!child && <><div className="dc-section-label">Parent login (optional)</div><div className="dc-form-grid"><window.DcxField label="Guardian first name"><input value={form.guardian_first_name} onChange={(e)=>setForm({...form,guardian_first_name:e.target.value})}/></window.DcxField><window.DcxField label="Guardian last name"><input value={form.guardian_last_name} onChange={(e)=>setForm({...form,guardian_last_name:e.target.value})}/></window.DcxField><window.DcxField label="Guardian phone"><input type="tel" value={form.guardian_phone} onChange={(e)=>setForm({...form,guardian_phone:e.target.value})}/></window.DcxField><window.DcxField label="Guardian email"><input type="email" value={form.guardian_email} onChange={(e)=>setForm({...form,guardian_email:e.target.value})} placeholder="family@example.com"/></window.DcxField></div><div className="dc-form-hint"><window.Icons.Shield size={14}/> The child is enrolled as soon as you save — with or without a parent login. Fill these in now to also generate their Login ID + one-time PIN, or leave blank and add a login later from Parent Logins.</div></>}<div className="dc-modal-actions"><button className="dc-quiet" onClick={onClose}>Cancel</button><button className="dc-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : child ? "Save changes" : "Create enrollment"}</button></div></window.DcxModal>;
 }
 
 function DcoProvisionCredentials({ provision, onClose }) {
@@ -40,7 +40,7 @@ function DcoChildrenView({ enrollmentMode = false }) {
   const guardianId = (child) => child.guardian_profile_id || (child.guardian_profile && child.guardian_profile.id) || (child.guardian && child.guardian.id) || null;
   const resetPin = async (child) => { const gid = guardianId(child); if (!gid) { window.alert("No parent account is linked to this child yet — add a guardian first."); return; } if (!window.confirm("Reset this parent's login PIN? Their current PIN stops working immediately and a new one is shown once.")) return; try { const payload = await window.DcxRequest("/guardian/reset-pin", { body: { profile_id: gid } }); if (payload.provision) setCredentials(payload.provision); } catch (error) { window.alert(error.message); } };
   const actions = <><div className="dc-search"><window.Icons.Search size={14}/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search roster"/></div><button className="dc-primary" onClick={()=>setModal("new")}><window.Icons.Plus size={14}/> {enrollmentMode ? "Enroll family" : "Add child"}</button></>;
-  return <div className="dc-page"><window.DcxPageHead title={enrollmentMode ? "Enrollment & Guardians" : "Children"} eyebrow={enrollmentMode ? "FAMILY ONBOARDING" : "SECURE CENTER ROSTER"} copy={enrollmentMode ? "Create a child record and provision guardian access in one flow." : "Shared child, classroom, care, and guardian records."} actions={actions}/><window.DcxState loading={childrenResource.loading || roomsResource.loading} error={childrenResource.error || roomsResource.error} onRetry={()=>{childrenResource.refresh();roomsResource.refresh();}} empty={!children.length} icon="Children" title="No children enrolled" copy="Add the first child to begin attendance and care tracking."><button className="dc-primary" onClick={()=>setModal("new")}>Create first enrollment</button></window.DcxState>{children.length > 0 && <div className="card dc-table-wrap"><table className="lead-table dc-table"><thead><tr><th>Child</th><th>Classroom</th><th>Age / birthday</th><th>Guardian</th><th>Care flags</th><th></th></tr></thead><tbody>{visible.map((child)=>{ const room = child.classrooms || rooms.find((candidate)=>candidate.id === child.classroom_id); return <tr key={child.id}><td><div className="dc-person"><div className="dc-avatar">{window.DcxChildName(child).slice(0,1)}</div><div><b>{window.DcxChildName(child)}</b><small>{child.active === false ? "Inactive" : "Active enrollment"}</small></div></div></td><td>{room ? room.name : "Unassigned"}</td><td>{window.DcxDate(child.birth_date)}</td><td>{child.guardian_name || window.DcxName(child.guardian || child.guardian_profile, "Not provisioned")}</td><td><div className="dc-flags">{child.allergies && <span className="warn">Allergies</span>}{child.medical_notes && <span>Medical</span>}{!child.allergies && !child.medical_notes && <span className="quiet">None</span>}</div></td><td><div className="dc-row-actions"><button onClick={()=>setModal(child)}>Edit</button>{guardianId(child) && <button onClick={()=>resetPin(child)}>Reset login</button>}{child.active !== false && <button className="danger" onClick={()=>setConfirm(child)}>Deactivate</button>}</div></td></tr>;})}</tbody></table>{!visible.length && <div className="dc-inline-empty">No roster records match that search.</div>}</div>}{modal && <DcoChildForm classrooms={rooms} child={modal === "new" ? null : modal} enrollmentMode={enrollmentMode} onClose={()=>setModal(null)} onSaved={refresh}/>} {confirm && <window.DcxConfirm danger title={"Deactivate " + window.DcxChildName(confirm) + "?"} copy="Their history remains available, but they will leave the active roster." confirmLabel="Deactivate child" onClose={()=>setConfirm(null)} onConfirm={deactivate}/>} {credentials && <DcoProvisionCredentials provision={credentials} onClose={()=>setCredentials(null)}/>}</div>;
+  return <div className="dc-page"><window.DcxPageHead title={enrollmentMode ? "Enrollment & Guardians" : "Children"} eyebrow={enrollmentMode ? "FAMILY ONBOARDING" : "SECURE CENTER ROSTER"} copy={enrollmentMode ? "Create a child record and provision guardian access in one flow." : "Shared child, classroom, care, and guardian records."} actions={actions}/><window.DcxState loading={childrenResource.loading || roomsResource.loading} error={childrenResource.error || roomsResource.error} onRetry={()=>{childrenResource.refresh();roomsResource.refresh();}} empty={!children.length} icon="Children" title="No children enrolled" copy="Add the first child to begin attendance and care tracking."><button className="dc-primary" onClick={()=>setModal("new")}>Create first enrollment</button></window.DcxState>{children.length > 0 && <div className="card dc-table-wrap"><table className="lead-table dc-table"><thead><tr><th>Child</th><th>Classroom</th><th>Age / birthday</th><th>Guardian</th><th>Care flags</th><th></th></tr></thead><tbody>{visible.map((child)=>{ const room = child.classrooms || rooms.find((candidate)=>candidate.id === child.classroom_id); return <tr key={child.id}><td><div className="dc-person"><div className="dc-avatar">{window.DcxChildName(child).slice(0,1)}</div><div><b>{window.DcxChildName(child)}</b><small>{child.active === false ? "Inactive" : "Active enrollment"}</small></div></div></td><td>{room ? room.name : "Unassigned"}</td><td>{window.DcxDate(child.birth_date)}</td><td>{child.guardian_name || window.DcxName(child.guardian || child.guardian_profile, "Not provisioned")}</td><td><div className="dc-flags">{child.ccis && <span title={child.ccis_case_id ? "CCIS case " + child.ccis_case_id : "CCIS (Child Care Works)"}>CCIS</span>}{child.allergies && <span className="warn">Allergies</span>}{child.medical_notes && <span>Medical</span>}{!child.ccis && !child.allergies && !child.medical_notes && <span className="quiet">None</span>}</div></td><td><div className="dc-row-actions"><button onClick={()=>setModal(child)}>Edit</button>{guardianId(child) && <button onClick={()=>resetPin(child)}>Reset login</button>}{child.active !== false && <button className="danger" onClick={()=>setConfirm(child)}>Deactivate</button>}</div></td></tr>;})}</tbody></table>{!visible.length && <div className="dc-inline-empty">No roster records match that search.</div>}</div>}{modal && <DcoChildForm classrooms={rooms} child={modal === "new" ? null : modal} enrollmentMode={enrollmentMode} onClose={()=>setModal(null)} onSaved={refresh}/>} {confirm && <window.DcxConfirm danger title={"Deactivate " + window.DcxChildName(confirm) + "?"} copy="Their history remains available, but they will leave the active roster." confirmLabel="Deactivate child" onClose={()=>setConfirm(null)} onConfirm={deactivate}/>} {credentials && <DcoProvisionCredentials provision={credentials} onClose={()=>setCredentials(null)}/>}</div>;
 }
 
 function DaycareChildren() { return <DcoChildrenView/>; }
@@ -53,12 +53,42 @@ function DcoBehaviorDots({ color, busy, onSet }) {
   return <div className="dc-beh-dots" role="group" aria-label={"Behavior chart — on " + color}>{DCO_BEHAVIOR.map(([value, label])=><button key={value} type="button" className={"dc-beh-dot " + value + (color === value ? " active" : "")} disabled={busy} aria-pressed={color === value} aria-label={"Move to " + label} title={label} onClick={()=>onSet(value)}/>)}</div>;
 }
 
+function dcoTime(value) {
+  const parsed = value ? new Date(value) : null;
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—";
+}
+
+// Key in one child's day from the signed paper sheet. The DB (record_paper_attendance)
+// decides what is allowed and says why when it refuses — that sentence is shown as-is.
+function DcoPaperForm({ children, onClose, onSaved }) {
+  const [form, setForm] = useStateDco({ child_id: "", date: window.DcxToday(), time_in: "", time_out: "", note: "" });
+  const [busy, setBusy] = useStateDco(false); const [error, setError] = useStateDco("");
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const save = async () => {
+    if (!form.child_id || !form.date || !form.time_in) { setError("Child, date and arrival time are required."); return; }
+    setBusy(true); setError("");
+    try { await window.DcxRequest("/attendance/paper", { body: form }); onSaved(form.date); }
+    catch (requestError) { setError(requestError.message); } finally { setBusy(false); }
+  };
+  return <window.DcxModal title="Key in paper sheet" copy="Times as written on the signed sheet. The day is marked Paper everywhere it is reported." onClose={onClose}>
+    {error && <div className="dc-form-error">{error}</div>}
+    <div className="dc-form-grid">
+      <window.DcxField label="Child *" wide><select autoFocus value={form.child_id} onChange={set("child_id")}><option value="">Choose child</option>{children.map((child)=><option key={child.id} value={child.id}>{window.DcxChildName(child)}</option>)}</select></window.DcxField>
+      <window.DcxField label="Date *"><input type="date" max={window.DcxToday()} value={form.date} onChange={set("date")}/></window.DcxField>
+      <window.DcxField label="Arrival time *"><input type="time" value={form.time_in} onChange={set("time_in")}/></window.DcxField>
+      <window.DcxField label="Pickup time"><input type="time" value={form.time_out} onChange={set("time_out")}/></window.DcxField>
+      <window.DcxField label="Note" wide><input maxLength={300} value={form.note} onChange={set("note")} placeholder="Optional"/></window.DcxField>
+    </div>
+    <div className="dc-modal-actions"><button className="dc-quiet" onClick={onClose}>Cancel</button><button className="dc-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save paper entry"}</button></div>
+  </window.DcxModal>;
+}
+
 function DaycareAttendance() {
   const [date, setDate] = useStateDco(window.DcxToday());
   const childrenResource = window.DcxUseResource("/children", "children", 15000);
   const attendanceResource = window.DcxUseResource("/attendance?date=" + encodeURIComponent(date), "attendance", 10000);
   const behaviorResource = window.DcxUseResource("/behavior?date=" + encodeURIComponent(date), "behavior", 10000);
-  const [working, setWorking] = useStateDco(""); const [confirmAll, setConfirmAll] = useStateDco(false);
+  const [working, setWorking] = useStateDco(""); const [confirmAll, setConfirmAll] = useStateDco(false); const [paper, setPaper] = useStateDco(false);
   const children = Array.isArray(childrenResource.data) ? childrenResource.data.filter((child)=>child.active !== false) : [];
   const records = Array.isArray(attendanceResource.data) ? attendanceResource.data : [];
   const behavior = Array.isArray(behaviorResource.data) ? behaviorResource.data : [];
@@ -66,10 +96,163 @@ function DaycareAttendance() {
   // Rows arrive oldest-first, so the last matching move is the child's color now.
   const behaviorColor = (id) => { const moves = behavior.filter((move)=>move.child_id === id); return moves.length ? moves[moves.length-1].color : "green"; };
   const setBehavior = async (child, color) => { if (behaviorColor(child.id) === color) return; setWorking("beh-"+child.id); try { await window.DcxRequest("/behavior/set", { body: { childId: child.id, date, color } }); behaviorResource.refresh(); } catch (error) { window.alert(error.message); } finally { setWorking(""); } };
-  const act = async (child, action) => { setWorking(child.id); try { await window.DcxRequest("/attendance/set", { body: { childId: child.id, date, action } }); attendanceResource.refresh(); } catch (error) { window.alert(error.message); } finally { setWorking(""); } };
+  // Closing a PAST day asks for the real pickup time (the server refuses "now" for an old day).
+  const act = async (child, action) => { let time; if (action === "check-out" && date < window.DcxToday()) { time = window.prompt("Pickup time on " + date + " (24-hour HH:MM, e.g. 17:15)"); if (!time) return; } setWorking(child.id); try { await window.DcxRequest("/attendance/set", { body: { childId: child.id, date, action, time } }); attendanceResource.refresh(); } catch (error) { window.alert(error.message); } finally { setWorking(""); } };
+  // Declining clears the family's request; the child stays on site and the parent is told.
+  const decline = async (record) => { setWorking(record.child_id); try { await window.DcxRequest("/attendance/decline-pickup", { body: { attendance_id: record.id } }); attendanceResource.refresh(); } catch (error) { window.alert(error.message); } finally { setWorking(""); } };
   const signOutAll = async () => { setWorking("all"); try { await window.DcxRequest("/attendance/sign-out-all", { body: { date } }); setConfirmAll(false); attendanceResource.refresh(); } catch (error) { window.alert(error.message); } finally { setWorking(""); } };
   const present = records.filter((record)=>record.status === "present" || (record.checked_in_at && !record.checked_out_at));
-  return <div className="dc-page"><window.DcxPageHead title="Attendance" eyebrow="LIVE CHECK-IN / OUT" copy="Every change is written to the shared daily attendance record." actions={<><input className="dc-date-input" type="date" value={date} onChange={(e)=>setDate(e.target.value)}/>{present.length > 0 && <button className="dc-outline" onClick={()=>setConfirmAll(true)}>Sign out all ({present.length})</button>}</>}/><div className="dc-attendance-summary"><span><i className="green"/>{present.length} present</span><span><i/>{Math.max(0, children.length-present.length)} not on site</span><span>{children.length} active children</span></div><window.DcxState loading={childrenResource.loading || attendanceResource.loading} error={childrenResource.error || attendanceResource.error} onRetry={()=>{childrenResource.refresh();attendanceResource.refresh();behaviorResource.refresh();}} empty={!children.length} icon="Attendance" title="Attendance starts with enrollment" copy="Enroll a child before recording check-in and check-out."><button className="dc-primary" onClick={()=>window.GoTo("Enrollment")}>Open enrollment</button></window.DcxState>{children.length > 0 && <div className="dc-attendance-list">{children.map((child)=>{ const record = recordFor(child.id); const isIn = Boolean(record && (record.status === "present" || (record.checked_in_at && !record.checked_out_at))); return <div className="card" key={child.id}><div className="dc-avatar">{window.DcxChildName(child).slice(0,1)}</div><div><b>{window.DcxChildName(child)}</b><small>{child.classrooms && child.classrooms.name || "Unassigned"}</small></div><div className="dc-attendance-times"><span>{record && record.checked_in_at ? "In " + window.DcxDate(record.checked_in_at,true) : "Not checked in"}</span>{record && record.checked_out_at && <small>Out {window.DcxDate(record.checked_out_at,true)}</small>}</div><DcoBehaviorDots color={behaviorColor(child.id)} busy={working==="beh-"+child.id} onSet={(color)=>setBehavior(child,color)}/><span className={"dc-presence " + (isIn ? "in" : "out")}>{isIn ? "On site" : "Off site"}</span><button className={isIn ? "dc-outline" : "dc-primary"} disabled={working===child.id} onClick={()=>act(child,isIn ? "check-out" : "check-in")}>{working===child.id ? "Saving…" : isIn ? "Check out" : "Check in"}</button></div>;})}</div>}{confirmAll && <window.DcxConfirm title="Sign out everyone?" copy={"This records a check-out time for all " + present.length + " children currently on site."} confirmLabel="Sign out all" busy={working==="all"} onClose={()=>setConfirmAll(false)} onConfirm={signOutAll}/>}</div>;
+  return <div className="dc-page"><window.DcxPageHead title="Attendance" eyebrow="LIVE CHECK-IN / OUT" copy="Every change is written to the shared daily attendance record." actions={<><input className="dc-date-input" type="date" value={date} onChange={(e)=>setDate(e.target.value)}/><button className="dc-outline" onClick={()=>setPaper(true)}>Key in paper sheet</button>{present.length > 0 && <button className="dc-outline" onClick={()=>setConfirmAll(true)}>Sign out all ({present.length})</button>}</>}/><div className="dc-attendance-summary"><span><i className="green"/>{present.length} present</span><span><i/>{Math.max(0, children.length-present.length)} not on site</span><span>{children.length} active children</span></div><window.DcxState loading={childrenResource.loading || attendanceResource.loading} error={childrenResource.error || attendanceResource.error} onRetry={()=>{childrenResource.refresh();attendanceResource.refresh();behaviorResource.refresh();}} empty={!children.length} icon="Attendance" title="Attendance starts with enrollment" copy="Enroll a child before recording check-in and check-out."><button className="dc-primary" onClick={()=>window.GoTo("Enrollment")}>Open enrollment</button></window.DcxState>{children.length > 0 && <div className="dc-attendance-list">{children.map((child)=>{ const record = recordFor(child.id); const isIn = Boolean(record && (record.status === "present" || (record.checked_in_at && !record.checked_out_at))); const pickup = Boolean(record && record.pickup_requested_at && !record.checked_out_at); return <div className="card" key={child.id}><div className="dc-avatar">{window.DcxChildName(child).slice(0,1)}</div><div><b>{window.DcxChildName(child)}</b><small>{child.classrooms && child.classrooms.name || "Unassigned"}</small></div><div className="dc-attendance-times"><span>{record && record.checked_in_at ? "In " + window.DcxDate(record.checked_in_at,true) : "Not checked in"}</span>{record && record.checked_out_at && <small>Out {window.DcxDate(record.checked_out_at,true)}</small>}{(pickup || (record && record.source === "paper")) && <div className="dc-flags">{pickup && <span className="warn">Pickup requested by {record.pickup_request_signature || "family"} at {dcoTime(record.pickup_requested_at)}</span>}{record.source === "paper" && <span>Paper</span>}</div>}{pickup && <div className="dc-row-actions" style={{ justifyContent: "flex-start", marginTop: 5 }}><button className="danger" disabled={working===child.id} onClick={()=>decline(record)}>Decline pickup</button></div>}</div><DcoBehaviorDots color={behaviorColor(child.id)} busy={working==="beh-"+child.id} onSet={(color)=>setBehavior(child,color)}/><span className={"dc-presence " + (isIn ? "in" : "out")}>{isIn ? "On site" : "Off site"}</span><button className={isIn && !pickup ? "dc-outline" : "dc-primary"} disabled={working===child.id} onClick={()=>act(child,isIn ? "check-out" : "check-in")}>{working===child.id ? "Saving…" : pickup ? "Confirm pickup" : isIn ? "Check out" : "Check in"}</button></div>;})}</div>}{confirmAll && <window.DcxConfirm title="Sign out everyone?" copy={"This records a check-out time for all " + present.length + " children currently on site."} confirmLabel="Sign out all" busy={working==="all"} onClose={()=>setConfirmAll(false)} onConfirm={signOutAll}/>}{paper && <DcoPaperForm children={children} onClose={()=>setPaper(false)} onSaved={(day)=>{ setPaper(false); if (day === date) attendanceResource.refresh(); else setDate(day); }}/>}</div>;
+}
+
+// ---- Time Sheets: CCIS + private-pay hours by classroom. The `timesheets` edge function is
+// the ONLY place hours are totalled — this page renders its numbers, never recomputes them.
+const DCO_TS_COLS = [["days_attended", "Days attended"], ["days_absent", "Days absent"], ["hours", "Hours"], ["full_days", "Full days"], ["part_days", "Part days"], ["paper_days", "Paper days"], ["open_days", "Open"]];
+const dcoIso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const dcoParts = (iso) => String(iso || "").split("-").map(Number);
+function dcoRange(mode, iso) {
+  const [y, m, d] = dcoParts(iso);
+  if (!y || !m || !d) return null;
+  if (mode === "month") return { start: dcoIso(new Date(y, m - 1, 1)), end: dcoIso(new Date(y, m, 0)) };
+  const back = (new Date(y, m - 1, d).getDay() + 6) % 7; // Monday-Sunday week
+  return { start: dcoIso(new Date(y, m - 1, d - back)), end: dcoIso(new Date(y, m - 1, d - back + 6)) };
+}
+const dcoDay = (iso, opts) => { const [y, m, d] = dcoParts(iso); return new Date(y, m - 1, d).toLocaleDateString("en-US", opts || { weekday: "short", month: "short", day: "numeric" }); };
+const dcoMonth = (iso) => dcoDay(iso, { month: "long", year: "numeric" });
+const dcoVal = (key, value) => key === "hours" ? (Number(value) || 0).toFixed(1) : (value == null ? 0 : value);
+function dcoDownload(payload) {
+  const bytes = Uint8Array.from(atob(payload.pdf_base64 || ""), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const link = document.createElement("a");
+  link.href = url; link.download = payload.filename || "time-sheet.pdf";
+  document.body.appendChild(link); link.click(); link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// A private-pay month becomes an invoice. The owner types the amount — never prefilled.
+function DcoTimesheetInvoice({ child, period, onClose, onSaved }) {
+  const [y, m] = dcoParts(period.start);
+  const [form, setForm] = useStateDco({ description: "Tuition — " + dcoMonth(period.start) + " · " + child.days_attended + " days · " + dcoVal("hours", child.hours) + " hrs", amount: "", due_on: dcoIso(new Date(y, m, 1)) });
+  const [busy, setBusy] = useStateDco(false); const [error, setError] = useStateDco("");
+  const save = async () => {
+    if (!form.description.trim() || !(Number(form.amount) > 0)) { setError("A description and a positive amount are required."); return; }
+    if (!form.due_on || form.due_on < window.DcxToday()) { setError("Pick a due date of today or later — the invoice is issued today."); return; }
+    setBusy(true); setError("");
+    try { await window.DcxRequest("/invoice/save", { body: { invoice: { guardian_id: child.guardian_profile_id, child_id: child.id, description: form.description, amount: Number(form.amount), status: "due", issued_on: window.DcxToday(), due_on: form.due_on, period_start: period.start, period_end: period.end } } }); onSaved(); }
+    catch (requestError) { setError(requestError.message); } finally { setBusy(false); }
+  };
+  return <window.DcxModal title={"Invoice · " + child.name} copy="Records an amount due on Billing; it does not charge a card." onClose={onClose}>
+    {error && <div className="dc-form-error">{error}</div>}
+    <div className="dc-form-grid">
+      <window.DcxField label="Description" wide><input value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})}/></window.DcxField>
+      <window.DcxField label="Amount *"><input autoFocus type="number" min="0.01" step="0.01" value={form.amount} onChange={(e)=>setForm({...form,amount:e.target.value})} placeholder="0.00"/></window.DcxField>
+      <window.DcxField label="Due date"><input type="date" value={form.due_on} onChange={(e)=>setForm({...form,due_on:e.target.value})}/></window.DcxField>
+    </div>
+    <div className="dc-form-hint">Bills {dcoDay(period.start)} – {dcoDay(period.end)}. The family sees these days on the invoice.</div>
+    <div className="dc-modal-actions"><button className="dc-quiet" onClick={onClose}>Cancel</button><button className="dc-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Create invoice"}</button></div>
+  </window.DcxModal>;
+}
+
+function DcoBlankSheet({ rooms, onClose }) {
+  const [date, setDate] = useStateDco(window.DcxToday()); const [room, setRoom] = useStateDco("");
+  const [busy, setBusy] = useStateDco(false); const [error, setError] = useStateDco("");
+  const download = async () => {
+    setBusy(true); setError("");
+    try { dcoDownload(await window.DcxRequest("/timesheets", { body: { mode: "blank", date, classroom_id: room || null } })); onClose(); }
+    catch (requestError) { setError(requestError.message); } finally { setBusy(false); }
+  };
+  return <window.DcxModal title="Blank paper sign-in sheet" copy="Names pre-filled; In, Out and Signature left blank for families to sign by hand." onClose={onClose}>
+    {error && <div className="dc-form-error">{error}</div>}
+    <div className="dc-form-grid">
+      <window.DcxField label="Date"><input type="date" value={date} onChange={(e)=>setDate(e.target.value)}/></window.DcxField>
+      <window.DcxField label="Classroom"><select value={room} onChange={(e)=>setRoom(e.target.value)}><option value="">All classrooms</option>{rooms.map((r)=><option key={r.id} value={r.id}>{r.name}</option>)}</select></window.DcxField>
+    </div>
+    <div className="dc-modal-actions"><button className="dc-quiet" onClick={onClose}>Cancel</button><button className="dc-primary" disabled={busy || !date} onClick={download}>{busy ? "Building…" : "Download PDF"}</button></div>
+  </window.DcxModal>;
+}
+
+function DaycareTimesheets() {
+  const roomsResource = window.DcxUseResource("/classrooms", "classrooms", 0);
+  const locationsResource = window.DcxUseResource("/locations", "locations", 0);
+  const rooms = (Array.isArray(roomsResource.data) ? roomsResource.data : []).filter((room)=>room.active !== false);
+  const current = (Array.isArray(locationsResource.data) ? locationsResource.data : []).find((row)=>row.current);
+  const [mode, setMode] = useStateDco("week"); const [date, setDate] = useStateDco(window.DcxToday());
+  const [room, setRoom] = useStateDco(""); const [group, setGroup] = useStateDco("all");
+  const [sheet, setSheet] = useStateDco(null); const [busy, setBusy] = useStateDco(""); const [error, setError] = useStateDco("");
+  const [open, setOpen] = useStateDco({}); const [invoice, setInvoice] = useStateDco(null); const [blank, setBlank] = useStateDco(false);
+  const [fullDay, setFullDay] = useStateDco(""); const [fullDayNote, setFullDayNote] = useStateDco("");
+  const range = dcoRange(mode, date);
+  const request = (kind) => ({ mode: kind, start: range.start, end: range.end, classroom_id: room || null, group });
+  const run = async (kind) => {
+    if (!range) { setError("Pick a date first."); return; }
+    setBusy(kind); setError("");
+    try {
+      // The PDF is the sheet on screen (its own period / classroom / group), not whatever the
+      // controls were changed to after Calculate.
+      const body = kind === "pdf" && sheet ? { mode: "pdf", start: sheet.period.start, end: sheet.period.end, classroom_id: sheet.classroom_id || null, group: sheet.group } : request(kind);
+      const payload = await window.DcxRequest("/timesheets", { body });
+      if (kind === "pdf") { dcoDownload(payload); return; }
+      setSheet({ ...payload, view: mode }); setOpen({});
+      if (payload.location && payload.location.full_day_hours != null) setFullDay(String(payload.location.full_day_hours));
+    } catch (requestError) { setError(requestError.message); } finally { setBusy(""); }
+  };
+  const saveFullDay = async () => {
+    const hours = Number(fullDay);
+    if (!(hours >= 1 && hours <= 12)) { setFullDayNote("Enter 1 to 12 hours."); return; }
+    setBusy("hours"); setFullDayNote("");
+    try { await window.DcxRequest("/settings/full-day-hours", { body: { full_day_hours: hours } }); setFullDayNote("Saved — applies to the next Calculate."); }
+    catch (requestError) { setFullDayNote(requestError.message); } finally { setBusy(""); }
+  };
+  const actions = <><div className="dc-locbar-tabs">{[["week", "Week"], ["month", "Month"]].map(([value, label])=><button key={value} className={mode === value ? "active" : ""} onClick={()=>setMode(value)}>{label}</button>)}</div>
+    <input className="dc-date-input" type="date" value={date} onChange={(e)=>setDate(e.target.value)}/>
+    <select style={{ width: "auto" }} value={room} onChange={(e)=>setRoom(e.target.value)} aria-label="Classroom"><option value="">All classrooms</option>{rooms.map((r)=><option key={r.id} value={r.id}>{r.name}</option>)}</select>
+    <select style={{ width: "auto" }} value={group} onChange={(e)=>setGroup(e.target.value)} aria-label="Group"><option value="all">All children</option><option value="ccis">CCIS</option><option value="private">Private pay</option></select>
+    <button className="dc-primary" disabled={Boolean(busy)} onClick={()=>run("summary")}>{busy === "summary" ? "Calculating…" : "Calculate"}</button></>;
+  const monthView = sheet && sheet.view === "month";
+  const childRow = (child) => {
+    const expanded = Boolean(open[child.id]);
+    // Only the Private pay sheet for all classrooms: it holds only private-pay days, so a child
+    // who was on CCIS earlier in the month is never billed for subsidized days.
+    // A child who moved rooms is one line per room: the button sits on the first line only and
+    // the invoice totals every line.
+    const lines = sheet.classrooms.flatMap((room) => room.children.filter((line) => line.id === child.id));
+    const invoiceable = monthView && !child.ccis && sheet.group === "private" && !sheet.classroom_id && lines[0] === child;
+    const whole = { ...child, days_attended: lines.reduce((sum, line) => sum + line.days_attended, 0), hours: lines.reduce((sum, line) => sum + Number(line.hours || 0), 0) };
+    return <React.Fragment key={child.id}>
+      <tr>
+        <td><b>{child.name}</b>{child.ccis && <div className="dc-flags"><span>CCIS</span></div>}{child.ccis && child.ccis_case_id && <small>Case {child.ccis_case_id}</small>}{child.active === false && <small>Inactive</small>}</td>
+        {DCO_TS_COLS.map(([key])=><td key={key} className="tabnum">{dcoVal(key, child[key])}</td>)}
+        <td><div className="dc-row-actions"><button onClick={()=>setOpen({ ...open, [child.id]: !expanded })}>{expanded ? "Hide days" : "Days"}</button>{invoiceable && <button disabled={!child.guardian_profile_id} title={child.guardian_profile_id ? "" : "Link a parent login to this child first"} onClick={()=>setInvoice(whole)}>Create invoice</button>}</div>{invoiceable && !child.guardian_profile_id && <small>No parent login linked</small>}</td>
+      </tr>
+      {expanded && <tr><td colSpan={DCO_TS_COLS.length + 2}>
+        {child.days && child.days.length ? <table className="lead-table"><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th><th></th></tr></thead><tbody>{child.days.map((day)=><tr key={day.date}><td>{dcoDay(day.date)}</td><td>{dcoTime(day.in)}</td><td>{day.out ? dcoTime(day.out) : "—"}</td><td className="tabnum">{day.hours == null ? "—" : dcoVal("hours", day.hours)}</td><td><div className="dc-flags">{day.kind && <span className="quiet">{day.kind === "full" ? "Full day" : "Part day"}</span>}{day.source === "paper" && <span>Paper</span>}{day.pending_pickup ? <span className="warn">Pickup pending</span> : day.open && <span className="warn">Not signed out</span>}</div></td></tr>)}</tbody></table> : <div className="dc-inline-empty">No visits in this period.</div>}
+        {child.absent_dates && child.absent_dates.length > 0 && <small>Absent: {child.absent_dates.map((d)=>dcoDay(d, { month: "short", day: "numeric" })).join(", ")}</small>}
+      </td></tr>}
+    </React.Fragment>;
+  };
+  const totalsRow = (label, totals) => <tr><td><b>{label}</b><small>{totals.children} children</small></td>{DCO_TS_COLS.map(([key])=><td key={key} className="tabnum"><b>{dcoVal(key, totals[key])}</b></td>)}<td></td></tr>;
+  const head = <thead><tr><th>Child</th>{DCO_TS_COLS.map(([key, label])=><th key={key}>{label}</th>)}<th></th></tr></thead>;
+  return <div className="dc-page">
+    <window.DcxPageHead title="Time Sheets" eyebrow="CCIS & PRIVATE-PAY HOURS" copy={"Hours by child and classroom for " + ((sheet && sheet.location && sheet.location.name) || (current && current.name) || "the active center") + (range ? " · " + dcoDay(range.start) + " – " + dcoDay(range.end) : "") + "."} actions={actions}/>
+    <div className="dc-attendance-summary">
+      <span>Full day = <input type="number" min="1" max="12" step="0.5" value={fullDay} placeholder="5" onChange={(e)=>{ setFullDay(e.target.value); setFullDayNote(""); }} style={{ width: 64 }} aria-label="Full day hours"/> hours</span>
+      <button className="dc-outline" disabled={Boolean(busy)} onClick={saveFullDay}>{busy === "hours" ? "Saving…" : "Save"}</button>
+      {fullDayNote && <span>{fullDayNote}</span>}
+      <span style={{ marginLeft: "auto" }}><button className="dc-outline" disabled={!sheet || Boolean(busy)} onClick={()=>run("pdf")}>{busy === "pdf" ? "Building…" : "Download PDF"}</button> <button className="dc-outline" onClick={()=>setBlank(true)}>Print blank paper sheet</button></span>
+    </div>
+    {error && <div className="dc-form-error">{error}</div>}
+    {!sheet ? <div className="card dc-state"><window.Icons.TimeSheets size={27}/><b>Pick a week or month</b><span>Choose the period, classroom and group, then Calculate.</span></div> : <>
+      {sheet.classrooms.map((classroom)=><div key={classroom.id || "unassigned"}>
+        <div className="dc-section-title"><b>{classroom.name}</b><span>{dcoDay(sheet.period.start)} – {dcoDay(sheet.period.end)} · {sheet.period.weekdays} weekdays</span></div>
+        <div className="card dc-table-wrap"><table className="lead-table dc-table">{head}<tbody>{classroom.children.map(childRow)}{totalsRow("Classroom total", classroom.totals)}</tbody></table>{!classroom.children.length && <div className="dc-inline-empty">No children in this group.</div>}</div>
+      </div>)}
+      {!sheet.classrooms.length && <div className="card dc-state"><b>No children match</b><span>Try another classroom or group.</span></div>}
+      <div className="dc-section-title"><b>Center totals</b><span>{sheet.location && sheet.location.name} · full day ≥ {sheet.location && sheet.location.full_day_hours} hrs</span></div>
+      <div className="card dc-table-wrap"><table className="lead-table dc-table">{head}<tbody>{totalsRow("Center total", sheet.totals)}</tbody></table></div>
+    </>}
+    {invoice && <DcoTimesheetInvoice child={invoice} period={sheet.period} onClose={()=>setInvoice(null)} onSaved={()=>{ setInvoice(null); window.alert("Invoice created — it is on Billing."); }}/>}
+    {blank && <DcoBlankSheet rooms={rooms} onClose={()=>setBlank(false)}/>}
+  </div>;
 }
 
 function DcoClassroomForm({ room, onClose, onSaved }) {
@@ -103,4 +286,4 @@ function DaycareStaff() {
   return <div className="dc-page"><window.DcxPageHead title="Staff & Schedules" copy="Profiles, classroom coverage, hours, and active status." actions={<button className="dc-primary" onClick={()=>setModal("new")}><window.Icons.Plus size={14}/> Add team member</button>}/><window.DcxState loading={staffResource.loading||roomsResource.loading} error={staffResource.error||roomsResource.error} onRetry={()=>{staffResource.refresh();roomsResource.refresh();}} empty={!staff.length} icon="Staff" title="No active staff" copy="Add directors, teachers, assistants, and support staff."><button className="dc-primary" onClick={()=>setModal("new")}>Add first team member</button></window.DcxState>{staff.length>0&&<div className="dc-staff-grid">{staff.map((member)=><div className="card card-pad dc-staff-card" key={member.id}><div className="dc-person"><div className="dc-avatar">{window.DcxName(member).slice(0,1)}</div><div><b>{window.DcxName(member)}</b><small>{member.job_title||"Team member"}</small></div></div><span className="dc-status">Active</span><div className="dc-staff-meta"><span>{(member.staff_classrooms||[]).length} rooms</span><span>{(member.staff_schedules||[]).length} schedule days</span><span>{member.hourly_rate==null?"Rate private":window.DcxMoney(member.hourly_rate)+"/hr"}</span></div><div className="dc-card-actions"><button onClick={()=>setModal(member)}>Edit</button><button onClick={()=>setSchedule(member)}>Schedule</button><button className="danger" onClick={()=>setConfirm(member)}>Deactivate</button></div></div>)}</div>}{modal&&<DcoStaffForm member={modal==="new"?null:modal} classrooms={rooms} onClose={()=>setModal(null)} onSaved={(provision)=>{setModal(null);if(provision)setCredentials(provision);staffResource.refresh();}}/>}{schedule&&<DcoScheduleForm member={schedule} onClose={()=>setSchedule(null)} onSaved={()=>{setSchedule(null);staffResource.refresh();}}/>}{confirm&&<window.DcxConfirm danger title={"Deactivate "+window.DcxName(confirm)+"?"} copy="Their history remains available, but management access and active scheduling are removed." confirmLabel="Deactivate staff" onClose={()=>setConfirm(null)} onConfirm={deactivate}/>} {credentials&&<DcoProvisionCredentials provision={credentials} onClose={()=>setCredentials(null)}/>}</div>;
 }
 
-Object.assign(window,{DaycareChildren,DaycareEnrollment,DaycareAttendance,DaycareClassrooms,DaycareStaff,DcoChildForm,DcoProvisionCredentials});
+Object.assign(window,{DaycareChildren,DaycareEnrollment,DaycareAttendance,DaycareTimesheets,DaycareClassrooms,DaycareStaff,DcoChildForm,DcoProvisionCredentials});

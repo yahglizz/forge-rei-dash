@@ -591,5 +591,220 @@ class DaycareSecurityTests(unittest.TestCase):
         self.assertEqual(400, bad.exception.status)
 
 
+
+def http_error(status, payload):
+    import io
+    import json
+    import urllib.error
+    return urllib.error.HTTPError(
+        "https://example.supabase.co/x", status, "err", {}, io.BytesIO(json.dumps(payload).encode()))
+
+
+class DaycareTimesheetTests(unittest.TestCase):
+    """Time sheets, paper key-in, pickup approval, CCIS, invoice periods (bridge mocked)."""
+    ATTENDANCE_ID = "44444444-4444-4444-8444-444444444444"
+    CLASSROOM_ID = "55555555-5555-4555-8555-555555555555"
+
+    def setUp(self):
+        daycare.clear_sessions()
+        self.original_config = daycare.CONFIG
+        self.original_bridge = daycare.BRIDGE
+        daycare.CONFIG = config()
+        daycare.BRIDGE = daycare.SupabaseBridge(daycare.CONFIG)
+
+    def tearDown(self):
+        daycare.clear_sessions()
+        daycare.CONFIG = self.original_config
+        daycare.BRIDGE = self.original_bridge
+
+    # --- invoice billing period -------------------------------------------------
+    def _invoice(self, **extra):
+        body = {"guardian_id": PROFILE_ID, "description": "Tuition", "amount": 100,
+                "issued_on": "2026-10-01", "due_on": "2026-10-01", **extra}
+        with mock.patch.object(daycare.BRIDGE, "rest",
+                               side_effect=lambda *a, **k: [k["body"]] if a[1] == "POST" else [{"id": PROFILE_ID}]) as rest:
+            daycare.save_invoice(session(), {"invoice": body})
+        return rest.call_args.kwargs["body"]
+
+    def test_invoice_period_is_optional_and_both_or_neither(self):
+        self.assertNotIn("period_start", self._invoice())
+        written = self._invoice(period_start="2026-09-01", period_end="2026-09-30")
+        self.assertEqual(("2026-09-01", "2026-09-30"), (written["period_start"], written["period_end"]))
+        cleared = self._invoice(period_start=None, period_end=None)
+        self.assertEqual((None, None), (cleared["period_start"], cleared["period_end"]))
+        for bad in ({"period_start": "2026-09-01"}, {"period_end": "2026-09-30"},
+                    {"period_start": "2026-09-30", "period_end": "2026-09-01"},
+                    {"period_start": "2026-09-01", "period_end": "September"}):
+            with self.assertRaises(daycare.DaycareError) as error:
+                self._invoice(**bad)
+            self.assertEqual(400, error.exception.status, bad)
+
+    # --- pickup decline ---------------------------------------------------------
+    def _decline(self, record, ensure):
+        with mock.patch.object(daycare.BRIDGE, "rest",
+                               side_effect=lambda *a, **k: [record] if a[1] == "GET" else [dict(record, pickup_requested_at=None)]) as rest, \
+                mock.patch.object(daycare, "_ensure_location_record", side_effect=ensure) as ensure_mock:
+            try:
+                return daycare.decline_pickup(session(), {"attendance_id": self.ATTENDANCE_ID}), rest, ensure_mock
+            except daycare.DaycareError as error:
+                return error, rest, ensure_mock
+
+    def test_decline_pickup_clears_the_request_on_the_open_row(self):
+        record = {"id": self.ATTENDANCE_ID, "child_id": CHILD_ID, "checked_out_at": None,
+                  "pickup_requested_at": "2026-09-27T20:00:00Z"}
+        result, rest, ensure = self._decline(record, lambda *a: {"id": CHILD_ID})
+        ensure.assert_called_once_with(mock.ANY, "children", CHILD_ID)
+        patch = rest.call_args
+        self.assertEqual(("PATCH", "attendance"), patch.args[1:3])
+        self.assertEqual({"pickup_requested_at": None}, patch.kwargs["body"])
+        self.assertEqual({"id": f"eq.{self.ATTENDANCE_ID}", "checked_out_at": "is.null"}, patch.kwargs["query"])
+        self.assertTrue(result["ok"])
+
+    def test_decline_pickup_refuses_another_centers_child_and_rows_without_a_request(self):
+        record = {"id": self.ATTENDANCE_ID, "child_id": CHILD_ID, "checked_out_at": None,
+                  "pickup_requested_at": "2026-09-27T20:00:00Z"}
+
+        def elsewhere(*_):
+            raise daycare.DaycareError(404, "Children was not found", "not_found")
+        error, rest, _ = self._decline(record, elsewhere)
+        self.assertEqual(404, error.status)
+        self.assertEqual(["GET"], [c.args[1] for c in rest.call_args_list])
+        for closed in ({"pickup_requested_at": None}, {"checked_out_at": "2026-09-27T21:00:00Z"}):
+            error, rest, _ = self._decline(dict(record, **closed), lambda *a: {"id": CHILD_ID})
+            self.assertEqual(409, error.status)
+            self.assertEqual(["GET"], [c.args[1] for c in rest.call_args_list])
+        with self.assertRaises(daycare.DaycareError):
+            daycare.decline_pickup(session(), {"attendance_id": "nope"})
+
+    # --- paper key-in -----------------------------------------------------------
+    def test_paper_entry_calls_the_rpc_with_wall_clock_times(self):
+        row = {"id": self.ATTENDANCE_ID, "source": "paper"}
+        with mock.patch.object(daycare, "_ensure_location_record", return_value={"id": CHILD_ID}) as ensure, \
+                mock.patch.object(daycare.BRIDGE, "rpc", return_value=row) as rpc:
+            result = daycare.record_paper_attendance(session(), {
+                "child_id": CHILD_ID, "date": "2026-09-26", "time_in": "07:45:00", "time_out": "16:30", "note": "  "})
+            daycare.record_paper_attendance(session(), {
+                "child_id": CHILD_ID, "date": "2026-09-26", "time_in": "07:45", "time_out": ""})
+        ensure.assert_called_with(mock.ANY, "children", CHILD_ID)
+        first, second = rpc.call_args_list
+        self.assertEqual(("record_paper_attendance", {"p_child": CHILD_ID, "p_date": "2026-09-26",
+                                                       "p_in": "07:45", "p_out": "16:30", "p_note": None}), first.args[1:])
+        self.assertEqual(None, second.args[2]["p_out"])
+        self.assertTrue(first.kwargs["surface_errors"])
+        self.assertEqual(row, result["attendance"])
+        with mock.patch.object(daycare, "_ensure_location_record", return_value={"id": CHILD_ID}):
+            for bad in ({"time_in": "7am"}, {"time_in": "07:45", "time_out": "25:00"}, {"time_in": "07:45", "date": None}):
+                with self.assertRaises(daycare.DaycareError) as error:
+                    daycare.record_paper_attendance(session(), {"child_id": CHILD_ID, "date": "2026-09-26", **bad})
+                self.assertEqual(400, error.exception.status)
+
+    def test_rpc_surfaces_the_databases_own_sentence_only_when_asked(self):
+        bridge = daycare.BRIDGE
+        refusal = {"code": "23505", "message": "This day is already recorded in the app. Use Close record to correct the pickup."}
+        with mock.patch.object(bridge, "_urlopen_json", side_effect=lambda *a, **k: (_ for _ in ()).throw(http_error(409, refusal))):
+            with self.assertRaises(daycare.DaycareError) as shown:
+                bridge.rpc(session(), "record_paper_attendance", {}, surface_errors=True)
+            with self.assertRaises(daycare.DaycareError) as hidden:
+                bridge.rpc(session(), "record_paper_attendance", {})
+        self.assertEqual((409, refusal["message"]), (shown.exception.status, shown.exception.message))
+        self.assertEqual("That daycare record conflicts with an existing record", hidden.exception.message)
+        internal = {"code": "XX000", "message": "relation secret_table does not exist"}
+        with mock.patch.object(bridge, "_urlopen_json", side_effect=lambda *a, **k: (_ for _ in ()).throw(http_error(400, internal))):
+            with self.assertRaises(daycare.DaycareError) as generic:
+                bridge.rpc(session(), "record_paper_attendance", {}, surface_errors=True)
+        self.assertNotIn("secret_table", generic.exception.message)
+
+    def test_postgres_own_errors_with_our_codes_stay_generic(self):
+        bridge = daycare.BRIDGE
+        builtin = {"code": "23505", "message": 'duplicate key value violates unique constraint "attendance_child_id_attendance_date_key"'}
+        with mock.patch.object(bridge, "_urlopen_json", side_effect=lambda *a, **k: (_ for _ in ()).throw(http_error(409, builtin))):
+            with self.assertRaises(daycare.DaycareError) as hidden:
+                bridge.rpc(session(), "record_paper_attendance", {}, surface_errors=True)
+        self.assertNotIn("attendance_child_id", hidden.exception.message)
+
+    def test_check_out_keeps_notes_and_needs_a_real_time_for_a_past_day(self):
+        open_row = [{"id": self.ATTENDANCE_ID, "checked_out_at": None}]
+        calls = []
+        def rest(*args, **kwargs):
+            calls.append((args, kwargs))
+            return open_row if args[1] == "GET" else [{"id": self.ATTENDANCE_ID}]
+        with mock.patch.object(daycare, "_ensure_location_record", return_value={"id": CHILD_ID}), \
+                mock.patch.object(daycare, "_today_et", return_value=daycare.date(2026, 9, 27)), \
+                mock.patch.object(daycare.BRIDGE, "rest", side_effect=rest):
+            daycare.set_attendance(session(), {"child_id": CHILD_ID, "date": "2026-09-27", "action": "check-out"})
+            self.assertNotIn("notes", calls[-1][1]["body"], "a check-out must not blank the custody trail")
+            with self.assertRaises(daycare.DaycareError) as missing:
+                daycare.set_attendance(session(), {"child_id": CHILD_ID, "date": "2026-09-25", "action": "check-out"})
+            self.assertEqual(400, missing.exception.status)
+            daycare.set_attendance(session(), {"child_id": CHILD_ID, "date": "2026-09-25", "action": "check-out", "time": "17:15"})
+            self.assertEqual("2026-09-25T17:15:00-04:00", calls[-1][1]["body"]["checked_out_at"])
+
+    # --- time sheets ------------------------------------------------------------
+    def test_timesheets_passes_the_request_to_the_function(self):
+        sheet = {"location": {"id": LOCATION_ID, "name": "ATOB", "full_day_hours": 5}, "classrooms": [], "totals": {}}
+        with mock.patch.object(daycare.BRIDGE, "edge_function", return_value=sheet) as edge:
+            result = daycare.get_timesheets(session(), {
+                "mode": "summary", "start": "2026-09-01", "end": "2026-09-30",
+                "classroom_id": self.CLASSROOM_ID, "group": "ccis"})
+            daycare.get_timesheets(session(), {"mode": "blank", "date": "2026-09-28", "classroom_id": None})
+        summary, blank = edge.call_args_list
+        self.assertEqual(("timesheets", {"mode": "summary", "classroom_id": self.CLASSROOM_ID,
+                                         "start": "2026-09-01", "end": "2026-09-30", "group": "ccis"}), summary.args[1:])
+        self.assertEqual({"mode": "blank", "classroom_id": None, "date": "2026-09-28"}, blank.args[2])
+        self.assertTrue(summary.kwargs["surface_errors"])
+        self.assertEqual({"ok": True, **sheet}, result)
+        for bad in ({"mode": "csv"}, {"mode": "pdf", "start": "2026-09-01", "end": "x"},
+                    {"mode": "summary", "start": "2026-09-01", "end": "2026-09-30", "group": "vip"},
+                    {"mode": "summary", "start": "2026-09-01", "end": "2026-09-30", "classroom_id": "room"}):
+            with self.assertRaises(daycare.DaycareError) as error:
+                daycare.get_timesheets(session(), bad)
+            self.assertEqual(400, error.exception.status)
+
+    def test_timesheets_surfaces_the_functions_error_but_provisioning_stays_generic(self):
+        bridge = daycare.BRIDGE
+        too_long = {"error": "Pick a range of 62 days or fewer."}
+        with mock.patch.object(bridge, "_urlopen_json", side_effect=lambda *a, **k: (_ for _ in ()).throw(http_error(400, too_long))):
+            with self.assertRaises(daycare.DaycareError) as shown:
+                daycare.get_timesheets(session(), {"mode": "summary", "start": "2026-01-01", "end": "2026-09-30"})
+            with self.assertRaises(daycare.DaycareError) as provision:
+                bridge.edge_function(session(), "provision-user", {"action": "ensure-guardian"})
+        self.assertEqual((400, too_long["error"]), (shown.exception.status, shown.exception.message))
+        self.assertEqual((400, "The daycare request was not accepted"), (provision.exception.status, provision.exception.message))
+        with mock.patch.object(bridge, "_urlopen_json", return_value={"error": "Only management can run time sheets"}):
+            with self.assertRaises(daycare.DaycareError) as ok_error:
+                bridge.edge_function(session(), "timesheets", {}, surface_errors=True)
+            with self.assertRaises(daycare.DaycareError) as provision_ok_error:
+                bridge.edge_function(session(), "provision-user", {})
+        self.assertEqual("Only management can run time sheets", ok_error.exception.message)
+        self.assertEqual("Daycare account provisioning failed", provision_ok_error.exception.message)
+
+    def test_full_day_hours_is_one_to_twelve_on_the_active_center(self):
+        with mock.patch.object(daycare.BRIDGE, "rest", side_effect=lambda *a, **k: [dict(k["body"], id=LOCATION_ID)]) as rest:
+            result = daycare.save_full_day_hours(session(), {"full_day_hours": "6.5"})
+            for bad in (0, 12.5, "", None, "five"):
+                with self.assertRaises(daycare.DaycareError):
+                    daycare.save_full_day_hours(session(), {"full_day_hours": bad})
+        self.assertEqual(1, rest.call_count)
+        self.assertEqual(("PATCH", "locations"), rest.call_args.args[1:3])
+        self.assertEqual({"id": f"eq.{LOCATION_ID}"}, rest.call_args.kwargs["query"])
+        self.assertEqual({"ok": True, "full_day_hours": 6.5}, result)
+
+    # --- CCIS on the child ------------------------------------------------------
+    def test_child_ccis_is_written_only_when_sent_and_validated(self):
+        base = {"first_name": "Sam", "last_name": "Test", "birth_date": "2022-01-01"}
+        with mock.patch.object(daycare.BRIDGE, "rest", side_effect=lambda *a, **k: [k["body"]]) as rest:
+            daycare.save_child(session(), {"child": base})
+            self.assertNotIn("ccis", rest.call_args.kwargs["body"])
+            self.assertNotIn("ccis_case_id", rest.call_args.kwargs["body"])
+            daycare.save_child(session(), {"child": dict(base, ccis=True, ccis_case_id="  CW-1234  ")})
+            self.assertEqual((True, "CW-1234"), (rest.call_args.kwargs["body"]["ccis"], rest.call_args.kwargs["body"]["ccis_case_id"]))
+            daycare.save_child(session(), {"child": dict(base, ccis=False, ccis_case_id="")})
+            self.assertEqual((False, None), (rest.call_args.kwargs["body"]["ccis"], rest.call_args.kwargs["body"]["ccis_case_id"]))
+            for bad in ({"ccis": "yes"}, {"ccis_case_id": "X" * 41}):
+                with self.assertRaises(daycare.DaycareError) as error:
+                    daycare.save_child(session(), {"child": dict(base, **bad)})
+                self.assertEqual(400, error.exception.status)
+
+
 if __name__ == "__main__":
     unittest.main()

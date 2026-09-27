@@ -501,13 +501,23 @@ class SupabaseBridge:
             session.refresh_token = refresh
             session.token_expires_at = time.time() + int(payload.get("expires_in") or 3600)
 
-    def _upstream_error(self, error: urllib.error.HTTPError, *, auth: bool = False) -> DaycareError:
+    def _upstream_error(
+        self, error: urllib.error.HTTPError, *, auth: bool = False, surface: bool = False
+    ) -> DaycareError:
         try:
             raw = error.read().decode("utf-8", "ignore")[:2000]
             payload = json.loads(raw) if raw else {}
         except Exception:
             payload = {}
         upstream_code = str(payload.get("code") or "") if isinstance(payload, dict) else ""
+        # Opt-in: a function that RAISEs a human sentence (22023 bad input, 42501 not
+        # allowed, 23505 already recorded) gets that sentence shown as-is. Never a 401 —
+        # that would log the owner out of the dashboard over a permission refusal.
+        message = payload.get("message") if isinstance(payload, dict) else None
+        if (surface and upstream_code in {"22023", "42501", "23505"} and isinstance(message, str)
+                and message.strip().startswith(_OWN_DB_MESSAGES)):
+            status = 403 if error.code == 401 else (error.code if 400 <= error.code < 500 else 400)
+            return DaycareError(status, message.strip()[:300], "rejected")
         if auth and error.code in {400, 401}:
             return DaycareError(401, "Invalid Login ID or PIN", "invalid_credentials")
         if error.code == 401:
@@ -567,7 +577,7 @@ class SupabaseBridge:
                 )
             raise self._upstream_error(error) from None
 
-    def rpc(self, session: Session, name: str, body: dict[str, Any]) -> Any:
+    def rpc(self, session: Session, name: str, body: dict[str, Any], *, surface_errors: bool = False) -> Any:
         if not re.fullmatch(r"[a-z_]+", name):
             raise DaycareError(500, "Invalid internal daycare operation", "internal_error")
         self.require_available(write=True)
@@ -592,10 +602,25 @@ class SupabaseBridge:
                         body=body,
                     )
                 except urllib.error.HTTPError as retry_error:
-                    raise self._upstream_error(retry_error) from None
-            raise self._upstream_error(error) from None
+                    raise self._upstream_error(retry_error, surface=surface_errors) from None
+            raise self._upstream_error(error, surface=surface_errors) from None
 
-    def edge_function(self, session: Session, name: str, body: dict[str, Any]) -> Any:
+    def _function_error(self, error: urllib.error.HTTPError) -> DaycareError:
+        """An edge function's own `{"error": "sentence"}` with its own HTTP status."""
+        try:
+            payload = json.loads(error.read().decode("utf-8", "ignore")[:4000] or "{}")
+        except Exception:
+            payload = {}
+        message = payload.get("error") if isinstance(payload, dict) else None
+        if isinstance(message, str) and message.strip():
+            return DaycareError(error.code, message.strip()[:300], "function_error")
+        return self._upstream_error(error)
+
+    def edge_function(
+        self, session: Session, name: str, body: dict[str, Any], *, surface_errors: bool = False
+    ) -> Any:
+        """surface_errors=False keeps the provisioning contract (generic messages);
+        True passes the function's own error sentence + status to the dashboard."""
         if not re.fullmatch(r"[a-z0-9-]+", name):
             raise DaycareError(500, "Invalid internal daycare operation", "internal_error")
         self.require_available(write=True)
@@ -617,10 +642,16 @@ class SupabaseBridge:
                         "POST", url, headers=self._base_headers(session.access_token), body=body
                     )
                 except urllib.error.HTTPError as retry_error:
-                    raise self._upstream_error(retry_error) from None
+                    raise (self._function_error(retry_error) if surface_errors
+                           else self._upstream_error(retry_error)) from None
             else:
-                raise self._upstream_error(error) from None
+                raise (self._function_error(error) if surface_errors
+                       else self._upstream_error(error)) from None
         if not isinstance(result, dict) or result.get("error"):
+            if surface_errors:
+                message = result.get("error") if isinstance(result, dict) else None
+                raise DaycareError(502, str(message)[:300] if isinstance(message, str) and message.strip()
+                                   else "The daycare service returned an unexpected response", "function_error")
             raise DaycareError(502, "Daycare account provisioning failed", "provision_failed")
         return result
 
@@ -1777,6 +1808,14 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     }
     if child_id and not _body_value(source, "enrollment_date", "enrollmentDate"):
         del record["enrollment_date"]  # an update keeps the stored date unless one is sent
+    # CCIS (Child Care Works): written only when sent, so the Contact-Form enroll path and
+    # older callers never reset a child's subsidy flag.
+    if "ccis" in source:
+        if not isinstance(source["ccis"], bool):
+            raise DaycareError(400, "ccis must be true or false", "validation_error")
+        record["ccis"] = source["ccis"]
+    if "ccis_case_id" in source:
+        record["ccis_case_id"] = require_text(source["ccis_case_id"], "CCIS case ID", maximum=40, optional=True)
     # Auto-route provisioning to the family's center. When the caller passes a target
     # location_id (the Contact-Form inbox routes a family to the center they picked on the
     # form), switch the session's active center so the guardian AND child both land there —
@@ -2014,19 +2053,40 @@ def save_schedule(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "schedules": _rows(rows)}
 
 
+# Sentences our own SQL functions RAISE on purpose (202609270011). Anything else carrying the
+# same SQLSTATE is Postgres itself (a constraint name, "permission denied for table …") and
+# stays behind the generic message.
+_OWN_DB_MESSAGES = (
+    "Only center staff can key in a paper sheet", "Child, date and arrival time are required",
+    "That child is not on your roster", "Keep the note under 300 characters", "That day has not happened yet",
+    "Only management can key in a past day", "The arrival time is still in the future",
+    "The pickup time must be after the arrival time", "The pickup time is still in the future",
+    "This day is already recorded in the app", "A family asked for this pickup",
+    "Only management can change a paper entry", "Someone recorded this child for that day",
+    "Only management can change a past day", "Sign your name to request pickup",
+)
+
+
 def set_attendance(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     child = _ensure_location_record(session, "children", body.get("child_id") or body.get("childId"))
     day = require_date(body.get("date") or _today_et().isoformat(), "date")
     action = enum_value(body.get("action"), "action", {"check-in", "check-out"})
     existing = _rows(BRIDGE.rest(session, "GET", "attendance", query={"child_id": f"eq.{child['id']}", "attendance_date": f"eq.{day}", "select": "*", "limit": "1"}))
     timestamp = now_iso()
+    # Notes are the custody trail (re-entries, confirmed handovers, "keyed in from paper"): only
+    # written when the caller actually sends some, never blanked by a check-in or check-out.
     notes = require_text(body.get("notes"), "notes", maximum=1000, optional=True)
+    extra = {"notes": notes} if notes else {}
     if action == "check-out":
         if not existing or existing[0].get("checked_out_at"):
             raise DaycareError(409, "This child is not currently checked in", "attendance_not_open")
-        rows = BRIDGE.rest(session, "PATCH", "attendance", query={"id": f"eq.{existing[0]['id']}"}, body={"checked_out_at": timestamp, "checked_out_by": session.profile["id"], "status": "completed", "notes": notes}, prefer="return=representation")
+        if day < _today_et().isoformat():
+            # Closing an old day: the real pickup time, never "now" (that made a 26-hour visit).
+            clock = require_time(body.get("time"), "Pickup time")[:5]
+            timestamp = datetime.fromisoformat(f"{day}T{clock}:00").replace(tzinfo=_ET).isoformat()
+        rows = BRIDGE.rest(session, "PATCH", "attendance", query={"id": f"eq.{existing[0]['id']}"}, body={"checked_out_at": timestamp, "checked_out_by": session.profile["id"], "status": "completed", **extra}, prefer="return=representation")
     else:
-        record = {"child_id": child["id"], "attendance_date": day, "checked_in_at": timestamp, "checked_out_at": None, "checked_in_by": session.profile["id"], "checked_out_by": None, "status": "present", "notes": notes}
+        record = {"child_id": child["id"], "attendance_date": day, "checked_in_at": timestamp, "checked_out_at": None, "checked_in_by": session.profile["id"], "checked_out_by": None, "status": "present", **extra}
         rows = BRIDGE.rest(session, "POST", "attendance", query={"on_conflict": "child_id,attendance_date"}, body=record, prefer="resolution=merge-duplicates,return=representation")
     return {"ok": True, "attendance": _single(rows, "Attendance")}
 
@@ -2040,12 +2100,71 @@ def sign_out_all(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         session,
         "PATCH",
         "attendance",
-        query={"child_id": f"in.({','.join(ids)})", "attendance_date": f"eq.{day}", "checked_out_at": "is.null"},
+        # A family waiting at the door (pickup requested) is confirmed one by one, never in bulk.
+        query={"child_id": f"in.({','.join(ids)})", "attendance_date": f"eq.{day}", "checked_out_at": "is.null",
+               "pickup_requested_at": "is.null"},
         body={"checked_out_at": now_iso(), "checked_out_by": session.profile["id"], "status": "completed"},
         prefer="return=representation",
     )
     records = _rows(rows)
     return {"ok": True, "count": len(records), "attendance": records}
+
+
+def decline_pickup(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    """Staff decline a family's pickup request: clear pickup_requested_at on the open row.
+    The DB guard clears the rest of the request and notifies the parent."""
+    attendance_id = require_uuid(_body_value(body, "attendance_id", "attendanceId"), "attendance_id")
+    record = _single(BRIDGE.rest(session, "GET", "attendance", query={
+        "id": f"eq.{attendance_id}",
+        "select": "id,child_id,checked_out_at,pickup_requested_at", "limit": "1"}), "Attendance")
+    _ensure_location_record(session, "children", record.get("child_id"))  # attendance has no location_id
+    if record.get("checked_out_at") or not record.get("pickup_requested_at"):
+        raise DaycareError(409, "There is no pickup request waiting on this record", "no_pickup_request")
+    rows = BRIDGE.rest(session, "PATCH", "attendance",
+                       query={"id": f"eq.{record['id']}", "checked_out_at": "is.null"},
+                       body={"pickup_requested_at": None}, prefer="return=representation")
+    return {"ok": True, "attendance": _single(rows, "Attendance")}
+
+
+def record_paper_attendance(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    """Key in one child's day from the paper sign-in sheet (center wall-clock times)."""
+    child = _ensure_location_record(session, "children", _body_value(body, "child_id", "childId"))
+    time_out = _body_value(body, "time_out", "timeOut")
+    result = BRIDGE.rpc(session, "record_paper_attendance", {
+        "p_child": child["id"],
+        "p_date": require_date(body.get("date"), "date"),
+        "p_in": require_time(_body_value(body, "time_in", "timeIn"), "Arrival time")[:5],
+        "p_out": None if time_out in (None, "") else require_time(time_out, "Pickup time")[:5],
+        "p_note": require_text(body.get("note"), "note", maximum=300, optional=True),
+    }, surface_errors=True)
+    return {"ok": True, "attendance": result[0] if isinstance(result, list) and result else result}
+
+
+def get_timesheets(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    """Time sheet summary / PDF / blank paper sheet. The `timesheets` edge function is the
+    only place hours are totalled; it runs with the caller's JWT at the active center."""
+    mode = enum_value(body.get("mode"), "mode", {"summary", "pdf", "blank"})
+    request: dict[str, Any] = {
+        "mode": mode,
+        "classroom_id": require_uuid(_body_value(body, "classroom_id", "classroomId"), "classroom_id", optional=True),
+    }
+    if mode == "blank":
+        request["date"] = require_date(body.get("date") or _today_et().isoformat(), "date")
+    else:
+        request["start"] = require_date(body.get("start"), "start")
+        request["end"] = require_date(body.get("end"), "end")
+        request["group"] = enum_value(body.get("group") or "all", "group", {"all", "ccis", "private"})
+    result = BRIDGE.edge_function(session, "timesheets", request, surface_errors=True)
+    return {"ok": True, **result}
+
+
+def save_full_day_hours(session: Session, body: dict[str, Any]) -> dict[str, Any]:
+    """A visit of at least this many hours is a full day (per center, 1-12)."""
+    hours = require_number(_body_value(body, "full_day_hours", "fullDayHours"), "Full day hours",
+                           minimum=Decimal("1"), maximum=Decimal("12"))
+    rows = BRIDGE.rest(session, "PATCH", "locations", query={"id": f"eq.{active_location(session)}"},
+                       body={"full_day_hours": hours}, prefer="return=representation")
+    return {"ok": True, "full_day_hours": _single(rows, "Daycare location").get("full_day_hours")}
 
 
 def set_behavior(session: Session, body: dict[str, Any]) -> dict[str, Any]:
@@ -2550,6 +2669,14 @@ def save_invoice(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     }
     if record["due_on"] < record["issued_on"]:
         raise DaycareError(400, "due_on cannot be before issued_on", "validation_error")
+    if "period_start" in source or "period_end" in source:
+        period_start = require_date(source.get("period_start"), "period_start", optional=True)
+        period_end = require_date(source.get("period_end"), "period_end", optional=True)
+        if (period_start is None) != (period_end is None):
+            raise DaycareError(400, "period_start and period_end must be set together", "validation_error")
+        if period_start and period_end < period_start:
+            raise DaycareError(400, "period_end cannot be before period_start", "validation_error")
+        record["period_start"], record["period_end"] = period_start, period_end
     if source.get("id"):
         invoice = _ensure_location_record(session, "invoices", source.get("id"))
         rows = BRIDGE.rest(session, "PATCH", "invoices", query={"id": f"eq.{invoice['id']}"}, body=record, prefer="return=representation")

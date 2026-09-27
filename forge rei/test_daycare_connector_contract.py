@@ -32,6 +32,8 @@ PLANNED_POSTS = {
     "/api/daycare/pass/season/save", "/api/daycare/pass/reward/save",
     "/api/daycare/pass/reward/delete", "/api/daycare/pass/rank/save",
     "/api/daycare/pass/rank/delete", "/api/daycare/pass/claim/fulfill",
+    "/api/daycare/timesheets", "/api/daycare/attendance/decline-pickup",
+    "/api/daycare/attendance/paper", "/api/daycare/settings/full-day-hours",
 }
 
 TEST_ONLY_POSTS = {"/api/daycare/auth/test-login"}
