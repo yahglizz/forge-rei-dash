@@ -36,7 +36,7 @@ function Sidebar({ active, onNav, brand = "FORGE", sub = "REI OS", nav, accent =
   const Icons = window.Icons;
   const items = nav || window.NAV;
   const sections = sub === "DAYCARE"
-    ? { Dashboard: "Overview", Agents: "Your team", Children: "Center operations", Enrollment: "Enrollment & finance", Messages: "Family communications", Brain: "Workspace" }
+    ? { Dashboard: "Overview", Agents: "Your team", Children: "Center operations", Enrollment: "Enrollment", Messages: "Family communications", Billing: "Finance & growth", Brain: "Workspace" }
     : sub === "AI Agency"
       ? { Dashboard: "Overview", MyBiz: "My businesses", Agents: "Your team", Build: "Client work", Brain: "Workspace" }
       : sub === "DROPSHIP"
