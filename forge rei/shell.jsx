@@ -35,6 +35,13 @@ function Sidebar({ active, onNav, brand = "FORGE", sub = "REI OS", nav, accent =
                    scopes = null, scope = null, onScope = null }) {
   const Icons = window.Icons;
   const items = nav || window.NAV;
+  const sections = sub === "DAYCARE"
+    ? { Dashboard: "Overview", Agents: "Your team", Children: "Center operations", Enrollment: "Enrollment & finance", Messages: "Family communications", Brain: "Workspace" }
+    : sub === "AI Agency"
+      ? { Dashboard: "Overview", MyBiz: "My businesses", Agents: "Your team", Build: "Client work", Brain: "Workspace" }
+      : sub === "DROPSHIP"
+        ? { Dashboard: "Overview", Agents: "Your team", Products: "Store operations", Ads: "Growth", Brain: "Workspace" }
+        : { Dashboard: "Overview", Agents: "Your team", Leads: "Wholesale operations", Tasks: "Review & insights", Brain: "Workspace" };
   return (
     <aside className="sidebar">
       <button className="brand" onClick={() => onHome && onHome()} title="Back to Mission Control"
@@ -69,10 +76,14 @@ function Sidebar({ active, onNav, brand = "FORGE", sub = "REI OS", nav, accent =
         {items.map(([key, label]) => {
           const Ico = Icons[key] || Icons.Dashboard;
           return (
-            <button key={key} className={"nav-item" + (active === key ? " active" : "")} onClick={() => onNav(key)}>
-              <Ico size={18} />
-              <span>{label}</span>
-            </button>
+            <React.Fragment key={key}>
+              {sections[key] && <div className="nav-section">{sections[key]}</div>}
+              <button className={"nav-item" + (active === key ? " active" : "")} onClick={() => onNav(key)}
+                aria-current={active === key ? "page" : undefined} title={label}>
+                <Ico size={18} />
+                <span>{label}</span>
+              </button>
+            </React.Fragment>
           );
         })}
       </nav>
@@ -134,6 +145,10 @@ function Header({ title, workspaces = [], current = {}, onSwitch = () => {}, onN
   };
   return (
     <header className="header">
+      <div className="header-context">
+        <span className="header-context-kicker">{current.tag || current.sub || "Workspace"}</span>
+        <strong>{title || "Dashboard"}</strong>
+      </div>
       <div className="search">
         <Icons.Search size={16} />
         <input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)}
