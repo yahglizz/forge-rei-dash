@@ -245,7 +245,7 @@ function DaycareTimesheets() {
     {error && <div className="dc-form-error">{error}</div>}
     {!sheet ? <div className="card dc-state"><window.Icons.TimeSheets size={27}/><b>Pick a week or month</b><span>Choose the period, classroom and group, then Calculate.</span></div> : <>
       {sheet.classrooms.map((classroom)=><div key={classroom.id || "unassigned"}>
-        <div className="dc-section-title"><b>{classroom.name}</b><span>{dcoDay(sheet.period.start)} – {dcoDay(sheet.period.end)} · {sheet.period.weekdays} weekdays</span></div>
+        <div className="dc-section-title"><b>{classroom.name}</b><span>{dcoDay(sheet.period.start)} – {dcoDay(sheet.period.end)} · {sheet.period.weekdays} open weekdays{(sheet.closures || []).length ? " · closed " + sheet.closures.map((item)=>dcoDay(item.date) + " (" + item.reason + ")").join(", ") : ""}</span></div>
         <div className="card dc-table-wrap"><table className="lead-table dc-table">{head}<tbody>{classroom.children.map(childRow)}{totalsRow("Classroom total", classroom.totals)}</tbody></table>{!classroom.children.length && <div className="dc-inline-empty">No children in this group.</div>}</div>
       </div>)}
       {!sheet.classrooms.length && <div className="card dc-state"><b>No children match</b><span>Try another classroom or group.</span></div>}
