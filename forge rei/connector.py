@@ -3176,7 +3176,7 @@ def _daycare_iso_date(value):
     raw = re.sub(r"\s+", " ", str(value or "").strip())
     for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%B %d, %Y", "%b %d, %Y", "%B %d %Y"):
         try:
-            got = datetime.strptime(raw, fmt).date()
+            got = datetime.strptime(raw[:10] if fmt == "%Y-%m-%d" else raw, fmt).date()
         except ValueError:
             continue
         return got.isoformat() if got <= datetime.now().date() else ""   # a future DOB is a typo

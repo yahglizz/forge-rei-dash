@@ -72,13 +72,15 @@ _TOUR_RE = re.compile(r"\btours?\b", re.I)
 _NUM_RE = re.compile(r"(?<![\d/$])(\d{1,2})/(\d{1,2})(?:/(\d{2}|\d{4}))?(?![\d/])")
 _MONTH_DAY_RE = re.compile(rf"\b({_MON_ALT})\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s*(\d{{4}}))?", re.I)
 _DAY_OF_MONTH_RE = re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+of\s+({_MON_ALT})\b(?:,?\s*(\d{{4}}))?", re.I)
-_THE_NTH_RE = re.compile(r"\bthe\s+(\d{1,2})(?:st|nd|rd|th)\b", re.I)
+_THE_NTH_RE = re.compile(r"\bthe\s+(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*(?:months?|years?|kids|children|of us|:|am|pm))", re.I)
+_RATIO_RE = re.compile(r"ratio\W+(?:\w+\W+){0,3}$", re.I)
 _WD_ALT = "|".join(sorted(_WEEKDAYS, key=len, reverse=True))
-_WEEKDAY_RE = re.compile(rf"\b({_WD_ALT})\b(?!\s*(?:-|–|to|thru|through)\s*(?:{_WD_ALT})\b)", re.I)
+_WEEKDAY_RE = re.compile(rf"\b({_WD_ALT})\b", re.I)
+_WD_RANGE_RE = re.compile(rf"\b(?:{_WD_ALT})\s*(?:-|–|to|thru|through)\s*(?:{_WD_ALT})\b", re.I)
 _REL_RE = re.compile(r"\b(tomorrow)\b", re.I)
 # Not a family's start: hours ("start at 6:30"), Head Start, keyword replies, a sibling's school.
-_NOT_START_RE = re.compile(r"\bstarts?\s+at\s+\d|\bhead\s+start\b|\b(?:reply|text)\s+start\b|\bschool\s+starts?\b", re.I)
-_SENT_SPLIT = re.compile(r"(?<=[.!?\n])\s+")
+_NOT_START_RE = re.compile(r"\bstart(?:s|ing)?\s+(?:at\s+\d|serving\b)|\bhead\s+start\b|\b(?:reply|text)\s+start\b|\bschool\s+starts?\b", re.I)
+_SENT_SPLIT = re.compile(r"(?<=[.!?\n;])\s+(?=\D)")   # "Oct. 13th" stays whole
 _DAYS_AFTER_RE = re.compile(r"\s*(?:(?:full\s+|half\s+)?days?\b|off\b|%|[ap]\.?m\b)", re.I)
 _BLAST_SOURCES = {"campaign", "bulk_actions"}     # blasts never agree a family's date
 _SCRUB = ((re.compile(r"\S+@\S+"), "[email]"),
@@ -114,7 +116,7 @@ def parse_date(text, ref, horizon=HORIZON_DAYS):
     for rx, order in ((_MONTH_DAY_RE, "md"), (_DAY_OF_MONTH_RE, "dm"), (_NUM_RE, "num")):
         for m in rx.finditer(s):
             if order == "num":
-                if _DAYS_AFTER_RE.match(s, m.end()):
+                if _DAYS_AFTER_RE.match(s, m.end()) or _RATIO_RE.search(s[:m.start()]):
                     continue                  # "1/2 days", "2/3 days a week" — a schedule
                 got = _roll(m.group(1), m.group(2), ref, m.group(3))
             else:
@@ -131,9 +133,12 @@ def parse_date(text, ref, horizon=HORIZON_DAYS):
             if got and got >= ref:
                 return got
             y, mo = (y + 1, 1) if mo == 12 else (y, mo + 1)
+    s = _WD_RANGE_RE.sub(" ", s)                      # "Monday-Friday" = hours, not a day
     m = _WEEKDAY_RE.search(s)
     if m:
-        ahead = (_WEEKDAYS[m.group(1).lower()] - ref.weekday()) % 7 or 7
+        ahead = (_WEEKDAYS[m.group(1).lower()] - ref.weekday()) % 7
+        if not ahead and not re.search(r"\b(?:this|today)\W+$", s[:m.start()], re.I):
+            ahead = 7                                  # "Monday" said on a Monday = next week
         return ref + timedelta(days=ahead)
     m = _REL_RE.search(s)
     if m:
