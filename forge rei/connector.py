@@ -2191,6 +2191,7 @@ def _tg_handoff(conv_id):
 
 
 import telegram_ops  # noqa: E402
+import telegram_agent  # noqa: E402
 import autopilot      # noqa: E402
 import skill_forge    # noqa: E402
 
@@ -2221,6 +2222,9 @@ telegram_io.set_actions({
         rid, "rejected", "Dismissed from Telegram"),
     "dysongo": lambda did: agency_dyson.decision(did, "approve"),
     "dysonno": lambda did: agency_dyson.decision(did, "reject"),
+    # Business-partner chat (telegram_agent): ✅ runs the queued API write, ❌ drops it.
+    "pgo": telegram_agent.confirm,
+    "pno": telegram_agent.cancel,
 })
 
 
@@ -5385,6 +5389,8 @@ def main():
     else:
         print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS=0) — UI/proxy only")
     _start_portal_server()  # public-safe client portal (only if FORGE_PORTAL_PORT set)
+    # Business partners in Telegram call this server's own API over loopback.
+    telegram_agent.register(PORT, ROUTES, Handler, __file__)
     print(f"   binding {HOST}:{PORT}")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 

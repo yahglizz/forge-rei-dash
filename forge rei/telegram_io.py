@@ -628,7 +628,7 @@ _TAP_AGENT = (("approve", "marcus", "wholesale"), ("mdismiss", "marcus", "wholes
               ("handoff", "scout", "wholesale"), ("scoutdismiss", "scout", "wholesale"),
               ("ace", "ace", "wholesale"), ("dyson", "dyson", "agency"),
               ("reqdismiss", "dyson", "agency"), ("skill", "skill_forge", None),
-              ("ops", "operator", None))
+              ("ops", "operator", None), ("pgo", "partner", None), ("pno", "partner", None))
 
 
 def _handle_callback(cq, token=None, agent_chat=False):
@@ -722,7 +722,7 @@ _AGENCY_TASK = {"fn": None}               # fn(agent_id, title) -> {reply|error}
 _AGENT_SESS = {}                          # chat_id -> {"agent": str, "history": [...]}  (in-memory)
 _AGENT_ALIASES = {"/scout": "scout", "/marcus": "marcus", "/atlas": "atlas",
                   "/dyson": "dyson", "/eco": "eco", "/solomon": "solomon",
-                  "/midas": "midas"}
+                  "/midas": "midas", "/orion": "orion"}
 _AGENCY_AGENTS = ("dyson", "eco")         # routed to the agency chat/task backend
 
 # Trigger WORDS — the same switch without the slash, so "solomon, what's the ratio
@@ -730,9 +730,9 @@ _AGENCY_AGENTS = ("dyson", "eco")         # routed to the agency chat/task backe
 # when the name is the FIRST word and is followed by end-of-message, a comma, or a
 # colon — so "I told marcus to call" stays plain chat and hits the active agent.
 _AGENT_TRIGGER = re.compile(
-    r"^(scout|marcus|atlas|dyson|eco|solomon|midas)"
+    r"^(scout|marcus|atlas|dyson|eco|solomon|midas|orion)"
     r"(?:\s*[,:]\s*|\s+[—–-]\s+)(.*)$|"          # dash must be spaced: not "midas-touch"
-    r"^(scout|marcus|atlas|dyson|eco|solomon|midas)$",
+    r"^(scout|marcus|atlas|dyson|eco|solomon|midas|orion)$",
     re.I | re.S)
 
 # The full crew, one line each — /agents and the unified /help both read from this.
@@ -744,6 +744,7 @@ _AGENT_ROSTER = (
     ("eco", "📣", "agency ads — Meta strategy + analysis (recommends, you launch)"),
     ("solomon", "🏛", "daycare director — ops, enrollment, money, roster, ads"),
     ("midas", "🛒", "dropship director — products, creative + ads, fulfillment"),
+    ("orion", "🧭", "HQ chief of staff — system health, API cost, what's down"),
 )
 
 # ONE help card. /start, /help, and telegram_ops's /ops entry all land here.
@@ -969,20 +970,36 @@ def _handle_message(msg, reply_token=None):
             reply_to("ACE error: " + str(e))
         return
 
-    # Remote-control ops layer: slash commands + plain-English actions (gated sends
-    # come back as ✅/❌ confirm buttons). Returns True when it consumed the message;
-    # plain conversation falls through to the agent chat below.
-    try:
-        import telegram_ops
-        if telegram_ops.route(text, chat_id,
-                              lambda t, b=None: _send_to(chat_id, t, buttons=b,
-                                                         token=reply_token)):
-            return
-    except Exception as e:  # noqa: BLE001
-        _set_error(e)
+    chat_biz = _business_of_chat(chat_id)
 
-    sess = _AGENT_SESS.setdefault(chat_id, {"agent": _BIZ_AGENT.get(_business_of_chat(chat_id), "marcus"),
-                                            "history": []})
+    # Zero-Claude commands (work with credits out): /status · /starts · /logins · /pin
+    qcmd, _, qarg = cmd.partition(" ")
+    if qcmd in ("/status", "/starts", "/logins", "/pin"):
+        try:
+            import telegram_agent
+            out = telegram_agent.quick(qcmd, text.partition(" ")[2].strip(), chat_id, chat_biz)
+        except Exception as e:  # noqa: BLE001
+            out = (f"⚠️ {_esc(str(e))}", [])
+        if out:
+            reply_to(out[0])
+            _send_cards(chat_id, out[1], reply_token)
+            return
+
+    # Remote-control ops layer (wholesale): slash commands + plain-English actions (gated
+    # sends come back as ✅/❌ confirm buttons). Wholesale only — in its own chat, or in
+    # HQ while wholesale has no chat — so "find Seara" in the daycare chat never runs a
+    # seller lookup. Returns True when it consumed the message.
+    if chat_biz == "wholesale" or (chat_biz is None and "wholesale" not in _biz_chats()):
+        try:
+            import telegram_ops
+            if telegram_ops.route(text, chat_id,
+                                  lambda t, b=None: _send_to(chat_id, t, buttons=b,
+                                                             token=reply_token)):
+                return
+        except Exception as e:  # noqa: BLE001
+            _set_error(e)
+
+    sess = _AGENT_SESS.setdefault(chat_id, {"agent": _default_agent(chat_id), "history": []})
     # Agent switch via prefix: "/dyson status on the smith site" or just "/atlas".
     switched = False
     for alias, aid in _AGENT_ALIASES.items():
@@ -998,6 +1015,12 @@ def _handle_message(msg, reply_token=None):
             sess["agent"] = (m.group(1) or m.group(3)).lower()
             text = (m.group(2) or "").strip()
             switched = True
+    if switched and chat_biz and _agent_business(sess["agent"]) not in (chat_biz, None):
+        other = _agent_business(sess["agent"])
+        sess["agent"] = _BIZ_AGENT[chat_biz]
+        reply_to(f"{_esc(_BIZ_LABEL.get(other, other))} work lives in its own chat — ask there. "
+                 f"This chat is {_BIZ_LABEL[chat_biz]} with <b>{_BIZ_AGENT[chat_biz].title()}</b>.")
+        return
     if switched:
         aid = sess["agent"]
         if not text:
@@ -1053,26 +1076,75 @@ def _handle_message(msg, reply_token=None):
         text = title          # …and answer it in chat right now too
         low = text.lower()
 
-    # Route to the right brain: Dyson/Eco → agency backend, the rest → REI agents_chat.
-    fn = _AGENCY_CHAT.get("fn") if agent_id in _AGENCY_AGENTS else _AGENT_CHAT.get("fn")
-    if not fn:
-        reply_to(f"{agent_id.title()}'s chat isn't wired up yet.")
-        return
     try:
         _api("sendChatAction", {"chat_id": chat_id, "action": "typing"},
              timeout=8, token=reply_token)
     except Exception:  # noqa: BLE001
         pass
+    # The business partner: a tool-using agent that reads live data and queues writes as
+    # ✅ cards (telegram_agent). The old text-only brains stay as the fallback.
+    cards = []
     try:
-        reply = fn(agent_id, text, list(sess["history"]))
+        import telegram_agent
+        out = telegram_agent.chat(agent_id, text, list(sess["history"]), chat_id)
+        reply, cards = out.get("reply") or "", out.get("cards") or []
     except Exception as e:  # noqa: BLE001
         _set_error(e)
-        reply = f"({agent_id.title()} hit an error: {e})"
+        fn = _AGENCY_CHAT.get("fn") if agent_id in _AGENCY_AGENTS else _AGENT_CHAT.get("fn")
+        try:
+            reply = fn(agent_id, text, list(sess["history"])) if fn else ""
+        except Exception as e2:  # noqa: BLE001
+            reply = f"({agent_id.title()} hit an error: {e2})"
     reply = reply or "On it."
+    try:  # same thread on the dashboard/mobile Agents tab
+        import agents_history
+        agents_history.record(agent_id, text, reply, via="telegram")
+    except Exception:  # noqa: BLE001
+        pass
     sess["history"].append({"role": "user", "text": text})
     sess["history"].append({"role": "assistant", "text": reply})
     sess["history"] = sess["history"][-12:]
     reply_to(f"<b>{agent_id.title()}</b>\n{_esc(reply)}")
+    _send_cards(chat_id, cards, reply_token)
+
+
+def _agent_business(agent_id):
+    if agent_id == "orion":
+        return None                  # HQ — cross-business
+    try:
+        import telegram_agent
+        return telegram_agent.AGENT_BUSINESS.get(agent_id)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _default_agent(chat_id):
+    """A business chat talks to its partner; HQ (and any other chat) talks to Orion."""
+    return _BIZ_AGENT.get(_business_of_chat(chat_id)) or "orion"
+
+
+def _send_cards(chat_id, cards, token=None):
+    """One ✅/❌ message per queued write (telegram_agent.card)."""
+    if not cards:
+        return
+    import telegram_agent
+    for c in cards:
+        text, buttons = telegram_agent.card(c)
+        _send_to(chat_id, text, buttons=buttons, token=token)
+
+
+def _on_partner_result(chat_id, agent_id, text):
+    """A ✅ tap ran — the partner sees the outcome on the next turn."""
+    sess = _AGENT_SESS.setdefault(str(chat_id), {"agent": agent_id, "history": []})
+    sess["history"].append({"role": "assistant", "text": f"[owner tapped ✅] {text[:1500]}"})
+    sess["history"] = sess["history"][-12:]
+
+
+try:
+    import telegram_agent as _ta
+    _ta._ON_RESULT["fn"] = _on_partner_result
+except Exception:  # noqa: BLE001
+    pass
 
 
 # ── public: the long-poll loop ────────────────────────────────────────────────
