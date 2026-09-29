@@ -83,7 +83,7 @@ class PartnerTests(unittest.TestCase):
         calls = []
 
         def call(key, payload):
-            calls.append(payload)
+            calls.append(__import__("copy").deepcopy(payload))
             return steps[len(calls) - 1]
         return call, calls
 

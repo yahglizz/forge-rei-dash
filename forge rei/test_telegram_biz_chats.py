@@ -97,8 +97,12 @@ class BizChatTests(unittest.TestCase):
         self.msg("/bind daycare")
         self.assertEqual(tg._AGENT_SESS[DAYCARE_GROUP]["agent"], "solomon")
         tg._AGENT_SESS.clear()                                      # e.g. after a restart
-        with mock.patch.dict(tg._AGENT_CHAT, {"fn": lambda aid, text, hist: f"{aid} here"}):
+        import telegram_agent
+        with mock.patch.object(telegram_agent, "chat",
+                               lambda aid, text, hist, chat_id: {"reply": f"{aid} here", "cards": []}), \
+                mock.patch.dict("sys.modules", {"agents_history": mock.MagicMock()}):
             self.msg("how many kids today?")
+        self.assertIn("solomon here", self.replies[-1][1])
         self.assertIn("Solomon", self.replies[-1][1])
 
 
