@@ -270,10 +270,10 @@ def confirm_due(now=None):
 
 def display_name(e):
     child = str(e.get("childFirst") or "").strip()
-    if len(child) >= 2:
-        return child
     parent = str(e.get("parentName") or "").strip()
-    return f"{parent}'s child" if len(parent) >= 2 else "New family"
+    if len(child) >= 2 and child.lower() != str(e.get("parentFirst") or "").strip().lower():
+        return child
+    return f"{parent}'s family" if len(parent) >= 2 else "New family"
 
 
 def _apply(entries, contact, found, now):
