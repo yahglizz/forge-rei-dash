@@ -1032,6 +1032,12 @@ def _handle_message(msg, reply_token=None):
         reply_to(f"{_esc(_BIZ_LABEL.get(other, other))} work lives in its own chat — ask there. "
                  f"This chat is {_BIZ_LABEL[chat_biz]} with <b>{_BIZ_AGENT[chat_biz].title()}</b>.")
         return
+    if switched and not chat_biz and _agent_business(sess["agent"]) in _biz_chats():
+        other = _agent_business(sess["agent"])
+        sess["agent"] = _default_agent(chat_id)
+        reply_to(f"{_esc(_BIZ_LABEL.get(other, other))} has its own chat now — talk to "
+                 f"{_esc(_BIZ_AGENT.get(other, 'them').title())} there. HQ is Orion: health, cost, what's down.")
+        return
     if switched:
         aid = sess["agent"]
         if not text:

@@ -104,16 +104,40 @@ class PartnerTests(unittest.TestCase):
             out = ta.chat("solomon", "reset seara's pin", [], "-100", key="k", call=call)
         self.assertEqual(out["reply"], "Card's up — tap ✅.")
         self.assertEqual(len(out["cards"]), 1)
-        self.assertEqual([h[:2] for h in self.http], [("GET", "/api/daycare/children")])
+        self.assertEqual(self.http[0][:2], ("GET", "/api/daycare/children"))
+        self.assertFalse([h for h in self.http if h[0] == "POST"])  # nothing written before the tap
         self.assertEqual(calls[1]["messages"][-1]["content"][0]["type"], "tool_result")
         tok = out["cards"][0]["tok"]
-        res = ta.confirm(tok)
+        self.assertIn("another chat", ta.confirm(tok, "-999")["error"])   # chat-bound
+        res = ta.confirm(tok, "-100")
         self.assertTrue(res.get("ok"))
         self.assertIn("482913", res["message"])                   # PIN shown once in the tap
         self.assertEqual(self.http[-1][:2], ("POST", "/api/daycare/guardian/reset-pin"))
         self.assertIn("expired", ta.confirm(tok)["error"])         # single use
         text, buttons = ta.card(out["cards"][0])
         self.assertEqual(buttons[0][0]["callback_data"], f"pgo:{tok}")
+
+    def _one_tool(self, name, inp, agent="solomon", biz="daycare"):
+        cards = []
+        return ta._run_tool(name, inp, agent, biz, "-100", cards), cards
+
+    def test_guards(self):
+        big = {"profile_id": "g-1", "x": "a" * 1000}
+        out, cards = self._one_tool("api_post", {"path": "/api/daycare/child/save", "body": big,
+                                                  "summary": "s"})
+        self.assertIn("over", out["error"])
+        self.assertEqual(cards, [])
+        with mock.patch.object(ta, "_http", lambda m, p, **k: {"profile": {"id": "admin-1"}}
+                               if p.endswith("auth/status") else {"staff": []}):
+            out, _ = self._one_tool("api_post", {"path": "/api/daycare/guardian/reset-pin",
+                                                 "body": {"profile_id": "admin-1"}, "summary": "s"})
+        self.assertIn("admin", out["error"])
+        out, cards = self._one_tool("file_task", {"title": "call the Smiths"})
+        self.assertEqual(cards[0]["body"], {"agentId": "solomon", "title": "call the Smiths"})
+        self.assertEqual(ta.redact({"portalToken": "abc", "n": 3, "pin": "1234"}, pin=True),
+                         {"portalToken": "[redacted]", "n": 3, "pin": "[redacted]"})
+        self.assertFalse(ta.allowed("wholesale", "POST", "/api/ace/mode")[0])
+        self.assertFalse(ta.allowed("dropship", "POST", "/api/dropship/mcp/save")[0])
 
     def test_out_of_scope_tool_is_refused(self):
         call, _ = self._claude_script([
@@ -198,6 +222,13 @@ class RoutingTests(unittest.TestCase):
     def test_foreign_agent_refused_in_business_chat(self):
         self.msg("/bind daycare")
         self.msg("marcus, how are sellers")
+        self.assertIn("own chat", self.replies[-1][1])
+        self.assertEqual(self.seen, [])
+
+    def test_hq_refuses_bound_business_agent(self):
+        self.msg("/bind daycare")
+        with mock.patch("telegram_ops.route", return_value=False):
+            self.msg("solomon, how many kids", chat=OPERATOR)
         self.assertIn("own chat", self.replies[-1][1])
         self.assertEqual(self.seen, [])
 

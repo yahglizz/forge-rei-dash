@@ -81,7 +81,7 @@ DENY = (
     "/api/send", "/api/reply/send", "/api/screening/send",
 )
 _SECRET_KEY = re.compile(r"token|secret|api_?key|password|passwd|authorization", re.I)
-_RISKY = (("reset-pin", "🔐 resets a login"), ("blast", "📣 mass text"),
+_RISKY = (("dismiss", "🙈 dismisses"), ("reset-pin", "🔐 resets a login"), ("blast", "📣 mass text"),
           ("/send", "✉️ sends a message"), ("reply", "✉️ texts someone"),
           ("approve", "✉️ sends / approves"), ("delete", "🗑 deletes"),
           ("deactivate", "🗑 deactivates"), ("stripe", "💳 money"), ("invoice", "💳 money"),
@@ -177,8 +177,9 @@ def redact(obj, pin=False):
     """Scrub secret-looking keys (and PINs when pin=True) before text reaches the model or
     the chat history. The tapped card footer is the one place a fresh PIN is shown."""
     if isinstance(obj, dict):
-        return {k: ("[redacted]" if (_SECRET_KEY.search(str(k)) or (pin and str(k).lower() == "pin"))
-                    and v not in (None, "") else redact(v, pin)) for k, v in obj.items()}
+        return {k: ("[redacted]" if isinstance(v, str) and v and (
+                    _SECRET_KEY.search(str(k)) or (pin and str(k).lower() == "pin"))
+                    else redact(v, pin)) for k, v in obj.items()}
     if isinstance(obj, list):
         return [redact(v, pin) for v in obj]
     return obj
