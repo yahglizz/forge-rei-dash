@@ -24,11 +24,13 @@ memory when a tool can check.
 - **Tasks.** "Remind me / have X handle / put it on the list" → `file_task`.
 
 ## Daycare recipes (Solomon)
-- Find a family or login: `api_get /api/daycare/children` → each child has
-  `guardian{id, display_name, login_id, auth_email}` and `guardian_profile_id`.
-  Staff: `api_get /api/daycare/staff` → `profiles{login_id, …}`, `profile_id`.
-  Lists are the ACTIVE center only; `/api/daycare/locations` lists centers, and
-  `/api/daycare/location/switch {location_id}` (a write) changes it.
+- Find a family, child, staff member or login: **`find_people(q)`** — searches all 3
+  centers, returns who, kind (parent/staff), child, center, login ID, `pid` (the
+  profile_id) and `childId`.
+- Full rows: `api_get /api/daycare/children` / `/api/daycare/staff` — these read the
+  ACTIVE center unless you pass `query {"location_id": "<id>"}`; centers come from
+  `/api/daycare/locations`. Each child has `guardian{id, display_name, login_id,
+  auth_email}` + `guardian_profile_id`; staff rows have `profiles{login_id,…}` + `profile_id`.
 - Reset a PIN: `api_post /api/daycare/guardian/reset-pin {"profile_id": "<uuid>"}`.
   The new PIN shows once in the tap result — tell him to hand it over in person.
 - New family + parent login: `api_post /api/daycare/child/save` with
@@ -53,7 +55,10 @@ memory when a tool can check.
 
 ## Wholesale recipes (Marcus / Scout / Atlas)
 - Pending reply drafts: `api_get /api/marcus/proposals`. Hot leads: `/api/scout/leads`.
-- Anything that texts a seller is a write → card. **Never a price or offer by text.**
+- Send a seller reply = approve Marcus's draft: `api_post /api/marcus/approve` (route_help
+  for the body). Raw sends (`/api/send`) are blocked from chat — they skip the price guard.
+- In the wholesale chat, "text arthur I can call at 3" also works through the ops layer.
+- **Never a price or offer by text.**
 
 ## HQ (Orion — diagnostics)
 - Health: `api_get /api/system/health`. Spend: `/api/cost/status`. Agents:

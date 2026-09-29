@@ -554,10 +554,20 @@ def chat(agent_id, text, history, chat_id, key=None, call=None):
 # ── zero-Claude slash commands (work with credits out) ───────────────────────
 def _find_people(q):
     q = q.lower().strip()
-    kres, sres = _http("GET", "/api/daycare/children") or {}, _http("GET", "/api/daycare/staff") or {}
-    if kres.get("error") and not kres.get("children"):
-        return {"error": str(kres["error"])}
-    kids, staff = kres.get("children") or [], sres.get("staff") or []
+    locs = (_http("GET", "/api/daycare/locations") or {}).get("locations") or [{}]
+    rows = []
+    for loc in locs:                      # every center, not just the active one
+        lq = {"location_id": loc["id"]} if loc.get("id") else None
+        kres = _http("GET", "/api/daycare/children", query=lq) or {}
+        if kres.get("error") and not kres.get("children"):
+            return {"error": str(kres["error"])}
+        sres = _http("GET", "/api/daycare/staff", query=lq) or {}
+        rows += _people_rows(q, kres.get("children") or [], sres.get("staff") or [],
+                             loc.get("name") or "")
+    return rows
+
+
+def _people_rows(q, kids, staff, center):
     rows = []
     for c in kids:
         g = c.get("guardian") or {}
@@ -569,6 +579,7 @@ def _find_people(q):
                 x for x in (g.get("first_name"), g.get("last_name")) if x)
             rows.append({"who": gname or "no parent login", "kind": "parent",
                          "child": f"{c.get('first_name', '')} {c.get('last_name', '')}".strip(),
+                         "childId": c.get("id"), "center": center,
                          "login": g.get("login_id"), "pid": c.get("guardian_profile_id")})
     for s in staff:
         p = s.get("profiles") or {}
@@ -577,7 +588,7 @@ def _find_people(q):
         if q in hay and p.get("role") != "admin":
             rows.append({"who": p.get("display_name") or f"{p.get('first_name', '')} "
                          f"{p.get('last_name', '')}".strip(), "kind": "staff",
-                         "login": p.get("login_id"), "pid": s.get("profile_id")})
+                         "login": p.get("login_id"), "pid": s.get("profile_id"), "center": center})
     return rows
 
 
@@ -615,10 +626,11 @@ def quick(cmd, arg, chat_id, business):
     if isinstance(people, dict):
         return (f"⚠️ Couldn't read the roster: {_esc(people['error'])}", [])
     if not people:
-        return (f"No parent, child or staff matching “{_esc(arg)}” at the active center.", [])
+        return (f"No parent, child or staff matching “{_esc(arg)}” at any center.", [])
     if cmd == "/logins":
         return ("🔑 <b>Logins</b>\n" + "\n".join(
-            f"• {_esc(p['who'])} ({p['kind']}{' of ' + _esc(p['child']) if p.get('child') else ''})"
+            f"• {_esc(p['who'])} ({p['kind']}{' of ' + _esc(p['child']) if p.get('child') else ''}"
+            f"{' · ' + _esc(p['center']) if p.get('center') else ''})"
             f" — <code>{_esc(p.get('login') or 'no login ID')}</code>" for p in people[:15]), [])
     targets = list({p["pid"]: p for p in people if p.get("pid")}.values())   # siblings share one
     if len(targets) != 1:

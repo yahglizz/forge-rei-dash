@@ -3171,6 +3171,17 @@ def handle_move_opportunity(body):
     return {"ok": True, "id": opp_id, "stageId": stage_id, "result": res}
 
 
+def _daycare_at(session, q, fn):
+    """Optional ?location_id= on a daycare roster read: read another center without the
+    caller switching (at_location restores the active center). Used by the Telegram
+    partners' people lookup, which must search every center."""
+    loc = ((q or {}).get("location_id") or [""])[0]
+    if not loc:
+        return fn(session)
+    with daycare_supabase.at_location(session, daycare_supabase.require_uuid(loc, "location_id")):
+        return fn(session)
+
+
 def handle_marcus_post(path, body):
     if path == "/api/marcus/approve":
         return MARCUS.approve(body.get("id"), body.get("message"))
@@ -4572,13 +4583,13 @@ class Handler(BaseHTTPRequestHandler):
         """Explicit Daycare read router; all domain data requires a secure session."""
         handlers = {
             "/api/daycare/overview": lambda session: daycare_supabase.get_overview(session),
-            "/api/daycare/children": lambda session: daycare_supabase.get_children(session),
+            "/api/daycare/children": lambda session: _daycare_at(session, q, daycare_supabase.get_children),
             "/api/daycare/attendance": lambda session: daycare_supabase.get_attendance(
                 session, q.get("date", [None])[0]),
             "/api/daycare/behavior": lambda session: daycare_supabase.get_behavior(
                 session, q.get("date", [None])[0]),
             "/api/daycare/classrooms": lambda session: daycare_supabase.get_classrooms(session),
-            "/api/daycare/staff": lambda session: daycare_supabase.get_staff(session),
+            "/api/daycare/staff": lambda session: _daycare_at(session, q, daycare_supabase.get_staff),
             "/api/daycare/logs": lambda session: daycare_supabase.get_logs(
                 session, q.get("from", [None])[0], q.get("to", [None])[0]),
             "/api/daycare/incidents": lambda session: daycare_supabase.get_incidents(
