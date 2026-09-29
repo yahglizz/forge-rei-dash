@@ -3174,7 +3174,7 @@ def handle_marcus_post(path, body):
 def _daycare_iso_date(value):
     """GHL's Child DOB is free text ("03/14/2023" or "2023-03-14") → YYYY-MM-DD, else ""."""
     raw = re.sub(r"\s+", " ", str(value or "").strip())
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%B %d, %Y", "%b %d, %Y", "%B %d %Y"):
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%m.%d.%Y", "%B %d, %Y", "%b %d, %Y", "%B %d %Y"):
         try:
             got = datetime.strptime(raw[:10] if fmt == "%Y-%m-%d" else raw, fmt).date()
         except ValueError:

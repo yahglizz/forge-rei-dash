@@ -79,7 +79,7 @@ _WEEKDAY_RE = re.compile(rf"\b({_WD_ALT})\b", re.I)
 _WD_RANGE_RE = re.compile(rf"\b(?:{_WD_ALT})\s*(?:-|–|to|thru|through)\s*(?:{_WD_ALT})\b", re.I)
 _REL_RE = re.compile(r"\b(tomorrow)\b", re.I)
 # Not a family's start: hours ("start at 6:30"), Head Start, keyword replies, a sibling's school.
-_NOT_START_RE = re.compile(r"\bstart(?:s|ing)?\s+(?:at\s+\d|serving\b)|\bhead\s+start\b|\b(?:reply|text)\s+start\b|\bschool\s+starts?\b", re.I)
+_NOT_START_RE = re.compile(r"\bstart(?:s|ing)?\s+(?:at\s+\d|serving\b|in\s+(?:the\s+)?\w+\s+(?:room|class))|\bhead\s+start\b|\b(?:reply|text)\s+start\b|\bschool\s+starts?\b", re.I)
 _SENT_SPLIT = re.compile(r"(?<=[.!?\n;])\s+(?=\D)")   # "Oct. 13th" stays whole
 _DAYS_AFTER_RE = re.compile(r"\s*(?:(?:full\s+|half\s+)?days?\b|off\b|%|[ap]\.?m\b)", re.I)
 _BLAST_SOURCES = {"campaign", "bulk_actions"}     # blasts never agree a family's date
@@ -160,24 +160,38 @@ def _candidate(body, ref):
     return None
 
 
+def _clean(text):
+    evidence = re.sub(r"\s+", " ", text).strip()
+    for rx, sub in _SCRUB:
+        evidence = rx.sub(sub, evidence)
+    return evidence[:160]
+
+
 def extract(messages):
     """Pure: newest agreed start date in a GHL thread → {date, evidence, at, dir} or None.
-    Both directions count (our "see you Monday 10/13 for her first day" is the agreement as
-    much as the parent's). Resolved against each message's own ET date; future only."""
+    Both directions count (our "I have Oct 5 down as your start date" is the agreement as
+    much as the parent's). Resolved against each message's own ET date; future only.
+    A LATER message naming a different date ("actually can we do 10/12?") is a move of that
+    start date even without a start word — it wins, so a stale date never sends."""
     blasts = {m.get("body") for m in messages or []
               if str(m.get("source") or "").lower() in _BLAST_SOURCES}
+    later = None                  # newest dated follow-up seen before the start message
     for t, direction, _human, _type, body in reversed(daycare_leads._events(messages)):
         if not body or body in blasts:
             continue
+        body = str(body)
         ref = datetime.fromtimestamp(t, ET).date()
-        got = _candidate(str(body), ref)
+        got = _candidate(body, ref)
         if got and ref <= got[0] <= ref + timedelta(days=HORIZON_DAYS):
-            evidence = re.sub(r"\s+", " ", got[1]).strip()
-            for rx, sub in _SCRUB:
-                evidence = rx.sub(sub, evidence)
-            evidence = evidence[:160]
-            return {"date": got[0].isoformat(), "evidence": evidence,
+            if later and later[0] != got[0]:
+                got, t, direction = later[:2], later[2], later[3]
+            return {"date": got[0].isoformat(), "evidence": _clean(got[1]),
                     "at": int(t * 1000), "dir": direction, "source": "messages"}
+        if later is None and not (_TOUR_RE.search(body) or _PAST_RE.search(body)
+                                  or _NOT_START_RE.search(body)):
+            d = parse_date(body, ref)
+            if d:
+                later = (d, body, t, direction)
     return None
 
 
