@@ -1035,6 +1035,7 @@ import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 # --- WP-E ---
 import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead visibility, no Claude)
+import daycare_starts  # noqa: E402 — Solomon · Starts: agreed start date → confirm → start-day login
 import daycare_replies  # noqa: E402 — Solomon family-comms: drafts parent replies, owner sends
 # --- /WP-E ---
 import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
@@ -3169,6 +3170,33 @@ def handle_marcus_post(path, body):
 # ---------------------------------------------------------------------------
 # HTTP server
 # ---------------------------------------------------------------------------
+def _daycare_iso_date(value):
+    """GHL's Child DOB is free text ("03/14/2023" or "2023-03-14") → YYYY-MM-DD, else ""."""
+    raw = str(value or "").strip()[:10]
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y"):
+        try:
+            return datetime.strptime(raw, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return ""
+
+
+def _daycare_start_session():
+    return daycare_supabase.BRIDGE.autoadmin_session("127.0.0.1")
+
+
+def _daycare_start_mint(session, entry):
+    """Start day: a fresh one-time PIN for the family's login (returned once, never stored)."""
+    if session is None:
+        return {"error": "no daycare session — auto-admin is off"}
+    with daycare_supabase.at_location(session, entry.get("locationId")):
+        child = daycare_supabase._ensure_location_record(session, "children", entry.get("childId"))
+        guardian = child.get("guardian_profile_id")
+        if not guardian:
+            return {"error": "child has no parent login linked"}
+        return (daycare_supabase.reset_credentials(session, {"profile_id": guardian}) or {}).get("provision") or {}
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):  # quieter logs
         pass
@@ -4123,10 +4151,18 @@ class Handler(BaseHTTPRequestHandler):
         card so it drops out of the inbox once it's a real Supabase record.
         """
         family = body.get("family") if isinstance(body.get("family"), dict) else {}
+        return self._daycare_enroll_family(session, family)
+
+    def _daycare_enroll_family(self, session, family, text_login=True, enrollment_date=None):
+        """The enroll core. text_login=False + enrollment_date = the start-date confirm path
+        (daycare_starts): same child row + parent login, but the login text waits for the
+        start day instead of going out now."""
         contact_id = family.get("contact_id")
         if not contact_id:
             raise daycare_supabase.DaycareError(400, "contact_id is required", "validation_error")
         child_body = self._daycare_family_child_body(session, family)
+        if enrollment_date:
+            child_body["enrollment_date"] = enrollment_date
         # If this contact was already enrolled once (ledgered by a prior enroll click,
         # or by the retired auto-enroll path), pass that child id so save_child UPDATES
         # the row (and provisions the login) instead of inserting a duplicate.
@@ -4146,6 +4182,8 @@ class Handler(BaseHTTPRequestHandler):
             })
         result = self._daycare_child_save(session, {"child": child_body})
         provision = result.get("provision") or {}
+        if provision.get("pin") and not text_login:
+            provision.pop("pin")   # start-date path: a fresh PIN is minted on the start day
         if provision.get("pin"):
             # A brand-new login: text the parent their sign-in. The owner's Create-login
             # click is the approval (rule 2); send_manual re-checks the 8am–9pm ET window,
@@ -4189,6 +4227,39 @@ class Handler(BaseHTTPRequestHandler):
             "location_id": location_id,
             "active": True,
         }
+
+    def _daycare_start_enroll(self, session, entry, start_date, extras):
+        """daycare_starts Confirm tap: enroll/update the child (enrollment_date = start date)
+        + make sure a parent login exists, texting NOTHING. Missing data comes back as
+        `needs` so the card can ask for it inline."""
+        try:
+            contact = daycare_replies._contact(DAYCARE_GHL, entry.get("contactId"))
+        except Exception as error:  # noqa: BLE001 — type only, never a token
+            return {"ok": False, "error": f"GHL read failed: {type(error).__name__}"}
+        if not contact:
+            return {"ok": False, "error": "GHL contact not found"}
+        family = daycare_ghl._family_from_contact(contact)
+        family["location_id"] = entry.get("locationId") or DAYCARE_FORM_LOCATION_BY_TAG.get(
+            (family.get("location_tag") or "").lower())
+        for key in ("email", "child_dob", "child_first", "child_last", "location_id"):
+            if str((extras or {}).get(key) or "").strip():
+                family[key] = str(extras[key]).strip()
+        family["child_dob"] = _daycare_iso_date(family.get("child_dob"))
+        needs = [k for k in ("email", "child_dob", "child_first", "location_id")
+                 if not str(family.get(k) or "").strip()]
+        if needs:
+            return {"ok": False, "needs": needs, "error": "missing: " + ", ".join(needs)}
+        try:
+            result = self._daycare_enroll_family(session, family, text_login=False,
+                                                 enrollment_date=start_date)
+        except daycare_supabase.DaycareError as error:
+            return {"ok": False, "error": error.payload().get("error") or "enroll failed"}
+        child = (result or {}).get("child") or {}
+        if not child.get("guardian_profile_id"):
+            return {"ok": False, "needs": ["email"],
+                    "error": "no parent login linked to this child — check the parent's email"}
+        return {"ok": True, "childId": child.get("id"),
+                "locationId": child.get("location_id") or family["location_id"]}
 
     def _daycare_sync_family_to_ghl(self, session, child):
         # Read the guardian + center name at the CHILD's center: save_child has already
@@ -4291,6 +4362,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
                 "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
+                "/api/daycare/starts/confirm", "/api/daycare/starts/date", "/api/daycare/starts/dismiss",
                 "/api/daycare/replies/run", "/api/daycare/replies/approve",
                 "/api/daycare/replies/dismiss",
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
@@ -4378,6 +4450,17 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/daycare/leads/stage":
                 result = daycare_leads.set_stage(body.get("contact_id"), body.get("stage"))
             # --- /W2-5 ---
+            # Solomon · Starts: confirm IS the owner's approval for the ONE start-day login
+            # text (sent by the lane on that morning); date/dismiss are internal state.
+            elif path == "/api/daycare/starts/confirm":
+                result = daycare_starts.confirm(
+                    body.get("contact_id"), body.get("start_date"),
+                    lambda entry, day, extras: self._daycare_start_enroll(session, entry, day, extras),
+                    client=DAYCARE_GHL, extras=body.get("extras") if isinstance(body.get("extras"), dict) else {})
+            elif path == "/api/daycare/starts/date":
+                result = daycare_starts.set_date(body.get("contact_id"), body.get("start_date"))
+            elif path == "/api/daycare/starts/dismiss":
+                result = daycare_starts.dismiss(body.get("contact_id"))
             # Reply desk: run = draft-only sweep (sends nothing); approve IS the owner's
             # send tap (rule 2) and re-checks the live thread first; dismiss is internal.
             elif path == "/api/daycare/replies/run":
@@ -4499,6 +4582,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/ghl/pending-families": lambda session: self._daycare_pending_families(session),
             # --- WP-E --- Lead Desk: served from state, no GHL call on the request path.
             "/api/daycare/leads": lambda session: daycare_leads.view(),
+            "/api/daycare/starts": lambda session: daycare_starts.view(),
             "/api/daycare/replies": lambda session: daycare_replies.view(),
             # --- /WP-E ---
             # Messages tab: live daycare GHL threads (GET only on the request path).
@@ -5178,6 +5262,15 @@ def main():
         else:
             forge_heartbeat.retire("daycare_leads")
         # --- /WP-E ---
+        # Solomon · Starts: start dates from the threads → owner confirm → start-day login
+        # text (the confirm tap is its approval). Zero Claude. FORGE_DAYCARE_STARTS=0 = off.
+        if os.environ.get("FORGE_DAYCARE_STARTS", "1") != "0":
+            print(f"   Solomon · Starts: start-date sweep + start-day login every {daycare_starts.INTERVAL // 60} min")
+            threading.Thread(target=daycare_starts.run_forever,
+                             args=(DAYCARE_GHL, _daycare_start_session, _daycare_start_mint),
+                             daemon=True, name="daycare_starts").start()
+        else:
+            forge_heartbeat.retire("daycare_starts")
         # Daycare Reply Desk (Solomon family-comms): drafts replies to parent texts every
         # 5 min, yielding to GHL automations. Draft-only — the owner's tap sends.
         # FORGE_DAYCARE_REPLIES=0 switches it off.

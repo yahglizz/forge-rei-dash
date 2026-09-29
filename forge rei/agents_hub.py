@@ -121,9 +121,9 @@ AGENTS = [
      "role": "Executive Director — the whole center",
      "blurb": "Ops, enrollment, money, people, roster + family follow-ups, and the "
               "enrollment ads. Lanes: Solomon · Replies drafts every parent text-back "
-              "(you tap send) and Solomon · Leads watches enrollment leads. Ranks it all, "
+              "(you tap send), Solomon · Leads watches enrollment leads and Solomon · Starts texts the app login on a confirmed start day. Ranks it all, "
               "owns enrollment, never acts outward.",
-     "hb": ["solomon", "daycare_replies", "daycare_leads"], "queue": "daycare_replies"},
+     "hb": ["solomon", "daycare_replies", "daycare_leads", "daycare_starts"], "queue": "daycare_replies"},
     {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "🛒",
      "role": "E-com Director — the whole store",
      "blurb": "Product research, creative + ads, fulfillment and support. Ranks the "

@@ -405,6 +405,33 @@ def _src_daycare_replies(ctx):
     return out
 
 
+def _src_daycare_starts(ctx):
+    """Solomon · Starts: a start date inside its confirm window (2 days out, or overdue) →
+    APPROVE "Confirm start date"; a start-day text that failed 3x → FIX. Keyed
+    daycare:<contactId> and run FIRST, so a family about to start is one row, not buried."""
+    import daycare_starts
+    out = []
+    for r in daycare_starts.confirm_due() or []:
+        cid = r.get("contactId")
+        if not cid:
+            continue
+        who, day = daycare_starts.display_name(r), r.get("startDate") or ""
+        link = {"ws": "daycare", "page": "Dashboard", "mobile": "families"}
+        if r.get("status") == "failed":
+            out.append(_item(f"daycare:{cid}", "FIX", "daycare", "urgent",
+                             f"Start-day app login failed — {who} ({day})",
+                             "Solomon · Starts: " + str(r.get("lastError") or "send failed")
+                             + " · text the login by hand from Logins", r.get("sendingAt"), link, "daycare_starts"))
+            continue
+        left = r.get("daysUntil")
+        when = "today" if left == 0 else "tomorrow" if left == 1 else f"in {left} days" if left and left > 0 else "— date passed"
+        out.append(_item(f"daycare:{cid}", "APPROVE", "daycare", "urgent" if (left or 0) <= 1 else "revenue",
+                         f"Confirm {who}'s start date — {day} ({when})",
+                         "Solomon · Starts: from " + ("the enrollment form" if r.get("source") == "form" else "their texts")
+                         + " · confirm and the app login texts that morning", r.get("proposedAt"), link, "daycare_starts"))
+    return out
+
+
 def _src_daycare_leads(ctx):
     """Solomon · Leads — the Lead Desk (daycare_leads.needs_human): {id, title, why,
     ageSec, priority URGENT|REVENUE|NORMAL, contactId, ...}. Keyed daycare:<contactId> like
@@ -470,6 +497,7 @@ SOURCES = [
     ("agency_callsheet", "agency", _src_agency_callsheet),
     ("agency_approvals", "agency", _src_agency_approvals),
     ("agency_requests", "agency", _src_agency_requests),
+    ("daycare_starts", "daycare", _src_daycare_starts),     # a family about to start wins its row
     ("daycare_replies", "daycare", _src_daycare_replies),   # a ready draft wins the family row
     ("daycare_leads", "daycare", _src_daycare_leads),   # then the lead desk beats the inquiry
     ("daycare_inquiries", "daycare", _src_daycare_inquiries),
