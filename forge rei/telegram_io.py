@@ -671,7 +671,8 @@ def _handle_callback(cq, token=None, agent_chat=False):
         result = {"error": f"unknown action: {action}"}
     else:
         try:
-            result = fn(arg)
+            # Partner cards are bound to the chat they were issued in.
+            result = fn(arg, chat_id) if action in ("pgo", "pno") else fn(arg)
             if not isinstance(result, dict):
                 result = {"ok": True}
         except Exception as e:  # noqa: BLE001
