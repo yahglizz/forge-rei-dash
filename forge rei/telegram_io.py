@@ -103,12 +103,49 @@ def _authorized(from_id, chat_id):
     cid = _chat_id()
     if not cid or not from_id or not chat_id:
         return False
-    if chat_id != cid:                      # tap must come from the configured chat
+    biz_chat = chat_id in _biz_chats().values()
+    if chat_id != cid and not biz_chat:     # tap must come from HQ or a bound business chat
         return False
     allowed = _allowed_ids()
     if allowed:
-        return from_id in allowed           # explicit allowlist (required for groups)
+        return from_id in allowed           # explicit allowlist (required for team groups)
+    if biz_chat:
+        # A business group the operator bound: only the operator (HQ is their DM, so the
+        # HQ chat id IS their user id) may tap. Anyone else in the group is refused.
+        return not cid.startswith("-") and from_id == cid
     return chat_id == from_id == cid        # personal DM fallback (operator's own chat)
+
+
+# ── per-business chats ────────────────────────────────────────────────────────
+# Each business gets its own Telegram group: create it, add the alerts bot, type
+# `/bind daycare` (or agency / wholesale) there. Env TELEGRAM_CHAT_<BIZ> overrides a
+# binding. An unbound business falls back to the main chat (HQ), so nothing is lost.
+# HQ keeps system alerts (watchdog, AI health, sync), the daily brief/recap and Orion.
+BUSINESSES = ("wholesale", "agency", "daycare", "dropship")
+_BIZ_LABEL = {"wholesale": "🏠 Wholesale", "agency": "📣 Agency", "daycare": "🏫 Daycare",
+              "dropship": "🛒 Dropship"}
+_BIZ_AGENT = {"wholesale": "marcus", "agency": "dyson", "daycare": "solomon", "dropship": "midas"}
+
+
+def _biz_chats():
+    """business -> chat id for every bound business (env wins over a /bind)."""
+    with _LOCK:
+        bound = _load().get("bizChats") or {}
+    out = {b: str((v or {}).get("id") or "") for b, v in bound.items() if b in BUSINESSES}
+    for b in BUSINESSES:
+        env = (os.environ.get(f"TELEGRAM_CHAT_{b.upper()}") or "").strip()
+        if env:
+            out[b] = env
+    return {b: c for b, c in out.items() if c}
+
+
+def chat_for(business=None):
+    """Where an alert for `business` goes: its own chat if bound, else HQ (main chat)."""
+    return _biz_chats().get(str(business or "").lower()) or _chat_id()
+
+
+def _business_of_chat(chat_id):
+    return next((b for b, c in _biz_chats().items() if c == str(chat_id)), None)
 
 
 def configured():
@@ -127,6 +164,7 @@ def _load():
         "dedupe": {},           # dedupe_key -> epoch seconds last sent
         "lastError": None,
         "lastSentAt": None,
+        "bizChats": {},         # business -> {"id", "title", "boundAt"} (set by /bind)
     }
     try:
         if STATE.exists():
@@ -147,6 +185,8 @@ def _load():
                     base["dedupe"] = data["dedupe"]
                 base["lastError"] = data.get("lastError")
                 base["lastSentAt"] = data.get("lastSentAt")
+                if isinstance(data.get("bizChats"), dict):
+                    base["bizChats"] = data["bizChats"]
     except Exception:
         pass
     return base
@@ -229,6 +269,7 @@ def settings():
         "lastError": st.get("lastError"),
         "lastSentAt": st.get("lastSentAt"),
         "agentBotSet": bool(_agent_token()),
+        "bizChats": {b: b in _biz_chats() for b in BUSINESSES},
         "agentLoop": dict(_AGENT_LOOP),
     }
 
@@ -289,8 +330,9 @@ def _dedupe_commit(dedupe_key):
         _save(st)
 
 
-def send(text, buttons=None, dedupe_key=None):
-    """Send an HTML message to the configured chat. Returns {ok} or {error}.
+def send(text, buttons=None, dedupe_key=None, business=None):
+    """Send an HTML message to `business`'s own chat (HQ when none/unbound). Returns {ok}
+    or {error}.
 
     buttons = list[list[{text, callback_data}]] -> inline_keyboard. Dedupe: if dedupe_key
     was sent in the last ~15 min, skip (returns {ok, skipped}). Never raises."""
@@ -301,7 +343,7 @@ def send(text, buttons=None, dedupe_key=None):
     if _dedupe_seen(dedupe_key):
         return {"ok": True, "skipped": "dedupe"}
     payload = {
-        "chat_id": _chat_id(),
+        "chat_id": chat_for(business),
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
@@ -354,6 +396,11 @@ def _event_class(msg):
     if msg.get("from") in ("dyson", "eco"):
         return "agency"
     return None
+
+
+_CLASS_BUSINESS = {"hot_lead": "wholesale", "proposal": "wholesale", "missed_sweep": "wholesale",
+                   "handoff": "wholesale", "edit_request": "agency", "dyson_plan": "agency",
+                   "agency": "agency"}      # skill_proposal (cross-business) stays in HQ
 
 
 # Marcus classification -> tier. Only hot/warm get a proposal notification.
@@ -530,7 +577,8 @@ def on_bus_message(msg):
         # Fire the network send on a daemon thread so a slow Telegram POST can NEVER block
         # the caller — agent_bus.send is sometimes called while Marcus holds its engine lock.
         threading.Thread(target=send, args=(text, buttons),
-                         kwargs={"dedupe_key": dedupe_key}, daemon=True).start()
+                         kwargs={"dedupe_key": dedupe_key,
+                                 "business": _CLASS_BUSINESS.get(cls)}, daemon=True).start()
         return {"ok": True, "queued": True}
     except Exception as e:  # noqa: BLE001
         try:
@@ -839,6 +887,46 @@ def _handle_message(msg, reply_token=None):
     if low == "/menu off":
         reply_to("Quick taps off.", markup={"remove_keyboard": True})
         return
+    cmd = re.sub(r"^(/\w+)@\w+", r"\1", low)       # "/bind@Forgelabsxbot daycare" in groups
+    if cmd == "/chats":
+        chats = _biz_chats()
+        lines = ["📂 <b>Business chats</b>"]
+        for b in BUSINESSES:
+            lines.append(f"{_BIZ_LABEL[b]} — " + ("✅ own chat" if b in chats else "→ HQ (not bound)"))
+        lines.append("\nIn a new group with me, type <code>/bind daycare</code> "
+                     "(or agency · wholesale · dropship). HQ keeps system alerts + the daily brief.")
+        reply_to("\n".join(lines))
+        return
+    if cmd.startswith("/bind") or cmd.startswith("/unbind"):
+        verb, _, biz = cmd.partition(" ")
+        biz = biz.strip()
+        if biz not in BUSINESSES:
+            reply_to("Which business? <code>/bind wholesale</code> · <code>/bind agency</code> · "
+                     "<code>/bind daycare</code> · <code>/bind dropship</code>")
+            return
+        if reply_token and reply_token != _token():
+            reply_to("Bind the chat with the alerts bot (@Forgelabsxbot) — it's the one that "
+                     "posts alerts. Add it to this group and send the command again.")
+            return
+        with _LOCK:
+            st = _load()
+            chats = st.setdefault("bizChats", {})
+            if verb == "/unbind":
+                chats.pop(biz, None)
+            else:
+                chats[biz] = {"id": chat_id, "title": str(chat.get("title") or "")[:80],
+                              "boundAt": int(time.time())}
+            _save(st)
+        if verb == "/unbind":
+            reply_to(f"{_BIZ_LABEL[biz]} alerts go back to HQ.")
+            return
+        _AGENT_SESS[chat_id] = {"agent": _BIZ_AGENT[biz], "history": []}
+        reply_to(f"✅ This is now the <b>{_BIZ_LABEL[biz]}</b> chat. Its alerts and approve "
+                 f"buttons land here; plain messages go to <b>{_BIZ_AGENT[biz].title()}</b>."
+                 + ("\n\nTip: make me an admin of this group so I can read plain messages "
+                    "(otherwise start them with / or reply to one of mine)."
+                    if chat.get("type") in ("group", "supergroup") else ""))
+        return
     if low in ("/whoami", "/id"):
         reply_to(f"chat id: <code>{chat_id}</code>\nyour id: <code>{from_id}</code>")
         return
@@ -886,7 +974,8 @@ def _handle_message(msg, reply_token=None):
     except Exception as e:  # noqa: BLE001
         _set_error(e)
 
-    sess = _AGENT_SESS.setdefault(chat_id, {"agent": "marcus", "history": []})
+    sess = _AGENT_SESS.setdefault(chat_id, {"agent": _BIZ_AGENT.get(_business_of_chat(chat_id), "marcus"),
+                                            "history": []})
     # Agent switch via prefix: "/dyson status on the smith site" or just "/atlas".
     switched = False
     for alias, aid in _AGENT_ALIASES.items():
