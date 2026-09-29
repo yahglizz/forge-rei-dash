@@ -101,7 +101,8 @@ AGENT_THREADS = {"scout", "marcus", "atlas", "followup", "solomon", "midas",
                  "dyson", "eco", "do_today", "telegram", "brief", "graphify"}
 # Lane threads that bill to the agent that owns them: Solomon's Replies + Leads lanes
 # (daycare_replies drafts with Claude; daycare_leads makes no Claude call today).
-THREAD_ALIAS = {"daycare_replies": "solomon", "daycare_leads": "solomon", "daycare_starts": "solomon"}
+THREAD_ALIAS = {"daycare_replies": "solomon", "daycare_leads": "solomon", "daycare_starts": "solomon",
+                "orion": "brief"}   # Telegram partner turns run on a thread named for the agent
 
 
 def _who():

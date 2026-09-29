@@ -5252,6 +5252,9 @@ def _start_portal_server():
 
 
 def main():
+    # Business partners in Telegram call this server's own API over loopback — register
+    # the route catalog before any bot thread can take a message.
+    telegram_agent.register(PORT, ROUTES, Handler, __file__)
     if not (API_KEY and LOCATION_ID):
         print("!! GHL credentials not found. Checked:")
         for p in ENV_CANDIDATES:
@@ -5404,8 +5407,6 @@ def main():
     else:
         print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS=0) — UI/proxy only")
     _start_portal_server()  # public-safe client portal (only if FORGE_PORTAL_PORT set)
-    # Business partners in Telegram call this server's own API over loopback.
-    telegram_agent.register(PORT, ROUTES, Handler, __file__)
     print(f"   binding {HOST}:{PORT}")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 

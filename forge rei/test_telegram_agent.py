@@ -10,6 +10,15 @@ import telegram_agent as ta
 import telegram_io as tg
 
 
+class _SyncThread:
+    """Run Telegram partner turns inline so assertions see the reply."""
+    def __init__(self, target=None, args=(), kwargs=None, **_):
+        self.t, self.a, self.k = target, args, kwargs or {}
+
+    def start(self):
+        self.t(*self.a, **self.k)
+
+
 SRC = '''
 ROUTES = {"/api/system/health": 1, "/api/cost/status": 1, "/api/scout/leads": 1}
 def do_POST(self):
@@ -186,6 +195,7 @@ class RoutingTests(unittest.TestCase):
             mock.patch.object(tg, "STATE", Path(self.tmp.name) / "telegram.json"),
             mock.patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "tok", "TELEGRAM_CHAT_ID": OPERATOR,
                                          "TELEGRAM_ALLOWED_IDS": ""}),
+            mock.patch.object(tg.threading, "Thread", _SyncThread),
             mock.patch.object(tg, "_api", lambda *a, **k: {"ok": True}),
         ]
         for p in self.patches:

@@ -950,7 +950,7 @@ def _handle_message(msg, reply_token=None):
         reply_to(f"chat id: <code>{chat_id}</code>\nyour id: <code>{from_id}</code>")
         return
     if low in ("/agents", "/who"):
-        cur = (_AGENT_SESS.get(chat_id) or {}).get("agent", "marcus")
+        cur = (_AGENT_SESS.get(chat_id) or {}).get("agent") or _default_agent(chat_id)
         lines = ["🕹 <b>Your crew</b> — tap one, then just talk:"]
         for aid, emo, blurb in _AGENT_ROSTER:
             now = "  ← active" if aid == cur else ""
@@ -1093,36 +1093,61 @@ def _handle_message(msg, reply_token=None):
         text = title          # …and answer it in chat right now too
         low = text.lower()
 
-    try:
-        _api("sendChatAction", {"chat_id": chat_id, "action": "typing"},
-             timeout=8, token=reply_token)
-    except Exception:  # noqa: BLE001
-        pass
-    # The business partner: a tool-using agent that reads live data and queues writes as
-    # ✅ cards (telegram_agent). The old text-only brains stay as the fallback.
-    cards = []
-    try:
-        import telegram_agent
-        out = telegram_agent.chat(agent_id, text, list(sess["history"]), chat_id)
-        reply, cards = out.get("reply") or "", out.get("cards") or []
-    except Exception as e:  # noqa: BLE001
-        _set_error(e)
-        fn = _AGENCY_CHAT.get("fn") if agent_id in _AGENCY_AGENTS else _AGENT_CHAT.get("fn")
+    # The partner runs on its own thread (named for the agent, so cost_tracker bills it to
+    # that agent): a tool loop can take minutes and must not stall ✅ taps, other chats or
+    # the poll heartbeat. One turn at a time per chat keeps its history in order.
+    threading.Thread(target=_partner_turn, args=(chat_id, agent_id, text, reply_token),
+                     daemon=True, name=agent_id).start()
+
+
+_CHAT_LOCKS = {}
+
+
+def _partner_turn(chat_id, agent_id, text, reply_token=None):
+    lock = _CHAT_LOCKS.setdefault(chat_id, threading.Lock())
+    with lock:
         try:
-            reply = fn(agent_id, text, list(sess["history"])) if fn else ""
-        except Exception as e2:  # noqa: BLE001
-            reply = f"({agent_id.title()} hit an error: {e2})"
-    reply = reply or "On it."
-    try:  # same thread on the dashboard/mobile Agents tab
-        import agents_history
-        agents_history.record(agent_id, text, reply, via="telegram")
-    except Exception:  # noqa: BLE001
-        pass
-    sess["history"].append({"role": "user", "text": text})
-    sess["history"].append({"role": "assistant", "text": reply})
-    sess["history"] = sess["history"][-12:]
-    reply_to(f"<b>{agent_id.title()}</b>\n{_esc(reply)}")
-    _send_cards(chat_id, cards, reply_token)
+            _api("sendChatAction", {"chat_id": chat_id, "action": "typing"},
+                 timeout=8, token=reply_token)
+        except Exception:  # noqa: BLE001
+            pass
+        sess = _AGENT_SESS.setdefault(chat_id, {"agent": agent_id, "history": []})
+        # Shared thread first (dashboard + mobile + Telegram all record into agents_history,
+        # and it survives restarts); the in-memory session only when the store is empty.
+        try:
+            import agents_history
+            hist = agents_history.recent_for_context(agent_id) or list(sess["history"])
+        except Exception:  # noqa: BLE001
+            agents_history, hist = None, list(sess["history"])
+        # The business partner: a tool-using agent that reads live data and queues writes as
+        # ✅ cards (telegram_agent). The old text-only brains stay as the fallback.
+        cards, recorded = [], False
+        try:
+            import telegram_agent
+            out = telegram_agent.chat(agent_id, text, hist, chat_id)
+            reply, cards = out.get("reply") or "", out.get("cards") or []
+            failed = bool(out.get("error"))
+        except Exception as e:  # noqa: BLE001
+            _set_error(e)
+            failed = False
+            fn = _AGENCY_CHAT.get("fn") if agent_id in _AGENCY_AGENTS else _AGENT_CHAT.get("fn")
+            try:
+                reply = fn(agent_id, text, hist) if fn else ""
+                recorded = agent_id not in _AGENCY_AGENTS     # _tg_agent_chat records itself
+            except Exception as e2:  # noqa: BLE001
+                reply, failed = f"({agent_id.title()} hit an error: {e2})", True
+        reply = reply or "On it."
+        if not failed:   # an outage message is not a conversation turn
+            sess["history"].append({"role": "user", "text": text})
+            sess["history"].append({"role": "assistant", "text": reply})
+            sess["history"] = sess["history"][-12:]
+            if agents_history is not None and not recorded:
+                try:
+                    agents_history.record(agent_id, text, reply, via="telegram")
+                except Exception:  # noqa: BLE001
+                    pass
+        _send_to(chat_id, f"<b>{agent_id.title()}</b>\n{_esc(reply)}", token=reply_token)
+        _send_cards(chat_id, cards, reply_token)
 
 
 def _agent_business(agent_id):
@@ -1151,10 +1176,16 @@ def _send_cards(chat_id, cards, token=None):
 
 
 def _on_partner_result(chat_id, agent_id, text):
-    """A ✅ tap ran — the partner sees the outcome on the next turn."""
+    """A ✅ tap ran — the partner sees the outcome on the next turn (and after a restart)."""
+    note = f"[owner tapped ✅] {text[:1500]}"
     sess = _AGENT_SESS.setdefault(str(chat_id), {"agent": agent_id, "history": []})
-    sess["history"].append({"role": "assistant", "text": f"[owner tapped ✅] {text[:1500]}"})
+    sess["history"].append({"role": "assistant", "text": note})
     sess["history"] = sess["history"][-12:]
+    try:
+        import agents_history
+        agents_history.record(agent_id, "(tap)", note, via="telegram")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 try:

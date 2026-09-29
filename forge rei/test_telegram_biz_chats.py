@@ -9,6 +9,15 @@ from unittest import mock
 
 import telegram_io as tg
 
+
+class _SyncThread:
+    """Run Telegram partner turns inline so assertions see the reply."""
+    def __init__(self, target=None, args=(), kwargs=None, **_):
+        self.t, self.a, self.k = target, args, kwargs or {}
+
+    def start(self):
+        self.t(*self.a, **self.k)
+
 OPERATOR = "7001"          # HQ chat = the operator's DM, so its id IS their user id
 DAYCARE_GROUP = "-100555"
 
@@ -20,6 +29,7 @@ class BizChatTests(unittest.TestCase):
             mock.patch.object(tg, "STATE", Path(self.tmp.name) / "telegram.json"),
             mock.patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "tok", "TELEGRAM_CHAT_ID": OPERATOR,
                                          "TELEGRAM_ALLOWED_IDS": ""}),
+            mock.patch.object(tg.threading, "Thread", _SyncThread),
         ]
         for p in self.patches:
             p.start()
