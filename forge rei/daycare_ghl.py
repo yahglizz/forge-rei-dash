@@ -526,6 +526,11 @@ def start_day_text(parent_first, child_first, login_id, pin, location_id) -> str
     bl = str(login_id or "").startswith("BL-")
     label = "Login ID" if bl else "Sign in with your name"
     how = "your Login ID" if bl else "your first + last name"
+    if not pin:     # the parent already has a login: welcome + guide, never a PIN reset
+        return (f"Hi {greet}! Welcome to {brand} - today is {whose} first day!\n"
+                f"Your family app: open {link} and tap Open the app, then sign in with your "
+                "first + last name + the PIN we gave you. Don't have your PIN? Just ask a staff member.\n"
+                "iPhone: Share > Add to Home Screen keeps it one tap away.")
     return (f"Hi {greet}! Welcome to {brand} - today is {whose} first day!\n"
             f"Your family app login:\n{label}: {login_id}\nPIN: {pin}\n"
             f"Get the app: open {link} and tap Open the app, then sign in with {how} + PIN. "

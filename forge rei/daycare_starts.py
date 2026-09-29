@@ -253,6 +253,8 @@ def _apply(entries, contact, found, now):
     tags = {str(t).strip().lower() for t in contact.get("tags") or []}
     loc_tag = next((t for t in sorted(tags) if t.startswith("loc-")), "")
     e = entries.get(cid)
+    if date.fromisoformat(found["date"]) < _today(now):
+        return False              # a start that already passed is history, not a proposal
     base = {"contactId": cid, "parentName": fam.get("parent_name") or "",
             "parentFirst": fam.get("parent_first") or "", "childFirst": fam.get("child_first") or "",
             "childName": fam.get("child_name") or "", "centerTag": loc_tag,
@@ -400,6 +402,7 @@ def confirm(contact_id, value, enroll_fn, client=None, extras=None, now=None):
         return {"ok": False, "error": res.get("error") or "could not enroll", "needs": res.get("needs") or []}
     e = _patch(cid, status="confirmed", startDate=got.isoformat(), confirmedAt=_ms(now),
                childId=res.get("childId"), locationId=res.get("locationId") or e.get("locationId"),
+               loginExisted=bool(res.get("loginExisted")),
                tries=0, lastError=None, reopened=False)
     if client is not None and getattr(client, "configured", False):
         _patch(cid, ghlError=_ghl_mark(client, cid, got.isoformat(), TAG_CONFIRMED, drop=(TAG_PROPOSED,)))
@@ -431,19 +434,21 @@ def send_due(client, session_fn, mint_fn, now=None, send_fn=None):
         for e in due:
             _patch(e["contactId"], status="confirmed")
         return []
-    session = session_fn()
+    session = session_fn() if any(not e.get("loginExisted") for e in due) else None
     results = []
     for e in due:
         cid = e["contactId"]
         err = None
         try:
-            login = mint_fn(session, e) or {}
-            if not login.get("pin"):
+            # A parent who already had a login keeps their PIN (a reset would lock them out of
+            # an app they use): they get the welcome + guide only. A new login gets a fresh PIN.
+            login = {"pin": None} if e.get("loginExisted") else (mint_fn(session, e) or {})
+            if not e.get("loginExisted") and not login.get("pin"):
                 err = login.get("error") or "could not create a fresh PIN"
             else:
                 res = send_fn(cid, daycare_ghl.start_day_text(
                     e.get("parentFirst"), e.get("childFirst"), login.get("login_id"),
-                    login["pin"], e.get("locationId")))
+                    login.get("pin"), e.get("locationId")))
                 if not res.get("ok"):
                     err = res.get("error") or res.get("detail") or "send failed"
         except Exception as ex:  # noqa: BLE001 — type only; never a PIN or token

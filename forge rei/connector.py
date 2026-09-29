@@ -4184,6 +4184,7 @@ class Handler(BaseHTTPRequestHandler):
         provision = result.get("provision") or {}
         if provision.get("pin") and not text_login:
             provision.pop("pin")   # start-date path: a fresh PIN is minted on the start day
+            provision["pinWithheld"] = True
         if provision.get("pin"):
             # A brand-new login: text the parent their sign-in. The owner's Create-login
             # click is the approval (rule 2); send_manual re-checks the 8am–9pm ET window,
@@ -4258,7 +4259,11 @@ class Handler(BaseHTTPRequestHandler):
         if not child.get("guardian_profile_id"):
             return {"ok": False, "needs": ["email"],
                     "error": "no parent login linked to this child — check the parent's email"}
-        return {"ok": True, "childId": child.get("id"),
+        provision = result.get("provision") or {}
+        # Login made by THIS confirm → start day mints a PIN; one that already existed keeps
+        # its PIN (start day sends the guide only — a reset would lock the parent out).
+        new_login = bool(provision.get("pinWithheld")) and not provision.get("existing")
+        return {"ok": True, "childId": child.get("id"), "loginExisted": not new_login,
                 "locationId": child.get("location_id") or family["location_id"]}
 
     def _daycare_sync_family_to_ghl(self, session, child):

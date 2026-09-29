@@ -252,6 +252,28 @@ class StartDateTests(unittest.TestCase):
         self.assertTrue(ds.dismiss("a", now=now + 20)["ok"])
         self.assertEqual(ds.view(now)["starts"], [])
 
+    def test_past_start_dates_are_never_proposed(self):
+        now = ts(2026, 9, 29)
+        ghl = FakeGHL({"a": contact("a")},
+                      {"a": thread(("I have September 8th down as your start date, does that still work for you?", ts(2026, 9, 1), "outbound"),
+                                   ("yes", now - 3600))})
+        ds.sweep(ghl, now)
+        self.assertEqual(ds.view(now)["starts"], [])
+        self.assertEqual(ghl.puts, [])
+
+    def test_existing_login_gets_guide_only_and_no_pin_reset(self):
+        now = ts(2026, 10, 3)
+        ghl = FakeGHL({"a": contact("a")}, {"a": thread(("start 10/5", now - 60))})
+        ds.sweep(ghl, now)
+        ds.confirm("a", None, lambda e, d, x: {"ok": True, "childId": "c1", "loginExisted": True}, now=now)
+        minted, sent = [], []
+        out = ds.send_due(ghl, lambda: self.fail("no session needed"), lambda s, e: minted.append(1),
+                          now=ts(2026, 10, 5, 8, 30), send_fn=lambda c, t: sent.append(t) or {"ok": True})
+        self.assertEqual((out[0]["ok"], minted), (True, []))
+        self.assertIn("the PIN we gave you", sent[0])
+        self.assertNotIn("PIN:", sent[0])
+        self.assertIn("atouchofblessing.com/get-app", sent[0])
+
     def test_start_day_text(self):
         t = daycare_ghl.start_day_text("Ana", "Mia", "Ana Lopez", "482913", "11111111-1111")
         self.assertLessEqual(len(t), 480)
