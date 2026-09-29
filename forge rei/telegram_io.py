@@ -369,6 +369,11 @@ def send(text, buttons=None, dedupe_key=None, business=None):
         return {"error": _redact(e)}
 
 
+def send_biz(business, text, buttons=None, dedupe_key=None):
+    """send() to one business's own chat — the call-site form: send_biz("daycare", text)."""
+    return send(text, buttons=buttons, dedupe_key=dedupe_key, business=business)
+
+
 def send_test():
     """Operator 'Send test' button -> a friendly confirmation message."""
     return send("✅ FORGE REI OS connected to Telegram. Alerts are live.")

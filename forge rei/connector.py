@@ -2170,7 +2170,7 @@ def _tg_handoff(conv_id):
             if prop:
                 # Push the draft straight back with the approve gate — don't rely on
                 # the bus alert (it tier-filters + dedupes and could swallow this one).
-                telegram_io.send(
+                telegram_io.send_biz("wholesale", 
                     f"🤝 <b>{prop.get('name') or 'Lead'}</b> — Marcus took the handoff.\n"
                     f"{scr_line}\n\n"
                     f"Seller said: “{(prop.get('inbound') or '')[:200]}”\n"
@@ -2182,10 +2182,10 @@ def _tg_handoff(conv_id):
                     dedupe_key=f"handoff_draft:{prop['id']}")
             else:
                 err = (res or {}).get("error") if isinstance(res, dict) else res
-                telegram_io.send(f"🤝 Marcus took the handoff.\n{scr_line}\n"
+                telegram_io.send_biz("wholesale", f"🤝 Marcus took the handoff.\n{scr_line}\n"
                                  f"⚠ couldn't draft a reply: {err}")
         except Exception as e:  # noqa: BLE001
-            telegram_io.send(f"🤝 Handoff hit an error: {e}")
+            telegram_io.send_biz("wholesale", f"🤝 Handoff hit an error: {e}")
     threading.Thread(target=run, daemon=True).start()
     return {"ok": True, "message": "Marcus is on it — screening + drafting now"}
 

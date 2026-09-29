@@ -796,7 +796,7 @@ def _do_pivot(conv_id, rec, report, convo, marcus, d, last_seller_msg=None, deal
                         d["pivoted"] = True
                         try:
                             import telegram_io
-                            telegram_io.send(
+                            telegram_io.send_biz("wholesale", 
                                 f"📣 <b>ACE call-pivot</b> ({slot.get('sentToday')}/{cap}) → "
                                 f"{name or 'seller'}\n"
                                 f"<i>why: {d.get('reason')}</i>\n"
@@ -908,7 +908,7 @@ def apply(conv_id, rec, report, convo, marcus, last_seller_msg=None, deal_prep=N
             d["sent"] = True
             try:
                 import telegram_io
-                telegram_io.send(
+                telegram_io.send_biz("wholesale", 
                     f"🤖 <b>ACE auto-text #{n}/{cap}</b> ({m}) → "
                     f"{(rec or {}).get('name') or 'seller'}\n"
                     f"✍️ \"{(p.get('sentReply') or d.get('question') or '')[:300]}\"",
@@ -1021,7 +1021,7 @@ def call_ready_upsert(rec, report, deal_prep=None):
                     anchor_line = (f"\n🎯 anchors ${a['opening']:,.0f} open / "
                                    f"${a.get('target', 0):,.0f} target / "
                                    f"${a.get('walkaway', 0):,.0f} walk")
-                telegram_io.send(
+                telegram_io.send_biz("wholesale", 
                     f"📞 <b>CALL-READY:</b> {row.get('name') or conv_id}"
                     + (f"\n💰 seller asked {row.get('askingPrice')}" if row.get("askingPrice") else "")
                     + anchor_line,

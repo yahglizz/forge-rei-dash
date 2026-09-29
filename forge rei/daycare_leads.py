@@ -447,7 +447,7 @@ def _notify(text, data, key):
     agent_bus.send("solomon", "operator", "alert", bus_text, data)   # Solomon's lane
     try:
         import telegram_io
-        telegram_io.send(html.escape(text), dedupe_key="daycare-lead:" + key)
+        telegram_io.send_biz("daycare", html.escape(text), dedupe_key="daycare-lead:" + key)
     except Exception:  # noqa: BLE001 — Telegram is best-effort; the bus record stands
         pass
 

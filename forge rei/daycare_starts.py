@@ -582,7 +582,7 @@ def _ping_confirm_window(pings):
                            f"Solomon · Starts — confirm a start date (contact {e['contactId']}) for {e['startDate']}",
                            {"contactId": e["contactId"], "startDate": e["startDate"]})
             import telegram_io
-            telegram_io.send(html.escape(f"📅 Confirm {display_name(e)}'s start date — {when}. "
+            telegram_io.send_biz("daycare", html.escape(f"📅 Confirm {display_name(e)}'s start date — {when}. "
                                          "Tap Confirm on the daycare dashboard; the app login goes out that morning."),
                              dedupe_key="daycare-start:" + key)
         except Exception:  # noqa: BLE001 — a ping never blocks the lane

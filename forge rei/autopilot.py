@@ -194,7 +194,7 @@ def maybe_send(marcus, scout, proposal):
 
         # Receipt — the operator sees every auto-send the moment it happens (best-effort).
         try:
-            telegram_io.send(
+            telegram_io.send_biz("wholesale", 
                 f"🤖 Autopilot sent follow-up #{n}/{DAILY_CAP} to {name}:\n“{reply}”",
                 dedupe_key=f"autopilot:{pid}")
         except Exception:
