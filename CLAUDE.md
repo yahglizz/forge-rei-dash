@@ -437,6 +437,16 @@ update that skill if you improved the pattern.
   (box-only, `FORGE_MARCUS` gate; no public port). Creds in git-ignored
   `forge-telegram/config/telegram.env`. API: `/api/notify/{settings,test}`. Bus tap =
   `agent_bus.register_notifier`. Settings card in the Command Center.
+- **Per-business Telegram chats (2026-09-29).** Each business can have its own group: create
+  it, add **@Forgelabsxbot**, type `/bind daycare` (or `agency` · `wholesale` · `dropship`) —
+  operator-only, stored in `marcus_state/telegram.json` `bizChats` (env `TELEGRAM_CHAT_<BIZ>`
+  overrides). `telegram_io.send_biz("<biz>", text)` / `send(..., business=)` route there; an
+  unbound business falls back to the main chat (**HQ**), which keeps system alerts (watchdog, AI
+  health, sync), the daily brief/recap and Orion. Bus events map by class (`_CLASS_BUSINESS`:
+  Marcus/Scout/handoff → wholesale, Dyson/Eco → agency). Taps in a business chat: operator only
+  (HQ id = their user id) unless `TELEGRAM_ALLOWED_IDS` lists others. Plain messages in a
+  business chat default to its agent (Solomon / Dyson / Marcus / Midas) — make the bot a group
+  admin so it can read them (privacy mode). `/chats` shows bindings. Test: `test_telegram_biz_chats.py`.
 - **Trigger words + real task dispatch (Telegram).** Say an agent's NAME as the first word
   followed by `,` `:` or a spaced dash — "solomon, what's the ratio situation" / "midas:
   which product is winning" — and the message routes to that agent (same as `/solomon`,

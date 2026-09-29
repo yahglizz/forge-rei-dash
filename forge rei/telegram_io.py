@@ -763,7 +763,9 @@ _AGENT_HELP = (
     "<code>/prep name</code> · <code>/find name</code> · <code>/checkback name</code>\n"
     "\nPlain English works too: “text arthur I can call at 3”.\n"
     "Anything that touches a seller still comes back as a ✅ confirm button first. "
-    "<code>/ops</code> = the detailed ops card."
+    "<code>/ops</code> = the detailed ops card.\n"
+    "\n📂 <b>Business chats</b>: in a group with me, <code>/bind daycare</code> "
+    "(agency · wholesale · dropship) — that business's alerts land there. <code>/chats</code> = status."
 )
 
 # Quick-tap reply keyboard (persistent, /menu to show, /menu off to remove). Each label
