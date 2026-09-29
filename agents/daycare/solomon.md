@@ -233,3 +233,15 @@ Every 15 min reads the daycare GHL (GET only), derives each enrollment lead's st
 curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="daycare_leads")'
 curl -s localhost:7799/api/daycare/leads | jq '{lastRunAt,lastOkAt,error,kpis}'   # needs a daycare session
 ```
+
+## 12. Lane: Solomon · Starts — start date → confirm → start-day app login (added 2026-09-29)
+
+Spec: `docs/superpowers/specs/2026-09-29-daycare-start-date-design.md`. Code: `forge rei/daycare_starts.py`.
+
+- **Trigger:** thread `daycare_starts`, every 15 min on the box (`FORGE_DAYCARE_STARTS=0` retires it), heartbeat `daycare_starts` "Solomon · Starts", bills to `solomon`. Zero Claude.
+- **Reads:** changed daycare GHL threads (≤30/sweep) of signup contacts (`website-lead` / `form-type-new-inquiry` / `family-contact-form`). Pure regex extractor: a start word + a date in one message, future ≤120 d; fallback = the form's Desired Start Date.
+- **Writes (autonomous, internal + reversible):** `marcus_state/daycare_starts.json` (dates, names, ≤160-char evidence quote — never a PIN/phone/email); GHL field **Agreed Start Date** (`KDzh39WHQIlZIIUb7xLR`) + tag `start-date-proposed`.
+- **Owner gate:** Confirm (`POST /api/daycare/starts/confirm`, dashboard "Start dates" card / mobile Families → Start dates; Owner Actions APPROVE row + one Telegram ping from 2 days out) enrolls/updates the child (`enrollment_date` = start) + ensures a parent login, **texting nothing**. That tap approves the ONE start-day text.
+- **Outward (after confirm only):** on the start day, first tick 8am–9pm ET: fresh PIN (`provision-user reset-pin`, never stored) → `daycare_ghl.start_day_text` via `daycare_replies.send_manual` (opt-out/DND/window) → tag `app-login-sent`. Marked `sending` first, so a crash never double-texts; 3 failures → Owner Actions FIX.
+- **Safety:** a different date in the thread after confirm reopens it to `proposed` (sweep runs before send each tick). Owner edits/dismissals beat older evidence.
+- **Verify:** `cd "forge rei" && python3 test_daycare_starts.py`; `GET /api/daycare/starts` → `lastRunAt` fresh.

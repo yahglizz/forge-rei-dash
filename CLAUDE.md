@@ -601,6 +601,16 @@ key on the box. New migrations go in BOTH migration folders.
   built; turning it on is an operator decision. Pending drafts = Solomon's approval queue on
   the Agent Control Center + one APPROVE row each in Owner Actions; the brief reads them as
   `replyDesk`; spend bills to `solomon`. Card: `agents/daycare/solomon.md` §10 (Leads lane §11).
+- **Solomon · Starts — start date → confirm → start-day app login (2026-09-29).**
+  `daycare_starts.py` (thread `daycare_starts`, 15 min, zero Claude, `FORGE_DAYCARE_STARTS=0`
+  retires it) reads new-signup GHL threads, pulls the agreed start date out of the texts (form
+  Desired Start Date as fallback), writes it to the GHL field **Agreed Start Date** + tag
+  `start-date-proposed`, and lists it on the Dashboard "Start dates" card / mobile Families →
+  Start dates. From 2 days before, it is an Owner Actions APPROVE row + one Telegram ping. The
+  owner's **Confirm** enrolls the child (`enrollment_date` = start) + ensures a parent login with
+  NO text; that tap is the approval for ONE text: on the start day after 8am ET the lane mints a
+  fresh PIN and sends the login + get-app guide (`daycare_ghl.start_day_text`, via
+  `send_manual`'s gates). A date changed in the thread reopens it. Card: `agents/daycare/solomon.md` §12.
 - **Contact-Form intake is ONE-TAP, not auto-enroll** (changed — auto-enroll on inbox
   load was removed; `FORGE_DAYCARE_AUTOENROLL` no longer exists). `GET
   /api/daycare/ghl/pending-families` is strictly **read-only** — prefetching the Parent

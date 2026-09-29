@@ -452,10 +452,70 @@ function MBDCredsSheet(props) {
   </MBDSheet>;
 }
 
+// ---------------------------------------------------------------- Start dates (Solomon · Starts)
+// Proposed from the family's texts; Confirm (prompted 2 days before) enrolls with no text; the
+// lane texts the app login + get-app guide on the start day after 8am.
+const MBD_START_NEEDS = { email: ["Parent email", "email"], child_dob: ["Child birth date", "date"], child_first: ["Child first name", "text"] };
+
+function MBDStartRow(props) {
+  const r = props.row;
+  const [date, setDate] = useStateBD(r.startDate || "");
+  const [needs, setNeeds] = useStateBD([]);
+  const [extras, setExtras] = useStateBD({});
+  const [busy, setBusy] = useStateBD(false);
+  const [err, setErr] = useStateBD("");
+  const d = r.daysUntil;
+  const when = d == null ? "" : d < 0 ? Math.abs(d) + "d ago" : d === 0 ? "today" : d === 1 ? "tomorrow" : "in " + d + " days";
+  const status = { proposed: r.confirmOpen ? "Confirm now" : "Proposed", confirmed: "Confirmed · login texts that morning", sent: "Login sent", failed: "Send failed", sending: "Sending…" }[r.status] || r.status;
+  async function go(kind, body, ask) {
+    if (ask && !window.confirm(ask)) return;
+    setBusy(true); setErr("");
+    try { await window.apiPostM("/api/daycare/starts/" + kind, Object.assign({ contact_id: r.contactId }, body)); setNeeds([]); props.onDone(); }
+    catch (e) {
+      const m = (e && e.message) || "retry";
+      setErr(m);
+      if (m.indexOf("missing:") === 0) setNeeds(m.slice(8).split(",").map((k) => k.trim()).filter((k) => MBD_START_NEEDS[k]));
+    }
+    setBusy(false);
+  }
+  return <div className="mbd-row" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
+    <span className="mbd-avatar">{MBDInitials(r.childName || r.parentName)}</span>
+    <div className="mbd-row-main">
+      <strong>{MBDName(r.childName || r.childFirst, "New child")}{r.parentName ? " · " + r.parentName : ""}</strong>
+      <small className="wrap">{[status, "starts " + r.startDate + " (" + when + ")", r.center].filter(Boolean).join(" · ")}</small>
+      <small className="wrap m-fade">“{r.evidence}”{r.reopened ? " · date changed — re-confirm" : ""}</small>
+      {r.lastError && <div className="mw-warn">{r.lastError}</div>}
+      {r.status === "proposed" && <React.Fragment>
+        <input className="m-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ marginTop: 6 }} />
+        {needs.map((k) => <input key={k} className="m-input" type={MBD_START_NEEDS[k][1]} placeholder={MBD_START_NEEDS[k][0]} value={extras[k] || ""}
+          autoCapitalize="none" onChange={(e) => setExtras(Object.assign({}, extras, { [k]: e.target.value }))} style={{ marginTop: 6 }} />)}
+        {err && <div className="mw-warn">{err}</div>}
+        <window.MBtn disabled={busy || !date} onClick={() => go("confirm", { start_date: date, extras },
+          "Confirm " + (r.childFirst || "this child") + " starts " + date + "?\n\nEnrolls the child and makes sure the parent has an app login — nothing is texted now. On " + date + " after 8am they get their login + how to get the app.")}>
+          {busy ? "…" : "Confirm start date"}</window.MBtn>
+        <window.MBtn kind="ghost" disabled={busy} onClick={() => go("dismiss", {}, "Not a start date? It drops off this list.")}>Not a start date</window.MBtn>
+      </React.Fragment>}
+    </div>
+  </div>;
+}
+
+function MBDStarts(props) {
+  const d = props.data;
+  const rows = ((d && d.starts) || []).filter((r) => r.status !== "sent" || (r.daysUntil ?? -99) >= -3);
+  return <div className="m-card mbd-list">
+    {d && d.error && <div className="mw-warn">Solomon · Starts: {d.error}</div>}
+    {!d ? <window.MSpin /> : !rows.length ? <window.MEmpty title="No start dates yet" sub="When a family agrees a start date by text, it shows here to confirm." />
+      : rows.map((r) => <MBDStartRow key={r.contactId + r.startDate + r.status} row={r} onDone={props.onDone} />)}
+  </div>;
+}
+
 function MBDFamilies() {
   const leads = window.useApiM("/api/daycare/leads", { interval: 60000 });
   // Heavy GHL read (paged contacts + intake notes) — load on this tab only, no poll.
   const inbox = window.useApiM("/api/daycare/ghl/pending-families");
+  const starts = window.useApiM("/api/daycare/starts", { interval: 60000 });
+  const sd = starts.data && starts.data.ok ? starts.data : null;
+  const startsDue = sd ? (sd.starts || []).filter((r) => r.confirmOpen || r.status === "failed").length : 0;
   const [seg, setSeg] = useStateBD("needs");
   const [markRow, setMarkRow] = useStateBD(null);
   const [thread, setThread] = useStateBD(null);
@@ -514,9 +574,10 @@ function MBDFamilies() {
       <div className="m-seg">
         <window.MChip active={seg === "needs"} onClick={() => setSeg("needs")}>Call back{ran ? " · " + fresh.length : ""}</window.MChip>
         <window.MChip active={seg === "inbox"} onClick={() => setSeg("inbox")}>Contact form{pd ? " · " + waiting.length : ""}</window.MChip>
+        <window.MChip active={seg === "starts"} onClick={() => setSeg("starts")}>Start dates{startsDue ? " · " + startsDue : ""}</window.MChip>
       </div>
       {notice && <div className="mbd-note">{notice}</div>}
-      {seg === "needs" ? <div className="m-card mbd-list">
+      {seg === "starts" ? <MBDStarts data={sd} onDone={starts.refresh} /> : seg === "needs" ? <div className="m-card mbd-list">
         {!auth && MBDFailed(leads) && <div className="mw-warn">Lead sweep unavailable — retry.</div>}
         {!auth && ld && ld.error && <div className="mw-warn">Solomon · Leads: {ld.error}</div>}
         {leads.loading && !leads.data ? <window.MSpin /> : !ld ? null : !ran ? <div className="m-fade">Solomon's lead sweep hasn't run yet.</div>
