@@ -196,6 +196,37 @@ def business_sections(stats, open_loops=True):
     return out
 
 
+_ALL = ("agency", "wholesale", "daycare")
+
+
+def split(stats, bound):
+    """Per-chat copies of the stats for the per-business Telegram chats. Pure.
+
+    -> [(business, stats)] for each business in `bound` (its chat gets only its own
+    section + its own owner tasks), then (None, stats) for HQ: the system lines (agents,
+    spend, stale loops, failures) + any business that has no chat yet. Works by marking
+    the other businesses archived, so build_text stays the one formatter."""
+    stats = dict(stats or {})
+    base_arch = set(stats.get("archived") or ())
+    bound = [b for b in (bound or ()) if b in _ALL and b not in base_arch]
+    system_keys = ("agents", "spendLine", "staleAgents", "fixes")
+    out = []
+    for biz in bound:
+        s = {k: v for k, v in stats.items() if k not in system_keys}
+        s["archived"] = sorted(base_arch | (set(_ALL) - {biz}))
+        if stats.get("ownerItems") is not None:
+            s["ownerItems"] = [i for i in stats["ownerItems"] if i.get("business") == biz]
+            s["ownerCounts"] = {}
+        out.append((biz, s))
+    hq = dict(stats)
+    hq["archived"] = sorted(base_arch | set(bound))
+    if stats.get("ownerItems") is not None:
+        hq["ownerItems"] = [i for i in stats["ownerItems"] if i.get("business") not in bound]
+        hq["ownerCounts"] = {}
+    out.append((None, hq))
+    return out
+
+
 def owner_lines(items, n=5, skip_fix=False):
     """Numbered '[KIND] title' rows from the Owner Actions list. Pure."""
     rows = [i for i in (items or []) if not (skip_fix and i.get("kind") == "FIX")][:n]

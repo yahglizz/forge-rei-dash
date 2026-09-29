@@ -94,8 +94,20 @@ assert daily_brief.build_text(None) and daily_recap.build_text(None)
 
 # 6. dedupe keys + send-once-per-day wiring unchanged
 src = (HERE / "connector.py").read_text()
-assert 'dedupe_key="daily_brief:" + daily_brief.today_key()' in src
-assert 'dedupe_key="daily_recap:" + daily_recap.today_key()' in src
+assert '_send_split(daily_brief.build_text, stats, "daily_brief:" + daily_brief.today_key())' in src
+assert '_send_split(daily_recap.build_text, stats, "daily_recap:" + daily_recap.today_key())' in src
+
+# 6b. per-business chats: each bound chat gets only its own section; HQ keeps system lines
+FULL_OI = dict(FULL, ownerItems=[{"kind": "CALL", "title": "Call seller", "business": "wholesale"},
+                                 {"kind": "APPROVE", "title": "Confirm start", "business": "daycare"}],
+               agents={"healthy": 5}, spendLine="$3 today")
+parts = dict(daily_brief.split(FULL_OI, ["daycare"]))
+dc_txt, hq_txt = daily_brief.build_text(parts["daycare"]), daily_brief.build_text(parts[None])
+assert "DAYCARE" in dc_txt and "WHOLESALE" not in dc_txt and "AGENTS" not in dc_txt, dc_txt
+assert "Confirm start" in dc_txt and "Call seller" not in dc_txt and "$3" not in dc_txt, dc_txt
+assert "DAYCARE" not in hq_txt and "WHOLESALE" in hq_txt and "AGENTS" in hq_txt, hq_txt
+assert "Call seller" in hq_txt and "Confirm start" not in hq_txt and "$3" in hq_txt, hq_txt
+assert [b for b, _ in daily_brief.split(FULL_OI, [])] == [None]
 
 # 7. zero Claude: the gather touches no model path; the formatters import no AI module
 tree = ast.parse(src)

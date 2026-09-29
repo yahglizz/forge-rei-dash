@@ -1991,7 +1991,7 @@ def _gather_brief_stats():
             items = oa.get("items") or []
             stats["ownerCounts"] = oa.get("counts") or {}
             stats["ownerItems"] = [{"kind": i.get("kind"), "title": i.get("title"),
-                                    "business": i.get("business")} for i in items[:15]]
+                                    "business": i.get("business")} for i in items[:60]]
             stats["fixes"] = [i.get("title") for i in items if i.get("kind") == "FIX"]
             stats["ownerCalls"] = sum(1 for i in items
                                       if i.get("kind") == "CALL" and i.get("business") == "wholesale")
@@ -2035,6 +2035,20 @@ def _gather_brief_stats():
     return stats
 
 
+def _send_split(build, stats, dedupe):
+    """Brief/recap fan-out: each bound business chat gets its own section, HQ gets the
+    system lines + unbound businesses (daily_brief.split). Returns HQ's send result —
+    HQ always gets one, so mark-sent keeps its old meaning."""
+    bound = list(telegram_io._biz_chats())
+    res = None
+    for biz, s in daily_brief.split(stats, bound):
+        r = telegram_io.send(build(s), dedupe_key=dedupe + (f":{biz}" if biz else ""),
+                             business=biz)
+        if biz is None:
+            res = r
+    return res
+
+
 def _maybe_daily_brief(force=False):
     """Send the brief if due (or forced). Only marks-sent on a real send or when
     Telegram is simply not configured, so a transient failure retries next cycle."""
@@ -2044,7 +2058,7 @@ def _maybe_daily_brief(force=False):
     text = daily_brief.build_text(stats)
     sent, skipped, note = False, False, ""
     try:
-        res = telegram_io.send(text, dedupe_key="daily_brief:" + daily_brief.today_key())
+        res = _send_split(daily_brief.build_text, stats, "daily_brief:" + daily_brief.today_key())
         if isinstance(res, dict) and res.get("skipped"):
             # Dedupe hit — it already went out. Still "done for today", but NOTHING
             # was sent just now, so never report this to the operator as a send.
@@ -2071,7 +2085,7 @@ def _maybe_daily_recap(force=False):
     text = daily_recap.build_text(stats)
     sent, skipped, note = False, False, ""
     try:
-        res = telegram_io.send(text, dedupe_key="daily_recap:" + daily_recap.today_key())
+        res = _send_split(daily_recap.build_text, stats, "daily_recap:" + daily_recap.today_key())
         if isinstance(res, dict) and res.get("skipped"):
             skipped = True          # already went out — done for today, but not sent now
         elif isinstance(res, dict) and res.get("ok"):
@@ -2317,7 +2331,8 @@ telegram_ops.register({
     "resolve_stage": _tg_resolve_stage,
     "move_stage": _tg_move_stage,
     "tag_contact": _tg_tag_contact,
-    "telegram_send": telegram_io.send,
+    "telegram_send": lambda text, buttons=None, dedupe_key=None: telegram_io.send(
+        text, buttons=buttons, dedupe_key=dedupe_key, business="wholesale"),
     "bus_send": agent_bus.send,
 })
 
