@@ -124,6 +124,47 @@ def claude_urlopen(req, timeout):
         time.sleep(wait)
 
 
+def post_messages(key, payload):
+    """One Messages API call with the shared plumbing: transient retries, the real
+    error text on an HTTP error, the AI-health stamp and cost telemetry. Returns the
+    raw response dict — the tool-use loops (telegram_agent) need content blocks."""
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=json.dumps(payload).encode(),
+        headers={"x-api-key": key, "anthropic-version": "2023-06-01",
+                 "content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        data = claude_urlopen(req, call_timeout(payload["max_tokens"]))   # <=2 transient retries
+    except urllib.error.HTTPError as e:
+        # urllib's default str(e) is just "HTTP Error 400: Bad Request" — the
+        # real reason (low credit balance, rate limit, bad model) lives in the
+        # JSON body, which urllib discards. Read it so every agent's "reaching
+        # my brain" message shows the actual cause instead of an opaque code.
+        try:
+            body = json.loads(e.read().decode())
+            msg = (body.get("error") or {}).get("message") or str(e)
+        except Exception:  # noqa: BLE001
+            msg = str(e)
+        _ai_health(False, e.code, msg, key)
+        raise RuntimeError(f"Anthropic API error ({e.code}): {msg}") from None
+    except Exception as e:  # noqa: BLE001 — network / timeout: transient, then re-raise
+        _ai_health(False, None, e, key)
+        raise
+    _ai_health(True, key=key)
+    try:  # cost telemetry — best-effort, never blocks the call
+        import cost_tracker
+        u = data.get("usage") or {}
+        cost_tracker.record_anthropic(
+            payload.get("model") or MODEL, u.get("input_tokens"), u.get("output_tokens"),
+            cache_write_tokens=u.get("cache_creation_input_tokens"),
+            cache_read_tokens=u.get("cache_read_input_tokens"))
+    except Exception:
+        pass
+    return data
+
+
 def _claude(key, system, user, max_tokens=1200, tools=None, model=None, effort="low"):
     messages = [{"role": "user", "content": user}]
     use_model = model or MODEL
@@ -147,40 +188,7 @@ def _claude(key, system, user, max_tokens=1200, tools=None, model=None, effort="
         payload["tools"] = tools
     continuations = 0
     while True:
-        req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
-            data=json.dumps(payload).encode(),
-            headers={"x-api-key": key, "anthropic-version": "2023-06-01",
-                     "content-type": "application/json"},
-            method="POST",
-        )
-        try:
-            data = claude_urlopen(req, call_timeout(payload["max_tokens"]))   # <=2 transient retries
-        except urllib.error.HTTPError as e:
-            # urllib's default str(e) is just "HTTP Error 400: Bad Request" — the
-            # real reason (low credit balance, rate limit, bad model) lives in the
-            # JSON body, which urllib discards. Read it so every agent's "reaching
-            # my brain" message shows the actual cause instead of an opaque code.
-            try:
-                body = json.loads(e.read().decode())
-                msg = (body.get("error") or {}).get("message") or str(e)
-            except Exception:  # noqa: BLE001
-                msg = str(e)
-            _ai_health(False, e.code, msg, key)
-            raise RuntimeError(f"Anthropic API error ({e.code}): {msg}") from None
-        except Exception as e:  # noqa: BLE001 — network / timeout: transient, then re-raise
-            _ai_health(False, None, e, key)
-            raise
-        _ai_health(True, key=key)
-        try:  # cost telemetry — best-effort, never blocks the call
-            import cost_tracker
-            u = data.get("usage") or {}
-            cost_tracker.record_anthropic(
-                use_model, u.get("input_tokens"), u.get("output_tokens"),
-                cache_write_tokens=u.get("cache_creation_input_tokens"),
-                cache_read_tokens=u.get("cache_read_input_tokens"))
-        except Exception:
-            pass
+        data = post_messages(key, payload)
         if data.get("stop_reason") == "pause_turn" and continuations < 3:
             messages.append({"role": "assistant", "content": data["content"]})
             continuations += 1
