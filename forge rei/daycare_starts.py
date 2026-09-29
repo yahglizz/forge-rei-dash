@@ -76,6 +76,12 @@ _THE_NTH_RE = re.compile(r"\bthe\s+(\d{1,2})(?:st|nd|rd|th)\b", re.I)
 _WEEKDAY_RE = re.compile(r"\b(" + "|".join(sorted(_WEEKDAYS, key=len, reverse=True)) + r")\b", re.I)
 _REL_RE = re.compile(r"\b(tomorrow|today)\b", re.I)
 _SENT_SPLIT = re.compile(r"(?<=[.!?\n])\s+")
+_DAYS_AFTER_RE = re.compile(r"\s*(?:full\s+|half\s+)?days?\b", re.I)
+_BLAST_SOURCES = {"campaign", "bulk_actions"}     # blasts never agree a family's date
+_SCRUB = ((re.compile(r"\S+@\S+"), "[email]"),
+          (re.compile(r"\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}"), "[phone]"),
+          (re.compile(r"\bpin\b\W*\w+", re.I), "[pin]"),
+          (re.compile(r"\d{5,}"), "[#]"))
 
 
 def _mk(y, m, d):
@@ -96,21 +102,23 @@ def _roll(m, d, ref, year=None):
     return got
 
 
-def parse_date(text, ref):
-    """Pure: the one date `text` names, resolved against `ref` (a date). None when there
-    is none. Explicit dates win over "the 13th", which wins over a weekday / tomorrow."""
+def parse_date(text, ref, horizon=HORIZON_DAYS):
+    """Pure: the date `text` names, resolved against `ref` (a date) — the first match that
+    lands inside [ref, ref+horizon] (a DOB or a past date earlier in the line is skipped).
+    Explicit dates win over "the 13th", which wins over a weekday / tomorrow. None if none."""
     s = str(text or "")
+    last = ref + timedelta(days=horizon)
     for rx, order in ((_MONTH_DAY_RE, "md"), (_DAY_OF_MONTH_RE, "dm"), (_NUM_RE, "num")):
-        m = rx.search(s)
-        if not m:
-            continue
-        if order == "num":
-            got = _roll(m.group(1), m.group(2), ref, m.group(3))
-        else:
-            mon, day = (m.group(1), m.group(2)) if order == "md" else (m.group(2), m.group(1))
-            got = _roll(_MONTHS[mon.lower().rstrip(".")], day, ref, m.group(3))
-        if got:
-            return got
+        for m in rx.finditer(s):
+            if order == "num":
+                if _DAYS_AFTER_RE.match(s, m.end()):
+                    continue                  # "1/2 days", "2/3 days a week" — a schedule
+                got = _roll(m.group(1), m.group(2), ref, m.group(3))
+            else:
+                mon, day = (m.group(1), m.group(2)) if order == "md" else (m.group(2), m.group(1))
+                got = _roll(_MONTHS[mon.lower().rstrip(".")], day, ref, m.group(3))
+            if got and ref <= got <= last:
+                return got
     m = _THE_NTH_RE.search(s)
     if m:
         d = int(m.group(1))
@@ -140,10 +148,6 @@ def _candidate(body, ref):
             got = parse_date(sent, ref)
             if got:
                 return got, sent
-    if not _TOUR_RE.search(body):     # "Can she start? Monday works" — one-message pairing
-        got = parse_date(body, ref)
-        if got:
-            return got, body
     return None
 
 
@@ -151,13 +155,18 @@ def extract(messages):
     """Pure: newest agreed start date in a GHL thread → {date, evidence, at, dir} or None.
     Both directions count (our "see you Monday 10/13 for her first day" is the agreement as
     much as the parent's). Resolved against each message's own ET date; future only."""
+    blasts = {m.get("body") for m in messages or []
+              if str(m.get("source") or "").lower() in _BLAST_SOURCES}
     for t, direction, _human, _type, body in reversed(daycare_leads._events(messages)):
-        if not body:
+        if not body or body in blasts:
             continue
         ref = datetime.fromtimestamp(t, ET).date()
         got = _candidate(str(body), ref)
         if got and ref <= got[0] <= ref + timedelta(days=HORIZON_DAYS):
-            evidence = re.sub(r"\s+", " ", got[1]).strip()[:160]
+            evidence = re.sub(r"\s+", " ", got[1]).strip()
+            for rx, sub in _SCRUB:
+                evidence = rx.sub(sub, evidence)
+            evidence = evidence[:160]
             return {"date": got[0].isoformat(), "evidence": evidence,
                     "at": int(t * 1000), "dir": direction, "source": "messages"}
     return None
@@ -232,7 +241,7 @@ def confirm_due(now=None):
     """Owner Actions: proposals inside the confirm window (incl. overdue) + failed sends."""
     now = now or time.time()
     return [_row(e, now) for e in (_load().get("entries") or {}).values()
-            if (e.get("status") == "proposed" and (_days_until(e, now) or 0) <= CONFIRM_DAYS)
+            if (e.get("status") == "proposed" and -3 <= (_days_until(e, now) or 0) <= CONFIRM_DAYS)
             or e.get("status") == "failed"]
 
 
@@ -265,12 +274,16 @@ def _apply(entries, contact, found, now):
     if e is None:
         entries[cid] = dict(base, **fresh, status="proposed", proposedAt=_ms(now), tries=0)
         return True
-    e.update(base)
     status = e.get("status")
+    if status == "proposed":
+        e.update(base)
+    else:                         # confirmed data (e.g. the owner's center pick) stays put
+        e.update({k: v for k, v in base.items() if v and not e.get(k)})
     if status in ("sent", "sending", "failed") or found["date"] == e.get("startDate"):
         return False
-    decided = max(e.get("confirmedAt") or 0, e.get("dateSetAt") or 0, e.get("dismissedAt") or 0)
-    if found["at"] is None or found["at"] <= decided:
+    # The owner decided on the evidence they SAW (ownerSawAt = that evidence's time). Anything
+    # sent after it with a different date reopens — even if it was swept after their tap.
+    if found["at"] is None or found["at"] <= (e.get("ownerSawAt") or 0):
         return False              # older (or form) evidence never overrides the owner
     e.update(fresh, status="proposed", proposedAt=_ms(now), tries=0,
              reopened=status in ("confirmed", "dismissed"))
@@ -319,12 +332,11 @@ def sweep(client, now=None):
             if not isinstance(contact, dict):
                 continue
             tags = {str(t).strip().lower() for t in contact.get("tags") or []}
-            marks[cid] = _ms(last)
-            if not tags & SIGNUP_TAGS or TAG_SENT in tags:
-                continue
-            found = extract(daycare_leads._messages(client, conv)) or form_date(contact, now)
-            if found:
-                findings.append((contact, found))
+            if tags & SIGNUP_TAGS and TAG_SENT not in tags:
+                found = extract(daycare_leads._messages(client, conv)) or form_date(contact, now)
+                if found:
+                    findings.append((contact, found))
+            marks[cid] = _ms(last)        # only after a clean read — a failure re-reads next tick
         except Exception as e:  # noqa: BLE001 — one bad thread never kills the sweep...
             if getattr(e, "code", None) == 429:
                 raise                             # ...a rate limit does
@@ -352,13 +364,26 @@ def _patch(cid, **fields):
         return e
 
 
+def _patch_if(cid, ok, **fields):
+    """Patch only if ok(entry) still holds under the lock — the loop and the owner's taps
+    never overwrite each other's newer decision. Returns the entry, or None if refused."""
+    with _LOCK:
+        st = _load()
+        e = (st.get("entries") or {}).get(cid)
+        if e is None or not ok(e):
+            return None
+        e.update(fields)
+        _save(st)
+        return e
+
+
 def _valid_date(value, now):
     try:
         got = date.fromisoformat(str(value or "")[:10])
     except ValueError:
         return None
     today = _today(now)
-    return got if today - timedelta(days=14) <= got <= today + timedelta(days=HORIZON_DAYS) else None
+    return got if today <= got <= today + timedelta(days=HORIZON_DAYS) else None
 
 
 # --------------------------------------------------------------------------- owner taps
@@ -367,20 +392,29 @@ def set_date(contact_id, value, now=None):
     now = now or time.time()
     got = _valid_date(value, now)
     if not got:
-        return {"ok": False, "error": "pick a date between two weeks ago and four months out"}
-    e = _patch(str(contact_id or ""), startDate=got.isoformat(), dateSetAt=_ms(now),
-               source="owner", evidence="Date set by you on the dashboard")
-    if e is None:
+        return {"ok": False, "error": "pick a date from today to four months out"}
+    cid = str(contact_id or "")
+    cur = (_load().get("entries") or {}).get(cid)
+    if cur is None:
         return {"ok": False, "error": "no start date on file for that family"}
-    if e.get("status") in ("confirmed", "dismissed"):
-        e = _patch(e["contactId"], status="proposed")
+    e = _patch_if(cid, lambda x: x.get("status") in ("proposed", "confirmed", "dismissed", "failed"),
+                  startDate=got.isoformat(), dateSetAt=_ms(now), status="proposed",
+                  ownerSawAt=max(cur.get("evidenceAt") or 0, cur.get("ownerSawAt") or 0),
+                  source="owner", evidence="Date set by you on the dashboard", tries=0, lastError=None)
+    if e is None:
+        return {"ok": False, "error": "the start-day text is going out right now — try again in a minute"}
     return {"ok": True, "start": e}
 
 
 def dismiss(contact_id, now=None):
     now = now or time.time()
-    e = _patch(str(contact_id or ""), status="dismissed", dismissedAt=_ms(now))
-    return {"ok": True} if e else {"ok": False, "error": "no start date on file for that family"}
+    cid = str(contact_id or "")
+    cur = (_load().get("entries") or {}).get(cid)
+    if cur is None:
+        return {"ok": False, "error": "no start date on file for that family"}
+    e = _patch_if(cid, lambda x: x.get("status") not in ("sending", "sent"), status="dismissed",
+                  dismissedAt=_ms(now), ownerSawAt=max(cur.get("evidenceAt") or 0, cur.get("ownerSawAt") or 0))
+    return {"ok": True} if e else {"ok": False, "error": "the app login already went out to this family"}
 
 
 def confirm(contact_id, value, enroll_fn, client=None, extras=None, now=None):
@@ -392,18 +426,25 @@ def confirm(contact_id, value, enroll_fn, client=None, extras=None, now=None):
     e = (_load().get("entries") or {}).get(cid)
     if not e:
         return {"ok": False, "error": "no start date on file for that family"}
-    if e.get("status") in ("sent", "sending"):
-        return {"ok": False, "error": "the app login already went out to this family"}
+    if e.get("status") in ("sent", "sending", "failed"):
+        return {"ok": False, "error": "the app login already went out (or failed) — see the Logins tab"}
     got = _valid_date(value or e.get("startDate"), now)
     if not got:
-        return {"ok": False, "error": "pick a date between two weeks ago and four months out"}
+        return {"ok": False, "error": "pick a date from today to four months out"}
     res = enroll_fn(e, got.isoformat(), extras or {}) or {}
     if not res.get("ok"):
         return {"ok": False, "error": res.get("error") or "could not enroll", "needs": res.get("needs") or []}
-    e = _patch(cid, status="confirmed", startDate=got.isoformat(), confirmedAt=_ms(now),
-               childId=res.get("childId"), locationId=res.get("locationId") or e.get("locationId"),
-               loginExisted=bool(res.get("loginExisted")),
-               tries=0, lastError=None, reopened=False)
+    snap = (e.get("status"), e.get("startDate"), e.get("evidenceAt"))
+    # Sticky: once a confirm CREATED the login (PIN withheld), later confirms see an existing
+    # guardian — but the parent still has no PIN, so the start day must mint one.
+    existed = False if e.get("loginExisted") is False else bool(res.get("loginExisted"))
+    e = _patch_if(cid, lambda x: (x.get("status"), x.get("startDate"), x.get("evidenceAt")) == snap,
+                  status="confirmed", startDate=got.isoformat(), confirmedAt=_ms(now),
+                  ownerSawAt=max(e.get("evidenceAt") or 0, e.get("ownerSawAt") or 0),
+                  childId=res.get("childId"), locationId=res.get("locationId") or e.get("locationId"),
+                  loginExisted=existed, tries=0, lastError=None, reopened=False)
+    if e is None:
+        return {"ok": False, "error": "this family's start date just changed — check it and confirm again"}
     if client is not None and getattr(client, "configured", False):
         _patch(cid, ghlError=_ghl_mark(client, cid, got.isoformat(), TAG_CONFIRMED, drop=(TAG_PROPOSED,)))
     return {"ok": True, "start": _row(e, now),
