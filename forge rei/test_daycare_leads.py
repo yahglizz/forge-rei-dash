@@ -371,7 +371,8 @@ def test_bus_alert_is_name_free():
     saved = {m: sys.modules.get(m) for m in ("agent_bus", "telegram_io")}
     sys.modules["agent_bus"] = types.SimpleNamespace(send=lambda *a: bus.append(a))
     sys.modules["telegram_io"] = types.SimpleNamespace(
-        send=lambda text, dedupe_key=None: tg.append(text))
+        send=lambda text, dedupe_key=None: tg.append(text),
+        send_biz=lambda business, text, dedupe_key=None: tg.append(text))
     try:
         dl._notify("Daycare lead needs you: Jordan (921 N 18th St) — GHL call task is overdue",
                    {"type": "daycare_lead", "contactId": "c1", "reasons": ["overdue_task"]}, "k")

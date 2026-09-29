@@ -70,7 +70,7 @@ class TelegramAceCallbackTest(unittest.TestCase):
         self.receipts = []
         telegram_io._authorized = lambda from_id, chat_id: True
         telegram_io._api = self._capture_api
-        telegram_io.send = self._capture_send
+        telegram_io.send = self._capture_send   # send_biz routes through send
         self.convo = conversation_engine.ConversationEngine()
         telegram_io.set_actions(ace.telegram_action_handlers(self.convo))
 
@@ -90,7 +90,7 @@ class TelegramAceCallbackTest(unittest.TestCase):
         self.api_calls.append((method, payload, kwargs))
         return {"ok": True, "result": {}}
 
-    def _capture_send(self, text, buttons=None, dedupe_key=None):
+    def _capture_send(self, text, buttons=None, dedupe_key=None, business=None):
         self.receipts.append({
             "text": text,
             "buttons": buttons or [],
