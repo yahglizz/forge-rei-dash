@@ -297,7 +297,7 @@ function DldLeadDesk() {
 // agreed in the family's texts, proposed here + on their GHL contact. Confirm (prompted 2 days
 // before) enrolls the child with no text; on the start day the lane texts the app login + guide.
 const DST_STATUS = { proposed: "Needs your confirm", confirmed: "Confirmed · login texts that morning", sending: "Sending…", sent: "Login sent", failed: "Send failed" };
-const DST_NEEDS = { email: ["Parent email", "email"], child_dob: ["Child birth date", "date"], child_first: ["Child first name", "text"], location_id: ["Center", "center"] };
+const DST_NEEDS = { email: ["Parent email", "email"], child_dob: ["Child birth date", "date"], child_first: ["Child first name", "text"], child_last: ["Child last name", "text"], location_id: ["Center", "center"] };
 const DST_CENTERS = [["11111111-1111-1111-1111-111111111111", "A Touch of Blessings (921 N 18th)"], ["22222222-2222-2222-2222-222222222222", "A Touch of Blessings 2 (2318 Cecil B. Moore)"], ["44444444-4444-4444-4444-444444444444", "A Mother's Touch (1923 Cecil B. Moore)"]];
 
 function DstWhen(row) {

@@ -3172,17 +3172,31 @@ def handle_marcus_post(path, body):
 # ---------------------------------------------------------------------------
 def _daycare_iso_date(value):
     """GHL's Child DOB is free text ("03/14/2023" or "2023-03-14") → YYYY-MM-DD, else ""."""
-    raw = str(value or "").strip()[:10]
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y"):
+    raw = re.sub(r"\s+", " ", str(value or "").strip())
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%B %d, %Y", "%b %d, %Y", "%B %d %Y"):
         try:
-            return datetime.strptime(raw, fmt).date().isoformat()
+            got = datetime.strptime(raw, fmt).date()
         except ValueError:
             continue
+        return got.isoformat() if got <= datetime.now().date() else ""   # a future DOB is a typo
     return ""
 
 
 def _daycare_start_session():
-    return daycare_supabase.BRIDGE.autoadmin_session("127.0.0.1")
+    """The lane's OWN admin session — never the cached auto-admin one the owner's dashboard
+    shares: minting a PIN switches centers, which must never move the owner's active center
+    mid-request. Fresh login per start-day send (rare); None when auto-admin is off."""
+    bridge = daycare_supabase.BRIDGE
+    if not bridge.config.autoadmin:
+        return None
+    creds = next(((login_id, pin) for role, login_id, pin in bridge.config.test_profiles
+                  if role == "admin"), None)
+    if creds is None:
+        return None
+    try:
+        return bridge.login(creds[0], creds[1])[0]
+    except daycare_supabase.DaycareError:
+        return None
 
 
 def _daycare_start_mint(session, entry):
@@ -4248,6 +4262,8 @@ class Handler(BaseHTTPRequestHandler):
         family["child_dob"] = _daycare_iso_date(family.get("child_dob"))
         needs = [k for k in ("email", "child_dob", "child_first", "location_id")
                  if not str(family.get(k) or "").strip()]
+        if not str(family.get("child_last") or family.get("parent_last") or "").strip():
+            needs.append("child_last")
         if needs:
             return {"ok": False, "needs": needs, "error": "missing: " + ", ".join(needs)}
         try:
@@ -4255,6 +4271,8 @@ class Handler(BaseHTTPRequestHandler):
                                                  enrollment_date=start_date)
         except daycare_supabase.DaycareError as error:
             return {"ok": False, "error": error.payload().get("error") or "enroll failed"}
+        except Exception as error:  # noqa: BLE001 — type only, never a token
+            return {"ok": False, "error": f"enroll failed: {type(error).__name__}"}
         child = (result or {}).get("child") or {}
         if not child.get("guardian_profile_id"):
             return {"ok": False, "needs": ["email"],
@@ -4463,9 +4481,10 @@ class Handler(BaseHTTPRequestHandler):
                     lambda entry, day, extras: self._daycare_start_enroll(session, entry, day, extras),
                     client=DAYCARE_GHL, extras=body.get("extras") if isinstance(body.get("extras"), dict) else {})
             elif path == "/api/daycare/starts/date":
-                result = daycare_starts.set_date(body.get("contact_id"), body.get("start_date"))
+                result = daycare_starts.set_date(body.get("contact_id"), body.get("start_date"),
+                                                 client=DAYCARE_GHL)
             elif path == "/api/daycare/starts/dismiss":
-                result = daycare_starts.dismiss(body.get("contact_id"))
+                result = daycare_starts.dismiss(body.get("contact_id"), client=DAYCARE_GHL)
             # Reply desk: run = draft-only sweep (sends nothing); approve IS the owner's
             # send tap (rule 2) and re-checks the live thread first; dismiss is internal.
             elif path == "/api/daycare/replies/run":

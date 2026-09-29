@@ -62,7 +62,7 @@ for _i in range(1, 13):
     _MONTHS[calendar.month_name[_i].lower()] = _i
     _MONTHS[calendar.month_abbr[_i].lower()] = _i
 _MONTHS["sept"] = 9
-_WEEKDAYS = {"monday": 0, "mon": 0, "tuesday": 1, "tues": 1, "tue": 1, "wednesday": 2,
+_WEEKDAYS = {"monday": 0, "tuesday": 1, "tues": 1, "tue": 1, "wednesday": 2,
              "wed": 2, "thursday": 3, "thurs": 3, "thur": 3, "thu": 3, "friday": 4,
              "fri": 4, "saturday": 5, "sunday": 6}
 _MON_ALT = "|".join(sorted(_MONTHS, key=len, reverse=True))
@@ -73,10 +73,13 @@ _NUM_RE = re.compile(r"(?<![\d/$])(\d{1,2})/(\d{1,2})(?:/(\d{2}|\d{4}))?(?![\d/]
 _MONTH_DAY_RE = re.compile(rf"\b({_MON_ALT})\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s*(\d{{4}}))?", re.I)
 _DAY_OF_MONTH_RE = re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+of\s+({_MON_ALT})\b(?:,?\s*(\d{{4}}))?", re.I)
 _THE_NTH_RE = re.compile(r"\bthe\s+(\d{1,2})(?:st|nd|rd|th)\b", re.I)
-_WEEKDAY_RE = re.compile(r"\b(" + "|".join(sorted(_WEEKDAYS, key=len, reverse=True)) + r")\b", re.I)
-_REL_RE = re.compile(r"\b(tomorrow|today)\b", re.I)
+_WD_ALT = "|".join(sorted(_WEEKDAYS, key=len, reverse=True))
+_WEEKDAY_RE = re.compile(rf"\b({_WD_ALT})\b(?!\s*(?:-|–|to|thru|through)\s*(?:{_WD_ALT})\b)", re.I)
+_REL_RE = re.compile(r"\b(tomorrow)\b", re.I)
+# Not a family's start: hours ("start at 6:30"), Head Start, keyword replies, a sibling's school.
+_NOT_START_RE = re.compile(r"\bstarts?\s+at\s+\d|\bhead\s+start\b|\b(?:reply|text)\s+start\b|\bschool\s+starts?\b", re.I)
 _SENT_SPLIT = re.compile(r"(?<=[.!?\n])\s+")
-_DAYS_AFTER_RE = re.compile(r"\s*(?:full\s+|half\s+)?days?\b", re.I)
+_DAYS_AFTER_RE = re.compile(r"\s*(?:(?:full\s+|half\s+)?days?\b|off\b|%|[ap]\.?m\b)", re.I)
 _BLAST_SOURCES = {"campaign", "bulk_actions"}     # blasts never agree a family's date
 _SCRUB = ((re.compile(r"\S+@\S+"), "[email]"),
           (re.compile(r"\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}"), "[phone]"),
@@ -141,10 +144,11 @@ def parse_date(text, ref, horizon=HORIZON_DAYS):
 def _candidate(body, ref):
     """(date, evidence sentence) for one message, or None. A sentence must pair a start
     word with a date; tour talk and past tense ("started") never count."""
-    if not _START_RE.search(body) or _PAST_RE.search(body):
+    if not _START_RE.search(body):
         return None
     for sent in _SENT_SPLIT.split(body):
-        if _START_RE.search(sent) and not _TOUR_RE.search(sent):
+        if (_START_RE.search(sent) and not _TOUR_RE.search(sent) and not _PAST_RE.search(sent)
+                and not _NOT_START_RE.search(sent)):
             got = parse_date(sent, ref)
             if got:
                 return got, sent
@@ -333,7 +337,9 @@ def sweep(client, now=None):
                 continue
             tags = {str(t).strip().lower() for t in contact.get("tags") or []}
             if tags & SIGNUP_TAGS and TAG_SENT not in tags:
-                found = extract(daycare_leads._messages(client, conv)) or form_date(contact, now)
+                found = extract(daycare_leads._messages(client, conv))
+                if not found or date.fromisoformat(found["date"]) < _today(now):
+                    found = form_date(contact, now) or found
                 if found:
                     findings.append((contact, found))
             marks[cid] = _ms(last)        # only after a clean read — a failure re-reads next tick
@@ -347,7 +353,8 @@ def sweep(client, now=None):
         st.setdefault("seen", {}).update(marks)
         changed = [c.get("id") for c, f in findings if _apply(entries, c, f, now)]
         _save(st)
-    for cid in changed:                           # GHL writes outside the lock
+    retry = [cid for cid, e in entries.items() if e.get("ghlError") and e.get("status") == "proposed"]
+    for cid in dict.fromkeys(changed + retry):    # GHL writes outside the lock (+ retries)
         e = entries[cid]
         err = _ghl_mark(client, cid, e["startDate"], TAG_PROPOSED, drop=(TAG_CONFIRMED,) if e.get("reopened") else ())
         _patch(cid, ghlError=err)
@@ -387,7 +394,7 @@ def _valid_date(value, now):
 
 
 # --------------------------------------------------------------------------- owner taps
-def set_date(contact_id, value, now=None):
+def set_date(contact_id, value, now=None, client=None):
     """Owner edits the date (internal: state + the GHL field). Stays unconfirmed."""
     now = now or time.time()
     got = _valid_date(value, now)
@@ -403,10 +410,12 @@ def set_date(contact_id, value, now=None):
                   source="owner", evidence="Date set by you on the dashboard", tries=0, lastError=None)
     if e is None:
         return {"ok": False, "error": "the start-day text is going out right now — try again in a minute"}
+    if client is not None and getattr(client, "configured", False):
+        _patch(cid, ghlError=_ghl_mark(client, cid, got.isoformat(), TAG_PROPOSED, drop=(TAG_CONFIRMED,)))
     return {"ok": True, "start": e}
 
 
-def dismiss(contact_id, now=None):
+def dismiss(contact_id, now=None, client=None):
     now = now or time.time()
     cid = str(contact_id or "")
     cur = (_load().get("entries") or {}).get(cid)
@@ -414,7 +423,14 @@ def dismiss(contact_id, now=None):
         return {"ok": False, "error": "no start date on file for that family"}
     e = _patch_if(cid, lambda x: x.get("status") not in ("sending", "sent"), status="dismissed",
                   dismissedAt=_ms(now), ownerSawAt=max(cur.get("evidenceAt") or 0, cur.get("ownerSawAt") or 0))
-    return {"ok": True} if e else {"ok": False, "error": "the app login already went out to this family"}
+    if e is None:
+        return {"ok": False, "error": "the app login already went out to this family"}
+    if client is not None and getattr(client, "configured", False):
+        try:     # internal + reversible: drop our status tags; the Agreed field stays as history
+            client.delete(f"/contacts/{cid}/tags", {"tags": [TAG_PROPOSED, TAG_CONFIRMED]})
+        except Exception:  # noqa: BLE001
+            pass
+    return {"ok": True}
 
 
 def confirm(contact_id, value, enroll_fn, client=None, extras=None, now=None):
@@ -453,68 +469,93 @@ def confirm(contact_id, value, enroll_fn, client=None, extras=None, now=None):
 
 # --------------------------------------------------------------------------- start day
 def send_due(client, session_fn, mint_fn, now=None, send_fn=None):
-    """Text every confirmed family whose start day has come. Marked `sending` BEFORE the
-    send so a crash mid-send can never double-text (a stale `sending` becomes `failed`)."""
+    """Text every confirmed family whose start day is TODAY. Marked `sending` under the lock
+    BEFORE anything outward, and every result write is conditional on still being `sending`,
+    so an owner's dismiss / date change is never overwritten. Once send_fn has been called,
+    an exception means the result is unknown → `failed` (never re-sent, never a 2nd PIN)."""
     now = now or time.time()
     if send_fn is None:
         import daycare_replies
         send_fn = lambda cid, text: daycare_replies.send_manual(client, cid, text, now=now, close_draft=False)  # noqa: E731
+    in_hours = daycare_leads.in_hours(now)
     with _LOCK:
         st = _load()
+        due = []
         for e in (st.get("entries") or {}).values():
+            left = _days_until(e, now)
             if e.get("status") == "sending" and _ms(now) - (e.get("sendingAt") or 0) > SENDING_STALE_SEC * 1000:
                 e.update(status="failed", lastError="send result unknown — check the thread before resending")
-        due = [dict(e) for e in (st.get("entries") or {}).values()
-               if e.get("status") == "confirmed" and (_days_until(e, now) or 0) <= 0]
-        for e in due:
-            st["entries"][e["contactId"]].update(status="sending", sendingAt=_ms(now))
+            elif e.get("status") == "confirmed" and left is not None and left < 0:
+                e.update(status="failed", lastError="the start day passed before the login text went out")
+            elif e.get("status") == "confirmed" and left == 0 and in_hours:
+                e.update(status="sending", sendingAt=_ms(now))
+                due.append(dict(e))
         _save(st)
     if not due:
         return []
-    if not daycare_leads.in_hours(now):
-        for e in due:
-            _patch(e["contactId"], status="confirmed")
-        return []
-    session = session_fn() if any(not e.get("loginExisted") for e in due) else None
+    still_sending = lambda x: x.get("status") == "sending"   # noqa: E731
+    session, session_err = None, None
+    if any(not e.get("loginExisted") for e in due):
+        try:
+            session = session_fn()
+        except Exception as ex:  # noqa: BLE001 — nothing sent yet: retryable
+            session_err = f"no daycare session ({type(ex).__name__})"
+        if session is None and session_err is None:
+            session_err = "no daycare session — auto-admin is off"
     results = []
     for e in due:
         cid = e["contactId"]
-        err = None
+        err, final = None, False
         try:
             # A parent who already had a login keeps their PIN (a reset would lock them out of
             # an app they use): they get the welcome + guide only. A new login gets a fresh PIN.
+            if not e.get("loginExisted") and session_err:
+                raise RuntimeError(session_err)
             login = {"pin": None} if e.get("loginExisted") else (mint_fn(session, e) or {})
             if not e.get("loginExisted") and not login.get("pin"):
                 err = login.get("error") or "could not create a fresh PIN"
-            else:
-                res = send_fn(cid, daycare_ghl.start_day_text(
-                    e.get("parentFirst"), e.get("childFirst"), login.get("login_id"),
-                    login.get("pin"), e.get("locationId")))
-                if not res.get("ok"):
-                    err = res.get("error") or res.get("detail") or "send failed"
         except Exception as ex:  # noqa: BLE001 — type only; never a PIN or token
-            err = f"{type(ex).__name__}"
+            err = session_err if isinstance(ex, RuntimeError) and session_err else f"PIN: {type(ex).__name__}"
         if err is None:
-            _patch(cid, status="sent", sentAt=_ms(now), lastError=None)
-            _patch(cid, ghlError=_ghl_mark(client, cid, None, TAG_SENT, drop=(TAG_CONFIRMED,)))
+            text = daycare_ghl.start_day_text(e.get("parentFirst"), e.get("childFirst"),
+                                              login.get("login_id"), login.get("pin"), e.get("locationId"))
+            try:
+                res = send_fn(cid, text) or {}
+                if not res.get("ok"):          # a pre-send gate said no (window/opt-out/DND)
+                    err = res.get("error") or res.get("detail") or "send failed"
+            except Exception as ex:  # noqa: BLE001 — GHL may have accepted it: never resend
+                err, final = f"send result unknown ({type(ex).__name__}) — check the thread", True
+        if err is None:
+            _patch_if(cid, still_sending, status="sent", sentAt=_ms(now), lastError=None)
+            if client is not None:
+                _patch(cid, ghlError=_ghl_mark(client, cid, None, TAG_SENT, drop=(TAG_CONFIRMED,)))
         else:
             tries = (e.get("tries") or 0) + 1
-            _patch(cid, status="failed" if tries >= MAX_TRIES else "confirmed", tries=tries, lastError=err)
+            _patch_if(cid, still_sending, status="failed" if final or tries >= MAX_TRIES else "confirmed",
+                      tries=tries, lastError=err)
         results.append({"contactId": cid, "ok": err is None, "error": err})
     return results
 
 
-def _ping_confirm_window(st, now):
-    """One Telegram + bus ping per family+date when the confirm window opens (in hours)."""
+def _confirm_pings(st, now):
+    """Pick (under the lock) the families whose confirm window just opened; mark them so each
+    family+date is pinged once. The network sends happen after the lock is released."""
     if not daycare_leads.in_hours(now):
-        return
-    pinged = st.setdefault("pinged", {})
+        return []
+    pinged, out = st.setdefault("pinged", {}), []
     for e in (st.get("entries") or {}).values():
         left = _days_until(e, now)
         key = f"{e.get('contactId')}:{e.get('startDate')}"
-        if e.get("status") != "proposed" or left is None or left > CONFIRM_DAYS or key in pinged:
+        if e.get("status") != "proposed" or left is None or not 0 <= left <= CONFIRM_DAYS or key in pinged:
             continue
         pinged[key] = _ms(now)
+        out.append((key, dict(e)))
+    return out
+
+
+def _ping_confirm_window(pings):
+    """One Telegram + bus ping per family+date (best-effort, outside the lock)."""
+    for key, e in pings:
         when = date.fromisoformat(e["startDate"]).strftime("%a %b %-d")
         try:
             import agent_bus
@@ -547,9 +588,10 @@ def tick(client, session_fn, mint_fn, now=None):
         error = f"send failed: {type(e).__name__}"
     with _LOCK:
         st = _load()
-        _ping_confirm_window(st, now)
+        pings = _confirm_pings(st, now)
         st["lastRunAt"], st["error"] = _ms(now), error
         _save(st)
+    _ping_confirm_window(pings)
     return error
 
 

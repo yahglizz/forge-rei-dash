@@ -455,7 +455,7 @@ function MBDCredsSheet(props) {
 // ---------------------------------------------------------------- Start dates (Solomon · Starts)
 // Proposed from the family's texts; Confirm (prompted 2 days before) enrolls with no text; the
 // lane texts the app login + get-app guide on the start day after 8am.
-const MBD_START_NEEDS = { email: ["Parent email", "email"], child_dob: ["Child birth date", "date"], child_first: ["Child first name", "text"] };
+const MBD_START_NEEDS = { email: ["Parent email", "email"], child_dob: ["Child birth date", "date"], child_first: ["Child first name", "text"], child_last: ["Child last name", "text"] };
 
 function MBDStartRow(props) {
   const r = props.row;

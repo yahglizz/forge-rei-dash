@@ -518,8 +518,9 @@ def _brand_link(location_id):
 def start_day_text(parent_first, child_first, login_id, pin, location_id) -> str:
     """The first-day SMS (daycare_starts): welcome + app login + how to get the app, in the
     get-app page's own steps. Pure — no I/O. Same name/label rules as login_text."""
-    parent = str(parent_first or "").strip()
-    child = str(child_first or "").strip()
+    parent = str(parent_first or "").strip()[:30]
+    child = str(child_first or "").strip()[:30]
+    login_id = str(login_id or "")[:60]
     brand, link = _brand_link(location_id)
     greet = parent if len(parent) > 1 else "there"
     whose = f"{child}'s" if len(child) > 1 else "your child's"
@@ -528,8 +529,8 @@ def start_day_text(parent_first, child_first, login_id, pin, location_id) -> str
     how = "your Login ID" if bl else "your first + last name"
     if not pin:     # the parent already has a login: welcome + guide, never a PIN reset
         return (f"Hi {greet}! Welcome to {brand} - today is {whose} first day!\n"
-                f"Your family app: open {link} and tap Open the app, then sign in with your "
-                "first + last name + the PIN we gave you. Don't have your PIN? Just ask a staff member.\n"
+                f"Your family app: open {link} and tap Open the app, then sign in the way you "
+                "already do (your name or Login ID + your PIN). Forgot your PIN? Just ask a staff member.\n"
                 "iPhone: Share > Add to Home Screen keeps it one tap away.")
     return (f"Hi {greet}! Welcome to {brand} - today is {whose} first day!\n"
             f"Your family app login:\n{label}: {login_id}\nPIN: {pin}\n"

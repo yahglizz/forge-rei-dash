@@ -79,7 +79,7 @@ class StartDateTests(unittest.TestCase):
         self.state = mock.patch.object(ds, "STATE", Path(self.tmp.name) / "starts.json")
         self.state.start()
         # telegram/bus pings are best-effort side effects — keep them off the network
-        self.ping = mock.patch.object(ds, "_ping_confirm_window", lambda st, now: None)
+        self.ping = mock.patch.object(ds, "_ping_confirm_window", lambda pings: None)
         self.ping.start()
 
     def tearDown(self):
@@ -270,7 +270,7 @@ class StartDateTests(unittest.TestCase):
         out = ds.send_due(ghl, lambda: self.fail("no session needed"), lambda s, e: minted.append(1),
                           now=ts(2026, 10, 5, 8, 30), send_fn=lambda c, t: sent.append(t) or {"ok": True})
         self.assertEqual((out[0]["ok"], minted), (True, []))
-        self.assertIn("the PIN we gave you", sent[0])
+        self.assertIn("your PIN", sent[0])
         self.assertNotIn("PIN:", sent[0])
         self.assertIn("atouchofblessing.com/get-app", sent[0])
 
