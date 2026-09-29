@@ -293,6 +293,76 @@ function DldLeadDesk() {
 }
 // --- /WP-E ---
 
+// --- STARTS --- Solomon · Starts (daycare_starts.py → /api/daycare/starts). The start date
+// agreed in the family's texts, proposed here + on their GHL contact. Confirm (prompted 2 days
+// before) enrolls the child with no text; on the start day the lane texts the app login + guide.
+const DST_STATUS = { proposed: "Needs your confirm", confirmed: "Confirmed · login texts that morning", sending: "Sending…", sent: "Login sent", failed: "Send failed" };
+const DST_NEEDS = { email: ["Parent email", "email"], child_dob: ["Child birth date", "date"], child_first: ["Child first name", "text"], location_id: ["Center", "center"] };
+const DST_CENTERS = [["11111111-1111-1111-1111-111111111111", "A Touch of Blessings (921 N 18th)"], ["22222222-2222-2222-2222-222222222222", "A Touch of Blessings 2 (2318 Cecil B. Moore)"], ["44444444-4444-4444-4444-444444444444", "A Mother's Touch (1923 Cecil B. Moore)"]];
+
+function DstWhen(row) {
+  const d = row.daysUntil;
+  if (d === null || d === undefined) return "";
+  if (d < 0) return Math.abs(d) + "d ago";
+  return d === 0 ? "today" : d === 1 ? "tomorrow" : "in " + d + " days";
+}
+
+function DstRow(props) {
+  const r = props.row;
+  const [date, setDate] = useStateDcx(r.startDate || "");
+  const [needs, setNeeds] = useStateDcx([]);
+  const [extras, setExtras] = useStateDcx({});
+  const [busy, setBusy] = useStateDcx("");
+  const [note, setNote] = useStateDcx("");
+  const who = (r.childName || r.childFirst || "New child") + (r.parentName ? " · " + r.parentName : "");
+  const call = async (kind, body, ask) => {
+    if (ask && !window.confirm(ask)) return;
+    setBusy(kind); setNote("");
+    try {
+      const res = await DcxRequest("/starts/" + kind, { body: { contact_id: r.contactId, ...body } });
+      if (res.ok === false) { setNote(res.error || "Could not save."); setNeeds(res.needs || []); }
+      else { setNeeds([]); props.onDone(); }
+    } catch (error) { setNote(error.message); } finally { setBusy(""); }
+  };
+  const open = r.status === "proposed";
+  const confirmAsk = "Confirm " + (r.childFirst || "this child") + " starts " + date + "?\n\nThis enrolls the child (start date " + date + ") and makes sure the parent has an app login — nothing is texted now. On " + date + " after 8am, the parent is texted their login + how to get the app.";
+  return <div style={{ alignItems: "flex-start" }}>
+    <span className={"dc-severity " + (r.status === "failed" ? "danger" : r.confirmOpen ? "warning" : r.status === "proposed" ? "info" : "success")}/>
+    <div style={{ flex: 1 }}>
+      <b>{who} · {r.center}</b>
+      <small>{DST_STATUS[r.status] || r.status} · starts {r.startDate} ({DstWhen(r)}){r.reopened ? " · date changed in their texts — re-confirm" : ""}</small>
+      <small className="faint">“{r.evidence}”{r.source === "messages" && r.evidenceAt ? " · " + DcxDate(r.evidenceAt, true) : ""}</small>
+      {r.lastError && <small className="dc-error-text">{r.lastError}</small>}
+      {open && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
+        <input type="date" aria-label="Start date" value={date} onChange={(event) => setDate(event.target.value)}/>
+        {needs.map((key) => { const [label, type] = DST_NEEDS[key] || [key, "text"]; return type === "center"
+          ? <select key={key} aria-label={label} value={extras[key] || ""} onChange={(event) => setExtras({ ...extras, [key]: event.target.value })}><option value="">{label}…</option>{DST_CENTERS.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
+          : <input key={key} type={type} placeholder={label} aria-label={label} value={extras[key] || ""} onChange={(event) => setExtras({ ...extras, [key]: event.target.value })}/>; })}
+        <button className="dc-primary" disabled={Boolean(busy) || !date} onClick={() => call("confirm", { start_date: date, extras }, confirmAsk)}>{busy === "confirm" ? "Confirming…" : "Confirm start date"}</button>
+        {date !== r.startDate && <button className="dc-outline" disabled={Boolean(busy)} onClick={() => call("date", { start_date: date })}>Save date only</button>}
+        <button className="link" disabled={Boolean(busy)} onClick={() => call("dismiss", {}, "Not a start date? It drops off this list.")}>Not a start date</button>
+      </div>}
+      {r.status === "confirmed" && <div style={{ marginTop: 6 }}><button className="link" disabled={Boolean(busy)} onClick={() => call("date", { start_date: r.startDate }, "Undo the confirm? Nothing will be texted until you confirm again.")}>Undo confirm</button></div>}
+      {note && <small className="dc-error-text" role="alert">{note}</small>}
+    </div>
+  </div>;
+}
+
+function DstStartDates() {
+  const res = DcxUseResource("/starts", null, 60000);
+  const data = res.data && !Array.isArray(res.data) ? res.data : {};
+  const rows = (data.starts || []).filter((r) => r.status !== "sent" || (r.daysUntil ?? -99) >= -3);
+  const waiting = rows.filter((r) => r.confirmOpen || r.status === "failed").length;
+  if (!res.loading && !rows.length && !data.error) return null;
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head"><div><div className="card-title">Start dates</div><div className="faint">From their texts · confirm 2 days before · the app login + guide texts on the start day{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div><b>{waiting}</b></div>
+    {data.error && <div className="dc-error-text" role="alert">{data.error}</div>}
+    {res.loading ? <div className="dc-inline-empty">Loading start dates…</div>
+      : <div className="dc-alert-list">{rows.map((row) => <DstRow key={row.contactId + row.startDate + row.status} row={row} onDone={res.refresh}/>)}</div>}
+  </div>;
+}
+// --- /STARTS ---
+
 function DaycareDashboard() {
   const overview = DcxUseResource("/overview", "overview", 30000);
   const classrooms = DcxUseResource("/classrooms", "classrooms", 30000);
@@ -312,6 +382,7 @@ function DaycareDashboard() {
   return <div className="dc-page"><DcxState loading={overview.loading || classrooms.loading} error={overview.error || classrooms.error} onRetry={()=>{overview.refresh();classrooms.refresh();}}><>
     <section className="dc-hero"><div><div className="dc-eyebrow">{today.toUpperCase()} · LIVE OPERATIONS</div><h1>{center.name || "Daycare command center"}</h1><p>See what needs attention now, then move directly into the operating record shared with your families and team.</p><div className="dc-hero-actions"><button className="dc-primary" onClick={() => window.GoTo("Attendance")}><window.Icons.Attendance size={15}/> Open attendance</button><button className="dc-outline" onClick={() => window.GoTo("Messages")}><window.Icons.Conversations size={15}/> Family messages</button></div></div><div className="dc-hero-mark"><span>{checkedIn}</span><small>ON SITE NOW</small></div></section>
     <div className="dc-kpi-grid"><DcxKpi label="Enrolled" value={enrolled} sub={Math.max(0, capacity - enrolled) + " of " + capacity + " spots open"} icon="Children"/><DcxKpi label="Checked In" value={checkedIn} sub="live attendance" icon="Attendance" color="#22C55E"/><DcxKpi label="Active Staff" value={staff} sub="center team" icon="Staff" color="#8B5CF6"/><DcxKpi label="Balances Due" value={DcxMoney(amountDue)} sub={invoicesDue + " open invoices"} icon="Billing" color={invoicesDue ? "#F4B860" : "#22C55E"}/><DcxKpi label="Unread" value={unread} sub="family + team messages" icon="Bell" color={unread ? "#38BDF8" : "#22C55E"}/><DcxKpi label="Open Alerts" value={alerts.length} sub="items needing review" icon="Bell" color={alerts.length ? "#F4B860" : "#22C55E"}/></div>
+    <DstStartDates/>{/* --- STARTS --- */}
     <DldLeadDesk/>{/* --- WP-E --- */}
     <div className="dc-main-grid"><div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Center pulse</div><div className="faint">Fast paths for today’s operations</div></div><span className="dc-live"><i/> LIVE</span></div><div className="dc-day-grid">{[["Attendance","Attendance",checkedIn + " currently in"],["CareLogs","Daily Logs","Care updates"],["Incidents","Incidents","Safety records"],["Billing","Billing","Family balances"]].map((item) => { const Icon = window.Icons[item[0]] || window.Icons.Dashboard; return <button key={item[0]} onClick={() => window.GoTo(item[0])}><span><Icon size={18}/></span><b>{item[1]}</b><small>{item[2]}</small></button>; })}</div></div><div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Management alerts</div><div className="faint">Prioritized operational exceptions</div></div><b>{alerts.length}</b></div>{alerts.length ? <div className="dc-alert-list">{alerts.slice(0,5).map((alert, index) => <div key={alert.id || index}><span className={"dc-severity " + (alert.severity || "info")}/><div><b>{alert.title || alert.kind || "Needs review"}</b><small>{alert.body || alert.message || "Open the related page for details."}</small></div></div>)}</div> : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>All clear</b><span>No operational alerts right now.</span></div></div>}</div></div>
     <div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Classroom capacity</div><div className="faint">Live enrollment by room</div></div><button className="link" onClick={() => window.GoTo("Classrooms")}>Manage classrooms</button></div><div className="dc-room-strip">{rooms.length ? rooms.map((room) => { const count = Number(room.enrolled_count ?? room.child_count ?? (room.children || []).length ?? 0); const cap = Number(room.capacity) || 0; const color = room.color || DCX_ACCENT; return <div key={room.id}><div className="dc-room-top"><span style={{color}}>{room.name}</span><b>{count}/{cap}</b></div><small>{room.age_group || "Age group not set"}</small><div className="progress"><div style={{width: Math.min(100, cap ? count / cap * 100 : 0) + "%", background: color}}/></div></div>; }) : <div className="dc-inline-empty">No active classrooms yet.</div>}</div></div>
