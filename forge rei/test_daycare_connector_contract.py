@@ -11,7 +11,7 @@ PLANNED_GETS = {
     "/api/daycare/announcements", "/api/daycare/threads", "/api/daycare/thread",
     "/api/daycare/notifications", "/api/daycare/billing", "/api/daycare/payroll",
     "/api/daycare/reports", "/api/daycare/media/signed-read",
-    "/api/daycare/pass",
+    "/api/daycare/pass", "/api/daycare/starts",
 }
 
 PLANNED_POSTS = {
@@ -34,6 +34,7 @@ PLANNED_POSTS = {
     "/api/daycare/pass/rank/delete", "/api/daycare/pass/claim/fulfill",
     "/api/daycare/timesheets", "/api/daycare/attendance/decline-pickup",
     "/api/daycare/attendance/paper", "/api/daycare/settings/full-day-hours",
+    "/api/daycare/starts/confirm", "/api/daycare/starts/date", "/api/daycare/starts/dismiss",
 }
 
 TEST_ONLY_POSTS = {"/api/daycare/auth/test-login"}
