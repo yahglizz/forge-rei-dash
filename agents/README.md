@@ -30,7 +30,7 @@ they keep their own thread + heartbeat but report on the owner's row, card and c
 | Solomon · Replies ‡ | Daycare | [solomon §10](daycare/solomon.md) | `forge rei/daycare_replies.py` | thread `daycare_replies`, 300 s | — (ask Solomon) | lane of `solomon` | drafts only; owner taps send |
 | Solomon · Leads ‡ | Daycare | [solomon §11](daycare/solomon.md) | `forge rei/daycare_leads.py` | thread `daycare_leads`, 900 s | outbound only | lane of `solomon` | GET-only, $0 |
 | Midas | Dropship (archived) | [midas](dropship/midas.md) | `forge rei/dropship_director.py` | thread `midas` — **off** (`FORGE_DROPSHIP_BRIEF=0`) | `/midas`, `midas, …` | `midas` | read + propose only |
-| Orion | Cross | [orion](cross-business/orion.md) | `forge rei/mission_control_agent.py` | `brief` thread, daily 07:00 | **none** | `orion` | read + propose only |
+| Orion | Cross | [orion](cross-business/orion.md) | `forge rei/mission_control_agent.py` | `brief` thread, daily 07:00 | `/orion`, `orion, …` — default in HQ | `orion` | read + propose only |
 | Daily brief | System | [daily-brief](cross-business/daily-brief.md) | `forge rei/daily_brief.py` | `brief` thread, 08:00 | outbound only | `briefs` → Orion | operator Telegram only, $0 |
 | Daily recap | System | [daily-recap](cross-business/daily-recap.md) | `forge rei/daily_recap.py` | `brief` thread, 18:00 | outbound only | `briefs` → Orion | operator Telegram only, $0 |
 | skill_forge † | Cross | [skill-forge](cross-business/skill-forge.md) | `forge rei/skill_forge.py` | bus notifier | taps `skillgo`/`skillno` | — | proposes skills |
@@ -38,6 +38,16 @@ they keep their own thread + heartbeat but report on the owner's row, card and c
 | review_agent † | Wholesale playbook | [review-agent](cross-business/review-agent.md) | `forge rei/review_agent.py` | systemd Mon 08:00 + 20:00 ET | — | — | internal |
 
 `briefs` is the single roster row for both pulses — [briefs](cross-business/briefs.md).
+
+**Telegram business partners (2026-09-29, `forge rei/telegram_agent.py`).** In each bound
+business chat, plain messages go to that business's partner (daycare → Solomon, agency →
+Dyson, wholesale → Marcus, dropship → Midas; HQ → Orion for health + cost). The partner runs
+a Claude tool-use loop over the connector's own API: `api_get` reads now, `api_post` becomes
+a ✅/❌ card and only the owner's tap (`pgo:`) runs it. Scope = the agent's business routes
+(+ brain, owner actions); auth/reset/notify/portal are denied. Charter:
+`forge-telegram/skills/business-partner.md` (vault `Skills/business-partner.md` wins).
+No-Claude fallbacks: `/status`, `/starts`, `/logins <name>`, `/pin <name>`. Test:
+`forge rei/test_telegram_agent.py`.
 `→ X` = `chatVia`: that agent has no brain; X answers in chat and sees its tasks.
 
 Not documented as agents (no brain, no agent role): `do_today` (thread `do_today`, off via

@@ -767,6 +767,11 @@ _AGENT_HELP = (
     "<code>/ops</code> = the detailed ops card.\n"
     "\n📂 <b>Business chats</b>: in a group with me, <code>/bind daycare</code> "
     "(agency · wholesale · dropship) — that business's alerts land there. <code>/chats</code> = status."
+    "\n\n🤝 <b>Business partners</b>: in a business chat just talk — “create a parent login "
+    "for Jane Smith…”. The partner looks it up live; anything that writes comes back as a ✅ card. "
+    "HQ talks to Orion (health, API cost, what's down).\n"
+    "No AI needed: <code>/status</code> · <code>/starts</code> · <code>/logins name</code> · "
+    "<code>/pin name</code>"
 )
 
 # Quick-tap reply keyboard (persistent, /menu to show, /menu off to remove). Each label
@@ -797,6 +802,11 @@ _BOT_COMMANDS = [
     ("clock", "Clock the crew in/out"),
     ("ace", "ACE autonomy mode"),
     ("autopilot", "Re-engage autopilot on/off"),
+    ("status", "System health + API cost"),
+    ("starts", "Daycare start dates"),
+    ("logins", "Daycare login lookup"),
+    ("pin", "Reset a daycare PIN (tap to confirm)"),
+    ("orion", "Chat with Orion (HQ health + cost)"),
     ("menu", "Quick-tap buttons"),
     ("help", "Everything in one card"),
 ]

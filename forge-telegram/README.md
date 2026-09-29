@@ -35,3 +35,13 @@ exactly like `ghl.env`. The secret never travels through git or chat.
 
 The real `config/telegram.env` is git-ignored (see `.gitignore` here and in `config/`).
 Only `config/telegram.env.example` is tracked. Never paste the bot token in chat or commit it.
+
+## Business partners (2026-09-29)
+
+Each business chat is a direct line to that business's partner agent (daycare → Solomon,
+agency → Dyson, wholesale → Marcus; HQ → Orion for health + API cost). Talk to it like a
+Claude chat: "create a parent login for Jane Smith, email jane@x.com, son Leo born
+2022-03-04" → it looks things up live and posts a ✅/❌ card; your tap does it. Nothing that
+writes runs without the tap. Without AI credits: `/status`, `/starts`, `/logins <name>`,
+`/pin <name>` still work. The partner's charter + recipes: `skills/business-partner.md`.
+Code: `forge rei/telegram_agent.py`.

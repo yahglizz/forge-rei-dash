@@ -447,6 +447,24 @@ update that skill if you improved the pattern.
   (HQ id = their user id) unless `TELEGRAM_ALLOWED_IDS` lists others. Plain messages in a
   business chat default to its agent (Solomon / Dyson / Marcus / Midas) — make the bot a group
   admin so it can read them (privacy mode). `/chats` shows bindings. Test: `test_telegram_biz_chats.py`.
+- **Telegram business partners (2026-09-29, `telegram_agent.py`).** Every agent is the owner's
+  business partner for ITS business, in that business's chat. Plain message → Claude tool-use
+  loop (Sonnet 5, low effort, ≤6 tool turns) whose tools are the connector's OWN API over
+  loopback (so daycare routes get the box auto-admin, exactly like the SSH tunnel):
+  `api_get` runs now, **`api_post` never runs by itself — it posts a ✅/❌ card and the owner's
+  tap (`pgo:<tok>`, 30-min single-use) executes it** (rule 2), `route_help` shows any route's
+  handler so the partner learns body shapes, `file_task` = `agents_hub.send_task`. Route
+  catalog is derived from `connector.py` at boot (`telegram_agent.register`) — new routes are
+  reachable with zero Telegram code. Scope follows the agent's business (`SCOPE`); DENY =
+  `/auth/`, `/api/agency/reset`, `/api/notify/`, `/api/portal/`; both re-checked at tap time.
+  A business chat refuses another business's agent; the wholesale ops layer
+  (`telegram_ops.route`) only runs in the wholesale chat (or HQ while wholesale is unbound).
+  HQ's default agent is **Orion** (health, API cost, what's down). The daily brief + recap fan
+  out per chat (`daily_brief.split`): each bound business gets its own section + owner tasks,
+  HQ keeps agents/spend/stale loops/failures + unbound businesses. Zero-Claude fallbacks
+  (credits out): `/status`, `/starts`, `/logins <name>`, `/pin <name>`. Charter/recipes:
+  `forge-telegram/skills/business-partner.md` (vault `Skills/business-partner.md` overrides).
+  Tests: `test_telegram_agent.py`, `test_brief_sections.py`.
 - **Trigger words + real task dispatch (Telegram).** Say an agent's NAME as the first word
   followed by `,` `:` or a spaced dash — "solomon, what's the ratio situation" / "midas:
   which product is winning" — and the message routes to that agent (same as `/solomon`,
