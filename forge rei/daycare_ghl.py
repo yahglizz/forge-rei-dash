@@ -500,15 +500,45 @@ def send_sms(client, *, contact_id: str, message: str) -> dict:
 AMT_LOCATION_PREFIX = "44444444"  # A Mother's Touch (1923 Cecil B. Moore) — its own brand + app link
 
 
+# Family Contact Form / lead GHL location tag -> Supabase center id (stable business ids,
+# not secrets). connector.DAYCARE_FORM_LOCATION_BY_TAG points at this same dict.
+LOCATION_ID_BY_TAG = {
+    "loc-921-n-18th": "11111111-1111-1111-1111-111111111111",       # A Touch of Blessings
+    "loc-2318-cecil-b-moore": "22222222-2222-2222-2222-222222222222",  # A Touch of Blessings 2
+    "loc-1923-cecil-b-moore": "44444444-4444-4444-4444-444444444444",  # A Mother's Touch
+}
+
+
+def _brand_link(location_id):
+    if str(location_id or "").startswith(AMT_LOCATION_PREFIX):
+        return "A Mother's Touch", "https://atouchofblessing.com/get-app-mothers-touch"
+    return "A Touch of Blessings", "https://atouchofblessing.com/get-app"
+
+
+def start_day_text(parent_first, child_first, login_id, pin, location_id) -> str:
+    """The first-day SMS (daycare_starts): welcome + app login + how to get the app, in the
+    get-app page's own steps. Pure — no I/O. Same name/label rules as login_text."""
+    parent = str(parent_first or "").strip()
+    child = str(child_first or "").strip()
+    brand, link = _brand_link(location_id)
+    greet = parent if len(parent) > 1 else "there"
+    whose = f"{child}'s" if len(child) > 1 else "your child's"
+    bl = str(login_id or "").startswith("BL-")
+    label = "Login ID" if bl else "Sign in with your name"
+    how = "your Login ID" if bl else "your first + last name"
+    return (f"Hi {greet}! Welcome to {brand} - today is {whose} first day!\n"
+            f"Your family app login:\n{label}: {login_id}\nPIN: {pin}\n"
+            f"Get the app: open {link} and tap Open the app, then sign in with {how} + PIN. "
+            "iPhone: Share > Add to Home Screen keeps it one tap away.\n"
+            "Keep your PIN private. Questions? Just ask a staff member.")
+
+
 def login_text(parent_first, child_first, login_id, pin, location_id) -> str:
     """The SMS a parent gets when the owner clicks Create login. Pure — no I/O.
     A name under 2 characters (a GHL field typed "I") counts as missing."""
     parent = str(parent_first or "").strip()
     child = str(child_first or "").strip()
-    if str(location_id or "").startswith(AMT_LOCATION_PREFIX):
-        brand, link = "A Mother's Touch", "https://atouchofblessing.com/get-app-mothers-touch"
-    else:
-        brand, link = "A Touch of Blessings", "https://atouchofblessing.com/get-app"
+    brand, link = _brand_link(location_id)
     greet = parent if len(parent) > 1 else "there"
     whose = f"{child}'s" if len(child) > 1 else "Your child's"
     # Legacy accounts / non-Latin names fall back to a BL- Login ID (same rule as the modal).
