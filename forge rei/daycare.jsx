@@ -314,7 +314,9 @@ function DstRow(props) {
   const [extras, setExtras] = useStateDcx({});
   const [busy, setBusy] = useStateDcx("");
   const [note, setNote] = useStateDcx("");
-  const who = (r.childName || r.childFirst || "New child") + (r.parentName ? " · " + r.parentName : "");
+  const child = String(r.childName || r.childFirst || "").trim();
+  const parent = String(r.parentName || "").trim();
+  const who = child && child.toLowerCase() !== parent.toLowerCase() ? child + (parent ? " · parent " + parent : "") : (parent ? parent + "'s family" : "New family");
   const call = async (kind, body, ask) => {
     if (ask && !window.confirm(ask)) return;
     setBusy(kind); setNote("");

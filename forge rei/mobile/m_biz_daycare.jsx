@@ -481,7 +481,8 @@ function MBDStartRow(props) {
   return <div className="mbd-row" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
     <span className="mbd-avatar">{MBDInitials(r.childName || r.parentName)}</span>
     <div className="mbd-row-main">
-      <strong>{MBDName(r.childName || r.childFirst, "New child")}{r.parentName ? " · " + r.parentName : ""}</strong>
+      <strong>{(r.childName || r.childFirst) && String(r.childName || r.childFirst).toLowerCase() !== String(r.parentName || "").toLowerCase()
+        ? MBDName(r.childName || r.childFirst, "New child") + (r.parentName ? " · " + r.parentName : "") : MBDName(r.parentName, "New") + "'s family"}</strong>
       <small className="wrap">{[status, "starts " + r.startDate + " (" + when + ")", r.center].filter(Boolean).join(" · ")}</small>
       <small className="wrap m-fade">“{r.evidence}”{r.reopened ? " · date changed — re-confirm" : ""}</small>
       {r.lastError && <div className="mw-warn">{r.lastError}</div>}
