@@ -18,6 +18,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
   light.position.set(4, 12, 8); light.castShadow = true; scene.add(light);
   let disposed = false, raf, previous = 0, mixer, currentClip = '', currentAction;
   const assets = new Set(), actors = new Map(), actions = {}, loader = new GLTFLoader();
+  const dogHeads = new Set(['marcus', 'dyson', 'solomon', 'midas']);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   function release(root) {
     root.traverse(o => {
@@ -49,11 +50,12 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(.65, .035, 8, 48), new THREE.MeshBasicMaterial({ color: '#5eead4' }));
   ring.rotation.x = Math.PI / 2; ring.position.y = .02; orion.add(ring);
   function desk(x, z, color) {
-    box(1.85, .12, .85, '#946f54', x, .92, z);
-    [-.75, .75].forEach(dx => box(.09, .85, .65, '#394554', x + dx, .45, z));
-    box(.75, .48, .08, '#182336', x, 1.25, z - .22);
-    const screen = box(.64, .35, .02, color, x, 1.26, z - .17);
-    box(.55, .035, .2, '#35465c', x, 1.01, z + .15); return screen;
+    const furniture = new THREE.Group(); scene.add(furniture);
+    box(1.85, .12, .85, '#946f54', x, .92, z, furniture);
+    [-.75, .75].forEach(dx => box(.09, .85, .65, '#394554', x + dx, .45, z, furniture));
+    box(.75, .48, .08, '#182336', x, 1.25, z - .22, furniture);
+    const screen = box(.64, .35, .02, color, x, 1.26, z - .17, furniture);
+    box(.55, .035, .2, '#35465c', x, 1.01, z + .15, furniture); return { screen, furniture };
   }
   const deptPos = { rei: [-5, -2.2], agency: [3, -2.2], daycare: [5, 2.1], dropship: [-5, 2.1] };
   function syncActors(state) {
@@ -72,17 +74,19 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
           [-.15, .15].forEach(dx => box(.15, .45, .17, '#253247', dx, .23, 0, group));
           [-.35, .35].forEach(dx => box(.13, .42, .14, dept.accent, dx, .8, 0, group));
           const badge = label(a.name.toUpperCase(), x, 1.95, z + .95, '#e2e8f0', 1.8);
-          const screen = desk(x, z, dept.accent);
+          const { screen, furniture } = desk(x, z, dept.accent);
           const mark = new THREE.Mesh(new THREE.SphereGeometry(.07, 8, 8), new THREE.MeshBasicMaterial({ color: '#64748b' }));
           mark.position.set(x, 1.75, z + .95); scene.add(mark);
-          actors.set(a.id, { group, badge, screen, mark, x, z, agent: a });
+          const actor = { group, badge, screen, furniture, mark, x, z, agent: a };
+          actors.set(a.id, actor);
+          if (dogHeads.has(a.id)) loadDog(a.id, actor);
         }
         actors.get(a.id).agent = a;
       });
     });
     actors.forEach((actor, id) => {
       const visible = alive.has(id); actor.group.visible = visible; actor.badge.visible = visible;
-      actor.screen.visible = visible; actor.mark.visible = visible;
+      actor.furniture.visible = visible; actor.mark.visible = visible;
     });
   }
   const observer = new ResizeObserver(() => {
@@ -111,7 +115,13 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     const state = getState() || {}; syncActors(state);
     actors.forEach(a => {
       const busy = ['walk', 'read', 'think', 'report'].includes(a.agent.activity);
-      a.group.position.y = !reduced && busy ? Math.sin(t / 210) * .025 : 0;
+      // Dog paws stay on the floor; activity drives a subtle attentive turn.
+      a.group.position.y = !a.dog && !reduced && busy ? Math.sin(t / 210) * .025 : 0;
+      if (a.dog) {
+        a.dog.rotation.y = a.facing + (!reduced && busy ? Math.sin(t / 1400) * .08 : 0);
+        if (a.walkAction) a.walkAction.paused = reduced || a.agent.activity !== 'walk';
+        if (a.mixer && !reduced) a.mixer.update(dt);
+      }
       a.mark.material.color.set(colors[a.agent.activity] || '#64748b');
       a.screen.material.emissive.set(busy ? '#18536f' : '#000000');
     });
@@ -131,12 +141,36 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     orionLabel.position.set(orion.position.x, 2.85, orion.position.z);
     ring.material.color.set(state.selected === 'orion' ? '#ffffff' : '#5eead4');
     if (state.focusOrion) {
-      camera.position.set(orion.position.x + 2.8, 3, orion.position.z + 4.8);
-      camera.lookAt(orion.position.x, 1.3, orion.position.z);
+      const selected = actors.get(state.selected);
+      const position = selected && selected.group.visible ? selected.group.position : orion.position;
+      camera.position.set(position.x + 2.8, 2.8, position.z + 4.8);
+      camera.lookAt(position.x, selected ? .8 : 1.3, position.z);
     } else { camera.position.set(11, 11, 16); camera.lookAt(0, .8, 0); }
     renderer.render(scene, camera); raf = requestAnimationFrame(frame);
   }
   raf = requestAnimationFrame(frame);
+  async function loadDog(id, actor) {
+    try {
+      const response = await fetch('/assets/dogs/' + id + '/manifest.json');
+      if (!response.ok) throw new Error('Dog manifest unavailable');
+      const manifest = await response.json();
+      const model = await loader.loadAsync('/assets/dogs/' + id + '/' + manifest.model);
+      if (disposed) { release(model.scene); return; }
+      const bounds = new THREE.Box3().setFromObject(model.scene), size = bounds.getSize(new THREE.Vector3());
+      if (!Number.isFinite(size.y) || size.y <= 0) { release(model.scene); throw new Error('Invalid dog bounds'); }
+      const center = bounds.getCenter(new THREE.Vector3()), normalized = new THREE.Group();
+      normalized.scale.setScalar(1.45 / Math.max(size.x, size.y, size.z));
+      model.scene.position.set(-center.x, -bounds.min.y, -center.z); normalized.add(model.scene);
+      [...actor.group.children].forEach(child => { actor.group.remove(child); release(child); });
+      actor.group.add(normalized); actor.dog = normalized;
+      actor.facing = manifest.rotationY || 0;
+      actor.badge.position.y = 1.7; actor.mark.position.y = 1.48;
+      if (model.animations.length && manifest.animation === 'quadruped-walk') {
+        actor.mixer = new THREE.AnimationMixer(model.scene);
+        actor.walkAction = actor.mixer.clipAction(model.animations[0]); actor.walkAction.play(); actor.walkAction.paused = true;
+      }
+    } catch (e) { if (!disposed) onStatus('Some dog assets could not load. Agent controls remain available.'); }
+  }
   async function load() {
     try {
       const model = await loader.loadAsync('/assets/orion/orion-rigged.glb');
@@ -161,6 +195,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     disposed = true; cancelAnimationFrame(raf); observer.disconnect();
     renderer.domElement.removeEventListener('click', pick);
     if (mixer) mixer.stopAllAction();
+    actors.forEach(a => { if (a.mixer) a.mixer.stopAllAction(); });
     release(scene); assets.forEach(release); assets.clear(); renderer.dispose(); renderer.domElement.remove();
   };
 }
