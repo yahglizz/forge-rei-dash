@@ -108,6 +108,8 @@ def on_bus_message(msg):
     """agent_bus notifier tap. Cheap counting only; drafting happens on a side thread.
     NEVER raises (a telemetry failure must not break the sender's loop)."""
     try:
+        if os.environ.get("FORGE_SKILL_FORGE", "0") == "0":   # OFF by default — drafts skills with Claude (cost)
+            return
         if not isinstance(msg, dict) or msg.get("from") in ("skill_forge", None, ""):
             return
         frm = str(msg.get("from"))

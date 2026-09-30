@@ -2129,6 +2129,12 @@ def _maybe_ceo_brief():
         return {"ok": False, "error": str(e)[:160]}
 
 
+# Scheduled briefs (morning brief, end-of-day recap, Orion's CEO brief) were cut 2026-09-30:
+# the agents exist to close deals / win speed-to-lead, not to write digests. The clock thread
+# stays (it also runs the git auto-sync watchdog). FORGE_BRIEFS=1 brings the briefs back.
+BRIEFS_ON = os.environ.get("FORGE_BRIEFS", "0") != "0"
+
+
 def _brief_scheduler_forever():
     """Box-only daily clock for BOTH the morning brief and the evening recap. Checks every
     few minutes; each send is guarded by its own due() (past the set hour, once per day).
@@ -2140,9 +2146,10 @@ def _brief_scheduler_forever():
     while True:
         try:
             if not forge_ops.paused():
-                _maybe_daily_brief()
-                _maybe_daily_recap()
-                _maybe_ceo_brief()
+                if BRIEFS_ON:       # daily brief / recap / Orion CEO brief: OFF by default
+                    _maybe_daily_brief()
+                    _maybe_daily_recap()
+                    _maybe_ceo_brief()
                 # Watch for a workstation whose git auto-sync stalled (self-rate-limited
                 # to FORGE_SYNC_CHECK_MIN; pings Telegram once per fresh<->stale flip).
                 sync_monitor.check_and_alert()
@@ -5324,9 +5331,16 @@ def main():
         # Solomon — daycare head agent: one operating brief covering ops, enrollment,
         # money, people, roster/family-comms (was Nora) and ad ops (was Nova). One loop,
         # one Claude call, one auto-admin session.
-        print(f"   Solomon: daycare director · operating brief every {daycare_director.BRIEF_EVERY_MS // 3600000}h + self-improves")
-        tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True, name="solomon")
-        tsol.start()
+        # The scheduled brief is OFF (owner cut daily briefs 2026-09-30): Solomon's job is the
+        # Replies / Leads / Starts lanes below. FORGE_SOLOMON_BRIEF=1 brings the loop back;
+        # the on-demand brief button + chat work either way.
+        if daycare_director.SCHEDULED_BRIEF:
+            print(f"   Solomon: daycare director · operating brief every {daycare_director.BRIEF_EVERY_MS // 3600000}h")
+            tsol = threading.Thread(target=SOLOMON.run_forever, daemon=True, name="solomon")
+            tsol.start()
+        else:
+            print("   Solomon: scheduled brief OFF (FORGE_SOLOMON_BRIEF=1 to enable) · lanes + chat only")
+            forge_heartbeat.retire("solomon")
         # --- WP-E --- Daycare Lead Desk: reads daycare GHL every 15 min, derives lead
         # stages + who needs a human, alerts the owner. Zero Claude calls, sends nothing.
         # FORGE_DAYCARE_LEADS=0 switches it off (retired, so the health card stays quiet).
@@ -5418,9 +5432,8 @@ def main():
         tw.start()
         # Daily ops brief — one Telegram digest a day so the operation is legible from
         # anywhere (no app/tunnel needed). Hour is operator-set; default 8am ET.
-        _bc = daily_brief.config()
-        print(f"   Daily brief: {'on' if _bc.get('enabled') else 'off'} · "
-              f"{_bc.get('hour')}:00 (box tz offset {_bc.get('tzOffset')}) → Telegram")
+        print(f"   Daily brief / recap / CEO brief: {'ON' if BRIEFS_ON else 'OFF (FORGE_BRIEFS=1 to enable)'}"
+              " · clock thread still runs the sync watchdog")
         tb = threading.Thread(target=_brief_scheduler_forever, daemon=True, name="brief")
         tb.start()
         # Graphify builder — rebuild the code+vault knowledge graph natively on the
