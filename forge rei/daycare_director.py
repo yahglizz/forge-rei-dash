@@ -290,7 +290,11 @@ def _strip_fences(raw):
         raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
     if raw.endswith("```"):
         raw = raw.rsplit("```", 1)[0]
-    return raw.strip()
+    raw = raw.strip()
+    # One stray sentence of prose around the object used to fail json.loads and lose
+    # the whole brief — keep only the outermost {...} (same as daycare_replies._parse).
+    i, j = raw.find("{"), raw.rfind("}")
+    return raw[i:j + 1] if 0 <= i < j else raw
 
 
 class SolomonEngine:
@@ -626,7 +630,9 @@ class SolomonEngine:
         import daycare_context
         # The enrollment-ad-agent spec rides along with the business brief now that
         # Solomon owns the ad-ops lane (it used to be injected by Nova).
-        ctx = daycare_context.context_block() + daycare_context.ad_agent_block()
+        ctx = daycare_context.context_block() + daycare_context.ad_agent_block(
+            6000, sections=("META ACCOUNT", "LIVE CAMPAIGNS (PAUSED)", "AD COPY",
+                            "TARGETING", "RULES"))
         metrics, alerts, gather_err = self._gather(session)
         roster, roster_err = self._gather_roster(session)
         blasts, optouts = self._gather_blasts()
@@ -748,7 +754,8 @@ class SolomonEngine:
             "followUps": parsed.get("followUps") or [],
             # ad-ops lane (absorbed from Nova)
             "campaignHealth": parsed.get("campaignHealth") or [],
-            "competitorRead": parsed.get("competitorRead") or {},
+            "competitorRead": (parsed.get("competitorRead") or {})
+                              if (competitor or {}).get("status") != "unavailable" else {},
             "creativeRecommendations": parsed.get("creativeRecommendations") or [],
             "delegations": parsed.get("delegations") or [],
             "metrics": metrics,

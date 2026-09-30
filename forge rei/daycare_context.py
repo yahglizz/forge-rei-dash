@@ -118,12 +118,21 @@ def load_skill(filename: str) -> str:
     return text
 
 
-def ad_agent_block(limit: int = 4000) -> str:
+def ad_agent_block(limit: int = 4000, sections=None) -> str:
     """Prompt-ready block for the Enrollment Ad Agent spec (real Meta account, angles,
-    copy, image prompts, workflow). "" when the skill is absent."""
+    copy, image prompts, workflow). "" when the skill is absent.
+
+    `sections` (e.g. ("META ACCOUNT", "AD COPY")) keeps only those `## ` sections —
+    a strategist (Solomon) needs the account, campaigns, copy and targeting, not the
+    Higgsfield model tables that ate the whole 4000-char budget before."""
     text = load_skill("enrollment-ad-agent.md").strip()
     if not text:
         return ""
+    if sections:
+        want = {x.upper() for x in sections}
+        parts = text.split("\n## ")
+        text = "\n\n".join("## " + p for p in parts[1:]
+                            if p.split("\n", 1)[0].strip().upper() in want)
     return (
         "\n\n=== ENROLLMENT AD AGENT SPEC (the daycare's real Meta account, live "
         "angles, ad copy, image prompts, targeting, and the Higgsfield→Pipeboard "
