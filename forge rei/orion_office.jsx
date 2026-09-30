@@ -7,7 +7,7 @@ function OrionOfficeFloor({ state, selected, onSelect, mode }) {
   latest.current = { ...(state || {}), selected, orionMode: mode };
   useEffectOO(() => {
     let dead = false, dispose;
-    import('/office_scene.js').then(m => {
+    window.loadOrionOfficeScene().then(m => {
       if (!dead) return m.createOfficeScene(host.current, () => latest.current, onSelect, s => { if (!dead) setStatus(s); });
     }).then(cleanup => { if (dead && cleanup) cleanup(); else dispose = cleanup; })
       .catch(e => { console.warn('Orion office:', e); if (!dead) setStatus('3D is unavailable in this browser. Use Pixel view.'); });
