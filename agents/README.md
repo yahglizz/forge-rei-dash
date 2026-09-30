@@ -1,7 +1,8 @@
 # FORGE — Agents
 
 > **2026-09-30 consolidation:** one main agent per business + the CEO (Marcus · Dyson · Solomon ·
-> Midas · Orion). Scout, Atlas, Follow-up, ACE and Autopilot are Marcus's lanes; Eco is Dyson's lane —
+> Midas · Orion). **Active businesses: Wholesale, Agency, Daycare. Archived: Dropship (Midas) and the
+> Agency Personal lens** (`/api/businesses`). Solomon is growth-only (enrollment; no paperwork/compliance). Scout, Atlas, Follow-up, ACE and Autopilot are Marcus's lanes; Eco is Dyson's lane —
 > their cards below describe lanes, and `agents_hub.LANE_OF` maps each to its owner. Scheduled briefs
 > and scheduled self-improvement are OFF (see CLAUDE.md §5 consolidation note).
 
@@ -32,13 +33,14 @@ they keep their own thread + heartbeat but report on the owner's row, card and c
 | Autopilot | Wholesale | [autopilot](wholesale/autopilot.md) | `forge rei/autopilot.py` | rides the `followup` thread | `/autopilot on\|off` | `autopilot` → Marcus | off by default; auto-sends bumps |
 | Dyson | Agency | [dyson](agency/dyson.md) | `forge rei/agency_agents.py` + `forge rei/agency_dyson.py` | none (on-demand) | `/dyson`, `dyson, …` | `dyson` | ships only on approval |
 | Eco | Agency | [eco](agency/eco.md) | `forge rei/agency_agents.py` + `forge rei/agency_eco.py` | none (on-demand) | `/eco`, `eco, …` | `eco` | PAUSED ads only on approval |
-| Solomon | Daycare | [solomon](daycare/solomon.md) | `forge rei/daycare_director.py` | thread `solomon`, 900 s tick, brief 24 h | `/solomon`, `solomon, …` | `solomon` | read + propose only |
-| Solomon · Replies ‡ | Daycare | [solomon §10](daycare/solomon.md) | `forge rei/daycare_replies.py` | thread `daycare_replies`, 300 s | — (ask Solomon) | lane of `solomon` | drafts only; owner taps send |
+| Solomon | Daycare | [solomon](daycare/solomon.md) | `forge rei/daycare_director.py` | thread `solomon` (brief **off** by default) | `/solomon`, `solomon, …` | `solomon` | read + propose only |
+| Solomon · Replies ‡ | Daycare | [solomon §10](daycare/solomon.md) | `forge rei/daycare_replies.py` | thread `daycare_replies`, 60 s | — (ask Solomon) | lane of `solomon` | drafts; owner taps send — opt-in `FORGE_DAYCARE_REPLY_AUTO=1` auto-sends clean lead answers |
 | Solomon · Leads ‡ | Daycare | [solomon §11](daycare/solomon.md) | `forge rei/daycare_leads.py` | thread `daycare_leads`, 900 s | outbound only | lane of `solomon` | GET-only, $0 |
+| Solomon · Starts ‡ | Daycare | [solomon §12](daycare/solomon.md) | `forge rei/daycare_starts.py` | thread `daycare_starts`, 900 s | outbound only | lane of `solomon` | owner Confirm sends the day-one login |
 | Midas | Dropship (archived) | [midas](dropship/midas.md) | `forge rei/dropship_director.py` | thread `midas` — **off** (`FORGE_DROPSHIP_BRIEF=0`) | `/midas`, `midas, …` | `midas` | read + propose only |
-| Orion | Cross | [orion](cross-business/orion.md) | `forge rei/mission_control_agent.py` | `brief` thread, daily 07:00 | `/orion`, `orion, …` — default in HQ | `orion` | read + propose only |
-| Daily brief | System | [daily-brief](cross-business/daily-brief.md) | `forge rei/daily_brief.py` | `brief` thread, 08:00 | outbound only | `briefs` → Orion | operator Telegram only, $0 |
-| Daily recap | System | [daily-recap](cross-business/daily-recap.md) | `forge rei/daily_recap.py` | `brief` thread, 18:00 | outbound only | `briefs` → Orion | operator Telegram only, $0 |
+| Orion | Cross | [orion](cross-business/orion.md) | `forge rei/mission_control_agent.py` | none (scheduled briefs off) | `/orion`, `orion, …` — default in HQ | `orion` | read + propose only |
+| Daily brief | System | [daily-brief](cross-business/daily-brief.md) | `forge rei/daily_brief.py` | off (`FORGE_BRIEFS=0`) | outbound only | `briefs` → Orion | operator Telegram only, $0 |
+| Daily recap | System | [daily-recap](cross-business/daily-recap.md) | `forge rei/daily_recap.py` | off (`FORGE_BRIEFS=0`) | outbound only | `briefs` → Orion | operator Telegram only, $0 |
 | skill_forge † | Cross | [skill-forge](cross-business/skill-forge.md) | `forge rei/skill_forge.py` | bus notifier | taps `skillgo`/`skillno` | — | proposes skills |
 | style_agent † | Wholesale voice | [style-agent](cross-business/style-agent.md) | `forge rei/style_agent.py` | systemd 20:00 ET | — | — | internal |
 | review_agent † | Wholesale playbook | [review-agent](cross-business/review-agent.md) | `forge rei/review_agent.py` | systemd Mon 08:00 + 20:00 ET | — | — | internal |
