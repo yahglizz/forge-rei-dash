@@ -47,14 +47,26 @@ HERE = Path(__file__).resolve().parent
 STATE = HERE / "marcus_state" / "daycare_replies.json"
 _LOCK = threading.Lock()
 
-INTERVAL = int(os.environ.get("FORGE_DAYCARE_REPLIES_INTERVAL", "300"))
+# Speed-to-lead target: a parent who texts gets a real answer inside ~5 min — never instant
+# (a bot tell), never the old 5-10 min. Sweep every 60 s; a fresh inbound waits GRACE_SEC so a
+# GHL workflow's stop-on-response or a person typing live is never raced.
+INTERVAL = int(os.environ.get("FORGE_DAYCARE_REPLIES_INTERVAL", "60"))
 MODEL = os.environ.get("FORGE_DAYCARE_REPLY_MODEL", review_agent.SMART_MODEL)
-GRACE_SEC = int(os.environ.get("FORGE_DAYCARE_REPLY_GRACE_MIN", "5")) * 60
+GRACE_SEC = int(os.environ.get("FORGE_DAYCARE_REPLY_GRACE_SEC", "90"))
 MAX_DRAFTS = int(os.environ.get("FORGE_DAYCARE_REPLY_MAX", "8"))   # Claude calls per sweep
 MAX_READS = 40                         # thread GETs per sweep
-STL_WAIT_SEC = 15 * 60                 # speed-to-lead tag on, nothing sent yet: workflow pending
+STL_WAIT_SEC = 6 * 60                  # speed-to-lead tag on, nothing sent yet: workflow pending
 LOOKBACK_SEC = 7 * 86400               # older unanswered texts are the Lead Desk's problem
 KEEP_SEC = 30 * 86400                  # prune closed drafts after this
+
+# AUTO-SEND (operator opt-in, default OFF — CLAUDE.md rule 2 exception). When on, ONLY a
+# plain enrollment-lead question/answer that passes every check below goes out by itself;
+# everything else stays a draft for the owner's tap.
+AUTO = os.environ.get("FORGE_DAYCARE_REPLY_AUTO", "0") == "1"
+AUTO_CAP = int(os.environ.get("FORGE_DAYCARE_AUTO_CAP", "30"))            # auto sends per ET day
+AUTO_PER_CONTACT = 3                                                      # per contact per 24 h
+AUTO_MAX_AGE_SEC = 12 * 3600                                              # don't text a stale draft
+AUTO_SAFE_CATEGORIES = {"tour", "subsidy", "availability", "enroll", "pricing"}
 
 STL_TAGS = {"speed-to-lead-trigger", "speed-to-lead-trigger-amt"}
 # Carrier / GHL keyword auto-replies own these words — never answer them.
@@ -148,6 +160,62 @@ def flags(draft):
     return f
 
 
+def auto_eligible(res, kind):
+    """Pure: may this draft go out without the owner's tap? Only a clean, plain answer to
+    an enrollment LEAD — never an escalation, an enrolled family, a flagged draft
+    (phone/$/emoji/long), or a category outside the safe set (no safety/billing/custody)."""
+    return bool(kind == "lead" and res.get("action") == "draft" and (res.get("draft") or "").strip()
+                and res.get("category") in AUTO_SAFE_CATEGORIES and not res.get("flags"))
+
+
+def _et_day(ts):
+    return datetime.fromtimestamp(ts, daycare_leads.ET).strftime("%Y-%m-%d")
+
+
+def auto_send(client, now=None):
+    """Send pending auto-eligible drafts through approve() — the same live re-check,
+    opt-out, DND-window gates as the owner's tap. Returns {sent, skipped}. Every send is
+    capped, per-contact limited, action-logged and Telegram-receipted; forge_ops.paused()
+    or FORGE_DAYCARE_REPLY_AUTO=0 stops it instantly."""
+    now = now or time.time()
+    if not AUTO or forge_ops.paused() or not daycare_leads.in_hours(now):
+        return {"sent": 0, "skipped": "off_or_outside_hours"}
+    st = _load()
+    log = [t for t in (st.get("autoLog") or []) if now - t["t"] < 86400]
+    today = _et_day(now)
+    sent = 0
+    for cid, d in list((st.get("drafts") or {}).items()):
+        if d.get("status") != "pending" or not d.get("autoEligible"):
+            continue
+        if now * 1000 - (d.get("createdAt") or 0) > AUTO_MAX_AGE_SEC * 1000:
+            continue                                         # stale — owner decides
+        if sum(1 for t in log if _et_day(t["t"]) == today) >= AUTO_CAP:
+            break
+        if sum(1 for t in log if t["cid"] == cid) >= AUTO_PER_CONTACT:
+            continue
+        ct = _contact(client, cid)
+        if ct.get("dnd"):
+            continue
+        res = approve(client, cid, now=now, auto=True)
+        if res.get("ok"):
+            sent += 1
+            log.append({"t": now, "cid": cid})
+            try:
+                import telegram_io
+                who = d.get("parentName") or "a parent"
+                telegram_io.send_biz("daycare", f"🤖 Solomon texted {who} ({d.get('center') or 'center ?'}) "
+                                     f"{int(now - (d.get('inboundAt') or 0) / 1000)}s after their message:\n"
+                                     f"“{(d.get('draft') or '')[:300]}”\nReply in GHL to take over — "
+                                     f"auto-send respects it.")
+            except Exception:  # noqa: BLE001 — a receipt failure never blocks
+                pass
+    with _LOCK:
+        st = _load()
+        st["autoLog"] = log
+        _save(st)
+    return {"sent": sent}
+
+
 def _center(tags):
     loc = next((t for t in sorted(tags) if t.startswith("loc-")), "")
     label = daycare_leads.CENTER_LABEL.get(loc, "")
@@ -179,6 +247,31 @@ def _system():
             + "\n\n=== HOW ATOB TEXTS (voice) ===\n" + voice)
 
 
+def _form_facts(contact, now):
+    """What the enrollment form already told us — so the desk never re-asks it."""
+    cf = daycare_ghl._cf_map(contact or {})
+    out = []
+    dob = str(cf.get(daycare_ghl.CF_CHILD_DOB) or "").strip()
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y"):
+        try:
+            b = datetime.strptime(dob[:10], fmt).date()
+            t = datetime.fromtimestamp(now, daycare_leads.ET).date()
+            m = (t.year - b.year) * 12 + (t.month - b.month) - (t.day < b.day)
+            if 0 <= m < 240:
+                out.append(f"Child age: {m} months" if m < 36 else f"Child age: {m // 12} years")
+            break
+        except ValueError:
+            continue
+    try:
+        import daycare_starts
+        f = daycare_starts.form_date(contact or {}, now)
+        if f:
+            out.append(f"Desired start date (form): {f['date']}")
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
 def _prompt(contact, ev, now):
     fam = daycare_ghl._family_from_contact(contact) if contact else {}
     tags = {str(t).strip().lower() for t in (contact.get("tags") or [])}
@@ -194,7 +287,10 @@ def _prompt(contact, ev, now):
             f"Contact type: {kind}\n"
             f"Parent first name: {fam.get('parent_first') or 'Unknown'}\n"
             f"Child first name: {fam.get('child_first') or 'Unknown'}\n"
-            f"Center: {label or 'Unknown'} — sign as: {brand or 'Unknown (ask which center)'}\n\n"
+            f"Center: {label or 'Unknown'} — sign as: {brand or 'Unknown (ask which center)'}\n"
+            + ("Already known from the enrollment form (NEVER ask these again): "
+               + "; ".join(_form_facts(contact, now)) + "\n" if _form_facts(contact, now) else "")
+            + f"Texts we have already sent this family: {sum(1 for e in ev if e['dir'] == 'outbound')}\n\n"
             "Thread, oldest first (the last PARENT line is what you are answering):\n"
             + "\n".join(lines)
             + "\n\nReturn the JSON object from section 4 of the rubric. Nothing else.")
@@ -234,12 +330,15 @@ def _save(st):
     forge_atomic.atomic_write_json(STATE, st)
 
 
-def view():
+def view(now=None):
     """GET /api/daycare/replies — state only, no network."""
     st = _load()
     rows = sorted((st.get("drafts") or {}).values(), key=lambda d: -(d.get("inboundAt") or 0))
     pending = [d for d in rows if d.get("status") == "pending"]
+    today = _et_day(now or time.time())
     return {"ok": True, "model": MODEL, "pending": pending,
+            "auto": {"on": AUTO, "cap": AUTO_CAP,
+                     "sentToday": sum(1 for t in (st.get("autoLog") or []) if _et_day(t["t"]) == today)},
             "recent": [d for d in rows if d.get("status") != "pending"][:20],
             "lastRunAt": st.get("lastRunAt"), "lastSweep": st.get("lastSweep"),
             "error": st.get("error") or (None if st.get("lastRunAt") else
@@ -282,6 +381,10 @@ def run_once(client, now=None, drafter=None):
             continue
         if now - last_at > LOOKBACK_SEC:
             continue
+        done = drafts.get(cid)
+        if done and (done.get("inboundAt") or 0) >= int(last_at * 1000) - 2000:
+            held["already_drafted"] = held.get("already_drafted", 0) + 1
+            continue                          # same inbound already drafted/closed — no GETs
         if reads >= MAX_READS or drafted >= MAX_DRAFTS:
             held["cap"] = held.get("cap", 0) + 1
             continue
@@ -308,7 +411,10 @@ def run_once(client, now=None, drafter=None):
             drafted += 1
             label, brand = _center({str(t).strip().lower() for t in contact.get("tags") or []})
             fam = daycare_ghl._family_from_contact(contact)
+            kind = ("family" if {str(t).strip().lower() for t in contact.get("tags") or []}
+                    & daycare_leads.FAMILY_TAGS else "lead")
             drafts[cid] = {
+                "kind": kind, "autoEligible": auto_eligible(res, kind),
                 "contactId": cid, "conversationId": conv.get("id"),
                 "parentName": fam.get("parent_first") or "", "center": label, "brand": brand,
                 "inboundId": last_in["id"], "inboundAt": int(last_in["t"] * 1000),
@@ -337,6 +443,10 @@ def run_once(client, now=None, drafter=None):
                   error=ai_err or (f"{errors} thread(s) failed" if errors else None))
         _save(st)
     print(f"[daycare_replies] sweep: {drafted} drafted, {reads} read, held={held}")
+    try:
+        summary["auto"] = auto_send(client, now)
+    except Exception as e:  # noqa: BLE001 — auto-send failing must never fail the sweep
+        print(f"[daycare_replies] auto_send: {type(e).__name__}: {str(e)[:160]}")
     return {"ok": True, **summary, "error": ai_err}
 
 
@@ -360,8 +470,9 @@ def dismiss(contact_id):
     return {"ok": True, "contactId": cid, "status": "dismissed"}
 
 
-def approve(client, contact_id, text=None, now=None):
-    """The owner's tap: re-check the LIVE thread, then send exactly one SMS."""
+def approve(client, contact_id, text=None, now=None, auto=False):
+    """The owner's tap (or, with auto=True, auto_send()): re-check the LIVE thread, then
+    send exactly one SMS."""
     now = now or time.time()
     cid = str(contact_id or "").strip()
     d = (_load().get("drafts") or {}).get(cid)
@@ -383,13 +494,14 @@ def approve(client, contact_id, text=None, now=None):
     res = daycare_ghl.send_sms(client, contact_id=cid, message=body)
     try:
         import action_log
-        action_log.record("solomon", "daycare_reply_send", business="daycare", trigger="owner_tap",
+        action_log.record("solomon", "daycare_reply_send", business="daycare",
+                          trigger="auto_safe" if auto else "owner_tap",
                           ref=cid, result="sent" if res.get("ok") else "failed",
-                          ok=bool(res.get("ok")), approval_required=True)
+                          ok=bool(res.get("ok")), approval_required=not auto)
     except Exception:  # noqa: BLE001 — the log never blocks a send
         pass
     if res.get("ok"):
-        _close(cid, "sent", sentText=body, edited=body != d.get("draft"))
+        _close(cid, "sent", sentText=body, edited=body != d.get("draft"), auto=bool(auto))
     return res
 
 
