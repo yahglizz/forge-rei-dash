@@ -1853,6 +1853,10 @@ def _contract_poll_forever():
 
 
 _WATCHDOG_STATE = {}   # loop -> last status we alerted on (transition-based dedupe)
+# Loop-down / recovered alerts go to the owning business's own Telegram chat, not HQ
+# (2026-09-30: Solomon's lanes were spamming the main chat). Unlisted loops stay in HQ.
+_WATCHDOG_BIZ = {"solomon": "daycare", "daycare_replies": "daycare",
+                 "daycare_leads": "daycare", "daycare_starts": "daycare"}
 
 
 def _watchdog_forever():
@@ -1915,7 +1919,8 @@ def _watchdog_forever():
                     txt = (f"🔴 {l.get('label') or loop} is DOWN ({why})."
                            + (f" Last error: {err}" if err else ""))
                     try:
-                        telegram_io.send(txt, dedupe_key=f"watchdog:{loop}")
+                        telegram_io.send(txt, dedupe_key=f"watchdog:{loop}",
+                                         business=_WATCHDOG_BIZ.get(loop))
                     except Exception:
                         pass
                     try:
@@ -1927,7 +1932,8 @@ def _watchdog_forever():
                 elif status != "red" and prev == "red":
                     txt = f"🟢 {l.get('label') or loop} recovered — heartbeat is fresh again."
                     try:
-                        telegram_io.send(txt, dedupe_key=f"watchdog-ok:{loop}")
+                        telegram_io.send(txt, dedupe_key=f"watchdog-ok:{loop}",
+                                         business=_WATCHDOG_BIZ.get(loop))
                     except Exception:
                         pass
                     try:

@@ -70,3 +70,8 @@ print("ok — center labels line up")
 assert 'GROWTH_SINCE' in inspect.getsource(dd.SolomonEngine._recent_brain_context)
 assert "brief-2026-08-01"[6:16] < dd.GROWTH_SINCE
 print("ok — stale compliance briefs stay out")
+
+# Solomon's loop-down alerts go to the daycare chat, never HQ (source check — connector is heavy).
+_src = open("connector.py").read()
+assert '"daycare_replies": "daycare"' in _src and "business=_WATCHDOG_BIZ.get(loop)" in _src
+print("ok — Solomon alerts routed to the daycare chat")
