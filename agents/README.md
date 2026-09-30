@@ -126,7 +126,7 @@ Follow-up, ACE, Autopilot and the briefs are **not** reachable as Telegram chat 
 - `/api/hub/task` → `agents_hub.send_task`: `marcus_state/hub_tasks.json` + bus `task` message
   (+ agency board for Dyson/Eco).
 - `/api/office/task` (Agent Office) → `send_task` + a background `agents_hub.chat` run. The floor has
-  7 characters: marcus, scout, atlas, dyson, eco, solomon, midas (`pixel_office.py:37`).
+  7 characters: marcus, scout, atlas, dyson, eco, solomon, midas (`agent_office.py:37`).
 - Agent Control Center: `/api/agents/registry` (`agents_hub.registry`).
 
 ### 5. Bus roles and tasks
@@ -162,7 +162,7 @@ Docs-only pass — none of these were fixed.
 
 **Doc claims that don't match code**
 1. `CLAUDE.md` §9 says "`/task orion …` still reaches them" (Orion and the briefs). False: `/task` always files for the active Telegram agent (`telegram_io.py:919-934`) and there is no `/orion` alias or trigger word (`telegram_io.py:670-683`). Orion is reachable only from the dashboard.
-2. `CLAUDE.md` §9 Agent Office: "twelve agents as pixel characters" and "`analyze`/`build_brief` for the dropship four". The floor has 7 agents (`pixel_office.py:37-46`) and every task runs through `agents_hub.chat` (`pixel_office.py:284-295`).
+2. `CLAUDE.md` §9 Agent Office: "twelve agents as pixel characters" and "`analyze`/`build_brief` for the dropship four". The floor has 7 agents (`agent_office.py:37-46`) and every task runs through `agents_hub.chat` (`agent_office.py:284-295`).
 3. `CLAUDE.md` §4a/§10: Solomon has 5 top skills, not 4 — `solomon-systems-craft.md` is also loaded (`daycare_director.py:228-230`). And "one brief, one Claude call": a brief is 2 calls (competitor read `agency_eco.py:382` + brief `daycare_director.py:615`).
 4. `CLAUDE.md` §4a table: the wholesale creed file lives only in `forge-scout/skills/`, not `forge-marcus/skills/` (still loads — `agent_creed` searches both).
 5. `CLAUDE.md` §2 ACE: "One POST (`/api/ace/mode`) … only the operator flips it". Telegram `/ace <mode>` also flips it (`telegram_io.py:866`), and the POST has only network/Host/same-origin checks (`connector.py:3240-3246`). "After every Scout auto-screen": also after a manual `/api/screening/run` (`connector.py:3745`). "Capped 3/10": questions are really 2/9 (`FORGE_ACE_PIVOT_RESERVE`, `ace.py:53`, `:83-89`).

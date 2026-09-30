@@ -1,4 +1,4 @@
-"""pixel_office.py — the visual floor: every FORGE agent as a live character at a desk.
+"""agent_office.py — the visual floor: every FORGE agent as a live character at a desk.
 
 Inspired by pixel-agents (github.com/pixel-agents-hq/pixel-agents), which draws Claude
 Code sessions as pixel characters in an office. That project is a Vite/React-19 +
@@ -513,7 +513,7 @@ def _selfcheck():
     stale = _activity("zzz", {"zzz": (now - REPORTING_WINDOW_MS - 1, "old")}, {}, now)
     assert stale["activity"] == "idle", stale
 
-    tmp = _P(tempfile.mkdtemp(prefix="pixel_office_test_"))
+    tmp = _P(tempfile.mkdtemp(prefix="agent_office_test_"))
     import agents_hub
     import agent_bus
     agents_hub.TASKS = tmp / "hub_tasks.json"
@@ -570,7 +570,7 @@ def _selfcheck():
 
     assert dispatch("nobody", "x").get("error") == "unknown agent"
     assert dispatch("scout", "").get("error")
-    print("pixel_office selfcheck OK")
+    print("agent_office selfcheck OK")
 
 
 if __name__ == "__main__":

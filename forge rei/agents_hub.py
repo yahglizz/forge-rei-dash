@@ -64,7 +64,7 @@ BUSINESS = {
 }
 
 # THE roster — the one source for the hub, the Agent Control Center (registry()), the
-# Agent Office floor (pixel_office reads it) and the task store.
+# Agent Office floor (agent_office reads it) and the task store.
 #
 # Agent Control Center fields (spec §9), all optional:
 #   hb       forge_heartbeat loop key(s): liveness, last run, errors
@@ -340,8 +340,8 @@ def _director_chat(agent_id, message, history):
 
     if agent_id == "orion":
         try:
-            import pixel_office
-            live += "\n\n=== LIVE OFFICE / TEAM REPORTS ===\n" + json.dumps(pixel_office.state(), default=str)[:9000]
+            import agent_office
+            live += "\n\n=== LIVE OFFICE / TEAM REPORTS ===\n" + json.dumps(agent_office.state(), default=str)[:9000]
         except Exception:
             live += "\nLive office is unreachable; do not invent team activity."
 
@@ -653,8 +653,8 @@ def _archived(business):
 def _running_jobs():
     """agent_id -> title of its running Agent Office job (in-memory, this process)."""
     try:
-        import pixel_office
-        return {j["agentId"]: j["title"] for j in pixel_office.jobs(limit=60)["jobs"]
+        import agent_office
+        return {j["agentId"]: j["title"] for j in agent_office.jobs(limit=60)["jobs"]
                 if j.get("status") == "running"}
     except Exception:
         return {}

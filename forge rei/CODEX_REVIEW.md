@@ -24,7 +24,7 @@ Typed Orion chat reuses `/api/hub/chat`; browser dictation and speech synthesis 
 `/api/office/plan` returns validated proposals only, using active department agents. The owner
 reviews the exact assignments and taps Approve & assign; existing office jobs run each real
 brain and post Orion handoffs/completion receipts. No new outward-action autonomy. Chat now
-includes live office status and agent-bus reports. Check: `FORGE_MARCUS=0 python3 pixel_office.py`.
+includes live office status and agent-bus reports. Check: `FORGE_MARCUS=0 python3 agent_office.py`.
 
 ### The one send gate
 `sms_guard.py` — ONE `guard()` in front of every outbound SMS: TCPA 9–8 ET hours, daily cap +

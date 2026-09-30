@@ -124,7 +124,7 @@ Mechanism: *[wave 1]* `business_scope.py` (plan was [FORGE_AUTOMATION_PLAN.md](F
 ## 9. Technical debt (ranked)
 
 1. **AI brains down since 2026-08-01** — Anthropic credit balance exhausted; every Claude call 400s. Heartbeats wrap loops, not Claude calls, so health stays green → blind for 51 days.
-2. **Phantom connector module** — `agents_hub.py:107` / `pixel_office.py:102` `import connector` while it runs as `__main__` → a second copy re-registers Telegram action callbacks onto stale engine objects. Risk: approve taps on the wrong objects, stale overwrites of `scout.json`. **Fixed in WP-A** (`sys.modules.setdefault("connector", …)` alias at the top of `connector.py`; a test pins the two importers).
+2. **Phantom connector module** — `agents_hub.py:107` / `agent_office.py:102` `import connector` while it runs as `__main__` → a second copy re-registers Telegram action callbacks onto stale engine objects. Risk: approve taps on the wrong objects, stale overwrites of `scout.json`. **Fixed in WP-A** (`sys.modules.setdefault("connector", …)` alias at the top of `connector.py`; a test pins the two importers).
 3. ~~No agent registry~~ *[wave 1]* `agents_hub.registry()` (`/api/agents/registry`, 12 rows / 8 brains) is the roster; heartbeats now carry `lastSuccessAt` / `errorsTotal`. Some older agent lists still duplicate it.
 4. **No generic approval queue** — 10 separate queues; only Agency has an "Approvals" page.
 5. **No durable agent action log** (spec §10) — bus capped at 200, per-engine activity lists in memory.

@@ -83,7 +83,7 @@ is recorded at both Claude call sites; `agents_hub.registry()` serves all of it 
 
 | Spec status | Source |
 |---|---|
-| RUNNING | heartbeat fresh + pixel_office job running |
+| RUNNING | heartbeat fresh + agent_office job running |
 | IDLE | heartbeat fresh, no job |
 | WAITING FOR APPROVAL | pending items in that agent's queue (Marcus proposals, Scout pending tags, agency approvals, skill_forge) |
 | DEGRADED | errStreak ≥ 1, or the agent uses Claude and `forge_heartbeat.ai_health().hard` |

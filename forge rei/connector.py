@@ -27,7 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # --- WP-A --- phantom-module guard. systemd runs `python3 -u connector.py`, so this file
-# is `__main__`; agents_hub._engine / pixel_office._engine do `import connector` and would
+# is `__main__`; agents_hub._engine / agent_office._engine do `import connector` and would
 # load a SECOND copy — re-running every engine constructor and re-registering the Telegram
 # action handlers (telegram_io.set_actions / telegram_ops.register) onto stale objects.
 # Alias BEFORE any project import so they get THIS instance. No-op when imported normally
@@ -1130,21 +1130,21 @@ def api_hub_history(q):
     return {"messages": agents_history.history(agent).get("history") or []}
 
 
-# ── Agent Office — the visual floor (pixel_office.py). Read-only reads of what every
+# ── Agent Office — the visual floor (agent_office.py). Read-only reads of what every
 # agent is doing; the task POST below is what actually puts one to work.
 def api_office_state(q):
-    import pixel_office
-    return pixel_office.state((q.get("business", [None]) or [None])[0])
+    import agent_office
+    return agent_office.state((q.get("business", [None]) or [None])[0])
 
 
 def api_office_job(q):
-    import pixel_office
-    return pixel_office.job((q.get("id", [""]) or [""])[0])
+    import agent_office
+    return agent_office.job((q.get("id", [""]) or [""])[0])
 
 
 def api_office_jobs(q):
-    import pixel_office
-    return pixel_office.jobs((q.get("business", [None]) or [None])[0])
+    import agent_office
+    return agent_office.jobs((q.get("business", [None]) or [None])[0])
 
 
 # Cross-agent coaching — the live feed powering the Agent Network's Coaching panel.
@@ -3560,8 +3560,8 @@ class Handler(BaseHTTPRequestHandler):
                 # The Agent Office floor: file the task AND actually run that agent's
                 # real brain in the background so the operator watches it happen.
                 # chat_fn is the hub chat bound to THIS GHL sub-account (same pattern as
-                # /api/coach/ask) — pixel_office stays connector-free.
-                import pixel_office
+                # /api/coach/ask) — agent_office stays connector-free.
+                import agent_office
 
                 def _office_chat(_aid, _msg):
                     out = agents_hub.chat(ghl_get, LOCATION_ID, _aid, _msg,
@@ -3571,9 +3571,9 @@ class Handler(BaseHTTPRequestHandler):
                     return out
 
                 if parsed.path == "/api/office/plan":
-                    result = pixel_office.plan(body.get("message"), _office_chat)
+                    result = agent_office.plan(body.get("message"), _office_chat)
                 else:
-                    result = pixel_office.dispatch(body.get("agentId"), body.get("title"),
+                    result = agent_office.dispatch(body.get("agentId"), body.get("title"),
                                                    body.get("note", ""), chat_fn=_office_chat,
                                                    directed_by=body.get("directedBy", ""))
             elif parsed.path == "/api/graphify/rebuild":

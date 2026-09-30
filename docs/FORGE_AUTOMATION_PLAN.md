@@ -42,7 +42,7 @@ Priority key: **P0** foundation/critical · **P1** required automation · **P2**
 | P0-2 | Brain API served `vault/.env` (GitHub PAT) to tailnet | lead | **fixed + deployed** (`brain_io.read_note` md-only). OWNER: rotate that PAT; delete `vault/.env` (unused on box). |
 | P0-3 | **AI health visible** — heartbeat `lastSuccessAt` / `errorsTotal` / `lastError`; `_claude` records a global AI-health signal (billing/auth errors); `/api/system/health` exposes it; watchdog Telegram-alerts once when AI goes down / recovers | WP-A | **built** (per-key hard-down) |
 | P0-4 | **Solomon retry storm** — exponential backoff on failed brief; treat invalid Meta token as "not connected" instead of hitting Meta every 15 min | WP-A | **built** |
-| P0-5 | **Phantom `connector` module** (`agents_hub.py:107`, `pixel_office.py:102` re-import the running `__main__`) → stale Telegram action handlers / double writers | WP-A (+ Codex review) | **built** (`sys.modules` alias) |
+| P0-5 | **Phantom `connector` module** (`agents_hub.py:107`, `agent_office.py:102` re-import the running `__main__`) → stale Telegram action handlers / double writers | WP-A (+ Codex review) | **built** (`sys.modules` alias) |
 | P0-6 | **Backups** — nightly tar of `marcus_state/`, vault, configs → `/root/backups` (7-day rotation). Off-box copy / DO backups = owner decision (~$1–2/mo) | WP-F | **done on box** (`forge-backup.timer` 03:30 ET) |
 | P0-7 | Box hygiene — journald cap + vacuum, stale logs, apt clean, env files `600 root`, `forge-review.timer` quoting fix, archive-then-remove dead items, kernel reboot | WP-F | **done** (22%→17% disk, journal 1.2G→161M, kernel 6.8.0-139) |
 | P0-8 | Daycare compliance items in the private brand-kit compliance audit (licensing + staffing) outrank any daycare growth build | **OWNER** | open |
@@ -88,7 +88,7 @@ checks every work package against the spec, CLAUDE.md rules and these docs befor
 | WP | Scope | Model | Owns files (others must not edit) |
 |---|---|---|---|
 | **WP-A** | P0-3, P0-4, P0-5 | Fable | `forge_heartbeat.py`, `review_agent.py`, `daycare_director.py`, `connector.py` (top-of-file module alias + watchdog + `/api/system/health` only), `agency_ads.py` (Meta auth cache), `marcus_engine.py` (`_ai_draft` AI-health hunk), new tests |
-| **WP-B** | P1-1 | Opus | new `business_scope.py`, `app.jsx`, `shell.jsx`, new `archived.jsx`, `mission_control.py`, `mission_control_agent.py`, `pixel_office.py`, `agent_coach.py`, `FORGE REI OS.html`; connector routes block B |
+| **WP-B** | P1-1 | Opus | new `business_scope.py`, `app.jsx`, `shell.jsx`, new `archived.jsx`, `mission_control.py`, `mission_control_agent.py`, `agent_office.py`, `agent_coach.py`, `FORGE REI OS.html`; connector routes block B |
 | **WP-C** | P1-2 | Fable | new `owner_actions.py`, `mission_control.jsx`, new `owner_actions.jsx`; connector routes block C |
 | **WP-D** | P1-3 | Opus | `agents_hub.py`, `agents_hub.jsx`, new `agent_center.jsx` (reached from Mission Control / `forgeOpenView("agents")`, no nav entry), registry code in `agents_hub.py`; connector routes block D |
 | **WP-E** | P1-4 | Opus | new `daycare_leads.py`, `daycare.jsx` (dashboard card only), `daycare_director.py` **only** a `_gather_leads` hook (coordinate with WP-A via small, separate hunk); connector daycare route + loop start |

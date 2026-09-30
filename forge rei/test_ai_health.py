@@ -552,7 +552,7 @@ class PhantomConnectorTest(unittest.TestCase):
                 continue
             if stmt.search(p.read_text()):
                 offenders.append(p.name)
-        self.assertEqual(sorted(offenders), ["agents_hub.py", "pixel_office.py"])
+        self.assertEqual(sorted(offenders), ["agent_office.py", "agents_hub.py"])
 
 
 class SystemHealthRouteTest(unittest.TestCase):
