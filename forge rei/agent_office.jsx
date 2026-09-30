@@ -41,7 +41,7 @@ function aoAgo(ts, now) {
 
 // ── the agent panel: status, live step log, and the task box ─────────────────
 function AgentOfficeTaskPanel({ agent, job, onDispatch, sending, err }) {
-  const [title, setTitle] = useStatePO("");
+  const [title, setTitle] = useStateAO("");
   const Icons = window.Icons;
   if (!agent) {
     return (
