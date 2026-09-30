@@ -160,8 +160,8 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
   }
 
   // ── camera: drag to orbit, wheel to zoom; "focus" follows the selected agent ─────
-  const orbit = { az: Math.atan2(11, 16), el: Math.asin(11 / Math.hypot(11, 11, 16)), r: Math.hypot(11, 11, 16) };
-  const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(0, .8, 0);
+  const orbit = { az: Math.atan2(11, 16), el: Math.asin(11 / Math.hypot(11, 11, 16)), r: 17.5 };
+  const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(0, .3, .4);
   let camReady = false, drag = null;
   const ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
   function pick(event) {
@@ -294,7 +294,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       const p = selected && selected.group.visible ? selected.group.position : orion.position;
       wantPos = new THREE.Vector3(p.x + (selected ? 1.8 : 2.8), selected ? 1.9 : 2.8, p.z + (selected ? 3 : 4.8)); wantLook = new THREE.Vector3(p.x, selected ? .8 : 1.3, p.z);
     } else {
-      wantPos = new THREE.Vector3(Math.sin(orbit.az) * Math.cos(orbit.el) * orbit.r, Math.sin(orbit.el) * orbit.r, Math.cos(orbit.az) * Math.cos(orbit.el) * orbit.r); wantLook = new THREE.Vector3(0, .8, 0);
+      wantPos = new THREE.Vector3(Math.sin(orbit.az) * Math.cos(orbit.el) * orbit.r, Math.sin(orbit.el) * orbit.r, Math.cos(orbit.az) * Math.cos(orbit.el) * orbit.r); wantLook = new THREE.Vector3(0, .3, .4);
     }
     if (!camReady || reduced) { camPos.copy(wantPos); camLook.copy(wantLook); camReady = true; }
     else { const k = 1 - Math.pow(.0015, dt); camPos.lerp(wantPos, k); camLook.lerp(wantLook, k); }
