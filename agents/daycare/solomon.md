@@ -21,7 +21,7 @@ its own card; both were folded in here.
 | | |
 |---|---|
 | Business | Daycare (A Touch of Blessings) · hub id `solomon` · emoji 🏛️ |
-| Job | Reads the whole center and writes ONE ranked operating brief: Attention Now, Enrollment, Money, People, Roster, Follow-ups, Campaign health, Competitor read, Creative, Delegations. Owns enrollment. Absorbed Nora + Nova (2026-07-25), then the Reply Desk + Lead Desk as his Replies + Leads lanes (2026-09-24). |
+| Job | **Growth director (2026-09-30: enrollment only — paperwork/compliance/billing/staff admin are not his lane).** Writes ONE ranked growth brief: Attention Now, Enrollment, Growth economics (`money`), Capacity to enroll (`people`), Seats (`roster`), Keep + refer (`followUps`), Campaign health, Competitor read, Creative, Delegations. Absorbed Nora + Nova (2026-07-25), then the Reply Desk + Lead Desk as his Replies + Leads lanes (2026-09-24). |
 | Engine | `forge rei/daycare_director.py` → `SolomonEngine` (`daycare_director.py:235`), connector global `SOLOMON` |
 | Seed folder | `forge-solomon/` (skills in `forge-solomon/skills/`) |
 
@@ -68,12 +68,12 @@ Lane routes: §10 (`/api/daycare/replies*`), §11 (`/api/daycare/leads*`). `repl
 `build_brief` (`daycare_director.py:555`):
 1. inline role + evidence rule (backstop) — names both live lanes; the brief itself never drafts family text
 2. `north_star`
-3. `daycare-context.md` [:3500] + `enrollment-ad-agent.md` [:4000] (`daycare_context.py`)
+3. `daycare-context.md` [:12000 — whole file; was 3500, which cut the offers/referral/CCIS angle] + `enrollment-ad-agent.md` [:4000] (`daycare_context.py`)
 4. creed `agent_creed.block("daycare")` → `daycare-evidence-discipline.md`
 5. TOP SKILLS (`TOP_SKILLS`, `:291`): `solomon-decision-loop.md`, `solomon-director-craft.md`, `solomon-systems-craft.md`, `solomon-roster-craft.md`, `solomon-adops-craft.md` (+ any other `solomon-*` non-playbook), seed then vault, never truncated
 6. PLAYBOOK (`_playbook_only`): seed `solomon-playbook.md` + vault `Skills/solomon-playbook.md` [:4000]
 7. last 2 vault `Reports/daycare/*.md` [:1200 each]
-8. user JSON: metrics, alerts, roster, blasts, opt-outs, campaign, competitor, busDelegations, connectedSystems (presence only), `leadDesk` (Solomon · Leads — KPIs + top 10 needs-human), `replyDesk` (Solomon · Replies — pending drafts, escalations, oldest pending age, last sweep, error)
+8. user JSON: metrics, alerts, roster (classrooms with `openSeats`, null = Unknown), blasts, opt-outs, campaign, competitor, busDelegations, connectedSystems (presence only), `leadDesk` (Solomon · Leads — KPIs + top 10 needs-human), `replyDesk` (Solomon · Replies — pending drafts, escalations, oldest pending age, last sweep, error), `startsDesk` (Solomon · Starts — start dates by status + next 10 upcoming)
 
 ## 4. Outputs / writes
 
