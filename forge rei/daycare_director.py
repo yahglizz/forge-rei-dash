@@ -39,6 +39,7 @@ key fallback, mtime-cached brain playbook, learn() self-improvement, agent_bus
 comms, background loop gated by FORGE_MARCUS so only the box runs it. State persists
 to marcus_state/solomon.json — no new database.
 """
+import datetime
 import json
 import os
 import threading
@@ -187,14 +188,27 @@ def starts_desk_state():
     }
 
 
-def _seat_row(r):
+def _age_months(birth_date, today=None):
+    """Whole months old from an ISO birth_date, or None when missing/garbled."""
+    try:
+        b = datetime.date.fromisoformat(str(birth_date)[:10])
+    except (TypeError, ValueError):
+        return None
+    t = today or datetime.date.today()
+    m = (t.year - b.year) * 12 + (t.month - b.month) - (t.day < b.day)
+    return m if 0 <= m < 240 else None
+
+
+def _seat_row(r, ages=None):
     """One classroom as inventory. openSeats only when capacity AND enrolled are real
-    numbers — otherwise None (Unknown), never a fake 0 or a fake vacancy."""
+    numbers — otherwise None (Unknown), never a fake 0 or a fake vacancy. agesMonths
+    (sorted, no names) lets the brief forecast who moves up a room and frees a seat."""
     cap, enr = r.get("capacity"), r.get("enrolled")
     known = isinstance(cap, (int, float)) and isinstance(enr, (int, float))
-    return {"name": r.get("name"), "capacity": cap, "enrolled": enr,
-            "ratio": r.get("ratio_children"),
-            "openSeats": max(0, int(cap - enr)) if known else None}
+    return {"name": r.get("name"), "ageGroup": r.get("age_group"), "capacity": cap,
+            "enrolled": enr, "ratio": r.get("ratio_children"),
+            "openSeats": max(0, int(cap - enr)) if known else None,
+            "agesMonths": sorted(ages) if ages else None}
 
 
 def top_skills_text():
@@ -520,10 +534,21 @@ class SolomonEngine:
             return {}, str(e)
         # Growth lens only (2026-09-30): seats are sellable inventory. The old
         # missing-guardian-contact audit was paperwork and is gone from the brief.
+        ages = {}   # classroom_id -> ages in months of active children (no names)
+        for c in children:
+            m = _age_months(c.get("birth_date")) if c.get("active") else None
+            if m is not None and c.get("classroom_id"):
+                ages.setdefault(str(c["classroom_id"]), []).append(m)
+        try:
+            center = (daycare_supabase.get_status(session).get("location") or {}).get("name")
+        except Exception:  # noqa: BLE001
+            center = None
         return {
+            "center": center,   # the roster is ONE center (the session's active location)
             "childrenActive": sum(1 for c in children if c.get("active")),
             "childrenTotal": len(children),
-            "classrooms": [_seat_row(r) for r in classrooms if r.get("active", True)],
+            "classrooms": [_seat_row(r, ages.get(str(r.get("id")))) for r in classrooms
+                           if r.get("active", True)],
         }, None
 
     def _gather_blasts(self):
@@ -676,7 +701,8 @@ class SolomonEngine:
         )
         live = {
             "metrics": metrics,
-            "alerts": alerts,
+            # growth lens: billing alerts are not his lane (capacity alerts stay — seats)
+            "alerts": [a for a in alerts if a.get("kind") != "billing"],
             "behaviorChart": behavior,
             "roster": roster,
             "recentBlasts": blasts,

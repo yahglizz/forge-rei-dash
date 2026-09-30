@@ -34,3 +34,11 @@ for rail in ("An open seat", "A start date", "Tuition, a rate", "What a family s
 # Starts desk summary never raises.
 assert isinstance(dd.starts_desk_state(), dict)
 print("ok — Solomon growth focus holds")
+
+# Age math for seat forecasting (months, day-of-month aware; junk → None).
+import datetime
+assert dd._age_months("2025-01-15", datetime.date(2026, 9, 30)) == 20
+assert dd._age_months("2025-01-31", datetime.date(2026, 9, 30)) == 19
+assert dd._age_months(None) is None and dd._age_months("garbage") is None
+assert dd._seat_row({"capacity": 8, "enrolled": 6}, [11, 4])["agesMonths"] == [4, 11]
+print("ok — seat forecasting data holds")
