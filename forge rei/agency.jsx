@@ -108,57 +108,94 @@ function AgGhlPanel() {
 // Sending a link charges nobody. There is no public webhook listener yet, so
 // Stripe emails the operator on the real subscribe and the client is marked
 // active by hand. The copy here must never imply money moved.
-function AgPayLink({ clientId, email }) {
+function AgPayLink({ clientId, email, phone, billing, dirty }) {
+  // Onboarding → payment. One Stripe key for the whole dashboard (stripe_links.py). Monthly care plan
+  // (recurring) or pay in full (one-time tier or custom amount). "Send to client" = the owner's tap
+  // (rule 2): emails and/or texts the link through the agency GHL. Nothing here charges anyone.
+  const [offers, setOffers] = useStateAg([]);
+  const [mode, setMode] = useStateAg("recurring");
+  const [offerId, setOfferId] = useStateAg("care-plan");
+  const [custom, setCustom] = useStateAg({ name: "", amount: "" });
+  const [ch, setCh] = useStateAg({ email: true, sms: false });
   const [url, setUrl] = useStateAg("");
   const [busy, setBusy] = useStateAg(false);
-  const [copied, setCopied] = useStateAg(false);
+  const [msg, setMsg] = useStateAg(null);
   const [err, setErr] = useStateAg(null);
+  useEffectAg(() => { window.apiGet("/api/stripe/offers").then((r) => setOffers((r && r.offers) || [])).catch(() => {}); }, []);
+  const list = offers.filter((o) => (mode === "recurring") === !!o.monthly);
+  useEffectAg(() => {
+    if (!list.length) return;
+    if (!list.some((o) => o.id === offerId)) setOfferId(list[0].id);
+  }, [mode, offers.length]);
+  const spec = offerId === "custom"
+    ? { mode, name: custom.name.trim() || "ClientForge services", amountUSD: Number(custom.amount) || 0 }
+    : { mode, offerId };
 
-  async function gen() {
+  async function run(send) {
     if (!clientId) { setErr("Save the client first"); return; }
-    setBusy(true); setErr(null);
+    if (dirty) { setErr("Save changes first so the link goes to the right email/phone"); return; }
+    if (offerId === "custom" && !(Number(custom.amount) >= 1)) { setErr("Enter an amount"); return; }
+    const channels = Object.keys(ch).filter((k) => ch[k]);
+    if (send) {
+      if (!channels.length) { setErr("Pick email and/or text"); return; }
+      const to = channels.map((c) => c === "email" ? (email || "(no email)") : (phone || "(no phone)")).join(" + ");
+      if (!window.confirm("Send this Stripe payment link to the client?\n\n" + to + "\n\nIt charges nothing until they pay.")) return;
+    }
+    setBusy(true); setErr(null); setMsg(null);
     try {
-      const q = "?clientId=" + encodeURIComponent(clientId)
-        + (email ? "&email=" + encodeURIComponent(email) : "");
-      const r = await window.apiGet("/api/agency/billing/link" + q);
-      if (r && r.ok && r.url) {
-        setUrl(r.url);
-        try { await navigator.clipboard.writeText(r.url); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch (e) {}
-      } else {
-        setErr((r && r.detail) || "Couldn't build the link");
-      }
+      const r = send
+        ? await window.apiPost("/api/agency/billing/send", { clientId, spec, channels })
+        : await window.apiPost("/api/stripe/link", { ...spec, business: "agency", reference: clientId, email });
+      if (r && r.url) setUrl(r.url);
+      if (r && r.ok) {
+        setMsg(send ? "Sent " + r.display + " via " + Object.keys(r.sent || {}).filter((k) => r.sent[k]).join(" + ") + " ✓" : r.display + " — link ready");
+        if (!send) { try { await navigator.clipboard.writeText(r.url); } catch (e) {} }
+      } else setErr((r && (r.detail || r.error)) || "Couldn't build the link");
     } catch (e) { setErr(e.message || "Failed"); }
     finally { setBusy(false); }
   }
   async function copy() {
-    if (!url) return;
-    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1600); }
-    catch (e) { window.prompt("Copy this link:", url); }
+    try { await navigator.clipboard.writeText(url); setMsg("Copied ✓"); } catch (e) { window.prompt("Copy this link:", url); }
   }
+  const pill = (on) => ({ fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 999, cursor: "pointer",
+    border: "1px solid " + (on ? "#0EA5E9" : "var(--border)"), color: on ? "#0EA5E9" : "var(--muted)", background: on ? "#0EA5E91f" : "transparent" });
 
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12, background: "var(--card-2)" }}>
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>💳 Care Plan payment link</div>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>💳 Payment link (Stripe)</div>
       <div className="faint" style={{ fontSize: 11, marginBottom: 10 }}>
-        $129/mo, 6-month minimum, build free. Text this to the client — it does not charge anyone.
-        Stripe emails you when they actually subscribe; mark them <b>active</b> then.
+        Monthly recurring or pay in full. Sending charges nobody — Stripe emails you when they pay; mark them <b>active</b> then.
       </div>
-      {!clientId && <div className="faint" style={{ fontSize: 12 }}>Save the client first, then generate their link.</div>}
-      {clientId && !url && (
-        <button className="tab" disabled={busy} onClick={gen}
-          style={{ background: "#0EA5E9", color: "#04202b", fontWeight: 700, borderColor: "transparent" }}>
-          {busy ? "Building…" : "Generate payment link"}
-        </button>
-      )}
-      {url && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <input readOnly value={url} onClick={(e) => e.target.select()} style={{ ...agInp, fontFamily: "var(--mono, monospace)", fontSize: 12 }} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="tab" onClick={copy} style={{ color: copied ? "var(--green)" : undefined }}>
-              {copied ? "Copied ✓" : "Copy link"}</button>
-          </div>
+      {!clientId && <div className="faint" style={{ fontSize: 12 }}>Save the client first, then send their link.</div>}
+      {clientId && <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        <div style={{ display: "flex", gap: 7 }}>
+          <button type="button" style={pill(mode === "recurring")} onClick={() => setMode("recurring")}>Monthly (recurring)</button>
+          <button type="button" style={pill(mode === "one_time")} onClick={() => setMode("one_time")}>Pay in full</button>
         </div>
-      )}
+        <select style={agInp} value={offerId} onChange={(e) => setOfferId(e.target.value)}>
+          {list.map((o) => <option key={o.id} value={o.id}>{o.name} — {o.display}{o.monthly ? "" : " (one-time)"}</option>)}
+          <option value="custom">Custom amount…</option>
+        </select>
+        {offerId === "custom" && <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8 }}>
+          <input style={agInp} value={custom.name} onChange={(e) => setCustom({ ...custom, name: e.target.value })} placeholder="What it's for (e.g. Website build — paid in full)" />
+          <input style={agInp} type="number" min="1" value={custom.amount} onChange={(e) => setCustom({ ...custom, amount: e.target.value })} placeholder={mode === "recurring" ? "$ / month" : "$ total"} />
+        </div>}
+        <div style={{ display: "flex", gap: 14, alignItems: "center", fontSize: 12 }}>
+          <label><input type="checkbox" checked={ch.email} onChange={(e) => setCh({ ...ch, email: e.target.checked })} /> Email {email ? "(" + email + ")" : "— add client email above"}</label>
+          <label><input type="checkbox" checked={ch.sms} onChange={(e) => setCh({ ...ch, sms: e.target.checked })} /> Text {phone ? "(" + phone + ")" : "— add phone"}</label>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="tab" disabled={busy} onClick={() => run(true)}
+            style={{ background: "#0EA5E9", color: "#04202b", fontWeight: 700, borderColor: "transparent" }}>
+            {busy ? "Working…" : "Send to client"}</button>
+          <button className="tab" disabled={busy} onClick={() => run(false)}>Just make link (copy)</button>
+          {url && <button className="tab" onClick={copy}>Copy link</button>}
+        </div>
+        {url && <input readOnly value={url} onClick={(e) => e.target.select()} style={{ ...agInp, fontFamily: "var(--mono, monospace)", fontSize: 12 }} />}
+        {billing && billing.sentAt && <div className="faint" style={{ fontSize: 11 }}>
+          Last sent: {billing.display} · {new Date(billing.sentAt).toLocaleString()} · {Object.keys(billing.sent || {}).filter((k) => billing.sent[k]).join(" + ") || "not delivered"}</div>}
+      </div>}
+      {msg && <div style={{ color: "var(--green)", fontSize: 12, marginTop: 8 }}>{msg}</div>}
       {err && <div style={{ color: "var(--red)", fontSize: 12, marginTop: 8 }}>{err}</div>}
     </div>
   );
@@ -280,7 +317,7 @@ function AgClientForm({ initial, defaults, onSaved, onCancel }) {
   // Onboarding block the client sees in their portal. status/sentAt/openedAt are
   // lifecycle fields — never hand-edited here, just carried through on save.
   const blankPortal = { welcome: "", scope: "", deliverables: "", contactEmail: "", contactPhone: "", startDate: "" };
-  const blank = { name: "", business: "", site: "", plan: "Growth", mrr: "", status: "lead", services: [], ghlContactId: "", notes: "", workspace: blankWs, portal: blankPortal };
+  const blank = { name: "", business: "", email: "", phone: "", site: "", plan: "Growth", mrr: "", status: "lead", services: [], ghlContactId: "", notes: "", workspace: blankWs, portal: blankPortal };
   const [f, setF] = useStateAg(initial ? { ...blank, ...initial, mrr: initial.mrr || "", services: initial.services || [], workspace: { ...blankWs, ...(initial.workspace || {}) }, portal: { ...blankPortal, ...(initial.portal || {}) } } : blank);
   const toggleSvc = (s) => setF((st) => ({ ...st, services: (st.services || []).includes(s)
     ? st.services.filter((x) => x !== s) : [...(st.services || []), s] }));
@@ -322,6 +359,10 @@ function AgClientForm({ initial, defaults, onSaved, onCancel }) {
           <input style={agInp} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Client / contact name" /></div>
         <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Business</div>
           <input style={agInp} value={f.business} onChange={(e) => set("business", e.target.value)} placeholder="Company" /></div>
+        <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Client email (payment link goes here)</div>
+          <input style={agInp} type="email" value={f.email || ""} onChange={(e) => set("email", e.target.value)} placeholder="owner@theirbusiness.com" /></div>
+        <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Client mobile</div>
+          <input style={agInp} type="tel" value={f.phone || ""} onChange={(e) => set("phone", e.target.value)} placeholder="(215) 555-0134" /></div>
         <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Website</div>
           <input style={agInp} value={f.site} onChange={(e) => set("site", e.target.value)} placeholder="example.com" /></div>
         <div><div className="faint" style={{ fontSize: 11, marginBottom: 5 }}>Plan</div>
@@ -412,10 +453,10 @@ function AgClientForm({ initial, defaults, onSaved, onCancel }) {
           <input style={agInp} value={f.portal.startDate} onChange={(e) => setPortal("startDate", e.target.value)} placeholder="Mar 3, 2026" /></div>
       </div>
       <AgPortalLink clientId={f.id} portal={f.portal} />
-      {/* No email prefill: portal.contactEmail is OUR contact address shown to the
-          client, not theirs — prefilling it would subscribe us to our own plan.
-          The client types their own email at Stripe, which is correct anyway. */}
-      <AgPayLink clientId={f.id} />
+      {/* Prefill uses the CLIENT's own email field (f.email) — never portal.contactEmail,
+          which is OUR address shown to them. */}
+      <AgPayLink clientId={f.id} email={initial && initial.email} phone={initial && initial.phone} billing={initial && initial.billing}
+        dirty={!!initial && ((f.email || "") !== (initial.email || "") || (f.phone || "") !== (initial.phone || ""))} />
       {err && <div style={{ color: "var(--red)", fontSize: 12.5 }}>{err}</div>}
       <div style={{ display: "flex", gap: 9, justifyContent: "flex-end" }}>
         <button className="tab" onClick={onCancel}>Cancel</button>

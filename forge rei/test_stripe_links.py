@@ -33,3 +33,28 @@ for bad in ({"name": "x", "amountUSD": 0}, {"name": "x", "amountUSD": 99999}, {"
     assert not stripe_links.create(bad)["ok"], bad
 assert stripe_links.offers()["offers"][0]["id"] == "care-plan"
 print("stripe links OK")
+
+# --- onboarding send: link built, GHL contact upserted, email (+sms) sent, billing recorded ---
+import tempfile, pathlib, agency_io, agency_billing
+agency_io.STATE = pathlib.Path(tempfile.mkdtemp()) / "agency.json"
+cid = agency_io.save_client({"name": "Dana Smith", "business": "Bloom Dental", "email": "dana@bloom.test", "phone": "(215) 555-0134"})["client"]["id"]
+class FakeGHL:
+    configured, location_id = True, "loc1"
+    def __init__(self): self.calls = []
+    def post(self, ep, body):
+        self.calls.append((ep, body))
+        return {"contact": {"id": "ghl_c1"}} if ep == "/contacts/upsert" else {"messageId": "m1"}
+g = FakeGHL()
+r = agency_billing.send_to_client(g, cid, {"mode": "one_time", "name": "Website build", "amountUSD": 774}, ["email", "sms"])
+assert r["ok"] and r["sent"] == {"email": True, "sms": True}, r
+assert [c[0] for c in g.calls] == ["/contacts/upsert", "/conversations/messages", "/conversations/messages"]
+assert g.calls[1][1]["type"] == "Email" and r["url"] in g.calls[1][1]["html"] and g.calls[2][1]["type"] == "SMS"
+assert "client_reference_id=" + cid in r["url"] and "prefilled_email=dana%40bloom.test" in r["url"]
+saved = agency_io.get_client(cid)
+assert saved["ghlContactId"] == "ghl_c1" and saved["billing"]["display"] == "$774.00 pay in full" and saved["email"] == "dana@bloom.test"
+g2 = FakeGHL(); r2 = agency_billing.send_to_client(g2, cid, {}, ["email"])       # default = care plan, reuses contact
+assert r2["ok"] and r2["display"].startswith("$129.00/mo") and g2.calls[0][0] == "/conversations/messages"
+agency_io.save_client({"id": cid, "name": "Dana Smith", "email": "", "phone": ""})
+assert not agency_billing.send_to_client(FakeGHL(), cid, {}, ["email"])["ok"]       # no email -> refuse
+assert not agency_billing.send_to_client(FakeGHL(), "nope", {}, ["email"])["ok"]
+print("agency onboarding send OK")
