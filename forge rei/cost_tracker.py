@@ -33,7 +33,8 @@ PRICES = (
     ("mythos", (10.0, 50.0)),
     ("opus-4-1", (15.0, 75.0)),
     ("opus", (5.0, 25.0)),
-    # Claude Sonnet 5 introductory API pricing is in effect through 2026-08-31.
+    # Sonnet 5 / 5.5: $2 / $10 (claude-api skill price table, cached 2026-09-25 — the intro note
+    # that said it ended 2026-08-31 was stale; re-check on the Anthropic pricing page).
     ("sonnet-5", (2.0, 10.0)),
     ("sonnet", (3.0, 15.0)),
     ("haiku", (1.0, 5.0)),

@@ -158,7 +158,7 @@ def _bus_index(limit=120):
         return {}
     out = {}
     for m in msgs:                      # newest first — first hit per sender wins
-        frm = m.get("from")
+        frm = LANE_OF.get(m.get("from"), m.get("from"))   # a lane's report is its main agent's
         if frm and frm not in out:
             out[frm] = (m.get("ts") or 0, (m.get("text") or "")[:160])
     return out
@@ -174,7 +174,8 @@ def _open_tasks():
     out = {}
     for t in rows:
         if t.get("status") == "open":
-            out[t.get("agentId")] = out.get(t.get("agentId"), 0) + 1
+            aid = LANE_OF.get(t.get("agentId"), t.get("agentId"))
+            out[aid] = out.get(aid, 0) + 1
     return out
 
 
@@ -189,14 +190,13 @@ def _engine_health(agent_id):
         return True, True, ""
     lanes = [l for l, m in LANE_OF.items() if m == agent_id and l in _ENGINE_ATTR]
     if lanes:   # Marcus: his own screening engine AND the Scout / Atlas lanes
-        worst = (True, True, "")
-        for aid in [agent_id] + lanes:
-            r = _engine_health_one(aid)
-            if not r[0] and not worst[0] is False:
-                worst = r if worst[1] else worst
+        results = [_engine_health_one(a) for a in [agent_id] + lanes]
+        for r in results:
             if r[0] and not r[1]:
-                return r
-        return worst
+                return r                      # a reachable engine that is unhealthy
+        if not any(r[0] for r in results):
+            return False, False, ""           # nothing reachable -> unknown, never idle
+        return True, True, ""
     return _engine_health_one(agent_id)
 
 
@@ -460,7 +460,7 @@ def dispatch(agent_id, title, note="", chat_fn=None, directed_by=""):
     if (not isinstance(agent_id, str) or not isinstance(title, str)
             or not isinstance(note, str) or directed_by not in ("", "orion")):
         return {"error": "invalid task"}
-    agent_id = agent_id.strip()
+    agent_id = LANE_OF.get(agent_id.strip(), agent_id.strip())   # lane id -> its main agent
     title = title.strip()
     if agent_id not in DEPT_OF:
         return {"error": "unknown agent"}
@@ -559,7 +559,7 @@ def _open_task_titles():
     out = {}
     for t in reversed(rows):
         if t.get("status") == "open" and t.get("title"):
-            out.setdefault(t.get("agentId"), []).append(t["title"])
+            out.setdefault(LANE_OF.get(t.get("agentId"), t.get("agentId")), []).append(t["title"])
     return out
 
 
@@ -664,6 +664,8 @@ def checkin(by="operator", only=None, floor=None):
     """Orion walks the floor and reviews the team. Read-only, zero Claude, recorded so the
     3D office can play the round. `only` = one agent's review (the auto check-in after a job)."""
     global _CSEQ
+    if only is not None:
+        only = LANE_OF.get(only, only)
     if by not in ("operator", "auto") or (only is not None and only not in DEPT_OF):
         return {"error": "invalid check-in"}
     rec = _build_checkin(by, only, floor or state())
@@ -703,6 +705,7 @@ def status_reply(agent_id):
 
 def chat(agent_id, message, chat_fn):
     """The agent's real brain when it answers; otherwise a clearly-labelled status reply."""
+    agent_id = LANE_OF.get(agent_id, agent_id)
     out = chat_fn(agent_id, message)
     ok = isinstance(out, dict) and out.get("reply") and not out.get("error") and not out.get("needsKey")
     if ok:
@@ -729,9 +732,10 @@ def _selfcheck():
     global AUTO_CHECKIN
     AUTO_CHECKIN = False   # state() would import the live connector; checks below are explicit
 
-    assert set(DEPT_OF) == {a for d in DEPARTMENTS for a in d["agents"]} | {"orion"}
-    # 7 after the 2026-07-25 consolidation (Nora/Nova/Hawk/Blaze/Otto retired).
-    assert len(DEPT_OF) == 8, DEPT_OF
+    assert set(DEPT_OF) == {a for d in DEPARTMENTS for a in d["agents"]} | {"orion"} | set(LANE_OF)
+    # 2026-09-30: ONE main agent per business + Orion (Scout/Atlas -> Marcus, Eco -> Dyson are lanes).
+    assert [a for d in DEPARTMENTS for a in d["agents"]] == ["marcus", "dyson", "solomon", "midas"]
+    assert all(DEPT_OF[l] == DEPT_OF[m] for l, m in LANE_OF.items())
     # Every agent on the floor must be reachable through agents_hub.chat — that's the
     # one path _run uses, so an agent missing from the hub roster would silently fall
     # through to "no brain wired" (which is how Midas ended up canned-replying).
@@ -754,7 +758,8 @@ def _selfcheck():
     agent_bus.STATE = tmp / "agent_bus.json"
 
     # full lifecycle through the real dispatch path
-    out = dispatch("scout", "Test task", chat_fn=lambda a, m: {"reply": "line one\nline two"})
+    out = dispatch("scout", "Test task"  # lane id: filed under its main agent, Marcus
+                   , chat_fn=lambda a, m: {"reply": "line one\nline two"})
     assert out.get("ok"), out
     jid = out["jobId"]
     for _ in range(100):
@@ -767,7 +772,7 @@ def _selfcheck():
     assert [s["phase"] for s in j["steps"]][-1] == "done", j["steps"]
 
     # a brain that fails must land in "error", never a half-finished "running"
-    bad = dispatch("atlas", "Boom",
+    bad = dispatch("dyson", "Boom",
                    chat_fn=lambda a, m: {"needsKey": True, "reply": "no key"})
     assert bad.get("ok"), bad
     for _ in range(100):
@@ -776,14 +781,14 @@ def _selfcheck():
         time.sleep(0.05)
     assert job(bad["jobId"])["job"]["status"] == "error"
     # ...and its hub task lands in "failed" with the reason, not stuck "open"
-    t = next(t for t in agents_hub.tasks("atlas")["tasks"] if t["id"] == bad["taskId"])
+    t = next(t for t in agents_hub.tasks("dyson")["tasks"] if t["id"] == bad["taskId"])
     assert t["status"] == "failed" and t.get("error"), t
 
     # Planning validates model output and never starts a job; directing creates real receipts.
     from unittest.mock import patch
     before = len(_JOBS)
-    floor = {"departments": [{"agents": [{"id": "scout"}]}]}
-    good = {"summary": "Rank leads", "assignments": [{"agentId": "scout", "title": "Rank inbound replies"}]}
+    floor = {"departments": [{"agents": [{"id": "marcus"}]}]}
+    good = {"summary": "Rank leads", "assignments": [{"agentId": "marcus", "title": "Rank inbound replies"}]}
     with patch(__name__ + ".state", return_value=floor):
         assert plan("Check leads", lambda a, m: {"reply": json.dumps(good)})["ok"]
         for invalid in ("not json", "[]", json.dumps({"assignments": [{"agentId": []}]}),
@@ -791,16 +796,16 @@ def _selfcheck():
             assert plan("Check leads", lambda a, m: {"reply": invalid}).get("error")
         assert plan([], lambda a, m: {}).get("error")
     assert len(_JOBS) == before, "planning dispatched work"
-    directed = dispatch("scout", "Rank replies", directed_by="orion", chat_fn=lambda a, m: {"reply": "Ranked"})
+    directed = dispatch("marcus", "Rank replies", directed_by="orion", chat_fn=lambda a, m: {"reply": "Ranked"})
     for _ in range(100):
         if job(directed["jobId"])["job"]["status"] != "running":
             break
         time.sleep(.01)
     assert job(directed["jobId"])["job"]["status"] == "done"
     receipts = agent_bus.recent()["messages"]
-    assert any(m["from"] == "orion" and m["to"] == "scout" and m["data"].get("approvedBy") == "operator" for m in receipts)
-    assert any(m["from"] == "scout" and m["to"] == "orion" for m in receipts)
-    assert dispatch("scout", "x", directed_by="untrusted").get("error")
+    assert any(m["from"] == "orion" and m["to"] == "marcus" and m["data"].get("approvedBy") == "operator" for m in receipts)
+    assert any(m["from"] == "marcus" and m["to"] == "orion" for m in receipts)
+    assert dispatch("marcus", "x", directed_by="untrusted").get("error")
 
     # Orion's check-in: verdict precedence, stall flag, AI-outage wording, suggestions
     zed = {"id": "zzz", "name": "Zed", "activity": "idle"}
@@ -822,18 +827,19 @@ def _selfcheck():
     sick = dict(zed, activity="error", detail="HTTP 500 from CRM")
     assert _review_agent(sick, now, {}, live=False, last={})["verdict"] == "attention"
     floor = {"now": now, "ai": {"ok": False, "reason": "credits out"},
-             "departments": [{"agents": [{"id": "scout", "name": "Scout", "activity": "idle"},
-                                         {"id": "atlas", "name": "Atlas", "activity": "idle"}]}]}
+             "departments": [{"agents": [{"id": "marcus", "name": "Marcus", "activity": "idle"},
+                                         {"id": "dyson", "name": "Dyson", "activity": "idle"}]}]}
     with patch(__name__ + ".state", return_value=floor):
         rec = checkin("operator")
         assert rec["id"] and len(rec["reviews"]) == 2 and "AI is down" in rec["summary"], rec
         assert latest_checkin()["id"] == rec["id"] and checkins(5)["checkins"][0]["id"] == rec["id"]
-        assert [r["agentId"] for r in checkin("auto", only="atlas")["reviews"]] == ["atlas"]
+        assert [r["agentId"] for r in checkin("auto", only="dyson")["reviews"]] == ["dyson"]
+        assert [r["agentId"] for r in checkin("auto", only="atlas")["reviews"]] == ["marcus"]   # lane -> main
         assert checkin("stranger").get("error") and checkin("auto", only="nobody").get("error")
         # chat: a real reply passes through; an outage answers from the floor, labelled offline
-        assert chat("scout", "hi", lambda a, m: {"reply": "real"}) == {"reply": "real"}
-        off = chat("scout", "hi", lambda a, m: {"error": "credit balance is too low"})
-        assert off["offline"] and "Scout" in off["reply"] and "unreachable" in off["reply"], off
+        assert chat("marcus", "hi", lambda a, m: {"reply": "real"}) == {"reply": "real"}
+        off = chat("scout", "hi", lambda a, m: {"error": "credit balance is too low"})   # lane id answers as Marcus
+        assert off["offline"] and "Marcus" in off["reply"] and "unreachable" in off["reply"], off
         assert "Checked 2 agents" in chat("orion", "hi", lambda a, m: {"needsKey": True, "reply": "no key"})["reply"]
         assert chat("nobody", "hi", lambda a, m: {"error": "x"}).get("error") == "x"
 
