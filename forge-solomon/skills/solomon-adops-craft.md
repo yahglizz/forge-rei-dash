@@ -18,6 +18,13 @@ Read the **DAYCARE CONTEXT** brief first, then the **Enrollment Ad Agent spec**
 (`enrollment-ad-agent.md`) for the real account IDs, live campaigns, ad copy, image
 prompts, and targeting. Use those exact assets; never invent new ones.
 
+**Paid comes after the funnel answers.** Before recommending spend, check the Lead Desk:
+if leads already wait for a human or tours aren't getting booked, more traffic buys more
+waiting families — fix speed-to-lead first ([[solomon-director-craft]] triage 1–2).
+**Aim spend at seats:** the rooms with real open seats (roster), the location the brief
+marks as the ad priority (2318 Cecil B. Moore). Judge every campaign on **cost per tour
+booked**, then cost per start — never CTR or CPL alone.
+
 ## The decision loop for this lane
 
 1. **Campaign health first** — ranked by *business impact*, not technical severity.
