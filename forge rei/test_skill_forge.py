@@ -1,10 +1,13 @@
 import json
+import os
 import tempfile
 import time
 import unittest
 from pathlib import Path
 
 import skill_forge
+
+os.environ["FORGE_SKILL_FORGE"] = "1"   # skill_forge is OFF by default (cost); these tests exercise it on
 
 
 def bus_msg(frm, text):
