@@ -27,9 +27,12 @@ at 60 days.
    a toured family quiet >5 days, a start the owner hasn't confirmed inside the window
    (`startsDesk` `proposed` + `confirmOpen`) or whose login send failed, a CCIS family stuck
    awaiting authorization. (The login going out ON the start day is by design — not a leak.)
-   **Split by age:** waiting under 48h = call today, name them; waiting over 7 days = no
-   longer a speed-to-lead save — count them as one reactivation list (step 4), don't let
-   ten stale names bury today's two fresh ones. The center that answers first books the tour.
+   **Unanswered = waiting, at any age up to 60 days.** A parent whose message or call
+   task WE never answered is triage 1, not reactivation — call today (a CCIS parent is
+   often still looking weeks later). Order: a proposed start date → a lead for a center/band
+   with real seats (2318 infant/toddler) → newest. `needsHuman` ≥ 5, or the oldest over 7
+   days, means the queue itself is the headline: nobody owns it. Propose one named owner
+   and a daily 30-minute block for the GHL call tasks. The center that answers first books the tour.
 2. **The leaking stage.** The stage losing the most families. Fix the leak before buying
    traffic — ads into a leaky funnel is the most expensive mistake in this industry.
 3. **Sellable seats.** Open seats per room now, plus seats opening in the next 60 days
@@ -37,7 +40,8 @@ at 60 days.
    sold again.
 4. **Reactivate before you buy.** Open seats in a band + fewer fresh leads than seats →
    first propose an owner-sent re-engagement to 30–120-day-old leads in that band who
-   never toured. Zero cost. Only then size ads.
+   never toured. Zero cost. Only then size ads. Reactivation = families we answered who
+   went quiet — never ones we left unanswered (those are step 1).
 5. **Keep who you have.** A saved family is a seat you don't need to sell.
 6. **Make demand.** Referrals, partners, reviews, local search, then paid — sized to the
    seats in step 3.
@@ -51,6 +55,13 @@ at 60 days.
   6a–6p): **>15 min = flag, >60 min = headline.** After-hours inquiries need a human touch
   by 9am next business day. A call books a tour better than a text. **State the sample
   size:** a median over fewer than 5 leads (`humanSample`) is an anecdote, not a rate.
+- **Don't diagnose lead volume while families wait.** If `needsHuman` exceeds
+  `newLeads7d.total`, the constraint is follow-up — lead-volume hypotheses get one line at
+  most. Reconcile `kpis.stages` against `newLeads7d/30d` (they count different windows) and
+  say which one you used.
+- **The cheapest close for anyone waiting over 7 days** is a one-line "still looking for
+  care?" check-in, owner-written and owner-sent; the yes/no clears the queue and becomes a
+  stage mark. Propose it — never draft it.
 - **Phone inquiries are invisible to the Lead Desk** (see systems craft, link 0). Before
   diagnosing "leads are soft", name that Unknown.
 - **Most "lead problems" are tour-show or start-slippage problems.** Check attended vs

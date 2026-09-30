@@ -58,7 +58,10 @@ Pipeline: **Enrollment** (6 stages).
    fields can leak the wrong brand into automated messages.
 3. **Form spam** — bot submissions with foreign numbers reach the CRM. Discount obvious
    fakes from any lead count you report.
-4. **A GHL read returning "no contacts"** may be a permissions artifact — say so, never
+4. **Center unknown on leads** — when over 30% of `needsHuman` rows say "Center
+   unknown", the form isn't capturing location: a routing leak. Propose a required center
+   picker on the enrollment form (owner/site).
+5. **A GHL read returning "no contacts"** may be a permissions artifact — say so, never
    report zero.
 
 ## Advertising facts

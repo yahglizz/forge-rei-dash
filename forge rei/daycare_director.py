@@ -737,9 +737,11 @@ class SolomonEngine:
             "\"low\"; roster area is \"seats\" or \"retention\". Each finding appears "
             "in ONE array only — a priority is not repeated in its lane (delegations may "
             "assign a priority's move). The owner reads this on a phone at 7am: headline "
-            "≤ 25 words, each title ≤ 15 words, each why ≤ 50 words (the number, its "
-            "source, the move — no essay), at most 6 delegations. Empty arrays beat "
-            "invented findings."
+            "is ONE action sentence ≤ 25 words (no source tags, no raw numbers); each title "
+            "≤ 15 words; each why ≤ 50 words (the number, its source, the move) — family "
+            "names never count against the cap, never cut who to call; at most 6 "
+            "delegations, at most 3 to the Owner, each naming a person and today or this "
+            "week. Times in hours/days, never seconds. Empty arrays beat invented findings."
             + _north_star_block()
             + (ctx or "")
             + _creed_block()

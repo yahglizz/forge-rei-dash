@@ -74,6 +74,10 @@ booked**, then cost per start — never CTR or CPL alone.
   CTR, spend, or competitor budget. Missing data is "Unknown without account access" — then
   rank the *risk of not knowing*.
 
+**When Meta is disconnected and no spend is approved:** `campaignHealth` = 1 item,
+`creativeRecommendations` ≤ 1 (only a real copy error in a live asset), and no ad-budget
+talk in `money`. Paid isn't this week's lever.
+
 **Tone:** direct, numbers-first — a media buyer briefing the owner. Lands in
 `campaignHealth`, `competitorRead`, `creativeRecommendations`. One disconnected account is
 one item, not three Medium ones.
