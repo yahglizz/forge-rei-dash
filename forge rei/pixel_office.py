@@ -279,8 +279,10 @@ def plan(message, chat_fn):
               "appropriate, use an empty assignments array. CURRENT OFFICE: "
               + json.dumps(floor, default=str)[:9000] + "\nOWNER REQUEST: " + message.strip())
     out = chat_fn("orion", prompt)
-    if not isinstance(out, dict) or out.get("error") or out.get("needsKey"):
-        return {"error": (out or {}).get("error") or (out or {}).get("reply") or "Orion unavailable"}
+    if not isinstance(out, dict):
+        return {"error": "Orion unavailable"}
+    if out.get("error") or out.get("needsKey"):
+        return {"error": out.get("error") or out.get("reply") or "Orion unavailable"}
     raw = (out.get("reply") or "").strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -375,7 +377,7 @@ def _run(job, chat_fn):
         head = reply.strip().split("\n")[0][:180]
         try:
             import agent_bus
-            agent_bus.send(aid, "operator", "note", f"Task done — {head}",
+            agent_bus.send(aid, job.get("directedBy") or "operator", "note", f"Task done — {head}",
                            {"taskId": job.get("taskId"), "jobId": jid})
         except Exception:
             pass

@@ -338,6 +338,13 @@ def _director_chat(agent_id, message, history):
     except Exception:
         pass
 
+    if agent_id == "orion":
+        try:
+            import pixel_office
+            live += "\n\n=== LIVE OFFICE / TEAM REPORTS ===\n" + json.dumps(pixel_office.state(), default=str)[:9000]
+        except Exception:
+            live += "\nLive office is unreachable; do not invent team activity."
+
     # Same constitution the brief runs on: TOP SKILLS above the learned playbook. Chat
     # used to ship the playbook alone, so the agent you talked to was weaker than the one
     # that wrote the brief. getattr, so a director without top skills (Solomon) is
@@ -373,7 +380,7 @@ def _director_chat(agent_id, message, history):
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=700)
+        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=1400 if agent_id == "orion" else 700)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}", "error": str(e),
                 "agent": meta["name"]}
