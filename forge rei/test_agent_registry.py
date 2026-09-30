@@ -76,9 +76,18 @@ def test_roster_complete():
         assert a["business"] in agents_hub.BUSINESS, a
         via = a.get("chatVia")
         assert via is None or via in ids, a       # every delegate lands on a real brain
+    # 2026-09-30: ONE main agent per business + the CEO. Everything else is a lane that
+    # resolves to a main agent and has no row of its own.
+    main = [a["id"] for a in agents_hub.AGENTS if not a.get("lane")]
+    assert main == ["marcus", "dyson", "solomon", "midas", "orion"], main
+    for lane, owner in agents_hub.LANE_OF.items():
+        assert owner in main, (lane, owner)
+        assert agents_hub.main_agent(lane) == owner
+    assert agents_hub.main_agent("marcus") == "marcus"
+    assert [a["id"] for a in agents_hub.roster()["agents"]] == main
 
     rows = agents_hub.registry(now=NOW)
-    assert {r["id"] for r in rows} == set(ids)
+    assert {r["id"] for r in rows} == set(main)
     for r in rows:
         missing = [k for k in REQUIRED if k not in r]
         assert not missing, (r["id"], missing)
@@ -87,40 +96,45 @@ def test_roster_complete():
 
 
 def test_registry_from_real_signals():
+    """Marcus's row folds his lanes (Scout · Atlas · Follow-up): worst loop wins, a lane's
+    error names the lane, approvals sum across the lane queues."""
     forge_heartbeat.beat("scout", 180, "Scout")                   # fresh + clean
     for _ in range(3):
         forge_heartbeat.beat("atlas", 900, "Atlas", error="Anthropic API error (400)")
     forge_heartbeat.beat("followup", 1800, "Follow-up", error="checkback: timeout")
-
-    real_pending = agents_hub._pending
-    agents_hub._pending = lambda aid, q: 3 if aid == "scout" else 0
+    by = {r["id"]: r for r in agents_hub.registry()}
+    assert not {"scout", "atlas", "followup", "ace", "autopilot", "eco", "briefs"} & set(by), sorted(by)
+    m = by["marcus"]
+    assert m["status"] == "FAILED", m                             # Atlas's red loop shows on his row
+    assert "Atlas: Anthropic API error" in m["lastError"], m["lastError"]
+    assert m["dependencyHealth"]["heartbeat"] == "red", m["dependencyHealth"]
+    assert m["heartbeat"] == ["scout", "atlas", "followup"]
+    forge_heartbeat.beat("atlas", 900, "Atlas")                   # lanes recover
+    forge_heartbeat.beat("followup", 1800, "Follow-up")
+    real_pending, real_ai = agents_hub._pending, agents_hub._ai_health
+    agents_hub._pending = lambda aid, q: 3 if aid == "marcus" else 0
+    agents_hub._ai_health = lambda: {"ok": True}      # the real AI record is not redirected here
     try:
         by = {r["id"]: r for r in agents_hub.registry()}
     finally:
-        agents_hub._pending = real_pending
-
-    assert by["scout"]["status"] == "WAITING FOR APPROVAL", by["scout"]
-    assert by["scout"]["pendingApprovals"] == 3
-    assert by["scout"]["lastSuccessAt"] == by["scout"]["lastRun"]     # clean beat = success
-    assert by["scout"]["nextRun"] == by["scout"]["lastRun"] + 180_000
-    assert by["atlas"]["status"] == "FAILED", by["atlas"]
-    assert by["atlas"]["lastError"].startswith("Anthropic"), by["atlas"]
-    assert by["atlas"]["errorCount"] >= 3
-    assert by["followup"]["status"] == "DEGRADED", by["followup"]
-    # ACE + autopilot default OFF → DISABLED, read without flipping anything
-    assert by["ace"]["status"] == "DISABLED", by["ace"]
-    assert by["autopilot"]["status"] == "DISABLED", by["autopilot"]
+        agents_hub._pending, agents_hub._ai_health = real_pending, real_ai
+    m = by["marcus"]
+    assert m["status"] == "WAITING FOR APPROVAL" and m["pendingApprovals"] == 3, m
+    assert m["lastSuccessAt"] == m["lastRun"]                     # clean beat = success
+    assert m["approvalQueue"] == "marcus,scout", m["approvalQueue"]
+    # a queue list sums its members
+    # ACE + autopilot default OFF — read without flipping anything
+    assert agents_hub._probe("ace")["enabled"] is False
+    assert agents_hub._probe("autopilot")["enabled"] is False
     import ace
     import autopilot
     assert ace.mode() == "off" and autopilot.enabled() is False
     # Midas's scheduled brief is off unless FORGE_DROPSHIP_BRIEF says otherwise
     if os.environ.get("FORGE_DROPSHIP_BRIEF", "0") == "0":
         assert by["midas"]["status"] == "DISABLED", by["midas"]
-    # delegates route chat to a real brain
-    assert by["ace"]["chatTarget"] == "marcus" and by["briefs"]["chatTarget"] == "orion"
-    assert by["briefs"]["dependencyHealth"]["ai"] == "n/a"
     # no loop key → honest unknown, not zero
     assert by["dyson"]["errorCount"] is None and by["dyson"]["lastRun"] is None
+    assert by["orion"]["heartbeat"] == []                         # no scheduled brief any more
 
 
 def test_ai_down_degrades_ai_agents_only():
@@ -130,10 +144,9 @@ def test_ai_down_degrades_ai_agents_only():
         by = {r["id"]: r for r in agents_hub.registry()}
     finally:
         agents_hub._ai_health = real
-    assert by["eco"]["status"] == "DEGRADED", by["eco"]
-    assert by["eco"]["dependencyHealth"]["ai"] == "down"
-    assert "credit" in by["eco"]["dependencyHealth"]["aiReason"]
-    assert by["briefs"]["dependencyHealth"]["ai"] == "n/a"    # never calls Claude
+    assert by["dyson"]["status"] == "DEGRADED", by["dyson"]
+    assert by["dyson"]["dependencyHealth"]["ai"] == "down"
+    assert "credit" in by["dyson"]["dependencyHealth"]["aiReason"]
 
 
 def test_archived_business_disabled_and_last():
@@ -181,7 +194,7 @@ def test_marcus_event_driven_not_failed():
         agents_hub._engine, agents_hub._ai_health, agents_hub._pending = \
             real_eng, real_ai, real_pending
     assert m["status"] == "IDLE", m
-    assert m["dependencyHealth"]["heartbeat"] == "none", m
+    assert m["dependencyHealth"]["heartbeat"] == "missing", m     # lane loops declared, none beating
     assert m["lastRun"] == ts and m["lastSuccessAt"] == ts, m
     assert m2["status"] == "WAITING FOR APPROVAL", m2
     assert m3["status"] == "WAITING FOR APPROVAL" and m3["lastRun"] is None \
@@ -189,10 +202,9 @@ def test_marcus_event_driven_not_failed():
 
 
 def test_daily_agents_no_poll_based_next_run():
-    forge_heartbeat.beat("daily_brief", 300, "Daily brief")
+    forge_heartbeat.beat("daily_brief", 300, "Clock")
     by = {r["id"]: r for r in agents_hub.registry()}
-    assert by["orion"]["nextRun"] is None and by["briefs"]["nextRun"] is None, \
-        (by["orion"]["nextRun"], by["briefs"]["nextRun"])
+    assert by["orion"]["nextRun"] is None, by["orion"]["nextRun"]
 
 
 def test_task_failed_round_trip():
@@ -201,10 +213,11 @@ def test_task_failed_round_trip():
     res = agents_hub.update_task(tid, "failed", error="Anthropic API error (400): "
                                  "Your credit balance is too low")
     assert res["ok"] and res["task"]["status"] == "failed"
-    t = next(t for t in agents_hub.tasks("scout")["tasks"] if t["id"] == tid)
+    assert out["task"]["agentId"] == "marcus"                  # a lane's task is filed under its owner
+    t = next(t for t in agents_hub.tasks("marcus")["tasks"] if t["id"] == tid)
     assert t["status"] == "failed" and "credit balance" in t["error"], t
     by = {r["id"]: r for r in agents_hub.registry()}
-    assert by["scout"]["tasksFailed"] >= 1
+    assert by["marcus"]["tasksFailed"] >= 1
     # reopening clears the stale error; a bogus status is refused
     assert "error" not in agents_hub.update_task(tid, "open")["task"]
     assert agents_hub.update_task(tid, "exploded").get("error") == "bad status"
@@ -213,7 +226,7 @@ def test_task_failed_round_trip():
 def test_delegate_tasks_reach_their_brain():
     agents_hub.send_task("ace", "hold thread 123 until Monday")
     block = agents_hub.open_tasks_block("marcus")
-    assert "hold thread 123" in block and "(for ACE)" in block, block
+    assert "hold thread 123" in block, block                   # filed under Marcus (ACE is his lane)
     assert agents_hub.open_tasks_block("atlas") == "" or "hold thread" not in \
         agents_hub.open_tasks_block("atlas")
 
@@ -223,7 +236,7 @@ def test_solomon_owns_reply_and_lead_lanes():
     approval queue, their loop health folds into his status, his chat sees their state."""
     import json
     assert "daycare_replies" not in agents_hub._BY_ID                 # a lane, not a row
-    assert agents_hub._BY_ID["solomon"]["hb"] == ["solomon", "daycare_replies", "daycare_leads"]
+    assert agents_hub._BY_ID["solomon"]["hb"] == ["daycare_replies", "daycare_leads", "daycare_starts"]
     daycare_replies.STATE.write_text(json.dumps({"lastRunAt": NOW, "drafts": {
         "c1": {"contactId": "c1", "status": "pending", "action": "draft",
                "inboundAt": NOW - 600_000},

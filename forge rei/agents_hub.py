@@ -129,7 +129,10 @@ AGENTS = [
               "enrollment ads. Lanes: Solomon · Replies drafts every parent text-back "
               "(you tap send), Solomon · Leads watches enrollment leads and Solomon · Starts texts the app login on a confirmed start day. Ranks it all, "
               "owns enrollment, never acts outward.",
-     "hb": ["solomon", "daycare_replies", "daycare_leads", "daycare_starts"], "queue": "daycare_replies"},
+     # "solomon" (the scheduled-brief loop) is OFF by default and retired at boot — a retired loop
+     # in `hb` would read the whole row as DISABLED, so it is only listed when the brief is on.
+     "hb": (["solomon"] if os.environ.get("FORGE_SOLOMON_BRIEF", "0") != "0" else [])
+           + ["daycare_replies", "daycare_leads", "daycare_starts"], "queue": "daycare_replies"},
     {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "🛒",
      "role": "E-com Director — the whole store",
      "blurb": "Product research, creative + ads, fulfillment and support. Ranks the "
