@@ -65,3 +65,8 @@ import daycare_leads
 assert set(dd._CENTER_ALIAS.values()) <= set(daycare_leads.CENTER_LABEL.values()), \
     "roster centerLabel no longer matches the Lead Desk's center labels"
 print("ok — center labels line up")
+
+# Old ops/compliance brief notes never feed back in as "recent operating record".
+assert 'GROWTH_SINCE' in inspect.getsource(dd.SolomonEngine._recent_brain_context)
+assert "brief-2026-08-01"[6:16] < dd.GROWTH_SINCE
+print("ok — stale compliance briefs stay out")

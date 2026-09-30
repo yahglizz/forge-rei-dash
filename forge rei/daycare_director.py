@@ -71,6 +71,7 @@ BUS_ROLES = ("solomon", "family-comms", "enrollment", "ads", "growth", "nora", "
 _CENTER_ALIAS = {"A Touch of Blessings": "921 N 18th St",
                  "A Touch of Blessings 2": "2318 Cecil B Moore",
                  "A Mother's Touch": "1923 Cecil B Moore (AMT)"}
+GROWTH_SINCE = "2026-09-30"   # growth-only reset — earlier brief notes are ops/compliance
 GROWTH_METRICS = ("childrenActive", "presentToday", "classroomsActive")
 RECENT_BLASTS = 5                          # blast history depth for the follow-up lane
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
@@ -458,7 +459,12 @@ class SolomonEngine:
             d = brain_io.VAULT / BRIEF_DIR_REL
             if not d.is_dir():
                 return ""
-            files = sorted([p for p in d.glob("*.md")],
+            # Only growth-era briefs from the last 14 days. Older notes are the
+            # pre-2026-09-30 ops/compliance briefs ("zero-staff crisis", "DHS
+            # suspension") — fed back in, they dragged every new brief to paperwork.
+            cutoff = max(GROWTH_SINCE, time.strftime(
+                "%Y-%m-%d", time.localtime(time.time() - 14 * 86400)))
+            files = sorted([p for p in d.glob("brief-*.md") if p.stem[6:16] >= cutoff],
                            key=lambda p: p.stat().st_mtime, reverse=True)[:2]
             if not files:
                 return ""
