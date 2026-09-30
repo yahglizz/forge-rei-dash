@@ -2760,6 +2760,7 @@ def api_stripe_status(_q):
 
 ROUTES = {
     "/api/stripe/status": api_stripe_status,
+    "/api/stripe/offers": lambda q: __import__("stripe_links").offers(),
     "/api/sync": api_sync,
     "/api/health": api_health,
     "/api/system/health": api_system_health,
@@ -3363,6 +3364,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/task",
                                    "/api/hub/task/update",
                                    "/api/office/task", "/api/office/plan", "/api/office/chat", "/api/office/checkin",
+                                   "/api/stripe/link",
                                    "/api/graphify/rebuild",
                                    "/api/coach/broadcast",
                                    "/api/coach/ask",
@@ -3608,6 +3610,10 @@ class Handler(BaseHTTPRequestHandler):
                     result = agent_office.dispatch(body.get("agentId"), body.get("title"),
                                                    body.get("note", ""), chat_fn=_office_chat,
                                                    directed_by=body.get("directedBy", ""))
+            elif parsed.path == "/api/stripe/link":
+                # A payment link for ANY business — recurring or pay-in-full. Charges nobody, sends nothing.
+                import stripe_links
+                result = stripe_links.create(body)
             elif parsed.path == "/api/graphify/rebuild":
                 # Rebuild the knowledge graph now (internal + read-only over the repo/
                 # vault; writes only the graph file). Handy after a big code change.
