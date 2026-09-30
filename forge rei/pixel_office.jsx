@@ -371,6 +371,7 @@ function PixelOfficePage() {
   const [selected, setSelected] = useStatePO("orion");
   const [view, setView] = useStatePO("3d");
   const [orionMode, setOrionMode] = useStatePO("idle");
+  const [dogModes, setDogModes] = useStatePO({});
   const [job, setJob] = useStatePO(null);
   const [sending, setSending] = useStatePO(false);
   const [sendErr, setSendErr] = useStatePO(null);
@@ -460,7 +461,7 @@ function PixelOfficePage() {
 
       <div className="office-grid">
         <div className="card office-floor-card">
-          {view === "3d" ? <OrionOfficeFloor state={state} selected={selected} onSelect={setSelected} mode={orionMode} />
+          {view === "3d" ? <OrionOfficeFloor state={state} selected={selected} onSelect={setSelected} mode={orionMode} dogModes={dogModes} />
             : <PixelOfficeFloor departments={(state && state.departments) || []} selected={selected} onSelect={setSelected} />}
           <div className="office-roster">
             {agents.map((a) => {
@@ -489,7 +490,7 @@ function PixelOfficePage() {
 
         <div className="orion-panel-wrap">
           {selected === "orion" ? <OrionOfficePanel state={state} onMode={setOrionMode} onRefresh={refreshOffice} />
-            : <React.Fragment>{agent && ["marcus", "dyson", "solomon", "midas"].includes(agent.id) && <OrionOfficePanel key={agent.id} agent={agent} state={state} onMode={() => {}} onRefresh={refreshOffice} />}<PixelOfficePanel agent={agent} job={job} onDispatch={dispatch} sending={sending} err={sendErr} /></React.Fragment>}
+            : <React.Fragment>{agent && ["marcus", "dyson", "solomon", "midas"].includes(agent.id) && <OrionOfficePanel key={agent.id} agent={agent} state={state} onMode={mode => setDogModes(current => ({ ...current, [agent.id]: mode }))} onRefresh={refreshOffice} />}<PixelOfficePanel agent={agent} job={job} onDispatch={dispatch} sending={sending} err={sendErr} /></React.Fragment>}
         </div>
       </div>
     </div>

@@ -1,11 +1,11 @@
 // Orion's 3D office and browser voice controls; all assignments use the real office API.
 const { useState: useStateOO, useEffect: useEffectOO, useRef: useRefOO } = React;
 
-function OrionOfficeFloor({ state, selected, onSelect, mode }) {
+function OrionOfficeFloor({ state, selected, onSelect, mode, dogModes }) {
   const host = useRefOO(null), latest = useRefOO(null);
   const [status, setStatus] = useStateOO('Loading Orion…');
   const [focus, setFocus] = useStateOO(false);
-  latest.current = { ...(state || {}), selected, orionMode: mode, focusOrion: focus };
+  latest.current = { ...(state || {}), selected, orionMode: mode, dogModes, focusOrion: focus };
   useEffectOO(() => {
     let dead = false, dispose;
     window.loadOrionOfficeScene().then(m => {

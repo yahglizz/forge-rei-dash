@@ -114,7 +114,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     const dt = Math.min((t - previous) / 1000 || 0, .05); previous = t;
     const state = getState() || {}; syncActors(state);
     actors.forEach(a => {
-      const busy = ['walk', 'read', 'think', 'report'].includes(a.agent.activity);
+      const busy = ['walk', 'read', 'think', 'report'].includes(a.agent.activity) || ['thinking', 'speaking'].includes((state.dogModes || {})[a.agent.id]);
       // Dog paws stay on the floor; activity drives a subtle attentive turn.
       a.group.position.y = !a.dog && !reduced && busy ? Math.sin(t / 210) * .025 : 0;
       if (a.dog) {
