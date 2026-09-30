@@ -161,7 +161,7 @@ def lead_desk_state():
     return {
         "kpis": desk.get("kpis"),
         "needsHuman": [{k: i.get(k) for k in ("title", "why", "ageSec", "priority", "center")}
-                       for i in (desk.get("needsHuman") or [])[:10]],
+                       for i in (desk.get("needsHuman") or [])[:15]],
         "lastRunAt": desk.get("lastRunAt"),
         "error": desk.get("error"),
     }

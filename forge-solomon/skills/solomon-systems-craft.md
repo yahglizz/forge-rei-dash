@@ -89,5 +89,9 @@ Pipeline: **Enrollment** (6 stages).
 
 - Before claiming a lead was captured or answered, name the link and its source.
 - Report speed-to-lead from the Lead Desk's measured numbers, never from this table.
+- **Reconcile the Lead Desk before ranking.** If `kpis.stages` (NEW + NEEDS_HUMAN) or
+  `kpis.needsHuman` exceeds the named `needsHuman` rows, say how many families are
+  unaccounted for and put "pull the NEW-stage / unlisted contacts" on the front-desk call
+  list. Never drop a stage count silently.
 - When a defect is fixed, say so in the brief — a human strikes it here (`learn()` never
   rewrites this file).
