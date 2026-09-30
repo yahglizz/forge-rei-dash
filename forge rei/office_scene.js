@@ -115,13 +115,13 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     let z = zones.get(dept.id);
     if (!z) {
       const rug = box(1, .03, 3.6, dept.accent, 0, .0, 0); rug.material.transparent = true; rug.material.opacity = .22; rug.castShadow = false;
-      z = { rug, sign: label(dept.label.toUpperCase(), 0, .04, 0, dept.accent, 3.6), n: 0 };
+      z = { rug, sign: label(dept.label.toUpperCase(), 0, .04, 0, dept.accent, 3), n: 0 };
       z.sign.material.depthTest = true; zones.set(dept.id, z);
     }
     z.n = n; z.rug.visible = z.sign.visible = true;
     const width = Math.max(2.6, n * 2.1 + .6), cx = base[0] + (n - 1) * 1.05;
     z.rug.scale.x = width; z.rug.position.set(cx, .01, base[1] + .7);
-    z.sign.position.set(cx, 2.05, base[1] - .6); z.sign.scale.set(3.6, 3.6 * 96 / 512, 1);
+    z.sign.position.set(cx, 1.95, base[1] - .6); z.sign.scale.set(3, 3 * 96 / 512, 1);
   }
 
   function makeActor(a, dept, i, base) {
@@ -294,7 +294,8 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       const p = selected && selected.group.visible ? selected.group.position : orion.position;
       wantPos = new THREE.Vector3(p.x + (selected ? 1.8 : 2.8), selected ? 1.9 : 2.8, p.z + (selected ? 3 : 4.8)); wantLook = new THREE.Vector3(p.x, selected ? .8 : 1.3, p.z);
     } else {
-      wantPos = new THREE.Vector3(Math.sin(orbit.az) * Math.cos(orbit.el) * orbit.r, Math.sin(orbit.el) * orbit.r, Math.cos(orbit.az) * Math.cos(orbit.el) * orbit.r); wantLook = new THREE.Vector3(0, .3, .4);
+      const r = orbit.r * Math.max(1, 1.45 / camera.aspect);   // narrow (phone) stages pull back so the whole room fits
+      wantPos = new THREE.Vector3(Math.sin(orbit.az) * Math.cos(orbit.el) * r, Math.sin(orbit.el) * r, Math.cos(orbit.az) * Math.cos(orbit.el) * r); wantLook = new THREE.Vector3(0, .3, .4);
     }
     if (!camReady || reduced) { camPos.copy(wantPos); camLook.copy(wantLook); camReady = true; }
     else { const k = 1 - Math.pow(.0015, dt); camPos.lerp(wantPos, k); camLook.lerp(wantLook, k); }
