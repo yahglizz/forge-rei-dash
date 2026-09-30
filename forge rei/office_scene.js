@@ -143,7 +143,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     if (state.focusOrion) {
       const selected = actors.get(state.selected);
       const position = selected && selected.group.visible ? selected.group.position : orion.position;
-      camera.position.set(position.x + 2.8, 2.8, position.z + 4.8);
+      camera.position.set(position.x + (selected ? 1.8 : 2.8), selected ? 1.9 : 2.8, position.z + (selected ? 3 : 4.8));
       camera.lookAt(position.x, selected ? .8 : 1.3, position.z);
     } else { camera.position.set(11, 11, 16); camera.lookAt(0, .8, 0); }
     renderer.render(scene, camera); raf = requestAnimationFrame(frame);
@@ -159,7 +159,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       const bounds = new THREE.Box3().setFromObject(model.scene), size = bounds.getSize(new THREE.Vector3());
       if (!Number.isFinite(size.y) || size.y <= 0) { release(model.scene); throw new Error('Invalid dog bounds'); }
       const center = bounds.getCenter(new THREE.Vector3()), normalized = new THREE.Group();
-      normalized.scale.setScalar(1.45 / Math.max(size.x, size.y, size.z));
+      normalized.scale.setScalar(1.95 / Math.max(size.x, size.y, size.z));
       model.scene.position.set(-center.x, -bounds.min.y, -center.z); normalized.add(model.scene);
       [...actor.group.children].forEach(child => { actor.group.remove(child); release(child); });
       actor.group.add(normalized); actor.dog = normalized;

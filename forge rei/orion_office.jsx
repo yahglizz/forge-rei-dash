@@ -17,7 +17,7 @@ function OrionOfficeFloor({ state, selected, onSelect, mode, dogModes }) {
   return <div className="orion-stage">
     <div ref={host} className="orion-canvas" />
     <div className="orion-camera-controls orion-controls"><button className="btn" aria-pressed={!focus} onClick={() => setFocus(false)}>Whole office</button><button className="btn" aria-pressed={focus} onClick={() => setFocus(true)}>Focus {selected ? selected[0].toUpperCase() + selected.slice(1) : 'Orion'}</button></div>
-    <div className="orion-stage-caption"><span>ORION / COMMAND OFFICE</span><span role="status">{status === 'Ready' ? 'Live agent activity' : status}</span></div>
+    <div className="orion-stage-caption"><span>ORION / COMMAND OFFICE</span><span role="status">{status === 'Ready' ? (focus && ['marcus','dyson','solomon','midas'].includes(selected) ? 'Live activity · walking rig pending' : 'Live agent activity') : status}</span></div>
   </div>;
 }
 
