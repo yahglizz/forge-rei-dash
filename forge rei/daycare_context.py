@@ -63,8 +63,13 @@ def load_context() -> str:
     return text
 
 
-def context_block(limit: int = 3500) -> str:
+def context_block(limit: int = 12000) -> str:
     """Prompt-ready block: labelled header + the context, truncated to `limit`.
+
+    12000, not 3500 (2026-09-30): the brief is ~9.3KB and the old cut landed right
+    before "Current Status" — every growth agent (Solomon, Eco ideas, ads studio) was
+    running without the live offer + expiry, the referral terms, the CCIS angle and
+    the standing job. The whole brief now fits; keep it tight rather than re-capping.
 
     Returns "" when there is no context so callers can concatenate unconditionally.
     """

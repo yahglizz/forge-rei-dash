@@ -140,7 +140,7 @@ ABOVE the learned playbook** — when they disagree, **the creed wins**.
 |-------|--------|------|------------------|
 | **`wholesale-evidence-discipline`** | **Scout, Marcus, Atlas** | `forge-scout/skills/` + `forge-marcus/skills/` | The thread is the only truth — never invent what a seller said, asked, or agreed to; **no agent ever invents a number**, and no price/offer ever goes out by text (Atlas's anchors are internal); Unknowns become the call's missing-info list; reply to sellers only, never to our own outreach. |
 | **`agency-evidence-discipline`** | **Dyson, Eco** | `forge-agency/skills/` | Never invent a client's metric — every CPL/ROAS/spend figure carries its source **and date range**, or is Unknown; mock/unconnected channels are labeled as such in the output; never invent or stretch a client request, timeline, or promised result; diagnose with ranked alternatives, not "it's the creative." |
-| **`daycare-evidence-discipline`** | **Solomon** + role agents (Enrollment, Billing, Family-Comms, Staffing, Compliance) | `forge-solomon/skills/` | Never invent capacity, a start date, a rate, a balance, or a ratio; read the brief FIRST; safety/compliance outranks the analysis; look it up, escalate only the decisions. |
+| **`daycare-evidence-discipline`** | **Solomon** + his lanes (Replies, Leads, Starts) | `forge-solomon/skills/` | Never invent an open seat, a start date, a rate/offer term, a family quote, or a lead metric; read the brief FIRST; **growth is the job, paperwork is not** (2026-09-30 — only a room at ratio or a paperwork gap blocking a start gets one line); look it up, escalate only the decisions. |
 | **`dropship-evidence-discipline`** | **Midas** (all three lanes) | `forge-dropship/skills/` | Never invent a metric, a margin, a stock status, a supplier price, or a delivery time — every number carries its source **and window**, or is Unknown; margin only from real cost inputs (revenue is not profit); a "winner" needs real sales + ad signal, never a hunch; **account health (merchant + ad account) outranks the analysis**; propose, never launch/spend/order/message. |
 
 **All four share the spine:** *ground it, infer it, or name it **Unknown*** · 3–5 **ranked
@@ -246,7 +246,7 @@ and a new Claude call per cycle.
 | **Atlas** (`deal_prep.py`) | REI | **UNDERWRITES** every screened-interested seller: extracts facts from the thread, derives offer anchors (open/target/walkaway) from the SELLER'S stated ask, spells out the MAO math + what comps to pull, writes the negotiation call card. Auto-preps every 15 min. | Never contacts anyone. Prep numbers are INTERNAL — never sent to a seller. Reports to Marcus. |
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
-| **Solomon** (`daycare_director.py`) | Daycare | **Runs the whole center — the daycare's ONE agent.** One ranked operating brief: ops, enrollment, money, people, **roster + family follow-ups** (was Nora), **campaign health + competitor read + creative direction** (was Nova). Owns enrollment. Plus two live lanes on his row: **Solomon · Replies** (`daycare_replies.py`, the Reply Desk — drafts every parent text-back) and **Solomon · Leads** (`daycare_leads.py`, the Lead Desk — GET-only enrollment-lead sweep). See §10. | Never texts/invoices/launches ads/writes the DB. Replies lane drafts only — the owner taps send. Proposes only. Self-improves. |
+| **Solomon** (`daycare_director.py`) | Daycare | **The daycare's ONE agent — growth director (2026-09-30: enrollment only; paperwork/compliance/billing/staff admin are not his lane).** One ranked growth brief: families waiting on us → funnel leak → sellable seats → retention → demand → offer clock, plus campaign health + competitor read + creative. Plus two live lanes on his row: **Solomon · Replies** (`daycare_replies.py`, the Reply Desk — drafts every parent text-back) and **Solomon · Leads** (`daycare_leads.py`, the Lead Desk — GET-only enrollment-lead sweep). See §10. | Never texts/invoices/launches ads/writes the DB. Replies lane drafts only — the owner taps send. Proposes only. Self-improves. |
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
@@ -728,19 +728,25 @@ key on the box. New migrations go in BOTH migration folders.
   are his approval queue). Chat uses `_solomon_key()`. **Before adding a role agent under him,
   ask whether a new brief section would do the job** — that is what the 2026-07-25
   consolidation concluded for the last two.
-  - **His skills (see §4a — creed + top skills outrank the playbook).** Prompt order:
-    `daycare-evidence-discipline` (the **creed**, via `agent_creed.block("daycare")` —
-    never guess capacity/start date/rate/ratio; ground/infer/**Unknown**) →
-    `solomon-decision-loop` (ranked falsifiable hypotheses; **close the loop** and decide —
-    unknowns never block the brief) → `solomon-director-craft` (the 50 years: triage order,
-    funnel-leak vs. lead-volume, speed-to-lead, retention math, discount last) →
-    `solomon-roster-craft` (ratio/safety gaps before follow-ups; ground every family
-    follow-up in the blast log) → `solomon-adops-craft` (account mismatch is a hard stop;
-    refresh before new angles; PAUSED always) → the learned `solomon-playbook` last. The creed comes from `agent_creed` (invisible to
-    `learn()`); the top skills come from `_load_skills()` while `_playbook_only()` feeds
-    `learn()` — so self-improvement can rewrite the playbook and nothing above it. The
-    brief prompt also carries the evidence rule inline as a backstop, so it holds even if
-    every skill file fails to load.
+  - **His skills (see §4a — creed + top skills outrank the playbook).** Growth-only since
+    2026-09-30 (owner decision). Prompt order: `daycare-evidence-discipline` (the **creed**,
+    via `agent_creed.block("daycare")` — never invent a seat/start date/rate/family quote/lead
+    metric; §5 "growth is the job, paperwork is not") → `solomon-decision-loop` (frame →
+    ground → 3–5 falsifiable hypotheses → decide → **close**) → `solomon-director-craft`
+    (**growth craft**: triage families-waiting → funnel leak → sellable seats → retention →
+    demand → offer clock; center-specific plays; discount last) → `solomon-systems-craft`
+    (the lead machine link by link + marketing guardrails) → `solomon-roster-craft`
+    (**seats & retention**: openSeats per room as inventory, keep/refer moves) →
+    `solomon-adops-craft` (paid only after the funnel answers; cost per tour booked; PAUSED
+    always) → the learned `solomon-playbook` last. Chat gets the same top skills
+    (`daycare_director.top_skills_text()`). The brief's JSON keys are unchanged; the UI labels
+    `money`/`people`/`roster`/`followUps` as Growth economics / Capacity to enroll / Seats /
+    Keep + refer. Live data adds `startsDesk` + per-room `openSeats` (null = Unknown).
+    `daycare_context.context_block()` now defaults to 12000 chars — the old 3500 cut dropped
+    the offers, referral terms and CCIS angle. Guard: `python3 test_solomon_growth.py`.
+    The creed comes from `agent_creed` (invisible to `learn()`); the top skills come from
+    `_load_skills()` while `_playbook_only()` feeds `learn()` — so self-improvement can rewrite
+    the playbook and nothing above it.
 - **Autonomy rule holds:** every outward daycare action (SMS, invoice send, ad launch,
   social post) stays approval-gated per rule 2. Auto-admin is loopback-only convenience.
 

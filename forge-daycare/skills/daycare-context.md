@@ -130,7 +130,8 @@ but the app itself is not this agent's concern. This file stays scoped to enroll
 
 ## Current Workflow
 
-- Family Contact Form submissions auto-enroll the child straight into the Supabase roster at the family's center the moment the Parent Logins inbox loads them — no manual step to get them on the roster.
+- Family Contact Form submissions wait in the Parent Logins inbox until the owner taps **Enroll** (one tap creates the child, matches the classroom, provisions the parent login). Auto-enroll was removed — a submission is not on the roster until that tap.
+- New enrollment start dates run through **Solomon · Starts**: agreed date pulled from the thread → owner Confirm → the parent's app login goes out on day one.
 - Parent app **logins** are still created by Yahjair from the Parent Logins inbox (one click) — credentials (Login ID + PIN) show once, so that step stays owner-gated.
 - Website enrollment inquiries flow to GoHighLevel + email automatically. Chain verified end-to-end August 14, 2026 — see `solomon-systems-craft.md`.
 
