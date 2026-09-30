@@ -29,6 +29,7 @@ The output is a proposal the operator still taps to execute.
 State lives in memory only (marcus_state/ holds the durable half via agents_hub +
 agent_bus). A restart clears the job log; the tasks and bus notes survive.
 """
+import json
 import threading
 import time
 
@@ -56,6 +57,7 @@ DROPSHIP_AGENTS = {
 }
 
 DEPT_OF = {a: d["id"] for d in DEPARTMENTS for a in d["agents"]}
+DEPT_OF["orion"] = "cross"
 
 # How long after a bus message an agent still reads as "reporting" on the floor.
 REPORTING_WINDOW_MS = 90_000
@@ -96,7 +98,7 @@ def _card(agent_id):
 # background engine (Marcus's screener, Dyson, Eco) are simply absent.
 _ENGINE_ATTR = {
     "scout": "SCOUT", "marcus": "MARCUS", "atlas": "DEAL_PREP",
-    "solomon": "SOLOMON", "midas": "MIDAS",
+    "solomon": "SOLOMON", "midas": "MIDAS", "orion": "ORION",
 }
 
 
@@ -245,10 +247,63 @@ def state(business=None):
         out.append({"id": d["id"], "label": d["label"], "accent": d["accent"],
                     "agents": agents})
 
+    director = dict(_card("orion"))
+    director.update(_activity("orion", bus_idx, task_counts, now_ms))
+    director["openTasks"] = task_counts.get("orion", 0)
+    try:
+        import agent_bus
+        messages = agent_bus.recent(limit=30).get("messages", [])
+    except Exception:
+        messages = []
+    active_ids = {a["id"] for d in out for a in d["agents"]} | {"orion", "operator", "all"}
+    messages = [m for m in messages if m.get("from") in active_ids
+                and m.get("to") in active_ids][:12]
     with _LOCK:
         running = sum(1 for j in _JOBS if j["status"] == "running")
     return {"ok": True, "now": now_ms, "departments": out, "running": running,
-            "business": business}
+            "business": business, "director": director, "messages": messages}
+
+
+def plan(message, chat_fn):
+    """Orion proposes assignments; this never dispatches them. The owner reviews first."""
+    if not isinstance(message, str) or not message.strip() or len(message) > 4000:
+        return {"error": "Enter a request of 1–4000 characters"}
+    floor = state()
+    active = {a["id"] for d in floor["departments"] for a in d["agents"]}
+    prompt = ("Plan internal analytical tasks for this OWNER request. Do not execute anything. "
+              "Return ONLY valid JSON: {\"summary\":\"short explanation\",\"assignments\":"
+              "[{\"agentId\":\"an active id\",\"title\":\"specific task\",\"note\":\"context\"}]}. "
+              "At most one assignment per agent, at most 6 total. Only use active ids: "
+              + ", ".join(sorted(active)) + ". No seller/customer messages, ad spending, "
+              "invoices, deployments or system-of-record writes. If no internal task is "
+              "appropriate, use an empty assignments array. CURRENT OFFICE: "
+              + json.dumps(floor, default=str)[:9000] + "\nOWNER REQUEST: " + message.strip())
+    out = chat_fn("orion", prompt)
+    if not isinstance(out, dict) or out.get("error") or out.get("needsKey"):
+        return {"error": (out or {}).get("error") or (out or {}).get("reply") or "Orion unavailable"}
+    raw = (out.get("reply") or "").strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    try:
+        proposal = json.loads(raw)
+    except (ValueError, TypeError):
+        return {"error": "Orion returned an unreadable plan. No tasks were assigned."}
+    if not isinstance(proposal, dict) or not isinstance(proposal.get("assignments"), list):
+        return {"error": "Orion returned an invalid plan. No tasks were assigned."}
+    assignments, seen = [], set()
+    for row in proposal["assignments"]:
+        if not isinstance(row, dict):
+            return {"error": "Invalid assignment. No tasks were assigned."}
+        aid, title, note = row.get("agentId"), row.get("title"), row.get("note", "")
+        if (aid not in active or aid in seen or not isinstance(title, str) or not title.strip()
+                or len(title) > 600 or not isinstance(note, str) or len(note) > 4000):
+            return {"error": "Invalid assignment. No tasks were assigned."}
+        seen.add(aid)
+        assignments.append({"agentId": aid, "title": title.strip(), "note": note.strip()})
+    summary = proposal.get("summary", "Review these assignments.")
+    if len(assignments) > 6 or not isinstance(summary, str) or len(summary) > 2000:
+        return {"error": "Invalid plan. No tasks were assigned."}
+    return {"ok": True, "summary": summary, "assignments": assignments}
 
 
 # ── jobs (an agent visibly doing the work, and actually doing it) ─────────────
@@ -348,7 +403,7 @@ def _fail_task(job, err):
         pass
 
 
-def dispatch(agent_id, title, note="", chat_fn=None):
+def dispatch(agent_id, title, note="", chat_fn=None, directed_by=""):
     """Give an agent a task from the floor: file it, then actually run it.
 
     chat_fn(agent_id, message) -> the agents_hub chat bound to this GHL sub-account.
@@ -356,12 +411,19 @@ def dispatch(agent_id, title, note="", chat_fn=None):
     stays connector-free and importable on its own.
     """
     global _SEQ
-    agent_id = (agent_id or "").strip()
-    title = (title or "").strip()
+    if (not isinstance(agent_id, str) or not isinstance(title, str)
+            or not isinstance(note, str) or directed_by not in ("", "orion")):
+        return {"error": "invalid task"}
+    agent_id = agent_id.strip()
+    title = title.strip()
     if agent_id not in DEPT_OF:
         return {"error": "unknown agent"}
     if not title:
         return {"error": "a task needs a title"}
+    if len(title) > 600 or len(note) > 4000:
+        return {"error": "task is too long"}
+    if directed_by and (agent_id == "orion" or DEPT_OF[agent_id] in _archived()):
+        return {"error": "Orion can direct active team agents only"}
     if _live_job(agent_id):
         return {"error": f"{_card(agent_id)['name']} is already on a task"}
 
@@ -380,12 +442,20 @@ def dispatch(agent_id, title, note="", chat_fn=None):
         _SEQ += 1
         job = {"id": f"j{_SEQ}_{now}", "agentId": agent_id,
                "agentName": _card(agent_id)["name"], "dept": DEPT_OF[agent_id],
-               "title": title, "note": (note or "").strip(), "taskId": task_id,
+               "title": title, "note": note.strip(), "taskId": task_id,
+               "directedBy": directed_by,
                "status": "running", "startedAt": now, "steps": [],
                "result": "", "error": ""}
         _JOBS.insert(0, job)
         del _JOBS[MAX_JOBS:]
 
+    if directed_by:
+        try:
+            import agent_bus
+            agent_bus.send("orion", agent_id, "task", f"Owner-approved assignment: {title}",
+                           {"taskId": task_id, "jobId": job["id"], "approvedBy": "operator"})
+        except Exception:
+            pass
     threading.Thread(target=_run, args=(dict(job), chat_fn), daemon=True).start()
     return {"ok": True, "job": {k: v for k, v in job.items() if k != "steps"},
             "jobId": job["id"], "taskId": task_id}
@@ -421,9 +491,9 @@ def _selfcheck():
     import tempfile
     from pathlib import Path as _P
 
-    assert set(DEPT_OF) == {a for d in DEPARTMENTS for a in d["agents"]}
+    assert set(DEPT_OF) == {a for d in DEPARTMENTS for a in d["agents"]} | {"orion"}
     # 7 after the 2026-07-25 consolidation (Nora/Nova/Hawk/Blaze/Otto retired).
-    assert len(DEPT_OF) == 7, DEPT_OF
+    assert len(DEPT_OF) == 8, DEPT_OF
     # Every agent on the floor must be reachable through agents_hub.chat — that's the
     # one path _run uses, so an agent missing from the hub roster would silently fall
     # through to "no brain wired" (which is how Midas ended up canned-replying).

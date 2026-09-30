@@ -356,6 +356,7 @@ SERVE_TYPES = {
     ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon",
     ".woff": "font/woff", ".woff2": "font/woff2",
+    ".glb": "model/gltf-binary",
 }
 # Directories that must never be reachable over HTTP even with an allowed suffix.
 DENY_DIRS = {"deploy", "marcus_state", "__pycache__", ".git", "uploads"}
@@ -3337,7 +3338,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/chat",
                                    "/api/hub/task",
                                    "/api/hub/task/update",
-                                   "/api/office/task",
+                                   "/api/office/task", "/api/office/plan",
                                    "/api/graphify/rebuild",
                                    "/api/coach/broadcast",
                                    "/api/coach/ask",
@@ -3555,7 +3556,7 @@ class Handler(BaseHTTPRequestHandler):
                                               body.get("note", ""))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
-            elif parsed.path == "/api/office/task":
+            elif parsed.path in ("/api/office/task", "/api/office/plan"):
                 # The Agent Office floor: file the task AND actually run that agent's
                 # real brain in the background so the operator watches it happen.
                 # chat_fn is the hub chat bound to THIS GHL sub-account (same pattern as
@@ -3569,8 +3570,12 @@ class Handler(BaseHTTPRequestHandler):
                         agents_history.record(_aid, _msg, out.get("reply"), via="office")
                     return out
 
-                result = pixel_office.dispatch(body.get("agentId"), body.get("title"),
-                                               body.get("note", ""), chat_fn=_office_chat)
+                if parsed.path == "/api/office/plan":
+                    result = pixel_office.plan(body.get("message"), _office_chat)
+                else:
+                    result = pixel_office.dispatch(body.get("agentId"), body.get("title"),
+                                                   body.get("note", ""), chat_fn=_office_chat,
+                                                   directed_by=body.get("directedBy", ""))
             elif parsed.path == "/api/graphify/rebuild":
                 # Rebuild the knowledge graph now (internal + read-only over the repo/
                 # vault; writes only the graph file). Handy after a big code change.

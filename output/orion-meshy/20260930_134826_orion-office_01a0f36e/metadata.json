@@ -4,6 +4,21 @@
   "folder": "20260930_134826_orion-office_01a0f36e",
   "root_task_id": "01a0f36e-0076-74a6-ac34-305efe8f8b0d",
   "created_at": "2026-09-30T17:48:26.653Z",
-  "updated_at": "2026-09-30T17:48:26.653Z",
-  "tasks": []
+  "updated_at": "2026-09-30T17:51:08.306Z",
+  "tasks": [
+    {
+      "task_id": "01a0f36e-0076-74a6-ac34-305efe8f8b0d",
+      "task_type": "multi-image-to-3d",
+      "resource": "multi-image-to-3d",
+      "endpoint": "/openapi/v1/multi-image-to-3d",
+      "stage": "geometry",
+      "parent_task_id": null,
+      "status": "SUCCEEDED",
+      "files": [],
+      "task_json": "task_01a0f36e-0076-74a6-ac34-305efe8f8b0d.json",
+      "operation_id": null,
+      "created_at": "2026-09-30T17:51:08.306Z",
+      "updated_at": "2026-09-30T17:51:08.306Z"
+    }
+  ]
 }
