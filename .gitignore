@@ -46,3 +46,4 @@ ios/**/*.xcuserstate
 
 # Meshy task snapshots contain expiring signed asset URLs; deliverable GLBs stay tracked.
 output/orion-meshy/
+output/dog-meshy/
