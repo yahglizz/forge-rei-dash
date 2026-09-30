@@ -735,8 +735,11 @@ class SolomonEngine:
             "action}), delegations (array of {role, task} — role is who does it: Owner, "
             "Director, Front desk, or Ads). urgency is exactly \"high\", \"medium\" or "
             "\"low\"; roster area is \"seats\" or \"retention\". Each finding appears "
-            "in ONE array only — a priority is not repeated in its lane. Empty arrays "
-            "beat invented findings."
+            "in ONE array only — a priority is not repeated in its lane (delegations may "
+            "assign a priority's move). The owner reads this on a phone at 7am: headline "
+            "≤ 25 words, each title ≤ 15 words, each why ≤ 50 words (the number, its "
+            "source, the move — no essay), at most 6 delegations. Empty arrays beat "
+            "invented findings."
             + _north_star_block()
             + (ctx or "")
             + _creed_block()
