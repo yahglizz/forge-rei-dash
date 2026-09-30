@@ -10,7 +10,7 @@ function OrionOfficeFloor({ state, selected, onSelect, mode }) {
     import('/office_scene.js').then(m => {
       if (!dead) return m.createOfficeScene(host.current, () => latest.current, onSelect, s => { if (!dead) setStatus(s); });
     }).then(cleanup => { if (dead && cleanup) cleanup(); else dispose = cleanup; })
-      .catch(() => { if (!dead) setStatus('3D is unavailable in this browser. Use Pixel view.'); });
+      .catch(e => { console.warn('Orion office:', e); if (!dead) setStatus('3D is unavailable in this browser. Use Pixel view.'); });
     return () => { dead = true; if (dispose) dispose(); };
   }, []);
   return <div className="orion-stage">
