@@ -744,6 +744,9 @@ class Screener:
 
     # -- self-improvement ---------------------------------------------------
     def _maybe_learn(self, key):
+        import review_agent
+        if not review_agent.self_improve_on():   # scheduled self-improvement is OFF by default (cost)
+            return
         now = int(time.time() * 1000)
         st = self.learn_state
         if (key and st.get("screenedSinceLearn", 0) >= LEARN_EVERY

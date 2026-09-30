@@ -295,7 +295,7 @@ class OrionEngine:
             + "\n\nProduce the brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=2400, effort="medium"))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=2400, effort="medium", model=review_agent.SMART_MODEL))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"
@@ -366,6 +366,9 @@ class OrionEngine:
 
     # --- self-improvement ----------------------------------------------------
     def _maybe_learn(self, key):
+        import review_agent
+        if not review_agent.self_improve_on():   # scheduled self-improvement is OFF by default (cost)
+            return
         if key and self.learn_state.get("briefsSinceLearn", 0) >= LEARN_EVERY:
             try:
                 self.learn(auto=True)

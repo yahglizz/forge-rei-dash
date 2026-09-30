@@ -192,7 +192,7 @@ def ideas(account=None):
             "each buildable as-is. Ground everything in the brief and the live ad spec "
             "above. Output ONLY the JSON object.\n\n" + ctx)
     try:
-        raw = review_agent._claude(key, _nova_system(), user, max_tokens=3000)
+        raw = review_agent._claude(key, _nova_system(), user, max_tokens=3000, model=review_agent.SMART_MODEL)
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"Nova couldn't reach her brain: {e}"}
 

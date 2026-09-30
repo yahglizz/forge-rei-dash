@@ -65,6 +65,9 @@ BUS_ROLES = ("solomon", "family-comms", "enrollment", "ads", "growth", "nora", "
              "daycare_replies", "daycare_leads")
 RECENT_BLASTS = 5                          # blast history depth for the follow-up lane
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
+# The autonomous daily operating brief is OFF (owner cut scheduled briefs 2026-09-30): Solomon's
+# value is the Replies/Leads/Starts lanes. On-demand brief + chat still work.
+SCHEDULED_BRIEF = os.environ.get("FORGE_SOLOMON_BRIEF", "0") != "0"
 LEARN_MIN_INTERVAL_MS = int(os.environ.get("FORGE_SOLOMON_LEARN_GAP_MIN", "45")) * 60 * 1000
 BRIEF_EVERY_MS = int(float(os.environ.get("FORGE_SOLOMON_BRIEF_EVERY_H", "24")) * 3600 * 1000)
 # The brief is ONE json object covering 9 sections (ops, enrollment, money, people,
@@ -670,7 +673,7 @@ class SolomonEngine:
             + "\n\nProduce the operating brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS, effort="medium"))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS, effort="medium", model=review_agent.SMART_MODEL))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"
@@ -732,6 +735,9 @@ class SolomonEngine:
 
     # --- self-improvement ----------------------------------------------------
     def _maybe_learn(self, key):
+        import review_agent
+        if not review_agent.self_improve_on():   # scheduled self-improvement is OFF by default (cost)
+            return
         now = int(time.time() * 1000)
         st = self.learn_state
         if (key and st.get("briefsSinceLearn", 0) >= LEARN_EVERY
@@ -965,7 +971,7 @@ class SolomonEngine:
                 key = _solomon_key()
                 # Due a fresh autonomous brief? Build one under an auto-admin session.
                 now = int(time.time() * 1000)
-                if self._brief_due(now) and key:
+                if SCHEDULED_BRIEF and self._brief_due(now) and key:
                     attempted = True
                     session = None
                     try:

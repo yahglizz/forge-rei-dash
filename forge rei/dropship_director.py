@@ -551,7 +551,7 @@ class MidasEngine:
             + "\n\nProduce the operating brief now."
         )
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS, effort="medium"))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=BRIEF_MAX_TOKENS, effort="medium", model=review_agent.SMART_MODEL))
             parsed = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"brief: {e}"
@@ -602,6 +602,9 @@ class MidasEngine:
 
     # --- self-improvement ----------------------------------------------------
     def _maybe_learn(self, key):
+        import review_agent
+        if not review_agent.self_improve_on():   # scheduled self-improvement is OFF by default (cost)
+            return
         now = int(time.time() * 1000)
         st = self.learn_state
         if (key and st.get("briefsSinceLearn", 0) >= LEARN_EVERY
@@ -804,7 +807,7 @@ class MidasEngine:
                      + json.dumps(data, indent=2, default=str))
         user += "\n\nRespond with ONLY the JSON your playbook's output contract specifies."
         try:
-            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=max_tokens, effort="medium"))
+            raw = _strip_fences(review_agent._claude(key, system, user, max_tokens=max_tokens, effort="medium", model=review_agent.SMART_MODEL))
         except Exception as e:  # noqa: BLE001
             self.last_error = str(e)
             return {"ok": False, "error": f"claude: {e}"}

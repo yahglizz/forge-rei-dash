@@ -40,6 +40,7 @@ import daycare_leads
 import forge_atomic
 import forge_heartbeat
 import forge_ops
+import review_agent
 import seller_classify
 
 HERE = Path(__file__).resolve().parent

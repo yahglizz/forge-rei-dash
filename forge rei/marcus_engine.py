@@ -802,7 +802,8 @@ class MarcusEngine:
             return fallback, True
         return text, False
 
-    def _ai_draft(self, first, cls, body, history, hint=None, seller_context=None, pivot=False):
+    def _ai_draft(self, first, cls, body, history, hint=None, seller_context=None, pivot=False,
+                  model=None):
         """Claude-written reply if a key is present; else Marcus's template.
 
         `hint` (optional) is Scout's recommended re-engage angle for a missed/cold lead;
@@ -917,12 +918,15 @@ class MarcusEngine:
                 [{"type": "text", "text": sys_prompt, "cache_control": {"type": "ephemeral"}}]
                 if len(sys_prompt) >= 1200 else sys_prompt)
             import review_agent   # shared model/thinking + transient retry (<=2, 429/5xx/529/network only)
+            # Inbound seller replies run on DRAFT_MODEL (SMART); automatic re-engage bumps
+            # pass model=FAST_MODEL (reengage_draft / reengage_copy) — low stakes, price-guarded.
+            draft_model = model or review_agent.DRAFT_MODEL
             payload = {
-                "model": review_agent.DRAFT_MODEL,
+                "model": draft_model,
                 "system": system_payload,
                 "messages": [{"role": "user", "content":
                               f"Conversation so far:\n{convo}\n\nWrite Marcus's reply:"}],
-                **review_agent.thinking_params(review_agent.DRAFT_MODEL, 300, "low"),
+                **review_agent.thinking_params(draft_model, 300, "low"),
             }
             req = urllib.request.Request(
                 "https://api.anthropic.com/v1/messages",
@@ -940,7 +944,7 @@ class MarcusEngine:
                 import cost_tracker
                 u = data.get("usage") or {}
                 cost_tracker.record_anthropic(
-                    review_agent.DRAFT_MODEL, u.get("input_tokens"), u.get("output_tokens"),
+                    draft_model, u.get("input_tokens"), u.get("output_tokens"),
                     cache_write_tokens=u.get("cache_creation_input_tokens"),
                     cache_read_tokens=u.get("cache_read_input_tokens"))
             except Exception:

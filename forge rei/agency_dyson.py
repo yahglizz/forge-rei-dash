@@ -312,7 +312,7 @@ def _claude_draft_fields(req, workspace=None, repo_files=None):
         f"{_files_block(repo_files)}"
     )
 
-    raw = review_agent._claude(key, system, user, max_tokens=4096)
+    raw = review_agent._claude(key, system, user, max_tokens=4096, model=review_agent.SMART_MODEL)
 
     cleaned = raw.strip()
     if cleaned.startswith("```"):

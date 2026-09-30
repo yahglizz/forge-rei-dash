@@ -653,7 +653,7 @@ def learn(agent_id, auto=False):
 def _maybe_learn(agent_id, key):
     """Auto self-improve once enough fresh encounters accrue, rate-limited so it
     can't run too often. Mirrors scout_triage._maybe_learn."""
-    if not key:
+    if not key or not review_agent.self_improve_on():   # scheduled self-improvement OFF by default
         return
     now = int(time.time() * 1000)
     with _LOCK:

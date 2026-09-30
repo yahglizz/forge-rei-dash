@@ -371,7 +371,9 @@ def draft_warm():
                 text, source, status = marcus_engine.CANNED_NRN_REPLY, "canned_nrn", "ok"
             else:
                 hint = HINTS[seg].format(age=_age_phrase(row["last_message_date_iso"]))
-                text, source = engine._ai_draft(first, cls, body, history, hint=hint)
+                import review_agent
+                text, source = engine._ai_draft(first, cls, body, history, hint=hint,
+                                                model=review_agent.FAST_MODEL)
                 status = "blocked" if source == "blocked" else "ok"
                 if status == "blocked":
                     text = f"[BLOCKED: {engine.last_error}]"

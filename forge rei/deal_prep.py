@@ -479,6 +479,9 @@ class DealPrep:
 
     # -- self-improvement (learn from real preps, rewrite own playbook) ------------
     def _maybe_learn(self, key):
+        import review_agent
+        if not review_agent.self_improve_on():   # scheduled self-improvement is OFF by default (cost)
+            return
         now = int(time.time() * 1000)
         st = self.learn_state
         last = st.get("lastLearnedAt") or 0

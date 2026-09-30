@@ -181,7 +181,9 @@ def draft_for_row(engine, row):
         if status_category == "replied_then_cold":
             hint = (f"Seller said '{body[:200]}' and went quiet after our last message on "
                     f"{row['last_message_date_iso'][:10]}. Reopen naturally, not like a robo-blast.")
-        text, source = engine._ai_draft(first, cls, body, history, hint=hint)
+        import review_agent
+        text, source = engine._ai_draft(first, cls, body, history, hint=hint,
+                                        model=review_agent.FAST_MODEL)
         hint_used = hint or ""
         draft_source = source
         if source == "blocked":
