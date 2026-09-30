@@ -146,6 +146,21 @@ def test_auto_send():
     dr.AUTO = False
 
 
+def test_owner_handoff():
+    sent = []
+    import telegram_io
+    telegram_io.send_biz = lambda biz, text, **kw: sent.append((biz, text, kw)) or {"ok": True}
+    base = {"contactId": "c9", "inboundId": "m1", "parentName": "Tasha", "center": "921 N 18th St",
+            "inboundText": "do you have a <bus> for pickup?", "draft": "let me confirm and get right back to you"}
+    assert dr.notify_owner(dict(base, action="draft", unknowns=["school-bus pickup"]))
+    assert sent[0][0] == "daycare" and "&lt;bus&gt;" in sent[0][1] and "school-bus pickup" in sent[0][1]
+    assert sent[0][2]["dedupe_key"] == "dcreply:c9:m1"
+    assert dr.notify_owner(dict(base, action="escalate", unknowns=[]))         # safety topic: always
+    assert "NOW" in sent[1][1]
+    assert not dr.notify_owner(dict(base, action="draft", unknowns=[]))        # fully answered: no ping
+    assert not dr.notify_owner(dict(base, action="no_reply", unknowns=["x"]))
+
+
 def test_ai_down_stops_sweep():
     dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
     convs = [{"id": f"v{i}", "contactId": f"c{i}", "lastMessageDirection": "inbound",
@@ -166,5 +181,6 @@ if __name__ == "__main__":
     test_flags()
     test_sweep_and_approve()
     test_auto_send()
+    test_owner_handoff()
     test_ai_down_stops_sweep()
     print("test_daycare_replies: all passed")

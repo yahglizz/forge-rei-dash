@@ -163,6 +163,36 @@ def flags(draft):
     return f
 
 
+def notify_owner(d):
+    """Telegram the owner when Solomon needs a human: a question he can't answer from the
+    verified fact sheet (`unknowns`) or an escalation topic (safety/custody/medical/billing
+    dispute/complaint). Deduped per inbound message. Never raises, never sends to the parent."""
+    try:
+        if d.get("action") == "no_reply":
+            return False
+        unknowns = [u for u in (d.get("unknowns") or []) if u]
+        if d.get("action") != "escalate" and not unknowns:
+            return False
+        import html
+        import telegram_io
+        e = lambda x: html.escape(str(x or ""))          # Telegram message is HTML
+        head = "🚨 Solomon · needs you NOW" if d.get("action") == "escalate" else "🙋 Solomon · a parent asked something he doesn't know"
+        who = d.get("parentName") or "A parent"
+        parts = [f"{head}\n{e(who)}" + (f" · {e(d['center'])}" if d.get("center") else "") + f" texted:\n“{e((d.get('inboundText') or '')[:300])}”"]
+        if unknowns:
+            parts.append("He didn't state: " + e("; ".join(u[:120] for u in unknowns[:4])))
+        if d.get("draft"):
+            parts.append(("Holding line " + ("auto-sent" if d.get("autoEligible") and AUTO else "drafted")
+                          + f": “{e(d['draft'][:240])}”"))
+        parts.append("Step in: Messages tab (or reply in GHL — he stops as soon as you do).")
+        telegram_io.send_biz("daycare", "\n".join(parts),
+                             dedupe_key=f"dcreply:{d.get('contactId')}:{d.get('inboundId')}")
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[daycare_replies] notify_owner: {type(e).__name__}: {str(e)[:120]}")
+        return False
+
+
 def auto_eligible(res, kind):
     """Pure: may this draft go out without the owner's tap? Only a clean, plain answer to
     an enrollment LEAD — never an escalation, an enrolled family, a flagged draft
@@ -425,6 +455,7 @@ def run_once(client, now=None, drafter=None):
                 "status": "pending" if res["action"] != "no_reply" else "no_reply",
                 "createdAt": int(now * 1000), **res,
             }
+            notify_owner(drafts[cid])
         except Exception as e:  # noqa: BLE001 — one bad thread never kills the sweep...
             errors += 1
             print(f"[daycare_replies] {cid}: {type(e).__name__}: {str(e)[:160]}")

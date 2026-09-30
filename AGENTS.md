@@ -67,12 +67,15 @@ Two agents, both plan/recommend only — nothing ships or spends without approva
 
 ## Daycare — A Touch of Blessings Learning Academy
 
-Chain of command: **Solomon** (head / executive director). His roster/family-comms
-and ad-ops lanes are merged into his role. He proposes/delegates; never writes outward.
+Chain of command: **Solomon** is the daycare's ONE agent — a **growth director**
+(2026-09-30 owner decision: enrollment only; paperwork, compliance, billing collection
+and staff admin are NOT his lane — never add them back). He proposes/delegates; never
+writes outward, with ONE opt-in exception below. Codex/any agent touching Solomon: read
+`forge-solomon/AGENTS.md` first.
 
 | Agent | Engine | Job | Autonomy |
 |---|---|---|---|
-| **Solomon** | `daycare_director.py` | Head of daycare: ranked operating brief (Attention Now / Enrollment / Money / People / Roster / Follow-ups / Campaign health / Creative / Delegations), owns enrollment and combines the former Nora/Nova lanes. | Never texts/invoices/launches ads/writes the DB. Proposes + delegates. Self-improves. |
+| **Solomon** | `daycare_director.py` | Growth director: ranked growth brief (families waiting → funnel leak → sellable seats → retention → demand → offer clock) + three live lanes: **Replies** (`daycare_replies.py` — speed-to-lead follow-through, answers a parent ~90 s–5 min after they text, asks the one next qualifying question, pings Telegram when he hits a question he can't answer), **Leads** (`daycare_leads.py`), **Starts** (`daycare_starts.py`). | Never launches ads / invoices / writes the DB. Replies are drafts the owner taps, EXCEPT opt-in `FORGE_DAYCARE_REPLY_AUTO=1` (default OFF): clean enrollment-lead answers auto-send, capped, receipted, staff-reply kills it. Self-improves (drift-guarded). |
 
 ---
 
