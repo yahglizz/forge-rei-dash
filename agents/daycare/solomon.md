@@ -118,7 +118,7 @@ His registry row (`agents_hub.registry`): heartbeats `solomon` + `daycare_replie
 
 ## 10. Lane: Solomon · Replies — the Reply Desk (parent-reply drafter, added 2026-09-23)
 
-His `family-comms` lane made concrete: every 5 min, drafts the next text back to any parent/guardian who texted the daycare GHL number and is owed a reply, in the center's real texting voice, grounded in the verified fact sheet. **Draft-only — the owner's tap sends.**
+His `family-comms` lane made concrete: every 60 s, drafts the next text back (a parent gets an answer ~90 s–5 min after texting — never instant) to any parent/guardian who texted the daycare GHL number and is owed a reply, in the center's real texting voice, grounded in the verified fact sheet. **Draft-only by default — the owner's tap sends.** Opt-in `FORGE_DAYCARE_REPLY_AUTO=1` auto-sends ONLY clean, flag-free answers to enrollment *leads* in the safe categories (tour · subsidy · availability · enroll · pricing-deflect); escalations, enrolled families, billing/safety/custody/medical, and anything flagged stay a tap. Cap `FORGE_DAYCARE_AUTO_CAP` (30/day), ≤3 per contact/24 h, 8am–9pm ET, Telegram receipt each send, stopped by clock-out or any staff reply in GHL. Lead-qualifying ladder (age → center → start → subsidy → tour) lives in `daycare-parent-reply.md` §2b.
 
 **Identity + triggers**
 
@@ -127,11 +127,11 @@ His `family-comms` lane made concrete: every 5 min, drafts the next text back to
 | Engine | `forge rei/daycare_replies.py` (no engine object — pure functions + a state file), self-check `forge rei/test_daycare_replies.py` |
 | Thread | `daycare_replies` (`connector.main`, started next to the Leads thread); bills to `solomon` |
 | Gate | `FORGE_MARCUS` != `0` **and** `FORGE_DAYCARE_REPLIES` != `0` (default on; `0` retires the heartbeat) |
-| Tick | `FORGE_DAYCARE_REPLIES_INTERVAL` 300 s · ≤`FORGE_DAYCARE_REPLY_MAX` 8 Claude calls + ≤40 thread GETs per sweep |
+| Tick | `FORGE_DAYCARE_REPLIES_INTERVAL` 60 s · ≤`FORGE_DAYCARE_REPLY_MAX` 8 Claude calls + ≤40 thread GETs per sweep |
 | Clock-out | whole sweep skipped on `forge_ops.paused()` |
 | Heartbeat | `daycare_replies`, label "Solomon · Replies" |
 | Model | `FORGE_DAYCARE_REPLY_MODEL`, default `claude-sonnet-5` · key = `_solomon_key()` |
-| Knobs | `FORGE_DAYCARE_REPLY_GRACE_MIN` (5) · `FORGE_DAYCARE_REPLY_MAX` (8) · `FORGE_DAYCARE_REPLIES_INTERVAL` (300) |
+| Knobs | `FORGE_DAYCARE_REPLY_GRACE_SEC` (90) · `FORGE_DAYCARE_REPLY_MAX` (8) · `FORGE_DAYCARE_REPLIES_INTERVAL` (60) · `FORGE_DAYCARE_REPLY_AUTO` (0) · `FORGE_DAYCARE_AUTO_CAP` (30) |
 | Telegram | no `/replydesk` command and no name trigger — ask Solomon (`solomon, …`) |
 | Handoffs | none in — it reads the daycare GHL location directly, the same account the Leads lane and the speed-to-lead website workflow use |
 
@@ -162,7 +162,7 @@ Per-thread user prompt: last 15 messages of the conversation, parent/child first
   - the parent sent STOP/HELP/START/etc. — the carrier/GHL keyword auto-replies own those words;
   - the parent has opted out or is DND — permanent, never revisited;
   - a fresh website lead is still inside the speed-to-lead window (speed-to-lead tag on and the first touch not out within 15 min, or the overnight `speed-to-lead-queued` → 8am flush) — the workflow owns that first text, not this;
-  - the inbound is younger than `FORGE_DAYCARE_REPLY_GRACE_MIN` — lets a workflow's stop-on-response or live staff typing back go first;
+  - the inbound is younger than `FORGE_DAYCARE_REPLY_GRACE_SEC` (90 s) — lets a workflow's stop-on-response or live staff typing back go first;
   - the thread isn't SMS, or the inbound is older than 7 days (the Leads lane's job, not this one's).
 - **Code-level draft flags** (`flags()`, always run, never bypassable by the model): a phone number not on the fact sheet (`unverified_phone`), a dollar figure (`money`), an emoji, or a draft over ~3 SMS segments (`long`).
 - **`approve()` re-checks the live thread**, not the cached draft: refuses outside 8am–9pm ET, refuses and retires the draft if anyone (staff or a workflow) replied since it was written, refuses if the parent opted out in the meantime. One `daycare_ghl.send_sms` + `action_log` (as `solomon`).

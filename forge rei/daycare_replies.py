@@ -4,7 +4,7 @@ Why: parents text the daycare GHL number around the clock and the Lead Desk can 
 "someone needs to answer this". This loop writes the answer — in the center's real voice,
 grounded in the verified fact sheet — so the owner's job at 6am is one tap, not a blank box.
 
-Every 5 min on the box (FORGE_MARCUS gate lives in connector.main, knob FORGE_DAYCARE_REPLIES):
+Every 60 s on the box (FORGE_MARCUS gate lives in connector.main, knob FORGE_DAYCARE_REPLIES):
   1. One GET of the daycare location's 100 newest conversations; keeps threads whose last
      message is an inbound SMS.
   2. `gate()` (pure) decides whether a human reply is actually owed, and YIELDS to the GHL
@@ -15,7 +15,10 @@ Every 5 min on the box (FORGE_MARCUS gate lives in connector.main, knob FORGE_DA
   3. For threads that pass, one Claude call (Sonnet 5 by default) returns JSON:
      draft / escalate / no_reply + category + unknowns. Code then flags anything the owner
      must eyeball: a phone number not on the fact sheet, a dollar figure, emoji, length.
-  4. Drafts land in marcus_state/daycare_replies.json. Nothing is sent.
+  4. Drafts land in marcus_state/daycare_replies.json. By default nothing is sent.
+  5. OPT-IN (FORGE_DAYCARE_REPLY_AUTO=1, default OFF): auto_send() texts only a clean,
+     flag-free answer to an enrollment LEAD in the safe categories — capped, receipted on
+     Telegram, action-logged, stopped by forge_ops clock-out or any staff reply in GHL.
 
 Sending: POST /api/daycare/replies/approve is the owner's tap (CLAUDE.md rule 2, §10 —
 family SMS is owner-initiated). It re-reads the live thread first and refuses if anyone
@@ -343,7 +346,7 @@ def view(now=None):
             "lastRunAt": st.get("lastRunAt"), "lastSweep": st.get("lastSweep"),
             "error": st.get("error") or (None if st.get("lastRunAt") else
                      "Reply desk has not run yet — POST /api/daycare/replies/run, or it "
-                     "sweeps every 5 min on the box.")}
+                     "sweeps every minute on the box.")}
 
 
 # ── I/O ───────────────────────────────────────────────────────────────────────
