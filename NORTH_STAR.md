@@ -202,13 +202,18 @@ directly, not stuffed into every agent's live prompt (the loader in
 
 ## 7. Brains & Skills Map
 
+**Current roster (2026-09-30): one main agent per business — Marcus (Wholesale), Dyson (Agency),
+Solomon (Daycare), Midas (Dropship, archived) — plus Orion (CEO).** Rows below tagged *lane*
+(Scout, Atlas, Eco, Solomon's Replies/Leads/Starts) are loops that belong to that main agent.
+Active businesses: Wholesale, Agency, Daycare; Dropship + the Agency Personal lens are archived.
+
 | Business | Head agent(s) | Engine file(s) | Seed skills folder | Learned playbook (vault) | Creed file |
 |---|---|---|---|---|---|
-| Wholesale | Scout | `forge rei/scout_triage.py` | `forge-scout/skills/` | `Skills/scout-playbook.md` | `wholesale-evidence-discipline.md` |
+| Wholesale | Scout (*lane of Marcus*) | `forge rei/scout_triage.py` | `forge-scout/skills/` | `Skills/scout-playbook.md` | `wholesale-evidence-discipline.md` |
 | Wholesale | Marcus (screening + drafting) | `forge rei/marcus_screening.py`, `forge rei/marcus_engine.py` | `forge-marcus/skills/` | `Skills/marcus-screening-playbook.md`, `Skills/marcus-playbook.md` | `wholesale-evidence-discipline.md` |
-| Wholesale | Atlas | `forge rei/deal_prep.py` | `forge-marcus/skills/` (rides on Marcus's folder — "Atlas reports to Marcus" is literal) | `Skills/atlas-underwriter.md` | `wholesale-evidence-discipline.md` |
+| Wholesale | Atlas (*lane of Marcus*) | `forge rei/deal_prep.py` | `forge-marcus/skills/` (rides on Marcus's folder — "Atlas reports to Marcus" is literal) | `Skills/atlas-underwriter.md` | `wholesale-evidence-discipline.md` |
 | Agency | Dyson | `forge rei/agency_agents.py` (`agent_id="dyson"`) | `forge-agency/skills/` | `Skills/dyson-playbook.md` | `agency-evidence-discipline.md` |
-| Agency | Eco | `forge rei/agency_agents.py` (`agent_id="eco"`) | `forge-agency/skills/` | `Skills/eco-playbook.md` | `agency-evidence-discipline.md` |
+| Agency | Eco (*lane of Dyson*) | `forge rei/agency_agents.py` (`agent_id="eco"`) | `forge-agency/skills/` | `Skills/eco-playbook.md` | `agency-evidence-discipline.md` |
 | Daycare | Solomon (growth director: enrollment, seats, retention, ad ops; live lanes Solomon · Replies + Leads + Starts) | `forge rei/daycare_director.py` (lanes: `forge rei/daycare_replies.py`, `forge rei/daycare_leads.py`) | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md` (growth craft), `solomon-systems-craft.md`, `solomon-roster-craft.md` (seats & retention), `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
 | Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` — 11 skills total: always-on `midas-decision-loop.md`, `midas-craft.md`, `dropship-account-health.md`; lane-gated `dropship-adspy-method.md` (research), `dropship-four-triggers-ad-writer.md`/`dropship-meta-ads-diagnostician.md`/`dropship-ad-launch-sop.md`/`dropship-creative-testing-doctrine.md`/`dropship-account-optimization-doctrine.md`/`dropship-adspy-method.md` (creative & ads), `dropship-support-macros.md` (fulfillment); on-demand `dropship-store-setup.md` (chat only) | *(none yet — `Skills/midas-playbook.md` is written by Midas's FIRST `learn()`; until then the seed `forge-dropship/skills/midas-playbook.md` IS the live playbook)* | `dropship-evidence-discipline.md` |
 

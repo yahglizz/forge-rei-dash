@@ -227,7 +227,24 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 > `FORGE_SKILL_FORGE`. Model knobs: `FORGE_FAST_MODEL`, `FORGE_SMART_MODEL`, `FORGE_DRAFT_MODEL`.
 > Guard: `test_model_policy.py`. Expected spend: ~$90–150/mo typical (was $150–300).
 
-**Eight brains, on purpose** (the Agent Control Center roster shows 12 rows: these
+**CURRENT STATE (verified 2026-09-30 against `/api/businesses` + `/api/agents/registry`):**
+ONE agent per business, plus the CEO. **Active businesses: Wholesale (REI), Agency, Daycare.
+Archived: Dropship and the Agency Personal lens.**
+
+| Business | Agent | Lanes (same agent, own loop) |
+|---|---|---|
+| Wholesale | **Marcus** | Scout, Atlas, Follow-up, ACE, Autopilot |
+| Agency | **Dyson** | Eco |
+| Daycare | **Solomon** (growth director — enrollment only) | Replies, Leads, Starts |
+| Dropship (archived) | **Midas** | research · creative & ads · fulfillment |
+| Cross-business | **Orion** (CEO) | — |
+
+The Agent Control Center shows 5 rows (4 main agents + Orion); the tables below describe the
+engines and lanes each row owns, and `agents/` has one card per engine. Everything a business
+generates — alerts, pings, receipts — goes ONLY to that business's Telegram chat; HQ keeps
+system alerts (AI credits/auth, clock, sync) and Orion.
+
+**Older history — "Eight brains, on purpose"** (the Agent Control Center roster then showed 12 rows: these
 brains + the brainless engines Follow-up, ACE, Autopilot and the daily brief/recap,
 which chat through their owner via `chatVia`. Solomon's two live **lanes** — Solomon ·
 Replies (`daycare_replies`) and Solomon · Leads (`daycare_leads`) — are not rows: they
@@ -758,9 +775,9 @@ key on the box. New migrations go in BOTH migration folders.
 
 ---
 
-## 11. Cross-Agent Coaching Network (all 7 business agents coach each other, across all four businesses)
+## 11. Cross-Agent Coaching Network (the agents and lanes of every active business coach each other)
 
-*(Coaching nodes = `agent_coach.BUSINESS_OF`: the 8 brains minus Orion. Archived businesses
+*(Coaching nodes = `agent_coach.BUSINESS_OF`: Marcus + his lanes, Dyson + Eco, Solomon, Midas; Orion is not a node. Archived businesses
 are filtered at read time.)*
 
 Every agent is a node in a **coaching network**: they can **ASK peers questions**,
