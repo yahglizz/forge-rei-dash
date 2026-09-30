@@ -216,6 +216,8 @@ def send_invoice(ctx: dict) -> dict:
         "collection_method": "send_invoice",
         "days_until_due": 7,
         "auto_advance": False,
+        # Stripe-Version 2024-06-20 EXCLUDES pending items by default -> a $0 invoice. Verified live 2026-09-30.
+        "pending_invoice_items_behavior": "include",
         "description": ctx.get("description") or "",
         "metadata": {
             "daycare_invoice_id": str(ctx.get("invoice_id") or ""),
