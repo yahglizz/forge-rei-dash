@@ -4,7 +4,7 @@
   "folder": "20260930_134826_orion-office_01a0f36e",
   "root_task_id": "01a0f36e-0076-74a6-ac34-305efe8f8b0d",
   "created_at": "2026-09-30T17:48:26.653Z",
-  "updated_at": "2026-09-30T18:03:24.365Z",
+  "updated_at": "2026-09-30T18:04:10.796Z",
   "tasks": [
     {
       "task_id": "01a0f36e-0076-74a6-ac34-305efe8f8b0d",
@@ -117,6 +117,34 @@
       "operation_id": "e1e84584-b1f8-4f9c-bf20-ee7591ad56e4",
       "created_at": "2026-09-30T18:02:28.167Z",
       "updated_at": "2026-09-30T18:03:24.365Z"
+    },
+    {
+      "task_id": "01a0f37b-69ca-7257-81e7-79686e4bf433",
+      "task_type": "animate",
+      "resource": null,
+      "endpoint": null,
+      "stage": "idle-clip",
+      "parent_task_id": null,
+      "status": "SUCCEEDED",
+      "files": [],
+      "task_json": null,
+      "operation_id": null,
+      "created_at": "2026-09-30T18:04:09.974Z",
+      "updated_at": "2026-09-30T18:04:09.974Z"
+    },
+    {
+      "task_id": "01a0f37b-6e5b-74d4-bd98-900f6ad83b5f",
+      "task_type": "animate",
+      "resource": null,
+      "endpoint": null,
+      "stage": "talk-clip",
+      "parent_task_id": null,
+      "status": "SUCCEEDED",
+      "files": [],
+      "task_json": null,
+      "operation_id": null,
+      "created_at": "2026-09-30T18:04:10.796Z",
+      "updated_at": "2026-09-30T18:04:10.796Z"
     }
   ]
 }

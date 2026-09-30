@@ -1,0 +1,31 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e11]:
+      - generic [ref=e12]: Mission Control
+      - generic [ref=e13]: Every business, one screen
+    - button "Jump to a business" [ref=e15] [cursor=pointer]
+    - button "Refresh" [ref=e18] [cursor=pointer]
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]: TODAY — … ACTIONS
+        - generic [ref=e23]: Call · Approve · Review · Fix — every business, sorted urgent → revenue → customer
+      - generic [ref=e24]:
+        - button "All" [ref=e25] [cursor=pointer]
+        - button "Call" [ref=e26] [cursor=pointer]
+        - button "Approve" [ref=e27] [cursor=pointer]
+        - button "Review" [ref=e28] [cursor=pointer]
+        - button "Fix" [ref=e29] [cursor=pointer]
+        - button "↻" [ref=e30] [cursor=pointer]
+    - generic [ref=e31]: Reading every queue…
+  - generic [ref=e32]:
+    - button "Agents →" [ref=e33] [cursor=pointer]
+    - button "Automation Health →" [ref=e34] [cursor=pointer]
+    - button "Costs / KPI →" [ref=e35] [cursor=pointer]
+    - button "Archived →" [ref=e36] [cursor=pointer]
+  - generic [ref=e38]:
+    - generic [ref=e43]:
+      - generic [ref=e44]: ORION
+      - generic [ref=e45]: Reading every business…
+    - button "Generate" [ref=e46] [cursor=pointer]
+  - generic [ref=e47]: Reading the whole operation…
