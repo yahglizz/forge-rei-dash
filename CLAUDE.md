@@ -501,6 +501,17 @@ update that skill if you improved the pattern.
   Midas reads his bus inbox into the brief (`_read_bus_inbox`, same as Solomon). Filing a
   task is an ASSIGNMENT, never an outward action — rule 2 unchanged. Self-check:
   `python3 test_triggers_cost.py`.
+- **Stripe — ONE key for the whole dashboard (2026-09-30).** `STRIPE_SECRET_KEY` (full `sk_live`) in
+  `forge-daycare/config/daycare.env` (secret: sync with `push.sh`, never git). Account `acct_1TcvWG…`
+  ("a touch of blessing 2 & 3") — charges/payouts/ACH active. Daycare invoicing (`stripe_io`, now passes
+  `pending_invoice_items_behavior=include` — API 2024-06-20 otherwise makes $0 invoices), agency billing
+  (`agency_billing` falls back to this key; `FORGE_STRIPE_SHARED=0` or an agency key splits it) and
+  `stripe_links.py` (any business, `mode` recurring|one_time, reused per business+name+amount, tagged
+  `client_reference_id`) all use it. Agency onboarding: client email/phone on the client form →
+  "Send to client" (`POST /api/agency/billing/send`) emails/texts the link via the agency GHL — the tap is
+  the approval. Routes: `GET /api/stripe/{status,offers}`, `POST /api/stripe/link`. System Health shows a
+  Stripe row. Receiving: daycare-app payments settle via the Supabase `stripe-webhook`; agency payments are
+  marked active by hand (no public webhook). Tests: `test_stripe_invoice.py`, `test_stripe_links.py`.
 - **Per-agent API cost.** `cost_tracker` buckets every Claude call by
   `threading.current_thread().name`; `connector` names each loop thread (`scout`, `marcus`,
   `atlas`, `followup`, `solomon`, `midas`, `do_today`, `telegram`, `brief`, `graphify`), so
