@@ -3364,7 +3364,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/task",
                                    "/api/hub/task/update",
                                    "/api/office/task", "/api/office/plan", "/api/office/chat", "/api/office/checkin",
-                                   "/api/stripe/link",
+                                   "/api/stripe/link", "/api/agency/billing/send",
                                    "/api/graphify/rebuild",
                                    "/api/coach/broadcast",
                                    "/api/coach/ask",
@@ -3610,6 +3610,11 @@ class Handler(BaseHTTPRequestHandler):
                     result = agent_office.dispatch(body.get("agentId"), body.get("title"),
                                                    body.get("note", ""), chat_fn=_office_chat,
                                                    directed_by=body.get("directedBy", ""))
+            elif parsed.path == "/api/agency/billing/send":
+                # Owner's "Send payment link" tap: build the Stripe link + email/text it to the client.
+                import agency_billing
+                result = agency_billing.send_to_client(AGENCY, body.get("clientId"), body.get("spec") or {},
+                                                       body.get("channels") or ["email"])
             elif parsed.path == "/api/stripe/link":
                 # A payment link for ANY business — recurring or pay-in-full. Charges nobody, sends nothing.
                 import stripe_links

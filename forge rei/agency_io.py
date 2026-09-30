@@ -115,6 +115,9 @@ def _slim(c):
         "site": c.get("site") or "",
         "agents": c.get("agents") or [],
         "services": _services(c.get("services")),
+        "email": c.get("email") or "",       # the CLIENT's own email (Stripe prefill + where the link goes)
+        "phone": c.get("phone") or "",
+        "billing": c.get("billing") if isinstance(c.get("billing"), dict) else None,   # last payment link sent
         "ghlContactId": c.get("ghlContactId") or "",
         "ghlSyncedAt": c.get("ghlSyncedAt"),
         "notes": c.get("notes") or "",
@@ -172,6 +175,8 @@ def save_client(c):
                 "services": (_services(c.get("services")) if "services" in c
                              else existing.get("services", [])),
                 "ghlContactId": c.get("ghlContactId", existing.get("ghlContactId", "")),
+                "email": str(c.get("email", existing.get("email", "")) or "").strip(),
+                "phone": str(c.get("phone", existing.get("phone", "")) or "").strip(),
                 "notes": c.get("notes", existing.get("notes", "")),
                 "workspace": (_workspace(c.get("workspace")) if "workspace" in c
                               else existing.get("workspace") or _workspace(None)),
@@ -195,6 +200,8 @@ def save_client(c):
                 "services": _services(c.get("services")),
                 "ghlContactId": c.get("ghlContactId", ""),
                 "ghlSyncedAt": None,
+                "email": str(c.get("email") or "").strip(),
+                "phone": str(c.get("phone") or "").strip(),
                 "notes": c.get("notes", ""),
                 "workspace": _workspace(c.get("workspace")),
                 "portal": _portal(c.get("portal")),
@@ -376,6 +383,21 @@ def mark_portal_opened(cid):
     except Exception:
         pass
     return {"ok": True}
+
+
+def set_billing(cid, billing, ghl_contact_id=None):
+    """Record the last payment link sent to a client (and the GHL contact it went to)."""
+    with _LOCK:
+        d = _load()
+        c = next((x for x in d.get("clients", []) if x.get("id") == cid), None)
+        if not c:
+            return {"error": "client not found"}
+        c["billing"] = billing
+        if ghl_contact_id:
+            c["ghlContactId"] = ghl_contact_id
+        c["dateUpdated"] = int(time.time() * 1000)
+        _save(d)
+        return {"ok": True, "client": _slim(c)}
 
 
 def mark_ghl_synced(cid):

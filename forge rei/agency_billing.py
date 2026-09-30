@@ -229,6 +229,89 @@ def status() -> dict:
                       "there is no public webhook listener yet."}
 
 
+
+# --- onboarding: build the link AND send it to the client -------------------------
+def _first(name: str) -> str:
+    return (str(name or "").strip().split() or ["there"])[0]
+
+
+def send_to_client(ghl, client_id: str, spec: dict | None = None, channels=("email",)) -> dict:
+    """The owner's "Send payment link" tap: make (or reuse) the Stripe link for this client and
+    deliver it by email and/or SMS through the agency GHL sub-account. The tap IS the approval
+    (rule 2) — nothing here runs on its own. Creating/sending a link charges nobody."""
+    import agency_io
+    import stripe_links
+    spec = dict(spec or {})
+    c = agency_io.get_client(str(client_id or ""))
+    if not c:
+        return {"ok": False, "detail": "client not found — save the client first"}
+    email = str(spec.pop("email", "") or c.get("email") or "").strip()
+    phone = str(spec.pop("phone", "") or c.get("phone") or "").strip()
+    channels = [ch for ch in (channels or []) if ch in ("email", "sms")]
+    if not channels:
+        return {"ok": False, "detail": "pick email and/or text"}
+    if "email" in channels and "@" not in email:
+        return {"ok": False, "detail": "add the client's email first"}
+    if "sms" in channels and len("".join(ch for ch in phone if ch.isdigit())) < 10:
+        return {"ok": False, "detail": "add the client's mobile number first"}
+    if not spec.get("offerId") and not spec.get("amountUSD"):
+        spec["offerId"] = agency_offers_primary()
+    link = stripe_links.create({**spec, "business": "agency", "reference": c["id"], "email": email})
+    if not link.get("ok"):
+        return link
+    if ghl is None or not getattr(ghl, "configured", False):
+        return {**link, "ok": False, "sent": {}, "detail": "Link made but the agency GHL isn't connected, so it wasn't sent. Copy it instead."}
+    contact_id = c.get("ghlContactId") or ""
+    try:
+        if not contact_id:
+            body = {"locationId": ghl.location_id, "name": c.get("name") or "", "companyName": c.get("business") or "",
+                    "tags": ["clientforge-client"]}
+            if "@" in email:
+                body["email"] = email
+            if phone:
+                body["phone"] = phone
+            r = ghl.post("/contacts/upsert", body)
+            contact_id = ((r or {}).get("contact") or {}).get("id") or ""
+        if not contact_id:
+            return {**link, "ok": False, "sent": {}, "detail": "GHL didn't return a contact id; link not sent. Copy it instead."}
+    except Exception as e:  # noqa: BLE001
+        return {**link, "ok": False, "sent": {}, "detail": f"Couldn't reach GHL ({e}); link not sent. Copy it instead."}
+    what = f"{link['name']} — {link['display']}"
+    text = (f"Hi {_first(c.get('name'))}, here's your secure payment link for {what}: {link['url']} "
+            f"Reply here with any questions. — Yahjair, ClientForge")
+    html = (f"<p>Hi {_first(c.get('name'))},</p><p>Here's your secure Stripe payment link for "
+            f"<b>{what}</b>:</p><p><a href=\"{link['url']}\">Pay securely with Stripe</a></p>"
+            f"<p>Any questions, just reply to this email.</p><p>— Yahjair, ClientForge</p>")
+    sent, errors = {}, {}
+    for ch in channels:
+        try:
+            if ch == "email":
+                ghl.post("/conversations/messages", {"type": "Email", "contactId": contact_id,
+                                                     "subject": "Your ClientForge payment link", "html": html, "message": text})
+            else:
+                ghl.post("/conversations/messages", {"type": "SMS", "contactId": contact_id, "message": text})
+            sent[ch] = True
+        except Exception as e:  # noqa: BLE001
+            sent[ch], errors[ch] = False, str(e)[:200]
+    import time as _t
+    agency_io.set_billing(c["id"], {"url": link["url"], "display": link["display"], "name": link["name"], "mode": link["mode"],
+                                    "linkId": link["linkId"], "sentAt": int(_t.time() * 1000), "sent": sent}, ghl_contact_id=contact_id)
+    try:
+        import action_log
+        action_log.record("dyson", "stripe_link_sent", business="agency", trigger="owner_tap", ref=c["id"],
+                          result=f"{link['display']} via {','.join(k for k, v in sent.items() if v) or 'none'}",
+                          ok=any(sent.values()), error="; ".join(f"{k}: {v}" for k, v in errors.items()) or None)
+    except Exception:  # noqa: BLE001
+        pass
+    ok = any(sent.values())
+    return {**link, "ok": ok, "sent": sent, "errors": errors, "contactId": contact_id,
+            "detail": None if ok else "Link made but sending failed — copy it instead."}
+
+
+def agency_offers_primary() -> str:
+    import agency_offers
+    return agency_offers.PRIMARY_ID
+
 if __name__ == "__main__":
     # Runs with no network and no key: proves the unconfigured path is clean and
     # that the URL is built correctly, which is the only logic worth a check.
