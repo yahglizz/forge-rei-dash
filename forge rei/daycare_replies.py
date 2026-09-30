@@ -47,7 +47,7 @@ STATE = HERE / "marcus_state" / "daycare_replies.json"
 _LOCK = threading.Lock()
 
 INTERVAL = int(os.environ.get("FORGE_DAYCARE_REPLIES_INTERVAL", "300"))
-MODEL = os.environ.get("FORGE_DAYCARE_REPLY_MODEL", "claude-sonnet-5")
+MODEL = os.environ.get("FORGE_DAYCARE_REPLY_MODEL", review_agent.SMART_MODEL)
 GRACE_SEC = int(os.environ.get("FORGE_DAYCARE_REPLY_GRACE_MIN", "5")) * 60
 MAX_DRAFTS = int(os.environ.get("FORGE_DAYCARE_REPLY_MAX", "8"))   # Claude calls per sweep
 MAX_READS = 40                         # thread GETs per sweep

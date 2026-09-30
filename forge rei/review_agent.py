@@ -26,13 +26,28 @@ HERE = Path(__file__).resolve().parent
 STATE_DIR = HERE / "marcus_state"
 STATE_DIR.mkdir(exist_ok=True)
 LATEST_FILE = STATE_DIR / "review_latest.json"
-MODEL = os.environ.get("FORGE_REVIEW_MODEL", "claude-sonnet-5")
-# Cheap tier for high-volume, low-judgment calls (structured classification/scoring) —
-# callers opt in with _claude(..., model=HAIKU_MODEL). Default model above is unchanged.
-HAIKU_MODEL = os.environ.get("FORGE_HAIKU_MODEL", "claude-haiku-4-5-20251001")
-# Marcus's seller-reply drafts (marcus_engine._ai_draft), low effort.
-# FORGE_DRAFT_MODEL=claude-haiku-4-5-20251001 reverts drafts to the old cheap tier.
-DRAFT_MODEL = os.environ.get("FORGE_DRAFT_MODEL", MODEL)
+# ── Model policy (cost) ────────────────────────────────────────────────────────
+# Two tiers, and nothing above them. Small jobs — scoring, screening, underwriting
+# extraction, follow-up bumps, parsing, intent — run on FAST (Haiku 4.5, $1/$5 per M, no
+# thinking). Only the moments that win or lose a deal, or that a human reads closely —
+# replies to a seller/parent, and the owner's chats with the main agents — run on SMART
+# (Sonnet 5.5, $2/$10, adaptive thinking at low effort). Opus/Fable are never used.
+# Anything that doesn't name a model gets FAST, so a forgotten call site is cheap by default.
+FAST_MODEL = os.environ.get("FORGE_FAST_MODEL", "claude-haiku-4-5-20251001")
+SMART_MODEL = os.environ.get("FORGE_SMART_MODEL", "claude-sonnet-5-5")
+MODEL = os.environ.get("FORGE_REVIEW_MODEL", FAST_MODEL)
+HAIKU_MODEL = os.environ.get("FORGE_HAIKU_MODEL", FAST_MODEL)   # legacy name for FAST
+# Seller-reply drafts (marcus_engine._ai_draft) — the money moment.
+# FORGE_DRAFT_MODEL=claude-haiku-4-5-20251001 drops them to the cheap tier.
+DRAFT_MODEL = os.environ.get("FORGE_DRAFT_MODEL", SMART_MODEL)
+
+
+def self_improve_on():
+    """Master switch for every automatic learn()/playbook-rewrite loop. OFF by default:
+    agents keep using their current playbooks; the manual "Learn" buttons still work.
+    FORGE_SELF_IMPROVE=1 brings the scheduled reflection back (it is a real recurring bill)."""
+    return os.environ.get("FORGE_SELF_IMPROVE", "0") != "0"
+
 
 # Adaptive thinking + output_config.effort exist only on these families. Older ids
 # (sonnet-4-5, haiku-4-5) 400 on effort, so a FORGE_REVIEW_MODEL revert sends neither.

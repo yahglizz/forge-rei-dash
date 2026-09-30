@@ -517,7 +517,7 @@ def chat(agent_id, text, history, chat_id, key=None, call=None):
                          "(/status, /starts, /logins, /pin).", "cards": []}
     import review_agent
     call = call or review_agent.post_messages
-    model = review_agent.MODEL
+    model = review_agent.SMART_MODEL
     system = [{"type": "text", "text": system_prompt(agent_id, business),
                "cache_control": {"type": "ephemeral"}}]
     msgs, cards = _messages(history, text), []

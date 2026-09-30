@@ -213,10 +213,10 @@ def generate(payload):
 
     blueprint = None
     err = ""
-    model = review_agent.MODEL
+    model = review_agent.SMART_MODEL
     try:
         txt = review_agent._claude(key, _architect_system(), _architect_user(intake),
-                                   max_tokens=2600, effort="medium")
+                                   max_tokens=2600, effort="medium", model=review_agent.SMART_MODEL)
         blueprint = _parse_json(txt)
     except Exception as ex:  # noqa: BLE001
         err = str(ex)

@@ -380,7 +380,8 @@ def _director_chat(agent_id, message, history):
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=1400 if agent_id == "orion" else 700)
+        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=1400 if agent_id == "orion" else 700,
+                                   model=review_agent.SMART_MODEL)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}", "error": str(e),
                 "agent": meta["name"]}
