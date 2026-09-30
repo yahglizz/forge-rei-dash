@@ -489,7 +489,7 @@ function PixelOfficePage() {
 
         <div className="orion-panel-wrap">
           {selected === "orion" ? <OrionOfficePanel state={state} onMode={setOrionMode} onRefresh={refreshOffice} />
-            : <PixelOfficePanel agent={agent} job={job} onDispatch={dispatch} sending={sending} err={sendErr} />}
+            : <React.Fragment>{agent && ["marcus", "dyson", "solomon", "midas"].includes(agent.id) && <OrionOfficePanel key={agent.id} agent={agent} state={state} onMode={() => {}} onRefresh={refreshOffice} />}<PixelOfficePanel agent={agent} job={job} onDispatch={dispatch} sending={sending} err={sendErr} /></React.Fragment>}
         </div>
       </div>
     </div>
