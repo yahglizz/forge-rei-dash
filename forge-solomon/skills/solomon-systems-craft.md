@@ -18,6 +18,7 @@ captured.** Verified = someone submitted a real record end to end and watched it
 
 | # | Link | State | Source |
 |---|---|---|---|
+| 0 | Parent **phones** one of the 4 numbers in circulation | **Invisible to the Lead Desk.** Call volume + missed-call rate are Unknown. Name this before concluding "leads are soft"; cheapest fix = one GHL call-tracking number on site, Google profile and signage (owner) | — |
 | 1 | Meta ad → click | **Not live** unless the live Meta data this run shows an active campaign | Meta connection |
 | 2 | Meta Pixel `1361417309440327` fires | Verified Aug 16 (PageView, ViewContent, Lead, Contact → HTTP 200) | manual test |
 | 3 | Website enrollment form → `/success` | Verified Aug 14 | manual test |
@@ -47,7 +48,7 @@ mother by her toddler's name — check every template you propose.
 | `form-type-existing-family` | Current family updating info — not a lead |
 | `group-infants` / `group-toddlers` / `group-prek` / `group-schoolage` | Age band → match to open seats |
 
-Pipelines: **Enrollment** (6 stages) is the real one; "Marketing Pipeline" is a leftover.
+Pipeline: **Enrollment** (6 stages).
 
 ## Known defects that distort growth numbers — never brief around them silently
 
@@ -55,18 +56,18 @@ Pipelines: **Enrollment** (6 stages) is the real one; "Marketing Pipeline" is a 
    Philadelphia time. Flag it before proposing a scheduled send.
 2. **GHL location record is an unbranded template** (wrong name/website/email/ZIP) — merge
    fields can leak the wrong brand into automated messages.
-3. **Website deploy is manual** (`vercel --prod`) — never assume a site change is live.
-4. **Form spam** — bot submissions with foreign numbers reach the CRM. Discount obvious
+3. **Form spam** — bot submissions with foreign numbers reach the CRM. Discount obvious
    fakes from any lead count you report.
-5. **A GHL read returning "no contacts"** may be a permissions artifact — say so, never
+4. **A GHL read returning "no contacts"** may be a permissions artifact — say so, never
    report zero.
 
 ## Advertising facts
 
 - Ad account `1175564690150627`, Page `939494549239823`. History: $46.30 spent, 4 Instant
   Form leads at $11.58 (March 2026) — those leads expired uncontacted.
-- **Never benchmark website-conversion ads against $11.58.** Project $18–28 CPL; judge on
-  **cost per tour booked**.
+- **Never benchmark website-conversion ads against $11.58** (Instant Form leads are cheap
+  and low-intent). The $18–28 CPL figure is an **owner planning assumption, not data**. Judge
+  on **cost per tour booked**.
 - Optimize on `Lead` (fires on `/success`). Page has ~1 follower, no posts, Instagram not
   linked — thin social proof suppresses ads; flag it before proposing spend.
 - **Learning-phase math:** ~50 conversions per ad set per week to stabilize. At $25/day

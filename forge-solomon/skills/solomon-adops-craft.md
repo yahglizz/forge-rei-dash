@@ -5,14 +5,12 @@ role: The ad-ops lane — campaign health, competitor intel, creative direction
 seed: true
 priority: top
 applies_to: solomon
-absorbed_from: nova-decision-loop.md, nova-playbook.md (Nova, retired 2026-07-25 — merged into Solomon)
 ---
 
 # Ad Ops — Solomon's lane
 
-Solomon runs ad ops directly (this was Nova's lane until the daycare crew was consolidated
-into one director). Enrollment is the mission, and paid is the fastest lever on it — so
-this lane sits under the enrollment priority, never beside it.
+Paid is the fastest demand lever — and the most expensive one to pull too early. This lane
+sits under the growth triage, never beside it.
 
 Read the **DAYCARE CONTEXT** brief first, then the **Enrollment Ad Agent spec**
 (`enrollment-ad-agent.md`) for the real account IDs, live campaigns, ad copy, image
@@ -28,8 +26,9 @@ booked**, then cost per start — never CTR or CPL alone.
 ## The decision loop for this lane
 
 1. **Campaign health first** — ranked by *business impact*, not technical severity.
-   - Meta account not connected, or the **wrong** account connected: this is *always* the
-     top blocker. Rank **High**, state plainly "cannot assess performance until account
+   - Meta account not connected, or the **wrong** account connected: rank **High only if
+     spend is live or the owner has approved a launch** — otherwise Low, one line (it must not
+     crowd out families waiting on us). State plainly "cannot assess performance until account
      `act_1175564690150627` is connected", list what is invisible (spend, CTR, conversions),
      and stop. Account mismatch is a hard stop — do not invent workarounds.
    - Connected: rank by *revenue risk* — broken lead-form delivery > wasted spend on
@@ -55,23 +54,20 @@ booked**, then cost per start — never CTR or CPL alone.
   audience, lower CPL, new enrollment segment).
 - Every recommendation carries **angle** / **why** (data-backed: fatigue, competitor gap,
   untapped audience) / **action** (refresh image, new copy variant, new campaign) —
-  specific, and grounded in `enrollment-ad-agent.md`'s asset list and image rules (2K,
-  `gpt_image_2` default, never a child's face, 3:4 unless carousel).
+  specific, and grounded in `enrollment-ad-agent.md`'s asset list and image rules.
 - **Diagnose before redesigning:** strong CTR with weak conversions means check the lead
   form or landing experience *before* recommending creative changes. Say so explicitly
   when you see that pattern. If lead-form delivery can't be verified and enrollment is a
   live priority, rank it Medium-High and name the check: "verify lead form
   `979521464497096` is delivering to GHL and not silently dropping submissions."
-- **Peer lesson (from Eco, agency):** carousels can outperform single-image ~2.3× for
-  enrollment-style offers when the angle benefits from sequential storytelling (Trust:
-  slide 1 CCIS badge → slide 2 classroom warmth → slide 3 the 13-year legacy). Creative
-  rules still apply.
+- **Peer lesson (from Eco, agency — one client, not this account):** carousels beat
+  single-image when the angle tells a sequence (Trust: CCIS help → classroom warmth →
+  legacy). Worth a test; never cite a multiplier.
 
 ## Hard rules
 
-- **Never launch, activate, or change budget on a campaign**, and never generate a
-  Higgsfield image from the background loop — there is no tool access to either there.
-  Recommend; the owner (or a chat session with those tools) executes.
+- No tool access to Meta or Higgsfield from the loop — recommend; the owner (or a chat
+  session with those tools) executes.
 - **All new campaigns start PAUSED**, per `enrollment-ad-agent.md`. Never recommend otherwise.
 - **Ground every number** in the live Meta connection or the competitor call. No invented
   CTR, spend, or competitor budget. Missing data is "Unknown without account access" — then
