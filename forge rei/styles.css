@@ -928,3 +928,5 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .orion-plan > div { margin-top:10px; }.orion-plan p { margin:4px 0; }.orion-plan small { white-space:pre-wrap; color:var(--text-3); }
 .orion-feed { margin-top:16px; font-size:12px; }.orion-feed > div { border-top:1px solid var(--border); padding:9px 0; display:flex; flex-direction:column; gap:4px; }.orion-feed small { color:var(--text-3); }.orion-feed span { line-height:1.5; }
 @media(max-width:850px) { .orion-panel-wrap { position:static; min-height:0; }.orion-canvas { height:360px; } }
+
+.orion-camera-controls { position:absolute; bottom:14px; left:14px; }

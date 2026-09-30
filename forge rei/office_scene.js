@@ -124,12 +124,16 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       orion.position.add(delta.normalize().multiplyScalar(Math.min(distance, dt * 1.5)));
       orion.rotation.y = Math.atan2(delta.x, delta.z);
     } else if (destination) orion.rotation.y = Math.atan2(destination.x - orion.position.x, destination.z + .95 - orion.position.z);
-    else orion.rotation.y = .22;
+    else orion.rotation.y = .52;
     const busy = state.orionMode === 'thinking' || ['read', 'think', 'report'].includes((state.director || {}).activity);
     clip(walking ? 'walk' : state.orionMode === 'speaking' || destination || busy ? 'talk' : 'idle');
     if (mixer && !reduced) mixer.update(dt);
     orionLabel.position.set(orion.position.x, 2.85, orion.position.z);
     ring.material.color.set(state.selected === 'orion' ? '#ffffff' : '#5eead4');
+    if (state.focusOrion) {
+      camera.position.set(orion.position.x + 2.8, 3, orion.position.z + 4.8);
+      camera.lookAt(orion.position.x, 1.3, orion.position.z);
+    } else { camera.position.set(11, 11, 16); camera.lookAt(0, .8, 0); }
     renderer.render(scene, camera); raf = requestAnimationFrame(frame);
   }
   raf = requestAnimationFrame(frame);

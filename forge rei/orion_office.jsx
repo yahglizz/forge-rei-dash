@@ -4,7 +4,8 @@ const { useState: useStateOO, useEffect: useEffectOO, useRef: useRefOO } = React
 function OrionOfficeFloor({ state, selected, onSelect, mode }) {
   const host = useRefOO(null), latest = useRefOO(null);
   const [status, setStatus] = useStateOO('Loading Orion…');
-  latest.current = { ...(state || {}), selected, orionMode: mode };
+  const [focus, setFocus] = useStateOO(false);
+  latest.current = { ...(state || {}), selected, orionMode: mode, focusOrion: focus };
   useEffectOO(() => {
     let dead = false, dispose;
     window.loadOrionOfficeScene().then(m => {
@@ -15,6 +16,7 @@ function OrionOfficeFloor({ state, selected, onSelect, mode }) {
   }, []);
   return <div className="orion-stage">
     <div ref={host} className="orion-canvas" />
+    <div className="orion-camera-controls orion-controls"><button className="btn" aria-pressed={!focus} onClick={() => setFocus(false)}>Whole office</button><button className="btn" aria-pressed={focus} onClick={() => setFocus(true)}>Focus Orion</button></div>
     <div className="orion-stage-caption"><span>ORION / COMMAND OFFICE</span><span role="status">{status === 'Ready' ? 'Live agent activity' : status}</span></div>
   </div>;
 }
