@@ -160,7 +160,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
   }
 
   // ── camera: drag to orbit, wheel to zoom; "focus" follows the selected agent ─────
-  const orbit = { az: Math.atan2(11, 16), el: Math.asin(11 / Math.hypot(11, 11, 16)), r: 17.5 };
+  const orbit = { az: Math.atan2(11, 16), el: Math.asin(11 / Math.hypot(11, 11, 16)), r: 20.5 };
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(0, .3, .4);
   let camReady = false, drag = null;
   const ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
