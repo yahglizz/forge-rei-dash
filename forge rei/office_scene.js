@@ -141,7 +141,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       const bounds = new THREE.Box3().setFromObject(model.scene), size = bounds.getSize(new THREE.Vector3());
       const normalized = new THREE.Group(); normalized.scale.setScalar(2.4 / size.y);
       const center = bounds.getCenter(new THREE.Vector3());
-      model.scene.position.set(-center.x, -bounds.min.y, -center.z); normalized.add(model.scene); orion.add(normalized);
+      model.scene.position.set(-center.x, -bounds.min.y, -center.z); normalized.add(model.scene); orion.add(normalized); assets.delete(model.scene);
       mixer = new THREE.AnimationMixer(model.scene);
       onStatus('Ready');
       await Promise.all(['idle', 'walk', 'talk'].map(async name => {

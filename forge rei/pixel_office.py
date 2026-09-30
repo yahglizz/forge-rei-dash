@@ -545,6 +545,29 @@ def _selfcheck():
     t = next(t for t in agents_hub.tasks("atlas")["tasks"] if t["id"] == bad["taskId"])
     assert t["status"] == "failed" and t.get("error"), t
 
+    # Planning validates model output and never starts a job; directing creates real receipts.
+    from unittest.mock import patch
+    before = len(_JOBS)
+    floor = {"departments": [{"agents": [{"id": "scout"}]}]}
+    good = {"summary": "Rank leads", "assignments": [{"agentId": "scout", "title": "Rank inbound replies"}]}
+    with patch(__name__ + ".state", return_value=floor):
+        assert plan("Check leads", lambda a, m: {"reply": json.dumps(good)})["ok"]
+        for invalid in ("not json", "[]", json.dumps({"assignments": [{"agentId": []}]}),
+                        json.dumps({"assignments": [{"agentId": "midas", "title": "Archived"}]})):
+            assert plan("Check leads", lambda a, m: {"reply": invalid}).get("error")
+        assert plan([], lambda a, m: {}).get("error")
+    assert len(_JOBS) == before, "planning dispatched work"
+    directed = dispatch("scout", "Rank replies", directed_by="orion", chat_fn=lambda a, m: {"reply": "Ranked"})
+    for _ in range(100):
+        if job(directed["jobId"])["job"]["status"] != "running":
+            break
+        time.sleep(.01)
+    assert job(directed["jobId"])["job"]["status"] == "done"
+    receipts = agent_bus.recent()["messages"]
+    assert any(m["from"] == "orion" and m["to"] == "scout" and m["data"].get("approvedBy") == "operator" for m in receipts)
+    assert any(m["from"] == "scout" and m["to"] == "orion" for m in receipts)
+    assert dispatch("scout", "x", directed_by="untrusted").get("error")
+
     assert dispatch("nobody", "x").get("error") == "unknown agent"
     assert dispatch("scout", "").get("error")
     print("pixel_office selfcheck OK")

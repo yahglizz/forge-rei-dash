@@ -17,6 +17,15 @@ globals). Runs on one DigitalOcean box under systemd `forge-reios`. State = JSON
 
 ## CURRENT STATE — everything is BUILT, ALL new autonomy defaults OFF
 
+### Orion’s 3D Agent Office (2026-09-30)
+The Office page has a lazy-loaded, locally vendored Three.js scene and a Meshy-rigged Orion
+character with idle, walk and talking clips. The original pixel floor remains selectable.
+Typed Orion chat reuses `/api/hub/chat`; browser dictation and speech synthesis are optional.
+`/api/office/plan` returns validated proposals only, using active department agents. The owner
+reviews the exact assignments and taps Approve & assign; existing office jobs run each real
+brain and post Orion handoffs/completion receipts. No new outward-action autonomy. Chat now
+includes live office status and agent-bus reports. Check: `FORGE_MARCUS=0 python3 pixel_office.py`.
+
 ### The one send gate
 `sms_guard.py` — ONE `guard()` in front of every outbound SMS: TCPA 9–8 ET hours, daily cap +
 pending reservations, dedupe, our-message filter, DNC/hard/soft-no, **price/offer scrub on

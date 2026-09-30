@@ -37,7 +37,7 @@
 
 **Bus:** no inbox; reads `agent_bus.recent(30)` (last 20) as input.
 
-**UI:** Mission Control greeting card (`mission_control.jsx:343`), Refresh = `brief/run` · Agent Control Center `orion` · not on the Agent Office floor.
+**UI:** Mission Control greeting card (`mission_control.jsx:343`), Refresh = `brief/run` · Agent Control Center `orion` · Agent Office: Meshy 3D character with idle/walk/talk animations, typed chat and browser voice controls. `/api/office/plan` proposes validated assignments; the owner taps Approve & assign before `/api/office/task` starts each agent’s real analytical job. Orion→agent assignment and agent→Orion completion receipts animate the floor.
 
 ## 3. Reads / context load order
 
