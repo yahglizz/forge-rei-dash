@@ -42,3 +42,10 @@ assert dd._age_months("2025-01-31", datetime.date(2026, 9, 30)) == 19
 assert dd._age_months(None) is None and dd._age_months("garbage") is None
 assert dd._seat_row({"capacity": 8, "enrolled": 6}, [11, 4])["agesMonths"] == [4, 11]
 print("ok — seat forecasting data holds")
+
+# learn() drift guard: a rewrite that slides back into paperwork is rejected.
+assert dd._paperwork_drift("- Chase overdue invoices weekly\n- Audit staff clearances before tours\n")
+assert not dd._paperwork_drift("- Licensing and invoices are not your lane.\n- Call leads in 15 min.\n")
+assert not dd._paperwork_drift("- Referral asks at 60 days\n")
+assert "output-format" in inspect.getsource(dd.SolomonEngine.learn)
+print("ok — learn() drift guard holds")

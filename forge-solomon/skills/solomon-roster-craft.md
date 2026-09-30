@@ -32,8 +32,10 @@ Per room (`roster.classrooms[]`: `ageGroup`, `capacity`, `enrolled`, `openSeats`
   has space (it has 1 open) — offer 1 to the infant waitlist now."* No `agesMonths` → Unknown.
 - **Rank rooms by sellable space**, now + forecast. Infant seats are the hardest for
   parents to find — answer infant leads first.
-- **Match demand to seats per center × age band.** A lead's center comes from the
-  form/thread (`loc-*` tag); unknown center = ask on the call, never assume. 2318 Cecil B.
+- **Match demand to seats per center × age band.** `leadDesk` spans all centers; match a
+  lead to these seats only when its `center` equals `roster.center`. Lead age bands are not
+  in the Lead Desk data — Unknown unless the lead's title/why states the child's age.
+  Unknown center = ask on the call, never assume. 2318 Cecil B.
   Moore is licensed infant/toddler only (brief). A lead for a full band → waitlist, or the
   other ATOB center with space in that band (921 ↔ 2318 only — 1923 is a separate entity;
   cross-referral there is the owner's call). A room with seats and no leads → that's where
@@ -46,13 +48,15 @@ Per room (`roster.classrooms[]`: `ageGroup`, `capacity`, `enrolled`, `openSeats`
 
 Surface a family only with a grounded signal, a reason, and a move:
 
-- **Attendance drift** — noticeably fewer days than before.
-- **Behavior chart** — yellow/red days clustering on one child (`behaviorChart` watch list):
-  a warm check-in framed as care, from the teacher or director.
+- **Behavior watch list** — `behaviorChart` gives center-wide week totals plus today's
+  watch list. A child on the watch list = a warm check-in framed as care, from the teacher
+  or director. One yellow day is not a signal.
+- **Attendance drift / tenure** — not in your data. Never a followUp; at most "ask the
+  director who's attending less" as an enrollment move.
 - **Silence after a time-sensitive ask** — an enrollment step, a start confirmation, a
   referral offer (as recorded in the blast log or Reply Desk).
-- **Happy-moment asks** — a family at 60 days, or a new start's first good week: ask for a
-  review and a referral.
+- **Happy-moment asks** — a new start's first good week (`startsDesk` status `sent`), or a
+  family the owner says is happy: ask for a review and a referral.
 
 **Skip:** no-reply to an informational blast, a single quiet day, anything that amounts to
 "send the same message again." **Never draft the outbound text.** Name who, why, and the

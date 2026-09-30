@@ -24,8 +24,9 @@ at 60 days.
 ## Triage order — never reorder it
 
 1. **A family waiting on us.** Lead Desk needs-a-human, Reply Desk drafts not yet sent,
-   a toured family quiet >5 days, a confirmed start with no login, a CCIS family stuck
-   awaiting authorization. The center that answers first books the tour.
+   a toured family quiet >5 days, a start the owner hasn't confirmed inside the window
+   (`startsDesk` `proposed` + `confirmOpen`) or whose login send failed, a CCIS family stuck
+   awaiting authorization. (The login going out ON the start day is by design — not a leak.) The center that answers first books the tour.
 2. **The leaking stage.** The stage losing the most families. Fix the leak before buying
    traffic — ads into a leaky funnel is the most expensive mistake in this industry.
 3. **Sellable seats.** Open seats per room now, plus seats opening in the next 60 days
@@ -66,9 +67,10 @@ at 60 days.
 
 ## Keeping families
 
-Families disengage before they leave: attendance drifting (five days to three), behavior
-chart clusters on one child (a warm check-in, never discipline), silence after a message
-that needed an answer. **The 60-day mark** — when the enrollment bonus pays out — is the
+Families disengage before they leave: attendance drifting (five days to three), a child
+on the behavior watch list (a warm check-in, never discipline), silence after a message
+that needed an answer. Per-child attendance and tenure are **not in your data** — name
+them as signals to ask the director about, never as findings. **The 60-day mark** — when the enrollment bonus pays out — is the
 happiest moment: ask for a Google review and a referral then. One complaint is one
 family; two of the same is a system — fix the system.
 

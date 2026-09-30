@@ -42,6 +42,7 @@ to marcus_state/solomon.json — no new database.
 import datetime
 import json
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -198,6 +199,18 @@ def _age_months(birth_date, today=None):
     t = today or datetime.date.today()
     m = (t.year - b.year) * 12 + (t.month - b.month) - (t.day < b.day)
     return m if 0 <= m < 240 else None
+
+
+_OFF_LANE = re.compile(r"(?i)\b(licens\w*|inspections?|immuni[sz]\w*|clearances?|payroll|"
+                       r"collections?|invoices?|staff schedul\w*)\b")
+_NEGATED = re.compile(r"(?i)\b(not|never|no|isn't|belongs?)\b")
+
+
+def _paperwork_drift(md):
+    """True when a learn() rewrite pulls Solomon back toward paperwork: more than one
+    line naming a paperwork topic without saying it's out of his lane (2026-09-30)."""
+    hits = [l for l in (md or "").splitlines() if _OFF_LANE.search(l) and not _NEGATED.search(l)]
+    return len(hits) > 1
 
 
 def _seat_row(r, ages=None):
@@ -659,15 +672,15 @@ class SolomonEngine:
             "schedules and roster data hygiene never become priorities (creed §5 has the "
             "only two narrow exceptions). Read the DAYCARE CONTEXT brief FIRST and never "
             "contradict its licensing, CCIS, pricing, offer, or capacity facts. Build "
-            "today's GROWTH BRIEF for the owner. Run your triage in this order and never "
-            "reorder it: (1) families waiting on us — leadDesk.needsHuman, replyDesk "
-            "pending drafts (oldest first), startsDesk confirmed/upcoming starts; (2) the "
-            "worst funnel leak — leadDesk.kpis response times + pipeline stages "
-            "(null = untracked = Unknown, never 0); (3) sellable seats — roster.classrooms "
-            "openSeats (null = Unknown) matched against leads by age band; (4) retention — "
-            "behaviorChart clusters and attendance drift are families to keep, never "
-            "discipline; (5) demand — campaign health, competitor read, referral, "
-            "partnerships, reviews; (6) the offer clock in the context brief. Three live "
+            "today's GROWTH BRIEF for the owner. Rank by the triage order in your growth "
+            "craft and never reorder it: families waiting on us → the leaking stage → "
+            "sellable seats (now + 60-day forecast) → reactivate before you buy → keep "
+            "who you have → make demand → the offer clock. Where each lives in the data: "
+            "leadDesk (needsHuman, kpis response times + pipeline — null = untracked = "
+            "Unknown, never 0), replyDesk, startsDesk, roster (ONE center — roster.center; "
+            "classrooms openSeats + agesMonths, null = Unknown), behaviorChart (center-wide "
+            "week totals + today's watch list — a retention signal, never discipline), "
+            "campaign, competitor, and the context brief (offers + expiry). Three live "
             "lanes report to you: SOLOMON · REPLIES (replyDesk — parent texts drafted, each "
             "waiting on the OWNER's approve tap; escalations are threads that need him, not "
             "a canned reply), SOLOMON · LEADS (leadDesk — enrollment lead flow + who needs "
@@ -682,7 +695,7 @@ class SolomonEngine:
             "name a child in an outward-sounding action. "
             "Output ONLY valid JSON with keys: headline (string — the single biggest growth "
             "fact today), priorities (array of {title, why, area, urgency} — 3–5, ranked by "
-            "the triage above; area is one of speed-to-lead | funnel | seats | retention | "
+            "the triage; area is exactly one of speed-to-lead | funnel | seats | retention | "
             "demand | offer; every one carries the move), enrollment (array of strings — "
             "concrete moves to book tours and starts this week), money (array of strings — "
             "growth economics ONLY: offer deadlines, ad spend vs tours booked, seats sitting "
@@ -694,7 +707,10 @@ class SolomonEngine:
             "campaignHealth (array of {title, why, urgency}), competitorRead (object "
             "{summary, angles, gap}), creativeRecommendations (array of {angle, why, "
             "action}), delegations (array of {role, task} — role is who does it: Owner, "
-            "Director, Front desk, or Ads). Empty arrays beat invented findings."
+            "Director, Front desk, or Ads). urgency is exactly \"high\", \"medium\" or "
+            "\"low\"; roster area is \"seats\" or \"retention\". Each finding appears "
+            "in ONE array only — a priority is not repeated in its lane. Empty arrays "
+            "beat invented findings."
             + _north_star_block()
             + (ctx or "")
             + _creed_block()
@@ -851,8 +867,9 @@ class SolomonEngine:
             "starts. Never add paperwork, compliance, billing-collection or staff-admin "
             "guidance — that is not your lane. Keep the hard rules (read the "
             "business brief first; never act outward; never quote a price or promise a "
-            "start date the brief doesn't support; ground everything in real data; the "
-            "JSON output contract). "
+            "start date the brief doesn't support; ground everything in real data). Never "
+            "write a triage-order or output-format section — your top skills and the brief "
+            "prompt own those. "
             "You ALSO carry separate, permanent top skills — evidence discipline, the "
             "decision loop, growth craft, seats craft, systems craft, and ad-ops craft. Those "
             "are NOT "
@@ -875,6 +892,8 @@ class SolomonEngine:
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 200:
             return {"error": "learning produced nothing usable"}
+        if _paperwork_drift(new_md):
+            return {"error": "learned playbook drifted into paperwork — kept the old one"}
         stamp = time.strftime("%Y-%m-%d %H:%M")
         header = (f"---\nagent: solomon\nupdated: {stamp}\n"
                   f"source: self-improvement (learned from {len(recent)} recent briefs)\n---\n\n")

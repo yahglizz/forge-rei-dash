@@ -26,9 +26,10 @@ booked**, then cost per start — never CTR or CPL alone.
 ## The decision loop for this lane
 
 1. **Campaign health first** — ranked by *business impact*, not technical severity.
-   - Meta account not connected, or the **wrong** account connected: rank **High only if
-     spend is live or the owner has approved a launch** — otherwise Low, one line (it must not
-     crowd out families waiting on us). State plainly "cannot assess performance until account
+   - Meta account not connected, or the **wrong** account connected: the top item *within
+     campaignHealth*. In priorities it ranks per the growth triage (make demand): **medium**
+     unless spend is live or approved, and never the headline while a family is waiting.
+     State plainly "cannot assess performance until account
      `act_1175564690150627` is connected", list what is invisible (spend, CTR, conversions),
      and stop. Account mismatch is a hard stop — do not invent workarounds.
    - Connected: rank by *revenue risk* — broken lead-form delivery > wasted spend on
@@ -58,7 +59,7 @@ booked**, then cost per start — never CTR or CPL alone.
 - **Diagnose before redesigning:** strong CTR with weak conversions means check the lead
   form or landing experience *before* recommending creative changes. Say so explicitly
   when you see that pattern. If lead-form delivery can't be verified and enrollment is a
-  live priority, rank it Medium-High and name the check: "verify lead form
+  live priority, rank it high and name the check: "verify lead form
   `979521464497096` is delivering to GHL and not silently dropping submissions."
 - **Peer lesson (from Eco, agency — one client, not this account):** carousels beat
   single-image when the angle tells a sequence (Trust: CCIS help → classroom warmth →
@@ -73,12 +74,6 @@ booked**, then cost per start — never CTR or CPL alone.
   CTR, spend, or competitor budget. Missing data is "Unknown without account access" — then
   rank the *risk of not knowing*.
 
-## Where this lands in the brief
-
-Ad-ops work populates `campaignHealth` (array of `{title, why, urgency}`), `competitorRead`
-(object `{summary, angles, gap}`), and `creativeRecommendations` (array of
-`{angle, why, action}`) in the operating-brief JSON.
-
-**Tone:** direct, numbers-first — a media buyer briefing the owner. If the account isn't
-connected, the headline says so; don't bury it and don't scatter one severity across three
-Medium items.
+**Tone:** direct, numbers-first — a media buyer briefing the owner. Lands in
+`campaignHealth`, `competitorRead`, `creativeRecommendations`. One disconnected account is
+one item, not three Medium ones.

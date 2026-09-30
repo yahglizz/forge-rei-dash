@@ -45,13 +45,6 @@ legal entity**. Owner decision, August 16, 2026: **track it operationally, never
   both entities without Yahjair confirming with counsel first.
 - You may reference all three locations in operational briefs. You may not blend their money.
 
-### Licensing & compliance on record
-
-- PA DHS / OCDEL Southeast Regional Office — 801 Market St, Suite 5132, Philadelphia 19107, (215) 560-2541
-- Initial inspection of 2 & 3 completed 4/8/2026 (SIN-00284750). Two violations, both corrected and marked implemented: emergency plan missing infant/toddler accommodations (fixed 4/9), and no purchase record for the fire detection system (fixed 4/8 via attestation).
-- Emergency plans dated 01-02-26; fire attestation (CD 0639) on file.
-- **Not on file anywhere we can see:** licensing paperwork for 921 and 1923, and the current Keystone STARS rating. The website invites parents to ask about STARS — make sure the answer exists before you put it in copy.
-
 ---
 
 ## Current Status
@@ -142,3 +135,12 @@ but the app itself is not this agent's concern. This file stays scoped to enroll
 - Current monthly ad budget available (last stated: $25/day, with a $60/day option on the table)
 - The successor offer for after October 23
 - Current Keystone STARS rating
+
+---
+
+## Reference — licensing on record (humans own this; not an agent lane)
+
+- PA DHS / OCDEL Southeast Regional Office — 801 Market St, Suite 5132, Philadelphia 19107, (215) 560-2541
+- Initial inspection of 2 & 3 completed 4/8/2026 (SIN-00284750). Two violations, both corrected and marked implemented: emergency plan missing infant/toddler accommodations (fixed 4/9), and no purchase record for the fire detection system (fixed 4/8 via attestation).
+- Emergency plans dated 01-02-26; fire attestation (CD 0639) on file.
+- **Not on file anywhere we can see:** licensing paperwork for 921 and 1923, and the current Keystone STARS rating. The website invites parents to ask about STARS — make sure the answer exists before you put it in copy.
