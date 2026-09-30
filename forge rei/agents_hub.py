@@ -5,14 +5,18 @@ Screening; Agency Agents/Dyson/Eco; Daycare Director/Family/AdOps). This module 
 single backend behind the unified **Agents** tab: one roster, one chat, one task queue —
 across all three businesses.
 
-    wholesale  Marcus (lead agent) · Scout (triage) · Atlas (underwriter)
-               + Follow-up · ACE · Autopilot (no brain of their own — Marcus answers)
-    agency     Dyson (build) · Eco (ads)
+    ONE main agent per business + ONE CEO (consolidated 2026-09-30). Everything else is a
+    LANE of a main agent: it keeps its engine/loop but has no row of its own — `lane` in
+    AGENTS, LANE_OF below. Chat, tasks and the office all resolve a lane id to its main agent.
+
+    wholesale  Marcus — lanes: Scout (triage) · Atlas (underwriter) · Follow-up · ACE ·
+               Autopilot
+    agency     Dyson — lane: Eco (ads)
     daycare    Solomon (director — ops, enrollment, roster/family-comms, ad ops) with
                two live lanes on his row: Solomon · Replies (daycare_replies) and
                Solomon · Leads (daycare_leads)
     dropship   Midas (director)
-    cross      Orion (CEO brief)   ·   system  Daily brief / recap (Orion answers)
+    cross      Orion (the CEO — oversees + checks in on the main agents; no scheduled brief)
     voice      any Retell outbound agent (personas, testable in text)
 
   • registry()  — the Agent Control Center (spec §9): status + last run / success /
@@ -79,37 +83,39 @@ AGENTS = [
     {"id": "marcus", "name": "Marcus", "business": "wholesale", "emoji": "🎯",
      "role": "Lead Agent — head of the operation",
      "blurb": "Screens sellers, drafts the text-back, directs the team. Never quotes a price.",
-     # No hb: marcus_sms only beats for the legacy SMS loop (off by default). Screening is
-     # event-driven (Scout hands off), so _probe reads its newest screening instead.
-     "queue": "marcus"},
-    {"id": "scout", "name": "Scout", "business": "wholesale", "emoji": "🔍",
+     # marcus_sms only beats for the legacy SMS loop (off by default), so his row folds
+     # in his LANES' loops: Scout (the sweep), Atlas, Follow-up. Screening is event-driven
+     # (Scout hands off), so _probe reads its newest screening too.
+     "hb": ["scout", "atlas", "followup"], "queue": ["marcus", "scout"]},
+    {"id": "scout", "lane": "marcus", "name": "Scout", "business": "wholesale", "emoji": "🔍",
      "role": "Lead Triage — finds, ranks, organizes",
      "blurb": "Scores every seller reply, tags + buckets them, hands the hot ones to Marcus.",
      "hb": ["scout"], "queue": "scout"},
-    {"id": "atlas", "name": "Atlas", "business": "wholesale", "emoji": "📐",
+    {"id": "atlas", "lane": "marcus", "name": "Atlas", "business": "wholesale", "emoji": "📐",
      "role": "Deal Underwriter — the numbers",
      "blurb": "Offer anchors, MAO math, the negotiation call card. Numbers stay internal.",
      "hb": ["atlas"]},
-    {"id": "followup", "name": "Follow-up", "business": "wholesale", "emoji": "🔁",
+    {"id": "followup", "lane": "marcus", "name": "Follow-up", "business": "wholesale", "emoji": "🔁",
      "role": "Follow-up Cadence — bumps + check-backs",
      "blurb": "Every 30 min drafts no-response re-engage bumps and due check-backs as "
               "Marcus proposals you approve. Marcus answers for it in chat.",
      "hb": ["followup"], "queue": "followup", "chatVia": "marcus"},
-    {"id": "ace", "name": "ACE", "business": "wholesale", "emoji": "♠️",
+    {"id": "ace", "lane": "marcus", "name": "ACE", "business": "wholesale", "emoji": "♠️",
      "role": "Conversation Engine — per-thread state machine",
      "blurb": "Tracks where every seller thread is, decides reply-vs-escalate, builds the "
               "call-ready queue. Mode is read-only here. Marcus answers for it in chat.",
      "chatVia": "marcus"},
-    {"id": "autopilot", "name": "Autopilot", "business": "wholesale", "emoji": "🛩️",
+    {"id": "autopilot", "lane": "marcus", "name": "Autopilot", "business": "wholesale", "emoji": "🛩️",
      "role": "Re-engage Autopilot — opt-in auto-send",
      "blurb": "When you switch it on, auto-sends routine re-engage bumps behind 7 gates "
               "(cap, hours, legit check, dedupe). Off by default. Marcus answers for it.",
      "chatVia": "marcus"},
     {"id": "dyson", "name": "Dyson", "business": "agency", "emoji": "🛠️",
-     "role": "Build Agent — sites + code edits",
-     "blurb": "Plans and ships client website work. Plan-only until you approve.",
+     "role": "Agency Lead — sites, code edits + ads",
+     "blurb": "Plans and ships client website work and runs the ads lane (Meta reads, "
+              "concepts, launches on approval). Plan-only until you approve.",
      "queue": "agency"},
-    {"id": "eco", "name": "Eco", "business": "agency", "emoji": "📈",
+    {"id": "eco", "lane": "dyson", "name": "Eco", "business": "agency", "emoji": "📈",
      "role": "Ads Agent — strategy + Meta",
      "blurb": "Ad strategy, performance reads, creative concepts. Launches on approval.",
      "queue": "agency"},
@@ -130,11 +136,12 @@ AGENTS = [
               "store into one brief. Never launches, orders, or messages a customer.",
      "hb": ["midas"]},
     {"id": "orion", "name": "Orion", "business": "cross", "emoji": "🧭",
-     "role": "Chief of Staff — the cross-business CEO brief",
-     "blurb": "Reads what every agent produced and writes the daily 'attack today' "
-              "brief: one focus, one idea, ranked priorities. Proposes only.",
-     "hb": ["daily_brief"], "daily": True},
-    {"id": "briefs", "name": "Daily brief / recap", "business": "system", "emoji": "🗞️",
+     "role": "CEO — oversees the main agents",
+     "blurb": "Oversees Marcus, Dyson, Solomon and Midas: checks in on what they are "
+              "doing, flags what is stuck, proposes assignments you approve. No scheduled "
+              "brief. Proposes only.",
+     "hb": []},
+    {"id": "briefs", "lane": "orion", "name": "Daily brief / recap", "business": "system", "emoji": "🗞️",
      "role": "Morning brief + end-of-day recap (Telegram)",
      "blurb": "Stats-only Telegram pulses, morning and evening. No Claude call. Orion "
               "answers for it in chat.",
@@ -142,9 +149,23 @@ AGENTS = [
 ]
 
 _BY_ID = {a["id"]: a for a in AGENTS}
+# Lane id -> the main agent that owns it (2026-09-30 consolidation). A lane keeps its engine
+# and loop but is not a separate agent: chat / send_task / the office resolve it to its owner.
+LANE_OF = {a["id"]: a["lane"] for a in AGENTS if a.get("lane")}
+LANES = {}
+for _lid, _main in LANE_OF.items():
+    LANES.setdefault(_main, []).append(_lid)
+
+
+def main_agent(agent_id):
+    """A lane id ("scout", "eco"…) -> its main agent id; any other id comes back unchanged."""
+    return LANE_OF.get((agent_id or "").strip(), (agent_id or "").strip())
+
+
 # Retired roster ids folded into an agent (2026-09-24: the Reply Desk row became Solomon's
-# Replies lane). Open tasks filed under the old id still show in the owner's prompt.
-_FOLDED = {"solomon": ("daycare_replies",)}
+# Replies lane; 2026-09-30: Scout/Atlas/Follow-up/ACE/Autopilot -> Marcus, Eco -> Dyson,
+# briefs -> Orion). Open tasks filed under the old id still show in the owner's prompt.
+_FOLDED = {"solomon": ("daycare_replies",), **{m: tuple(v) for m, v in LANES.items()}}
 
 
 # ── task store (mirrors the agency_io pattern: lock + _load/_save) ─────────────
@@ -210,7 +231,7 @@ def roster(business=None):
     operating agents, and they belong to the REI **Outbound** tab where they're actually
     configured — listing a dozen of them rebuilt the clutter this hub exists to remove.
     """
-    rows = [a for a in AGENTS if not business or a["business"] == business]
+    rows = [a for a in AGENTS if not a.get("lane") and (not business or a["business"] == business)]
     try:  # spec §9 fields (status pill, last run, errors…) for the hub header
         control = {r["id"]: r for r in registry(business)}
     except Exception:
@@ -230,7 +251,8 @@ def roster(business=None):
     except Exception:
         pass
 
-    shown = [b for b in BUSINESS if not business or b == business]
+    has_agents = {a["business"] for a in AGENTS if not a.get("lane")}
+    shown = [b for b in BUSINESS if (not business and b in has_agents) or b == business]
     return {"agents": out,
             "business": business,
             "businesses": [{"id": b, "label": BUSINESS[b]["label"]} for b in shown],
@@ -388,6 +410,14 @@ def _director_chat(agent_id, message, history):
     return {"reply": reply or "On it.", "agent": meta["name"]}
 
 
+def lanes_block(agent_id):
+    """Public, never-raises _lanes_block — for chat prompts outside this module (marcus_chat)."""
+    try:
+        return _lanes_block(agent_id)
+    except Exception:
+        return ""
+
+
 def _lanes_block(agent_id):
     """A director's own live lanes (Solomon · Replies + Leads) for his chat prompt."""
     lanes = _delegate_context(agent_id)
@@ -406,6 +436,17 @@ def _delegate_context(agent_id):
             import daycare_director
             return {"replies": daycare_director.reply_desk_state(),   # Solomon · Replies
                     "leads": daycare_director.lead_desk_state()}      # Solomon · Leads
+        if agent_id == "marcus":   # his lanes: Scout · Atlas · Follow-up · ACE · Autopilot
+            out = {}
+            for lid in LANES.get("marcus", ()):
+                out[lid] = _delegate_context(lid) or _probe(lid)
+            return out
+        if agent_id == "scout":
+            eng = _engine("scout")
+            return eng.summary() if eng is not None else {}
+        if agent_id == "atlas":
+            eng = _engine("atlas")
+            return eng.status() if eng is not None else {}
         if agent_id == "ace":
             import ace
             st = ace.status()
@@ -454,6 +495,14 @@ def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None):
     message = (message or "").strip()
     if not message:
         return {"reply": "Say something and I'll answer."}
+    lane = agent_id if agent_id in LANE_OF else ""
+    agent_id = main_agent(agent_id)   # a lane answers through its main agent (one agent per business)
+    if lane and agent_id != "orion":
+        # Marcus/Dyson get the lane's name so "scout, what's hot" lands on the right part of
+        # his prompt. Dyson's message is plain text (no command parsing), so a prefix is safe;
+        # Marcus's brain parses commands, so his lane state rides in the system prompt instead.
+        if agent_id == "dyson":
+            message = f"[You are being asked about your {_BY_ID[lane]['name']} lane — {_BY_ID[lane]['role']}]\n{message}"
 
     meta = _BY_ID.get(agent_id)
     business = meta["business"] if meta else "voice"
@@ -505,7 +554,7 @@ def send_task(agent_id, title, note=""):
     A task is an ASSIGNMENT, not an action — dispatching one never sends an SMS,
     launches an ad, or writes a system of record (CLAUDE.md rule 2 holds).
     """
-    agent_id = (agent_id or "").strip()
+    agent_id = main_agent(agent_id)   # a task for a lane is filed under its main agent
     title = (title or "").strip()
     if agent_id not in _BY_ID:
         return {"error": "unknown agent"}
@@ -662,7 +711,10 @@ def _running_jobs():
 
 
 def _pending(agent_id, queue):
-    """Items waiting on the owner in this agent's approval queue (0 when unreadable)."""
+    """Items waiting on the owner in this agent's approval queue (0 when unreadable).
+    `queue` may be a list — a main agent sums its lanes' queues."""
+    if isinstance(queue, (list, tuple)):
+        return sum(_pending(agent_id, q) for q in queue)
     try:
         if queue in ("marcus", "followup"):
             eng = _engine("marcus")
@@ -742,6 +794,18 @@ def _probe(agent_id):
                      work=f"brief {b.get('hour')}:00 · recap {r.get('hour')}:00")
     except Exception as e:  # noqa: BLE001
         p["lastError"] = f"status read failed: {e}"[:300]
+    if agent_id in LANES and agent_id != "orion":   # main agent: fold in its lanes' live reads
+        works, errs = [], []
+        for lid in LANES[agent_id]:
+            lp = _probe(lid)
+            if lp.get("work"):
+                works.append(f"{_BY_ID[lid]['name']}: {lp['work']}")
+            if lp.get("lastError"):
+                errs.append(f"{_BY_ID[lid]['name']}: {lp['lastError']}")
+        if works:
+            p["work"] = " · ".join(([p["work"]] if p.get("work") else []) + works)[:400]
+        if errs and not p.get("lastError"):
+            p["lastError"] = "; ".join(errs)[:300]
     if agent_id == "solomon":   # his Replies + Leads lanes (state files only, no network)
         try:
             import daycare_director
@@ -825,13 +889,13 @@ def registry(business=None, now=None):
 
     out = []
     for a in AGENTS:
-        if business and a["business"] != business:
-            continue
+        if a.get("lane") or (business and a["business"] != business):
+            continue   # lanes report on their main agent's row
         aid = a["id"]
         recs = [hb_all[k] for k in a.get("hb", []) if isinstance(hb_all.get(k), dict)]
         rec = recs[0] if recs else {}
         p = _probe(aid)
-        mine = [t for t in task_rows if t.get("agentId") == aid]
+        mine = [t for t in task_rows if t.get("agentId") == aid or t.get("agentId") in LANES.get(aid, ())]
         open_t = [t for t in mine if t.get("status") == "open"]
         pending = _pending(aid, a.get("queue"))
         archived = _archived(a["business"])
@@ -872,7 +936,7 @@ def registry(business=None, now=None):
             "currentTask": jobs.get(aid) or (open_t[-1].get("title") if open_t else None)
                            or p.get("task"),
             "pendingApprovals": pending,
-            "approvalQueue": a.get("queue"),
+            "approvalQueue": (",".join(a["queue"]) if isinstance(a.get("queue"), (list, tuple)) else a.get("queue")),
             "lastAction": last_actions.get(aid),   # {ts, action, ok} from action_log, or None
             "dependencyHealth": {
                 "ai": ("n/a" if not uses_ai else "unknown" if ai_ok is None
@@ -885,7 +949,7 @@ def registry(business=None, now=None):
                 # ok / degraded / down; None = unknown; "n/a" = agent doesn't use it.
                 "crm": crm if a["business"] == "wholesale" else "n/a",
                 "crmReason": crm_err if a["business"] == "wholesale" else None,
-                "meta": meta if aid == "eco" else "n/a",
+                "meta": meta if aid == "dyson" else "n/a",
             },
             "work": p.get("work"),
             "detail": p.get("detail"),
@@ -902,7 +966,7 @@ def registry_payload(business=None):
     return {"ok": True, "agents": registry(business), "ai": _ai_health(),
             "statuses": list(STATUSES),
             "businesses": [{"id": b, "label": v["label"]} for b, v in BUSINESS.items()
-                           if b != "voice"],
+                           if b != "voice" and b != "system"],
             "generatedAt": int(time.time() * 1000)}
 
 

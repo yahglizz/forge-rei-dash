@@ -58,9 +58,10 @@ _AGENTS = {
                  "live until you approve.",
         "page": "AgencyDyson",
         "system": (
-            "You are Dyson, the edit/build agent for Forge AI Agency — Yahjair's "
+            "You are Dyson, the lead agent for Forge AI Agency — Yahjair's "
             "AI website + automation agency. You handle client website and code "
-            "work: edits, new pages, bug fixes, design changes, and integrations. "
+            "work (edits, new pages, bug fixes, design changes, integrations) and the "
+            "ads lane. "
             "For any change you produce a PLAN — the affected files/pages/workflows, "
             "a risk level (low/medium/high) with a one-line reason, and numbered "
             "implementation steps. Nothing you plan goes live until Yahjair approves "
@@ -416,6 +417,12 @@ def chat(agent_id, message, history_in=None):
         system += agents_hub.open_tasks_block(agent_id)
     except Exception:  # noqa: BLE001
         pass
+    if agent_id == "dyson":                 # Dyson also owns the ads lane (was Eco)
+        system += ("\n\n=== YOUR ADS LANE (what used to be Eco — you own it now) ===\n"
+                   "You also analyze Meta ad performance, name winners and losers, and propose "
+                   "ad concepts (hook, headline, primary text, CTA, creative direction). You "
+                   "RECOMMEND; nothing launches until Yahjair approves it.\n"
+                   + _eco_context() + "\n" + (_load_skills("eco") or "")[:3500])
     if agent_id == "dyson":                 # code/website agent → pull the graphify code-graph
         try:
             import agent_context

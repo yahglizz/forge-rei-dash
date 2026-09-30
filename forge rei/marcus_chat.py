@@ -39,6 +39,15 @@ def _hub_tasks(agent_id):
         return ""
 
 
+def _hub_lanes(agent_id):
+    """Live state of Marcus's lanes (Scout · Atlas · Follow-up · ACE · Autopilot)."""
+    try:
+        import agents_hub
+        return agents_hub.lanes_block(agent_id)
+    except Exception:
+        return ""
+
+
 def _name_of(c):
     return (c.get("fullName") or c.get("contactName") or c.get("name")
             or (c.get("contact") or {}).get("name") or "Unknown seller")
@@ -173,7 +182,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
     )
     try:
         reply = review_agent._claude(
-            key, system + _hub_tasks("marcus") + caveman.block(), user, max_tokens=600,
+            key, system + _hub_tasks("marcus") + _hub_lanes("marcus") + caveman.block(), user, max_tokens=600,
             model=review_agent.SMART_MODEL)
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}"}

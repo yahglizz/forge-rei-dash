@@ -38,11 +38,13 @@ import time
 
 # Departments = the dashboard's four workspaces. Each agent id here must match the id
 # agents_hub/dropship uses, because that's what we route a dispatched task to.
+# One main agent per business (2026-09-30). Scout/Atlas/Follow-up are Marcus's lanes and Eco is
+# Dyson's: they keep their engines but have no character of their own (agents_hub.LANE_OF).
 DEPARTMENTS = [
     {"id": "rei", "label": "Wholesale · REI", "accent": "#4F7CFF",
-     "agents": ["marcus", "scout", "atlas"]},
+     "agents": ["marcus"]},
     {"id": "agency", "label": "Agency · ClientForge", "accent": "#8B5CF6",
-     "agents": ["dyson", "eco"]},
+     "agents": ["dyson"]},
     {"id": "daycare", "label": "Daycare · A Touch of Blessings", "accent": "#2DD4BF",
      "agents": ["solomon"]},
     {"id": "dropship", "label": "Dropship · FORGE Store", "accent": "#F97316",
@@ -61,6 +63,11 @@ DROPSHIP_AGENTS = {
 
 DEPT_OF = {a: d["id"] for d in DEPARTMENTS for a in d["agents"]}
 DEPT_OF["orion"] = "cross"
+# Lane ids still resolve (an old bus message / task / Telegram "scout:" names one): they map to
+# the main agent's department and dispatch() files the job under the main agent.
+LANE_OF = {"scout": "marcus", "atlas": "marcus", "eco": "dyson"}
+for _lane, _main in LANE_OF.items():
+    DEPT_OF[_lane] = DEPT_OF[_main]
 
 # How long after a bus message an agent still reads as "reporting" on the floor.
 REPORTING_WINDOW_MS = 90_000
@@ -180,6 +187,20 @@ def _engine_health(agent_id):
     counts as unreachable — otherwise a chat-only agent reads as broken forever."""
     if agent_id not in _ENGINE_ATTR:
         return True, True, ""
+    lanes = [l for l, m in LANE_OF.items() if m == agent_id and l in _ENGINE_ATTR]
+    if lanes:   # Marcus: his own screening engine AND the Scout / Atlas lanes
+        worst = (True, True, "")
+        for aid in [agent_id] + lanes:
+            r = _engine_health_one(aid)
+            if not r[0] and not worst[0] is False:
+                worst = r if worst[1] else worst
+            if r[0] and not r[1]:
+                return r
+        return worst
+    return _engine_health_one(agent_id)
+
+
+def _engine_health_one(agent_id):
     eng = _engine(agent_id)
     if eng is None:
         return False, False, ""

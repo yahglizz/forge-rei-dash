@@ -2156,7 +2156,7 @@ def _brief_scheduler_forever():
         except Exception:
             pass
         try:
-            forge_heartbeat.beat("daily_brief", every, "Daily brief")
+            forge_heartbeat.beat("daily_brief", every, "Clock (briefs off · sync watchdog)")
         except Exception:
             pass
         time.sleep(every)
