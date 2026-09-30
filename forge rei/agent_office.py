@@ -1,25 +1,28 @@
-"""agent_office.py — the visual floor: every FORGE agent as a live character at a desk.
+"""agent_office.py — the 3D Agent Office backend: every FORGE agent live at a desk.
 
-Inspired by pixel-agents (github.com/pixel-agents-hq/pixel-agents), which draws Claude
-Code sessions as pixel characters in an office. That project is a Vite/React-19 +
-Fastify + VS Code extension wired to Claude Code's hook stream — none of which this
-dashboard has (buildless React 18 UMD + a stdlib connector). So this is the same IDEA
-rebuilt on what's already here: the departments are the four workspaces, the characters
-are the real agents, and the animation is driven by REAL agent activity, not a
-demo loop.
+The 3D floor (office_scene.js) is driven entirely by this module. Orion, the kid CEO,
+oversees the real business agents. Four jobs, and nothing more:
 
-Two jobs, and nothing more:
+  state()    What is every agent doing RIGHT NOW — derived only from real signals:
+             a live job in this module, an open task in agents_hub, recent agent_bus
+             traffic, and the engine's own status(). Never invented; an agent we can't
+             reach reads "unknown", not "idle".
 
-  state()   What is every agent doing RIGHT NOW — derived only from real signals:
-            a live job in this module, an open task in agents_hub, recent agent_bus
-            traffic, and the engine's own status(). Never invented; an agent we can't
-            reach reads "unknown", not "idle".
+  dispatch() The operator (or Orion's owner-approved plan) gives an agent a task. This
+             files it as a normal agents_hub task AND actually runs that agent's real
+             brain in a background thread, appending a step log the floor animates
+             against. So "you can see them doing it" and "they actually do it" are the
+             same code path.
 
-  dispatch() The operator gives an agent a task from the floor. This does two things:
-            files it as a normal agents_hub task (so it shows up everywhere tasks
-            already show up) AND actually runs that agent's real brain in a background
-            thread, appending a step log the floor animates against. So "you can see
-            them doing it" and "they actually do it" are the same code path.
+  checkin()  Orion checks in on the team: reads each agent's live job, last result,
+             errors and open tasks and gives a verdict (working / on_track / waiting /
+             idle / attention / blocked) plus owner-approvable follow-up suggestions.
+             Zero Claude calls — every line is a fact from a real signal, so it works
+             even when the AI account is out of credits. Read-only; never acts.
+
+  chat()     Office chat with an agent. Goes to the agent's real brain; if the AI
+             provider is unreachable, answers from the live floor instead and SAYS so
+             (offline=True) — never pretends to reason.
 
 Autonomy (CLAUDE.md rule 2) is unchanged. A dispatched task runs the agent's THINKING —
 the same chat/analyze brain the Agents tab already calls, creed-loaded and grounded.
@@ -27,7 +30,7 @@ It never sends an SMS, launches an ad, moves a pipeline, or writes a system of r
 The output is a proposal the operator still taps to execute.
 
 State lives in memory only (marcus_state/ holds the durable half via agents_hub +
-agent_bus). A restart clears the job log; the tasks and bus notes survive.
+agent_bus). A restart clears the job log and check-ins; the tasks and bus notes survive.
 """
 import json
 import threading
@@ -62,10 +65,15 @@ DEPT_OF["orion"] = "cross"
 # How long after a bus message an agent still reads as "reporting" on the floor.
 REPORTING_WINDOW_MS = 90_000
 MAX_JOBS = 60
+STALL_MS = 180_000          # a running job older than this is flagged by Orion's check-in
+MAX_CHECKINS = 20
+AUTO_CHECKIN = True         # Orion reviews each job the moment it finishes (selfcheck turns it off)
 
 _LOCK = threading.Lock()
 _JOBS = []          # newest first, capped at MAX_JOBS
 _SEQ = 0
+_CHECKINS = []      # Orion's reviews, newest first, capped at MAX_CHECKINS
+_CSEQ = 0
 
 
 # ── roster ────────────────────────────────────────────────────────────────────
@@ -261,7 +269,8 @@ def state(business=None):
     with _LOCK:
         running = sum(1 for j in _JOBS if j["status"] == "running")
     return {"ok": True, "now": now_ms, "departments": out, "running": running,
-            "business": business, "director": director, "messages": messages}
+            "business": business, "director": director, "messages": messages,
+            "checkin": latest_checkin(), "ai": _ai_state()}
 
 
 def plan(message, chat_fn):
@@ -332,6 +341,18 @@ def _finish(job_id, status, result="", error=""):
 
 
 def _run(job, chat_fn):
+    """Run the job, then Orion reviews the result (auto check-in on that one agent)."""
+    try:
+        _run_job(job, chat_fn)
+    finally:
+        if AUTO_CHECKIN:
+            try:
+                checkin("auto", only=job["agentId"])
+            except Exception:  # noqa: BLE001 — a review must never kill the worker
+                pass
+
+
+def _run_job(job, chat_fn):
     """The worker. Every step is announced BEFORE the work so the floor animates the
     thing that is actually happening, not a canned sequence."""
     jid, aid, title = job["id"], job["agentId"], job["title"]
@@ -485,6 +506,195 @@ def jobs(business=None, limit=20):
     for r in rows:
         r["steps"] = r["steps"][-6:]
     return {"ok": True, "jobs": rows[:limit]}
+
+
+# ── Orion's check-ins (real signals only, zero Claude) ────────────────────────
+_AI_DOWN_WORDS = ("credit balance", "billing", "anthropic", "api key", "ai key", "needs an ai",
+                  "overloaded", "rate limit", "timed out", "couldn't reach", "no brain")
+
+
+def _ai_state():
+    """{ok, reason} for the AI provider — the floor shows it so a stuck agent is explained."""
+    try:
+        import forge_heartbeat
+        h = forge_heartbeat.ai_health()
+        return {"ok": bool(h.get("ok")), "reason": h.get("reason") if not h.get("ok") else None}
+    except Exception:
+        return {"ok": True, "reason": None}
+
+
+def _ai_problem(err):
+    e = (err or "").lower()
+    return any(w in e for w in _AI_DOWN_WORDS)
+
+
+def _open_task_titles():
+    """agent_id -> [titles of open hub tasks], oldest first."""
+    try:
+        import agents_hub
+        rows = (agents_hub.tasks() or {}).get("tasks", []) or []
+    except Exception:
+        return {}
+    out = {}
+    for t in reversed(rows):
+        if t.get("status") == "open" and t.get("title"):
+            out.setdefault(t.get("agentId"), []).append(t["title"])
+    return out
+
+
+def _short(text, n=140):
+    text = " ".join(str(text or "").split())
+    return text if len(text) <= n else text[:n - 1].rstrip() + "…"
+
+
+def _review_agent(a, now_ms, open_titles, live=None, last=None):
+    """One agent's verdict, from one row of state() plus its job history. Precedence:
+    doing-it-now, then a sick engine, then the last run's outcome, then waiting work."""
+    aid, name = a["id"], a.get("name") or a["id"]
+    live = live if live is not None else _live_job(aid)
+    last = last if last is not None else _last_job(aid)
+    r = {"agentId": aid, "name": name, "verdict": "idle", "text": "nothing assigned",
+         "jobId": None, "title": ""}
+    titles = open_titles.get(aid) or []
+    if live:
+        age = now_ms - live["startedAt"]
+        steps = live.get("steps") or []
+        step = steps[-1]["text"] if steps else "starting"
+        r.update(jobId=live["id"], title=live["title"])
+        if age > STALL_MS:
+            r.update(verdict="attention", text=f"stalled — on \"{_short(live['title'], 60)}\" for "
+                     f"{age // 60000} min, last step: {step}")
+        else:
+            r.update(verdict="working", text=f"working on \"{_short(live['title'], 60)}\" — {step}")
+    elif a.get("activity") == "error":
+        detail = a.get("detail") or "engine unhealthy"
+        r.update(verdict="blocked" if _ai_problem(detail) else "attention",
+                 text=f"engine problem — {_short(detail)}")
+    elif a.get("activity") == "unknown":
+        r.update(verdict="attention", text="not reachable — no live engine on this host")
+    elif last and last["status"] == "error":
+        err = last.get("error") or "no answer came back"
+        r.update(jobId=last["id"], title=last["title"])
+        if _ai_problem(err):
+            r.update(verdict="blocked", text=f"could not run \"{_short(last['title'], 60)}\" — "
+                     f"the AI is unavailable ({_short(err, 90)})")
+        else:
+            r.update(verdict="attention", text=f"\"{_short(last['title'], 60)}\" failed — {_short(err, 110)}")
+    elif last and last["status"] == "done":
+        res = (last.get("result") or "").strip()
+        r.update(jobId=last["id"], title=last["title"])
+        if res:
+            r.update(verdict="on_track", text=f"delivered \"{_short(last['title'], 60)}\" — {_short(res.split(chr(10))[0], 110)}")
+        else:
+            r.update(verdict="attention", text=f"finished \"{_short(last['title'], 60)}\" but returned nothing")
+    elif titles:
+        r.update(verdict="waiting", title=titles[0],
+                 text=f"{len(titles)} open task{'s' if len(titles) != 1 else ''} not started — \"{_short(titles[0], 70)}\"")
+    if r["verdict"] in ("idle", "on_track") and titles and not live:
+        r["text"] += f" · {len(titles)} open task{'s' if len(titles) != 1 else ''} waiting"
+    return r
+
+
+def _suggest(reviews, open_titles, last_by):
+    """Follow-ups Orion would assign. PROPOSALS ONLY — the owner taps Approve & assign.
+    Waiting agents start their oldest open task; a non-AI failure is retried once."""
+    out = []
+    for r in reviews:
+        aid = r["agentId"]
+        if r["verdict"] == "waiting" and open_titles.get(aid):
+            out.append({"agentId": aid, "title": open_titles[aid][0],
+                        "note": "Open task from the task list that nobody has started."})
+        elif r["verdict"] == "attention" and r.get("jobId") and (last_by.get(aid) or {}).get("status") == "error":
+            last = last_by[aid]
+            out.append({"agentId": aid, "title": "Retry: " + last["title"],
+                        "note": "The previous run failed: " + _short(last.get("error"), 200)})
+    return out[:6]
+
+
+_SEVERITY = {"attention": 0, "blocked": 1, "working": 2, "waiting": 3, "on_track": 4, "idle": 5}
+
+
+def _build_checkin(by, only, floor):
+    now = floor["now"]
+    agents = [a for d in floor["departments"] for a in d["agents"]]
+    if only:
+        agents = [a for a in agents if a["id"] == only]
+    titles = _open_task_titles()
+    last_by = {a["id"]: (_last_job(a["id"]) or {}) for a in agents}
+    reviews = [_review_agent(a, now, titles) for a in agents]
+    reviews.sort(key=lambda r: _SEVERITY.get(r["verdict"], 9))
+    tally = {}
+    for r in reviews:
+        tally[r["verdict"]] = tally.get(r["verdict"], 0) + 1
+    names = {"attention": "need attention", "blocked": "blocked", "working": "working",
+             "waiting": "waiting", "on_track": "on track", "idle": "idle"}
+    parts = [f"{n} {names[k]}" for k, n in sorted(tally.items(), key=lambda kv: _SEVERITY.get(kv[0], 9))]
+    ai = floor.get("ai") or {}
+    summary = (f"Checked {len(reviews)} agent{'s' if len(reviews) != 1 else ''}: " + ", ".join(parts) + "."
+               if reviews else "No active agents to check.")
+    if ai.get("ok") is False:
+        summary += " AI is down — " + _short(ai.get("reason"), 120)
+    return {"ok": True, "by": by, "scope": only or "team", "ts": now, "reviews": reviews,
+            "summary": summary, "tally": tally,
+            "suggestions": _suggest(reviews, titles, last_by)}
+
+
+def checkin(by="operator", only=None, floor=None):
+    """Orion walks the floor and reviews the team. Read-only, zero Claude, recorded so the
+    3D office can play the round. `only` = one agent's review (the auto check-in after a job)."""
+    global _CSEQ
+    if by not in ("operator", "auto") or (only is not None and only not in DEPT_OF):
+        return {"error": "invalid check-in"}
+    rec = _build_checkin(by, only, floor or state())
+    with _LOCK:
+        _CSEQ += 1
+        rec["id"] = f"c{_CSEQ}_{rec['ts']}"
+        _CHECKINS.insert(0, rec)
+        del _CHECKINS[MAX_CHECKINS:]
+    return dict(rec)
+
+
+def latest_checkin():
+    with _LOCK:
+        return dict(_CHECKINS[0]) if _CHECKINS else None
+
+
+def checkins(limit=10):
+    with _LOCK:
+        return {"ok": True, "checkins": [dict(c) for c in _CHECKINS[:max(1, min(int(limit), MAX_CHECKINS))]]}
+
+
+# ── chat that survives an AI outage ───────────────────────────────────────────
+def status_reply(agent_id):
+    """What an agent can truthfully say from the live floor alone — no reasoning, no invention."""
+    floor = state()
+    if agent_id == "orion":
+        rec = _build_checkin("auto", None, floor)
+        lines = [rec["summary"]] + [f"• {r['name']}: {r['text']}" for r in rec["reviews"]]
+        return "\n".join(lines)
+    rows = {a["id"]: a for d in floor["departments"] for a in d["agents"]}
+    a = rows.get(agent_id)
+    if not a:
+        return "I'm not on the active floor right now."
+    r = _review_agent(a, floor["now"], _open_task_titles())
+    return f"{a['name']} — {r['verdict'].replace('_', ' ')}: {r['text']}."
+
+
+def chat(agent_id, message, chat_fn):
+    """The agent's real brain when it answers; otherwise a clearly-labelled status reply."""
+    out = chat_fn(agent_id, message)
+    ok = isinstance(out, dict) and out.get("reply") and not out.get("error") and not out.get("needsKey")
+    if ok:
+        return out
+    err = ""
+    if isinstance(out, dict):
+        err = str(out.get("error") or out.get("reply") or "")
+    if agent_id not in DEPT_OF:
+        return out if isinstance(out, dict) else {"error": "unknown agent"}
+    note = ("My AI brain is unreachable right now" + (f" ({_short(err, 110)})" if err else "") +
+            ", so I can't reason about your message. Here is what I can see live on the floor:\n")
+    return {"reply": note + status_reply(agent_id), "offline": True, "aiError": _short(err, 200)}
+
 
 
 def _selfcheck():
