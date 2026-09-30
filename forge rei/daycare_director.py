@@ -163,6 +163,48 @@ def lead_desk_state():
     }
 
 
+def starts_desk_state():
+    """Solomon · Starts (daycare_starts): start dates in flight — the enrolled-but-not-
+    started leak. State file only — no network. Never raises."""
+    try:
+        import daycare_starts
+        v = daycare_starts.view()
+    except Exception as e:  # noqa: BLE001 — the brief still works without it
+        return {"error": f"starts desk unavailable: {type(e).__name__}"}
+    rows = v.get("starts") or []
+    by_status = {}
+    for r in rows:
+        by_status[r.get("status")] = by_status.get(r.get("status"), 0) + 1
+    return {
+        "byStatus": by_status,
+        "upcoming": [{"family": daycare_starts.display_name(r), "startDate": r.get("startDate"),
+                      "daysUntil": r.get("daysUntil"), "status": r.get("status"),
+                      "confirmOpen": r.get("confirmOpen")}
+                     for r in rows if r.get("status") != "sent"][:10],
+        "lastRunAt": v.get("lastRunAt"),
+        "error": v.get("error"),
+    }
+
+
+def _seat_row(r):
+    """One classroom as inventory. openSeats only when capacity AND enrolled are real
+    numbers — otherwise None (Unknown), never a fake 0 or a fake vacancy."""
+    cap, enr = r.get("capacity"), r.get("enrolled")
+    known = isinstance(cap, (int, float)) and isinstance(enr, (int, float))
+    return {"name": r.get("name"), "capacity": cap, "enrolled": enr,
+            "ratio": r.get("ratio_children"),
+            "openSeats": max(0, int(cap - enr)) if known else None}
+
+
+def top_skills_text():
+    """Solomon's constitution (top skills) for chat — so the Solomon you talk to runs on
+    the same growth skills as the one that writes the brief. agents_hub looks this up."""
+    try:
+        return SolomonEngine()._load_skills() or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def connected_systems():
     """Report which daycare systems are wired — presence only, never the value.
 
@@ -475,22 +517,12 @@ class SolomonEngine:
             classrooms = daycare_supabase.get_classrooms(session).get("classrooms", []) or []
         except Exception as e:  # noqa: BLE001 — brief still works from the blast log alone
             return {}, str(e)
+        # Growth lens only (2026-09-30): seats are sellable inventory. The old
+        # missing-guardian-contact audit was paperwork and is gone from the brief.
         return {
             "childrenActive": sum(1 for c in children if c.get("active")),
             "childrenTotal": len(children),
-            "missingGuardianContact": [
-                {"child": (c.get("first_name", "") + " " + c.get("last_name", "")).strip(),
-                 "classroom": (c.get("classrooms") or {}).get("name")}
-                for c in children
-                if c.get("active") and not (
-                    (c.get("guardian_profile") or {}).get("phone")
-                    or (c.get("guardian_profile") or {}).get("auth_email"))
-            ][:10],
-            "classrooms": [
-                {"name": r.get("name"), "capacity": r.get("capacity"),
-                 "ratio": r.get("ratio_children"), "enrolled": r.get("enrolled")}
-                for r in classrooms if r.get("active", True)
-            ],
+            "classrooms": [_seat_row(r) for r in classrooms if r.get("active", True)],
         }, None
 
     def _gather_blasts(self):
