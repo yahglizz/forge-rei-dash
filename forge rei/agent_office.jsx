@@ -1,39 +1,16 @@
-// pixel_office.jsx — the Agent Office: every FORGE agent as a live pixel character.
+// agent_office.jsx — the Agent Office page: the 3D floor, the roster, Orion's check-ins
+// and a chat + task panel for every agent. (The old pixel view was removed 2026-09-30.)
 //
-// The idea is lifted from pixel-agents (github.com/pixel-agents-hq/pixel-agents), which
-// draws Claude Code sessions as pixel people in an office. That project is Vite +
-// React 19 + Fastify + a VS Code extension; this dashboard is buildless React 18 UMD
-// on a stdlib connector, so nothing there could be dropped in. What IS the same: four
-// rooms (our four departments), one character per real agent, and
-// animation driven by real work — pixel_office.state() derives every pose from the
-// agent bus, the task store and each engine's own status().
+// All motion on the floor comes from office_scene.js reading /api/office/state: real job
+// steps, real agent-bus assignments, real check-ins. Nothing here invents activity.
 //
-// Characters are drawn procedurally with fillRect — no sprite sheets, so no third-party
-// art licensing lands in a public repo and there is nothing to download or ship.
-//
-// Collision discipline (CLAUDE.md §7): unique hook aliases, every top-level name
-// prefixed PO/PixelOffice, no computed JSX tags.
-const { useState: useStatePO, useEffect: useEffectPO, useRef: useRefPO } = React;
+// Collision discipline (CLAUDE.md §7): unique hook aliases, every top-level name prefixed
+// AO / AgentOffice, no computed JSX tags.
+const { useState: useStateAO, useEffect: useEffectAO, useRef: useRefAO } = React;
 
-// ── floor geometry (logical pixel-art coords, scaled up by CSS) ───────────────
-// Deliberately small: the canvas is upscaled ~2x by CSS with image-rendering:pixelated,
-// which is what makes an 11px-tall character read as pixel art instead of a smudge.
-const PO_W = 476;
-const PO_H = 298;
-const PO_ROOM_W = 238;
-const PO_ROOM_H = 149;
-const PO_ROOM_POS = { rei: [0, 0], agency: [1, 0], daycare: [0, 1], dropship: [1, 1] };
-
-const PO_PALETTE = [
-  { skin: "#e8b58c", hair: "#2f2418", shirt: "#4F7CFF" },
-  { skin: "#8d5a34", hair: "#150f0a", shirt: "#22C55E" },
-  { skin: "#f2cfae", hair: "#8a4b1e", shirt: "#EC4899" },
-  { skin: "#5f3a21", hair: "#20160d", shirt: "#F59E0B" },
-];
-
-// activity -> how the operator reads it. Kept in one place so the canvas, the legend
-// and the roster cards never disagree.
-const PO_ACTIVITY = {
+// activity -> how the operator reads it. One table so the roster, the legend and the
+// task panel never disagree with the 3D floor's colours.
+const AO_ACTIVITY = {
   walk:      { label: "Heading to desk", color: "#9FB0C7" },
   read:      { label: "Reading brief",   color: "#2DD4BF" },
   think:     { label: "Working",         color: "#4F7CFF" },
@@ -45,239 +22,25 @@ const PO_ACTIVITY = {
   error:     { label: "Needs you",       color: "#EF4444" },
   unknown:   { label: "Not reachable",   color: "#475569" },
 };
+// Orion's check-in verdicts (agent_office._review_agent).
+const AO_VERDICT = {
+  working:   { label: "Working",         color: "#60A5FA" },
+  on_track:  { label: "On track",        color: "#22C55E" },
+  waiting:   { label: "Waiting",         color: "#F59E0B" },
+  idle:      { label: "Idle",            color: "#64748B" },
+  attention: { label: "Needs attention", color: "#EF4444" },
+  blocked:   { label: "Blocked",         color: "#F97316" },
+};
 
-function poMeta(a) { return PO_ACTIVITY[a] || PO_ACTIVITY.unknown; }
-function poBusy(a) { return ["walk", "read", "think", "report"].indexOf(a) >= 0; }
-
-// ── pixel drawing ────────────────────────────────────────────────────────────
-function poRect(c, x, y, w, h, fill) { c.fillStyle = fill; c.fillRect(x | 0, y | 0, w, h); }
-
-// One 11x17 character, feet at (x, y). `t` is the animation clock in ms.
-function poDrawAgent(c, x, y, pal, activity, t, selected) {
-  const bob = poBusy(activity) ? (Math.sin(t / 160) > 0 ? 1 : 0)
-                               : (Math.sin(t / 520) > 0 ? 1 : 0);
-  const top = y - 17 + bob;
-
-  if (selected) {                                   // selection ring on the floor
-    poRect(c, x - 2, y - 1, 15, 1, "#F1F5FB");
-    poRect(c, x - 2, y - 2, 1, 1, "#F1F5FB");
-    poRect(c, x + 12, y - 2, 1, 1, "#F1F5FB");
-  }
-  poRect(c, x, y - 1, 11, 1, "rgba(0,0,0,0.45)");   // shadow
-
-  // legs — alternate while walking
-  const stride = activity === "walk" && Math.sin(t / 90) > 0;
-  poRect(c, x + 2, top + 13, 3, 4, "#1b2436");
-  poRect(c, x + 6, top + 13 - (stride ? 1 : 0), 3, 4 + (stride ? 1 : 0), "#1b2436");
-
-  poRect(c, x + 1, top + 6, 9, 7, pal.shirt);        // torso
-  poRect(c, x + 1, top + 11, 9, 2, "#0d1422");       // belt
-
-  // arms — typing flutter while working
-  const type = (activity === "think" || activity === "report") && Math.sin(t / 70) > 0;
-  poRect(c, x - 1, top + 7, 2, type ? 4 : 5, pal.skin);
-  poRect(c, x + 10, top + 7, 2, type ? 5 : 4, pal.skin);
-
-  poRect(c, x + 2, top + 1, 7, 6, pal.skin);         // head
-  poRect(c, x + 2, top, 7, 2, pal.hair);             // hair
-  poRect(c, x + 1, top + 1, 1, 3, pal.hair);
-  poRect(c, x + 9, top + 1, 1, 3, pal.hair);
-  const blink = Math.sin(t / 1400) > 0.985;
-  if (!blink && activity !== "read") {
-    poRect(c, x + 3, top + 3, 1, 1, "#101827");
-    poRect(c, x + 7, top + 3, 1, 1, "#101827");
-  } else {
-    poRect(c, x + 3, top + 4, 1, 1, "#101827");
-    poRect(c, x + 7, top + 4, 1, 1, "#101827");
-  }
-
-  poDrawBubble(c, x, top, activity, t);
-}
-
-// The speech / status bubble above a character's head.
-function poDrawBubble(c, x, top, activity, t) {
-  let glyph = null, color = "#F1F5FB", bg = "#0B1220";
-  if (activity === "error") { glyph = "!"; color = "#fff"; bg = "#EF4444"; }
-  else if (activity === "done" || activity === "reporting") { glyph = "✓"; color = "#05140a"; bg = "#22C55E"; }
-  else if (activity === "think") { glyph = "⚙"; color = "#0a1226"; bg = "#4F7CFF"; }
-  else if (activity === "read") { glyph = "≡"; color = "#04211e"; bg = "#2DD4BF"; }
-  else if (activity === "report") { glyph = "✎"; color = "#12071f"; bg = "#8B5CF6"; }
-  else if (activity === "queued") { glyph = "•"; color = "#1a1102"; bg = "#F59E0B"; }
-  else if (activity === "idle" && Math.sin(t / 900) > 0.4) { glyph = "z"; color = "#9FB0C7"; bg = "#0B1220"; }
-  if (!glyph) return;
-  const by = top - 11 + (Math.sin(t / 300) > 0 ? 0 : 1);
-  poRect(c, x + 1, by, 9, 8, bg);
-  poRect(c, x + 4, by + 8, 2, 2, bg);
-  c.fillStyle = color;
-  c.font = "7px ui-monospace, monospace";
-  c.textAlign = "center";
-  c.fillText(glyph, x + 5.5, by + 6.5);
-  c.textAlign = "left";
-}
-
-function poDrawDesk(c, x, y, accent, lit, t) {
-  poRect(c, x, y, 26, 10, "#20304d");          // desk top
-  poRect(c, x, y + 10, 26, 3, "#16203a");
-  poRect(c, x + 1, y + 13, 3, 5, "#111a2e");
-  poRect(c, x + 22, y + 13, 3, 5, "#111a2e");
-  poRect(c, x + 7, y - 9, 13, 9, "#0a1120");   // monitor
-  poRect(c, x + 8, y - 8, 11, 7, lit ? accent : "#132038");
-  if (lit) {                                    // scanline flicker while working
-    const row = ((t / 90) | 0) % 7;
-    poRect(c, x + 8, y - 8 + row, 11, 1, "rgba(255,255,255,0.55)");
-  }
-  poRect(c, x + 12, y, 3, 1, "#0a1120");
-}
-
-function poDrawRoom(c, rx, ry, dept, t) {
-  poRect(c, rx, ry, PO_ROOM_W, PO_ROOM_H, "#0a1120");            // wall
-  poRect(c, rx + 3, ry + 21, PO_ROOM_W - 6, PO_ROOM_H - 24, "#0e1728");  // floor
-  for (let i = rx + 3; i < rx + PO_ROOM_W - 6; i += 16) {        // floor tiles
-    poRect(c, i, ry + 21, 1, PO_ROOM_H - 24, "rgba(255,255,255,0.025)");
-  }
-  for (let j = ry + 21; j < ry + PO_ROOM_H - 3; j += 16) {
-    poRect(c, rx + 3, j, PO_ROOM_W - 6, 1, "rgba(255,255,255,0.025)");
-  }
-  poRect(c, rx, ry, PO_ROOM_W, 18, "#111c33");                   // nameplate bar
-  poRect(c, rx, ry + 17, PO_ROOM_W, 1, dept.accent);
-  poRect(c, rx, ry, 3, PO_ROOM_H, dept.accent + "44");
-  const live = (dept.agents || []).filter((a) => poBusy(a.activity)).length;
-  c.fillStyle = dept.accent;
-  c.font = "bold 10px ui-monospace, monospace";
-  c.fillText(dept.label.toUpperCase(), rx + 8, ry + 12);
-  c.fillStyle = live ? "#22C55E" : "#475569";
-  c.font = "9px ui-monospace, monospace";
-  c.textAlign = "right";
-  c.fillText(live ? live + " WORKING" : "QUIET", rx + PO_ROOM_W - 8, ry + 12);
-  c.textAlign = "left";
-  // a plant in the corner, because an office needs one
-  poRect(c, rx + PO_ROOM_W - 18, ry + PO_ROOM_H - 16, 8, 6, "#7c4a2a");
-  poRect(c, rx + PO_ROOM_W - 20, ry + PO_ROOM_H - 24, 12, 8, "#1f7a4d");
-  void t;
-}
-
-// Desk anchor for agent #i of n inside a room at (rx, ry). Two staggered rows so four
-// agents never overlap, and everything stays inside the room's walls.
-function poDeskXY(rx, ry, i, n) {
-  const span = PO_ROOM_W - 62;
-  const step = n > 1 ? span / (n - 1) : 0;
-  const x = rx + 20 + (n > 1 ? step * i : span / 2);
-  const y = ry + (i % 2 === 0 ? 56 : 101);
-  return [x, y];
-}
-
-// ── the canvas floor ─────────────────────────────────────────────────────────
-function PixelOfficeFloor({ departments, selected, onSelect }) {
-  const canvasRef = useRefPO(null);
-  const actorsRef = useRefPO({});      // agentId -> {x, y, tx, ty, activity, box}
-  const deptRef = useRefPO(departments);
-  const selRef = useRefPO(selected);
-  deptRef.current = departments;
-  selRef.current = selected;
-
-  useEffectPO(() => {
-    const cv = canvasRef.current;
-    if (!cv) return;
-    const c = cv.getContext("2d");
-    c.imageSmoothingEnabled = false;
-    let raf;
-
-    const frame = (t) => {
-      const depts = deptRef.current || [];
-      poRect(c, 0, 0, PO_W, PO_H, "#050B18");
-
-      // Keep unused floor space intentional when a department has no active agents.
-      Object.entries(PO_ROOM_POS).forEach(([id, pos]) => {
-        if (depts.some((d) => d.id === id)) return;
-        const rx = pos[0] * PO_ROOM_W;
-        const ry = pos[1] * PO_ROOM_H;
-        poRect(c, rx, ry, PO_ROOM_W, PO_ROOM_H, "#0b1422");
-        for (let x = rx + 3; x < rx + PO_ROOM_W; x += 16) poRect(c, x, ry + 20, 1, PO_ROOM_H - 23, "rgba(255,255,255,.025)");
-        for (let y = ry + 20; y < ry + PO_ROOM_H; y += 16) poRect(c, rx + 3, y, PO_ROOM_W - 6, 1, "rgba(255,255,255,.025)");
-        c.fillStyle = "#526579";
-        c.font = "bold 9px ui-monospace, monospace";
-        c.textAlign = "center";
-        c.fillText("NO ACTIVE AGENTS", rx + PO_ROOM_W / 2, ry + PO_ROOM_H / 2);
-        c.textAlign = "left";
-      });
-
-      depts.forEach((d) => {
-        const pos = PO_ROOM_POS[d.id] || [0, 0];
-        const rx = pos[0] * PO_ROOM_W;
-        const ry = pos[1] * PO_ROOM_H;
-        poDrawRoom(c, rx, ry, d, t);
-
-        const n = (d.agents || []).length;
-        (d.agents || []).forEach((a, i) => {
-          const desk = poDeskXY(rx, ry, i, n);
-          poDrawDesk(c, desk[0], desk[1], d.accent, poBusy(a.activity), t);
-
-          let act = actorsRef.current[a.id];
-          if (!act) {
-            act = { x: desk[0] + 8, y: desk[1] + 30, seed: i * 977 };
-            actorsRef.current[a.id] = act;
-          }
-          // Busy agents stand at their desk. Idle ones drift nearby — a slow lissajous
-          // instead of pathfinding, which is plenty for a 340px room.
-          if (poBusy(a.activity) || a.activity === "queued") {
-            act.tx = desk[0] + 8;
-            act.ty = desk[1] + 26;
-          } else {
-            act.tx = desk[0] + 8 + Math.sin((t + act.seed) / 2600) * 20;
-            act.ty = desk[1] + 28 + Math.cos((t + act.seed) / 3300) * 7;
-          }
-          const speed = a.activity === "walk" ? 0.09 : 0.03;
-          act.x += (act.tx - act.x) * speed;
-          act.y += (act.ty - act.y) * speed;
-          const moving = Math.abs(act.tx - act.x) > 1.2;
-          const shown = a.activity === "walk" && !moving ? "think"
-                      : (moving && !poBusy(a.activity) ? "walk" : a.activity);
-
-          const pal = PO_PALETTE[i % PO_PALETTE.length];
-          const dim = a.activity === "unknown";
-          if (dim) c.globalAlpha = 0.42;
-          poDrawAgent(c, act.x, act.y, pal, shown, t, selRef.current === a.id);
-          c.globalAlpha = 1;
-
-          c.fillStyle = selRef.current === a.id ? "#F1F5FB" : "#9FB0C7";
-          c.font = "8px ui-monospace, monospace";
-          c.textAlign = "center";
-          c.fillText(a.name.toUpperCase(), act.x + 5, act.y + 9);
-          c.textAlign = "left";
-          act.box = [act.x - 8, act.y - 30, 27, 42];   // click target
-        });
-      });
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  function hit(e) {
-    const cv = canvasRef.current;
-    const r = cv.getBoundingClientRect();
-    const x = ((e.clientX - r.left) / r.width) * PO_W;
-    const y = ((e.clientY - r.top) / r.height) * PO_H;
-    const entries = Object.entries(actorsRef.current);
-    for (let i = 0; i < entries.length; i++) {
-      const b = entries[i][1].box;
-      if (b && x >= b[0] && x <= b[0] + b[2] && y >= b[1] && y <= b[1] + b[3]) {
-        onSelect(entries[i][0]);
-        return;
-      }
-    }
-  }
-
-  return (
-    <canvas ref={canvasRef} width={PO_W} height={PO_H} onClick={hit}
-      style={{ width: "100%", display: "block", imageRendering: "pixelated",
-               cursor: "pointer", borderRadius: 14, border: "1px solid var(--border)",
-               background: "#050B18" }} />
-  );
+function aoMeta(a) { return AO_ACTIVITY[a] || AO_ACTIVITY.unknown; }
+function aoBusy(a) { return ["walk", "read", "think", "report"].indexOf(a) >= 0; }
+function aoAgo(ts, now) {
+  const s = Math.max(0, Math.round(((now || Date.now()) - ts) / 1000));
+  return s < 60 ? s + "s ago" : s < 3600 ? Math.round(s / 60) + " min ago" : Math.round(s / 3600) + " h ago";
 }
 
 // ── the agent panel: status, live step log, and the task box ─────────────────
-function PixelOfficePanel({ agent, job, onDispatch, sending, err }) {
+function AgentOfficeTaskPanel({ agent, job, onDispatch, sending, err }) {
   const [title, setTitle] = useStatePO("");
   const Icons = window.Icons;
   if (!agent) {
@@ -292,7 +55,7 @@ function PixelOfficePanel({ agent, job, onDispatch, sending, err }) {
       </div>
     );
   }
-  const meta = poMeta(agent.activity);
+  const meta = aoMeta(agent.activity);
   const steps = (job && job.steps) || [];
   const running = job && job.status === "running";
 
@@ -323,7 +86,7 @@ function PixelOfficePanel({ agent, job, onDispatch, sending, err }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           {steps.map((s, i) => (
             <div key={i} style={{ display: "flex", gap: 8, fontSize: 11.5, alignItems: "flex-start" }}>
-              <span style={{ width: 7, height: 7, borderRadius: 9, marginTop: 4, flexShrink: 0, background: poMeta(s.phase).color }} />
+              <span style={{ width: 7, height: 7, borderRadius: 9, marginTop: 4, flexShrink: 0, background: aoMeta(s.phase).color }} />
               <span style={{ color: s.phase === "error" ? "var(--red)" : "var(--text-2)", lineHeight: 1.45 }}>{s.text}</span>
             </div>
           ))}
@@ -364,21 +127,61 @@ function PixelOfficePanel({ agent, job, onDispatch, sending, err }) {
   );
 }
 
+// ── Orion's latest check-in: who is on track, who needs you, what he would assign ──
+function AgentOfficeCheckin({ checkin, now, onSelect, onAssign, assigning }) {
+  if (!checkin) {
+    return (
+      <div className="orion-feed"><strong>Orion's check-ins</strong>
+        <div className="faint">None yet. Press "Check in on team" and Orion walks the floor, reading each agent's live job, last result and errors. Needs no AI credits.</div>
+      </div>
+    );
+  }
+  const names = {};
+  (checkin.reviews || []).forEach((r) => { names[r.agentId] = r.name; });
+  return (
+    <div className="orion-feed" aria-live="polite"><strong>Orion's check-in · {aoAgo(checkin.ts, now)}</strong>
+      <div>{checkin.summary}</div>
+      {(checkin.reviews || []).map((r) => {
+        const v = AO_VERDICT[r.verdict] || AO_VERDICT.idle;
+        return (
+          <div key={r.agentId}>
+            <button className="btn" onClick={() => onSelect(r.agentId)} style={{ display: "flex", gap: 8, alignItems: "flex-start", textAlign: "left", padding: "7px 9px" }}>
+              <span style={{ width: 9, height: 9, borderRadius: 9, marginTop: 4, flexShrink: 0, background: v.color }} />
+              <span style={{ minWidth: 0 }}><b>{r.name}</b> <span style={{ color: v.color, fontWeight: 700 }}>{v.label}</span><br /><span className="faint">{r.text}</span></span>
+            </button>
+          </div>
+        );
+      })}
+      {(checkin.suggestions || []).length > 0 && (
+        <div className="orion-plan"><strong>Orion suggests</strong>
+          {checkin.suggestions.map((s) => (
+            <div key={s.agentId}>
+              <b>{names[s.agentId] || s.agentId}</b><p>{s.title}</p>{s.note && <small>{s.note}</small>}
+              <div className="orion-controls"><button className="btn btn-primary" disabled={assigning === s.agentId} onClick={() => onAssign(s)}>{assigning === s.agentId ? "Assigning…" : "Approve & assign"}</button></div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── the page ─────────────────────────────────────────────────────────────────
-function PixelOfficePage() {
-  const [state, setState] = useStatePO(null);
-  const [err, setErr] = useStatePO(null);
-  const [selected, setSelected] = useStatePO("orion");
-  const [view, setView] = useStatePO("3d");
-  const [orionMode, setOrionMode] = useStatePO("idle");
-  const [dogModes, setDogModes] = useStatePO({});
-  const [job, setJob] = useStatePO(null);
-  const [sending, setSending] = useStatePO(false);
-  const [sendErr, setSendErr] = useStatePO(null);
-  const jobIdRef = useRefPO(null);
+function AgentOfficePage() {
+  const [state, setState] = useStateAO(null);
+  const [err, setErr] = useStateAO(null);
+  const [selected, setSelected] = useStateAO("orion");
+  const [orionMode, setOrionMode] = useStateAO("idle");
+  const [dogModes, setDogModes] = useStateAO({});
+  const [job, setJob] = useStateAO(null);
+  const [sending, setSending] = useStateAO(false);
+  const [sendErr, setSendErr] = useStateAO(null);
+  const [checking, setChecking] = useStateAO(false);
+  const [assigning, setAssigning] = useStateAO("");
+  const jobIdRef = useRefAO(null);
 
   // Floor state — 2.5s poll. Everything here is derived server-side from real signals.
-  useEffectPO(() => {
+  useEffectAO(() => {
     let alive = true;
     const load = async () => {
       try {
@@ -403,7 +206,7 @@ function PixelOfficePage() {
   // Follow whichever job belongs to the selected agent — live while running, then the
   // finished result stays on screen.
   const followId = (agent && (agent.jobId || (agent.lastJob && agent.lastJob.id))) || null;
-  useEffectPO(() => {
+  useEffectAO(() => {
     jobIdRef.current = followId;
     if (!followId) { setJob(null); return; }
     let alive = true;
@@ -423,18 +226,42 @@ function PixelOfficePage() {
     setSending(true); setSendErr(null);
     try {
       const d = await window.apiPost("/api/office/task", { agentId: agent.id, title });
+      if (d.error) throw new Error(d.error);
       if (d.jobId) {
         jobIdRef.current = d.jobId;
         setJob({ id: d.jobId, status: "running", steps: [] });
       }
-      const s = await window.apiGet("/api/office/state");
-      setState(s);
+      await refreshOffice();
     } catch (e) { setSendErr(e.message || String(e)); }
     setSending(false);
   }
 
-  const busy = agents.filter((a) => poBusy(a.activity)).length;
+  // Orion's round: read-only, no AI call, so it works whatever state the AI account is in.
+  async function checkIn() {
+    if (checking) return;
+    setChecking(true); setErr(null);
+    try {
+      const d = await window.apiPost("/api/office/checkin", {});
+      if (d.error) throw new Error(d.error);
+      await refreshOffice();
+    } catch (e) { setErr("Check-in: " + (e.message || String(e))); }
+    setChecking(false);
+  }
+
+  // The owner's tap on "Approve & assign" is the approval (rule 2); Orion then walks over.
+  async function assignSuggestion(s) {
+    setAssigning(s.agentId); setErr(null);
+    try {
+      const d = await window.apiPost("/api/office/task", { agentId: s.agentId, title: s.title, note: s.note || "", directedBy: "orion" });
+      if (d.error || !d.jobId) throw new Error(d.error || "No job was created");
+      await refreshOffice();
+    } catch (e) { setErr("Assign: " + (e.message || String(e))); }
+    setAssigning("");
+  }
+
+  const busy = agents.filter((a) => aoBusy(a.activity)).length;
   const legend = ["think", "read", "report", "queued", "idle", "error"];
+  const ai = (state && state.ai) || { ok: true };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -446,26 +273,28 @@ function PixelOfficePage() {
           </div>
         </div>
         <div style={{ flex: 1 }} />
-        <div className="orion-controls" aria-label="Office view"><button className="btn" aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D office</button><button className="btn" aria-pressed={view === "pixel"} onClick={() => setView("pixel")}>Pixel view</button></div>
+        <button className="btn btn-primary" disabled={checking || !state} onClick={checkIn} title="Orion reads every agent's live job, result and errors">{checking ? "Checking in…" : "Check in on team"}</button>
         <div className="office-legend">
           {legend.map((k) => (
             <span key={k} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 9, background: poMeta(k).color }} />
-              <span className="faint">{poMeta(k).label}</span>
+              <span style={{ width: 8, height: 8, borderRadius: 9, background: aoMeta(k).color }} />
+              <span className="faint">{aoMeta(k).label}</span>
             </span>
           ))}
         </div>
       </div>
 
       {err && <div className="card" style={{ padding: 14, color: "var(--red)", fontSize: 12.5 }}>Office feed: {err}</div>}
+      {!ai.ok && <div className="card" role="alert" style={{ padding: 14, color: "#fdba74", fontSize: 12.5, lineHeight: 1.5 }}>
+        AI is offline — {ai.reason || "the provider is unreachable"}. Agents can't reason or finish tasks until it is back; chats answer from the live floor and say so, and Orion's check-ins still work.
+      </div>}
 
       <div className="office-grid">
         <div className="card office-floor-card">
-          {view === "3d" ? <OrionOfficeFloor state={state} selected={selected} onSelect={setSelected} mode={orionMode} dogModes={dogModes} />
-            : <PixelOfficeFloor departments={(state && state.departments) || []} selected={selected} onSelect={setSelected} />}
+          <OrionOfficeFloor state={state} selected={selected} onSelect={setSelected} mode={orionMode} dogModes={dogModes} />
           <div className="office-roster">
             {agents.map((a) => {
-              const m = poMeta(a.activity);
+              const m = aoMeta(a.activity);
               return (
                 <button key={a.id} onClick={() => setSelected(a.id)}
                   className="card"
@@ -482,6 +311,7 @@ function PixelOfficePage() {
               );
             })}
           </div>
+          <AgentOfficeCheckin checkin={state && state.checkin} now={state && state.now} onSelect={setSelected} onAssign={assignSuggestion} assigning={assigning} />
           <div className="orion-feed" aria-live="polite"><strong>Office handoffs</strong>
             {((state && state.messages) || []).slice(0, 6).map(m => <div key={m.id}><small>{(agents.find(a => a.id === m.from) || {}).name || m.from} → {(agents.find(a => a.id === m.to) || {}).name || m.to}</small><span>{m.text}</span></div>)}
             {!(state && state.messages && state.messages.length) && <div className="faint">No recent handoffs.</div>}
@@ -489,12 +319,12 @@ function PixelOfficePage() {
         </div>
 
         <div className="orion-panel-wrap">
-          {selected === "orion" ? <OrionOfficePanel state={state} onMode={setOrionMode} onRefresh={refreshOffice} />
-            : <React.Fragment>{agent && ["marcus", "dyson", "solomon", "midas"].includes(agent.id) && <OrionOfficePanel key={agent.id} agent={agent} state={state} onMode={mode => setDogModes(current => ({ ...current, [agent.id]: mode }))} onRefresh={refreshOffice} />}<PixelOfficePanel agent={agent} job={job} onDispatch={dispatch} sending={sending} err={sendErr} /></React.Fragment>}
+          {selected === "orion" ? <OrionOfficePanel key="orion" state={state} onMode={setOrionMode} onRefresh={refreshOffice} onCheckin={checkIn} checking={checking} />
+            : <React.Fragment>{agent && <OrionOfficePanel key={agent.id} agent={agent} state={state} onMode={mode => setDogModes(current => ({ ...current, [agent.id]: mode }))} onRefresh={refreshOffice} />}<AgentOfficeTaskPanel agent={agent} job={job} onDispatch={dispatch} sending={sending} err={sendErr} /></React.Fragment>}
         </div>
       </div>
     </div>
   );
 }
 
-Object.assign(window, { PixelOfficePage, PixelOfficeFloor, PixelOfficePanel });
+Object.assign(window, { AgentOfficePage, AgentOfficeTaskPanel });

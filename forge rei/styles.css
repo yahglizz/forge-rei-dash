@@ -930,3 +930,4 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 @media(max-width:850px) { .orion-panel-wrap { position:static; min-height:0; }.orion-canvas { height:360px; } }
 
 .orion-camera-controls { position:absolute; bottom:14px; left:14px; }
+.orion-emoji { width:56px; height:66px; border-radius:12px; background:#101a2a; display:grid; place-items:center; font-size:30px; flex-shrink:0; }

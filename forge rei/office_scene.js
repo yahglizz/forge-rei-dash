@@ -223,7 +223,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     if (!step && queue.length) { step = queue.shift(); step.until = 0; }
     if (step) {
       dest = step.to ? actors.get(step.to) : null;
-      if (step.to && (!dest || !dest.group.visible)) { step = null; }   // agent went away (archived) — skip
+      if (step.to && (!dest || !dest.group.visible)) { step = null; dest = null; }   // agent went away (archived) — skip
       else if (dest) target = new THREE.Vector3(dest.x - .85, 0, dest.z + 1.9);
     }
     const delta = target.clone().sub(orion.position), distance = delta.length();

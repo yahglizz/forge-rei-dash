@@ -1,4 +1,4 @@
-// Orion's 3D office and browser voice controls; all assignments use the real office API.
+// The 3D office floor + chat/voice panel for every agent; all assignments use the real office API.
 const { useState: useStateOO, useEffect: useEffectOO, useRef: useRefOO } = React;
 
 function OrionOfficeFloor({ state, selected, onSelect, mode, dogModes }) {
@@ -11,17 +11,17 @@ function OrionOfficeFloor({ state, selected, onSelect, mode, dogModes }) {
     window.loadOrionOfficeScene().then(m => {
       if (!dead) return m.createOfficeScene(host.current, () => latest.current, onSelect, s => { if (!dead) setStatus(s); });
     }).then(cleanup => { if (dead && cleanup) cleanup(); else dispose = cleanup; })
-      .catch(e => { console.warn('Orion office:', e); if (!dead) setStatus('3D is unavailable in this browser. Use Pixel view.'); });
+      .catch(e => { console.warn('Orion office:', e); if (!dead) setStatus('3D needs WebGL, which this browser does not provide. The agent panels below still work.'); });
     return () => { dead = true; if (dispose) dispose(); };
   }, []);
   return <div className="orion-stage">
     <div ref={host} className="orion-canvas" />
     <div className="orion-camera-controls orion-controls"><button className="btn" aria-pressed={!focus} onClick={() => setFocus(false)}>Whole office</button><button className="btn" aria-pressed={focus} onClick={() => setFocus(true)}>Focus {selected ? selected[0].toUpperCase() + selected.slice(1) : 'Orion'}</button></div>
-    <div className="orion-stage-caption"><span>ORION / COMMAND OFFICE</span><span role="status">{status === 'Ready' ? (focus && ['marcus','dyson','solomon','midas'].includes(selected) ? 'Live activity · walking rig pending' : 'Live agent activity') : status}</span></div>
+    <div className="orion-stage-caption"><span>ORION / COMMAND OFFICE</span><span role="status">{status === 'Ready' ? 'Live agent activity · drag to rotate, scroll to zoom' : status}</span></div>
   </div>;
 }
 
-function OrionOfficePanel({ state, onMode, onRefresh, agent }) {
+function OrionOfficePanel({ state, onMode, onRefresh, onCheckin, checking, agent }) {
   const agentId = agent ? agent.id : 'orion', name = agent ? agent.name : 'Orion';
   const [text, setText] = useStateOO(''), [msgs, setMsgs] = useStateOO([]);
   const [busy, setBusy] = useStateOO(false), [error, setError] = useStateOO('');
@@ -29,6 +29,7 @@ function OrionOfficePanel({ state, onMode, onRefresh, agent }) {
   const [listening, setListening] = useStateOO(false), [speaking, setSpeaking] = useStateOO(false);
   const recognition = useRefOO(null), mounted = useRefOO(true), end = useRefOO(null), inFlight = useRefOO(false);
   const agents = ((state && state.departments) || []).flatMap(d => d.agents || []);
+  const orionDog = agentId === 'orion' || ['marcus', 'dyson', 'solomon', 'midas'].includes(agentId);
   const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   useEffectOO(() => {
     window.apiGet('/api/hub/history?agent=' + encodeURIComponent(agentId)).then(d => { if (mounted.current) setMsgs(Array.isArray(d.messages) ? d.messages : []); }).catch(() => {});
@@ -66,11 +67,11 @@ function OrionOfficePanel({ state, onMode, onRefresh, agent }) {
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     setSpeaking(false); setText(''); setMsgs(m => m.concat([{ role: 'user', text: message }]));
     try {
-      const d = await window.apiPost(plan ? '/api/office/plan' : '/api/hub/chat', plan ? { message } : { agentId, message });
+      const d = await window.apiPost(plan ? '/api/office/plan' : '/api/office/chat', plan ? { message } : { agentId, message });
       if (!mounted.current) return;
       if (d.error || d.needsKey) throw new Error(d.error || d.reply || name + ' needs an AI key.');
       const reply = plan ? d.summary : d.reply;
-      setMsgs(m => m.concat([{ role: 'agent', text: reply }]));
+      setMsgs(m => m.concat([{ role: 'agent', text: reply, offline: !!d.offline }]));
       if (plan) setProposal({ ...d, request: message });
       say(reply || 'Ready.');
     } catch (e) { if (mounted.current) { setError(String(e.message || e)); setText(message); onMode('idle'); } }
@@ -97,17 +98,17 @@ function OrionOfficePanel({ state, onMode, onRefresh, agent }) {
     inFlight.current = false;
   }
   return <div className="card orion-panel">
-    <div className="orion-panel-head"><img src={agentId === 'orion' ? '/assets/orion/preview.png' : '/assets/dogs/' + agentId + '/reference.png'} alt={name + ' office character'} /><div><strong>Talk to {name}</strong><div className="faint">{agentId === 'orion' ? 'Chief of Staff · your live team' : 'Business lead · live agent brain'}</div></div></div>
+    <div className="orion-panel-head">{orionDog ? <img src={agentId === 'orion' ? '/assets/orion/preview.png' : '/assets/dogs/' + agentId + '/reference.png'} alt={name + ' office character'} /> : <div className="orion-emoji" aria-hidden="true">{agent.emoji}</div>}<div><strong>Talk to {name}</strong><div className="faint">{agentId === 'orion' ? 'Chief of Staff · your live team' : (agent.role || 'Team agent') + ' · live agent brain'}</div></div></div>
     <div className="orion-conversation" aria-live="polite">
       {!msgs.length && <div className="faint">Ask {name} what needs attention or what to work on next.</div>}
-      {msgs.map((m, i) => <div className={'orion-message ' + (m.role === 'user' ? 'mine' : '')} key={i}><small>{m.role === 'user' ? 'You' : name}</small><div>{m.text}</div></div>)}
+      {msgs.map((m, i) => <div className={'orion-message ' + (m.role === 'user' ? 'mine' : '')} key={i}><small>{m.role === 'user' ? 'You' : name}{m.offline ? ' · AI offline — live status, not reasoning' : ''}</small><div>{m.text}</div></div>)}
       {busy && <div className="faint" role="status">{name} is working…</div>}<div ref={end} />
     </div>
     {proposal && <div className="orion-plan"><strong>Review assignments</strong>{proposal.assignments.map(a => <div key={a.agentId}><b>{(agents.find(x => x.id === a.agentId) || {}).name || a.agentId}</b><p>{a.title}</p>{a.note && <small>{a.note}</small>}</div>)}
       <div className="orion-controls"><button className="btn btn-primary" disabled={busy || !proposal.assignments.length} onClick={approve}>Approve & assign</button><button className="btn" disabled={busy} onClick={() => setProposal(null)}>Dismiss</button></div></div>}
     {error && <div role="alert" className="hub-error">{error}</div>}
     <textarea className="input" aria-label={'Message ' + name} rows={2} maxLength={4000} value={text} onChange={e => setText(e.target.value)} placeholder={name + ', what needs attention today?'} onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(); }} />
-    <div className="orion-controls"><button className="btn btn-primary" disabled={busy || !text.trim()} onClick={() => send()}>Send</button>{agentId === 'orion' && <button className="btn" disabled={busy || !text.trim()} onClick={() => send(true)}>Plan team tasks</button>}{Speech && <button className="btn" aria-pressed={listening} disabled={busy} onClick={listen}>{listening ? 'Stop mic' : 'Microphone'}</button>}</div>
+    <div className="orion-controls"><button className="btn btn-primary" disabled={busy || !text.trim()} onClick={() => send()}>Send</button>{agentId === 'orion' && <button className="btn" disabled={busy || !text.trim()} onClick={() => send(true)}>Plan team tasks</button>}{agentId === 'orion' && onCheckin && <button className="btn" disabled={checking} onClick={onCheckin}>{checking ? 'Checking in…' : 'Check in on team'}</button>}{Speech && <button className="btn" aria-pressed={listening} disabled={busy} onClick={listen}>{listening ? 'Stop mic' : 'Microphone'}</button>}</div>
     <div className="orion-controls"><label className="faint"><input type="checkbox" checked={voice} disabled={!window.speechSynthesis} onChange={e => { setVoice(e.target.checked); if (!e.target.checked) stopSpeech(); }} /> Spoken replies</label>{speaking && <button className="btn" onClick={stopSpeech}>Stop speaking</button>}</div>
     {!Speech && <small className="faint">Microphone dictation is unavailable here; type to chat.</small>}
   </div>;
