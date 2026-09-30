@@ -46,6 +46,11 @@ booked**, then cost per start — never CTR or CPL alone.
 
 ## Creative recommendations — ruthlessly prioritized
 
+- **Live copy errors to fix before any refresh** (they're in the spec's AD COPY):
+  "3 (North) Philadelphia locations" spans the separate 1923 entity; "Spots filling fast /
+  still have openings" needs grounded open seats > 0; "This Month Only" conflicts with the
+  Oct 23 expiry and the 60-day payout terms. Fixing these is the one allowed
+  creativeRecommendation while Meta is down.
 - **Refresh existing angles first** (Urgency / Trust / Offer) when performance shows
   fatigue (CTR drop, rising CPL) or the creative is >30 days old. Rank by *fastest path to
   better performance*, not by novelty.

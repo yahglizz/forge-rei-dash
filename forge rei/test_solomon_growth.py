@@ -55,7 +55,13 @@ print("ok — learn() drift guard holds")
 assert dd._dedupe_bus([{"from": "watchdog", "text": "Replies DOWN (errors x12)"},
                        {"from": "watchdog", "text": "Replies DOWN (errors x13)"}]) == \
     [{"from": "watchdog", "text": "Replies DOWN (errors x12)"}]
-assert "openSeats\"] = None" in inspect.getsource(dd.SolomonEngine._gather_roster)
+assert "r[\"openSeats\"] = r[\"enrolled\"] = None" in inspect.getsource(dd.SolomonEngine._gather_roster)
 ns = dd._north_star_block()
 assert "## 3. Wholesale" not in ns and ("## 5. Daycare" in ns or not ns)
 print("ok — real-data guards hold")
+
+# Leads match seats only through the shared center label.
+import daycare_leads
+assert set(dd._CENTER_ALIAS.values()) <= set(daycare_leads.CENTER_LABEL.values()), \
+    "roster centerLabel no longer matches the Lead Desk's center labels"
+print("ok — center labels line up")

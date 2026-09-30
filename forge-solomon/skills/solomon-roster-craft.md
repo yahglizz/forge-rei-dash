@@ -33,7 +33,7 @@ Per room (`roster.classrooms[]`: `ageGroup`, `capacity`, `enrolled`, `openSeats`
 - **Rank rooms by sellable space**, now + forecast. Infant seats are the hardest for
   parents to find — answer infant leads first.
 - **Match demand to seats per center × age band.** `leadDesk` spans all centers; match a
-  lead to these seats only when its `center` equals `roster.center`. Lead age bands are not
+  lead to these seats only when its `center` equals `roster.centerLabel`. Lead age bands are not
   in the Lead Desk data — Unknown unless the lead's title/why states the child's age.
   Unknown center = ask on the call, never assume. 2318 Cecil B.
   Moore is licensed infant/toddler only (brief). A lead for a full band → waitlist, or the
@@ -41,8 +41,13 @@ Per room (`roster.classrooms[]`: `ageGroup`, `capacity`, `enrolled`, `openSeats`
   cross-referral there is the owner's call). A room with seats and no leads → that's where
   the reactivation and referral push goes.
 - **A room at or over ratio** isn't sellable this week — one line, push elsewhere.
-- **Empty roster** while the business is clearly operating = data not reachable. Say once
-  "seat counts Unknown", never escalate it, never report 0 open seats.
+- **Empty roster** (`rosterEmpty: true`) while the business is clearly operating = the
+  roster isn't kept in Supabase. Say once "seat counts Unknown", never escalate it, never
+  report 0 open seats or 0 enrolled.
+- **Roster vs license mismatch** — if the rooms or capacities contradict the brief's
+  licensed bands/slots (e.g. 2318 is licensed infant/toddler, 37 slots), say so once as
+  Unknown ("roster vs license mismatch — owner to confirm") and never market a band the
+  brief doesn't license.
 
 ## 2. Families to keep — retention
 

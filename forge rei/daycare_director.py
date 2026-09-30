@@ -66,6 +66,11 @@ BRIEF_DIR_REL = "Reports/daycare"          # living operating record written eve
 # `daycare_leads`, lands in his brief.
 BUS_ROLES = ("solomon", "family-comms", "enrollment", "ads", "growth", "nora", "nova",
              "daycare_replies", "daycare_leads")
+# Supabase location name -> the Lead Desk's center label (daycare_leads.CENTER_LABEL), so a
+# lead can be matched to this roster's seats. Verified against list_locations 2026-09-30.
+_CENTER_ALIAS = {"A Touch of Blessings": "921 N 18th St",
+                 "A Touch of Blessings 2": "2318 Cecil B Moore",
+                 "A Mother's Touch": "1923 Cecil B Moore (AMT)"}
 GROWTH_METRICS = ("childrenActive", "presentToday", "classroomsActive")
 RECENT_BLASTS = 5                          # blast history depth for the follow-up lane
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
@@ -583,13 +588,15 @@ class SolomonEngine:
                  if r.get("active", True)]
         if not active:
             # Zero active children while the center operates = the roster isn't kept in
-            # Supabase, not 32 empty seats. Seats are Unknown — never a fake vacancy.
+            # Supabase, not 32 empty seats. Seats + counts are Unknown — never a fake
+            # vacancy, never "0 enrolled".
             for r in rooms:
-                r["openSeats"] = None
+                r["openSeats"] = r["enrolled"] = None
         return {
             "center": center,   # the roster is ONE center (the session's active location)
+            "centerLabel": _CENTER_ALIAS.get(center, center),   # matches leadDesk center
             "rosterEmpty": not active,
-            "childrenActive": active,
+            "childrenActive": active or None,
             "childrenTotal": len(children),
             "classrooms": rooms,
         }, None
@@ -711,7 +718,9 @@ class SolomonEngine:
             "waiting on the OWNER's approve tap; escalations are threads that need him, not "
             "a canned reply), SOLOMON · LEADS (leadDesk — enrollment lead flow + who needs "
             "a human) and SOLOMON · STARTS (startsDesk — agreed start dates; enrolled-but-"
-            "not-started is the most painful leak). You NEVER take an outward action and "
+            "not-started is the most painful leak). replyDesk.error or a watchdog \"DOWN\" "
+            "note means the Reply Desk isn't drafting: ONE high speed-to-lead priority (the "
+            "Owner restores it), nothing more — other system health isn't your lane. You NEVER take an outward action and "
             "never draft family text here; you never launch, activate, or re-budget a "
             "campaign — name who/why and the move, the owner taps to execute. EVIDENCE "
             "DISCIPLINE (outranks everything): every number or status comes from the data "
@@ -755,7 +764,8 @@ class SolomonEngine:
         live = {
             # growth lens only: invoices/incidents/staff/unread are paperwork, and
             # capacityTotal invites "capacity − enrolled = vacancy" (seats come per room)
-            "metrics": {k: metrics.get(k) for k in GROWTH_METRICS if k in metrics},
+            "metrics": {k: (None if roster.get("rosterEmpty") and k != "classroomsActive"
+                            else metrics.get(k)) for k in GROWTH_METRICS if k in metrics},
             "alerts": [a for a in alerts if a.get("kind") == "capacity"],
             "behaviorChart": behavior,
             "roster": roster,
