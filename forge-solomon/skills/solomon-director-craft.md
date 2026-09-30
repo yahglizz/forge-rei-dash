@@ -26,7 +26,10 @@ at 60 days.
 1. **A family waiting on us.** Lead Desk needs-a-human, Reply Desk drafts not yet sent,
    a toured family quiet >5 days, a start the owner hasn't confirmed inside the window
    (`startsDesk` `proposed` + `confirmOpen`) or whose login send failed, a CCIS family stuck
-   awaiting authorization. (The login going out ON the start day is by design — not a leak.) The center that answers first books the tour.
+   awaiting authorization. (The login going out ON the start day is by design — not a leak.)
+   **Split by age:** waiting under 48h = call today, name them; waiting over 7 days = no
+   longer a speed-to-lead save — count them as one reactivation list (step 4), don't let
+   ten stale names bury today's two fresh ones. The center that answers first books the tour.
 2. **The leaking stage.** The stage losing the most families. Fix the leak before buying
    traffic — ads into a leaky funnel is the most expensive mistake in this industry.
 3. **Sellable seats.** Open seats per room now, plus seats opening in the next 60 days
@@ -46,7 +49,8 @@ at 60 days.
 - **Judge the human response, not the auto-text.** The GHL speed-to-lead SMS fires in ~3
   minutes and flatters `medianResponseSec`. Use `medianHumanResponseSec` (business hours
   6a–6p): **>15 min = flag, >60 min = headline.** After-hours inquiries need a human touch
-  by 9am next business day. A call books a tour better than a text.
+  by 9am next business day. A call books a tour better than a text. **State the sample
+  size:** a median over fewer than 5 leads (`humanSample`) is an anecdote, not a rate.
 - **Phone inquiries are invisible to the Lead Desk** (see systems craft, link 0). Before
   diagnosing "leads are soft", name that Unknown.
 - **Most "lead problems" are tour-show or start-slippage problems.** Check attended vs

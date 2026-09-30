@@ -213,6 +213,19 @@ def _paperwork_drift(md):
     return len(hits) > 1
 
 
+def _dedupe_bus(inbox):
+    """Bus notes for the brief, one per sender + message gist — a watchdog repeating the
+    same alert ten times (only the error count changes) is one fact, not ten."""
+    out, seen = [], set()
+    for m in inbox:
+        text = str(m.get("text") or "")
+        gist = (m.get("from"), re.sub(r"\d+", "#", text)[:80])
+        if gist not in seen:
+            seen.add(gist)
+            out.append({"from": m.get("from"), "text": text[:300]})
+    return out
+
+
 def _seat_row(r, ages=None):
     """One classroom as inventory. openSeats only when capacity AND enrolled are real
     numbers — otherwise None (Unknown), never a fake 0 or a fake vacancy. agesMonths
@@ -281,9 +294,14 @@ def _north_star_block():
     cannot see, so self-improvement can never rewrite it."""
     try:
         import north_star
-        return north_star.context_block()
+        block = north_star.context_block()
     except Exception:
         return ""
+    # Only the spine (§1–2) + the daycare section (§5): §3/§4/§6 are other businesses —
+    # ~6k chars of noise in every brief (2026-09-30). Falls back to the whole block.
+    parts = re.split(r"(?m)^(?=## \d+\. )", block)
+    keep = [p for p in parts if not re.match(r"## [346]\. ", p)]
+    return "".join(keep) if len(keep) < len(parts) else block
 
 
 def _creed_block():
@@ -560,12 +578,20 @@ class SolomonEngine:
             center = (daycare_supabase.get_status(session).get("location") or {}).get("name")
         except Exception:  # noqa: BLE001
             center = None
+        active = sum(1 for c in children if c.get("active"))
+        rooms = [_seat_row(r, ages.get(str(r.get("id")))) for r in classrooms
+                 if r.get("active", True)]
+        if not active:
+            # Zero active children while the center operates = the roster isn't kept in
+            # Supabase, not 32 empty seats. Seats are Unknown — never a fake vacancy.
+            for r in rooms:
+                r["openSeats"] = None
         return {
             "center": center,   # the roster is ONE center (the session's active location)
-            "childrenActive": sum(1 for c in children if c.get("active")),
+            "rosterEmpty": not active,
+            "childrenActive": active,
             "childrenTotal": len(children),
-            "classrooms": [_seat_row(r, ages.get(str(r.get("id")))) for r in classrooms
-                           if r.get("active", True)],
+            "classrooms": rooms,
         }, None
 
     def _gather_blasts(self):
@@ -732,7 +758,7 @@ class SolomonEngine:
             "optOuts": len(optouts),
             "campaign": campaign,
             "competitor": competitor,
-            "busDelegations": [{"from": m.get("from"), "text": m.get("text")} for m in inbox],
+            "busDelegations": _dedupe_bus(inbox),
             "connectedSystems": [{"name": s["name"], "connected": s["connected"]} for s in systems],
             "offlineChannels": offline,
         }

@@ -49,3 +49,13 @@ assert not dd._paperwork_drift("- Licensing and invoices are not your lane.\n- C
 assert not dd._paperwork_drift("- Referral asks at 60 days\n")
 assert "output-format" in inspect.getsource(dd.SolomonEngine.learn)
 print("ok — learn() drift guard holds")
+
+# Real-data guards (2026-09-30 box capture): an empty Supabase roster is Unknown seats,
+# and a watchdog repeating one alert is one bus note.
+assert dd._dedupe_bus([{"from": "watchdog", "text": "Replies DOWN (errors x12)"},
+                       {"from": "watchdog", "text": "Replies DOWN (errors x13)"}]) == \
+    [{"from": "watchdog", "text": "Replies DOWN (errors x12)"}]
+assert "openSeats\"] = None" in inspect.getsource(dd.SolomonEngine._gather_roster)
+ns = dd._north_star_block()
+assert "## 3. Wholesale" not in ns and ("## 5. Daycare" in ns or not ns)
+print("ok — real-data guards hold")
