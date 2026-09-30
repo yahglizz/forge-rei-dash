@@ -1,0 +1,14 @@
+{
+  "agentId": "marcus",
+  "anatomy": "quadruped",
+  "model": "model.glb",
+  "animation": "activity-turn",
+  "rotationY": 0,
+  "source": "Meshy image-to-3d",
+  "taskId": "01a0f3a0-c699-77e9-a6bc-9a4cfb706ecc",
+  "consumedCredits": 30,
+  "triangles": 18588,
+  "rigging": "Pending Meshy web-app quadruped rigging; CLI documents humanoid only",
+  "reference": "reference.png",
+  "preview": "preview.png"
+}

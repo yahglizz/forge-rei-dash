@@ -1,0 +1,14 @@
+{
+  "agentId": "midas",
+  "anatomy": "quadruped",
+  "model": "model.glb",
+  "animation": "activity-turn",
+  "rotationY": 0,
+  "source": "Meshy image-to-3d",
+  "taskId": "01a0f3a2-482f-77f4-a52e-dd8b80cd34a7",
+  "consumedCredits": 30,
+  "triangles": 18783,
+  "rigging": "Pending Meshy web-app quadruped rigging; CLI documents humanoid only",
+  "reference": "reference.png",
+  "preview": "preview.png"
+}
