@@ -93,13 +93,13 @@ function DaycareDirector() {
     </div>}
 
     {brief && <div className="dc-main-grid">
-      <DdrList title="Enrollment — Solomon owns this" items={brief.enrollment} icon="Children" />
-      <DdrList title="Money" items={brief.money} icon="Billing" />
+      <DdrList title="Enrollment moves this week" items={brief.enrollment} icon="Children" />
+      <DdrList title="Growth economics" items={brief.money} icon="Billing" />
     </div>}
     {brief && <div className="dc-main-grid">
-      <DdrList title="People & staffing" items={brief.people} icon="Staff" />
+      <DdrList title="Capacity to enroll" items={brief.people} icon="Staff" />
       {brief.delegations && brief.delegations.length > 0 && <div className="card card-pad dc-panel">
-        <div className="dc-panel-head"><div><div className="card-title">Delegations</div><div className="faint">Handed to role agents via the bus</div></div><b>{brief.delegations.length}</b></div>
+        <div className="dc-panel-head"><div><div className="card-title">Delegations</div><div className="faint">Who does what — the owner approves</div></div><b>{brief.delegations.length}</b></div>
         <div className="dc-alert-list">{brief.delegations.map((d, i) => <div key={i}><span className="dc-severity" style={{ background: "#8B5CF6" }} /><div><b>{d.role}</b><small style={{ display: "block" }}>{d.task}</small></div></div>)}</div>
       </div>}
     </div>}

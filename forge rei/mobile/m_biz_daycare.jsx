@@ -85,8 +85,8 @@ function MBDSheet(props) {
 }
 
 // ---------------------------------------------------------------- Home (diagnostics)
-const MBD_BRIEF_SECTIONS = [["Attention now", "priorities"], ["Enrollment", "enrollment"], ["Money", "money"],
-  ["People", "people"], ["Roster", "roster"], ["Family follow-ups", "followUps"],
+const MBD_BRIEF_SECTIONS = [["Attention now", "priorities"], ["Enrollment", "enrollment"], ["Growth economics", "money"],
+  ["Capacity to enroll", "people"], ["Seats", "roster"], ["Keep + refer", "followUps"],
   ["Campaign health", "campaignHealth"], ["Creative", "creativeRecommendations"], ["Delegations", "delegations"]];
 
 function MBDBriefSheet(props) {
