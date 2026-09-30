@@ -905,3 +905,26 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .nav-item, .hub-agent, .btn, .office-roster button { transition: none; }
   .office-live::before { animation: none; }
 }
+
+/* Orion: 3D office is optional; the original pixel floor remains available. */
+.orion-stage { position:relative; border-radius:14px; overflow:hidden; background:#101a2a; }
+.orion-canvas { width:100%; height:clamp(340px,43vw,580px); }
+.orion-canvas canvas { display:block; width:100%; height:100%; cursor:pointer; }
+.orion-stage-caption { position:absolute; left:18px; right:18px; top:16px; display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; color:#c8dedc; font-size:10px; font-weight:700; letter-spacing:.07em; pointer-events:none; }
+.orion-panel-wrap { position:sticky; top:12px; min-height:580px; }
+.orion-panel { padding:16px; display:flex; flex-direction:column; gap:12px; }
+.orion-panel-head { display:flex; gap:10px; align-items:center; }
+.orion-panel-head img { width:56px; height:66px; object-fit:cover; border-radius:12px; background:#101a2a; }
+.orion-panel-head strong { font-size:17px; }
+.orion-panel-head .faint { font-size:11px; margin-top:4px; }
+.orion-conversation { max-height:380px; min-height:180px; overflow:auto; display:flex; flex-direction:column; gap:12px; padding:4px 0; font-size:12px; }
+.orion-message { background:var(--card-2); padding:10px 12px; border-radius:12px; white-space:pre-wrap; line-height:1.55; }
+.orion-message.mine { background:rgba(45,212,191,.09); }
+.orion-message small { display:block; color:var(--text-3); margin-bottom:4px; }
+.orion-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.orion-controls .btn { font-size:11px; padding:8px 10px; }
+.orion-controls .btn[aria-pressed="true"] { border-color:#2dd4bf; color:#2dd4bf; }
+.orion-plan { border:1px solid #2dd4bf66; background:rgba(45,212,191,.05); padding:12px; border-radius:12px; font-size:12px; max-height:340px; overflow:auto; }
+.orion-plan > div { margin-top:10px; }.orion-plan p { margin:4px 0; }.orion-plan small { white-space:pre-wrap; color:var(--text-3); }
+.orion-feed { margin-top:16px; font-size:12px; }.orion-feed > div { border-top:1px solid var(--border); padding:9px 0; display:flex; flex-direction:column; gap:4px; }.orion-feed small { color:var(--text-3); }.orion-feed span { line-height:1.5; }
+@media(max-width:850px) { .orion-panel-wrap { position:static; min-height:0; }.orion-canvas { height:360px; } }

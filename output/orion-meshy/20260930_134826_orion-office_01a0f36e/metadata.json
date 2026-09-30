@@ -4,7 +4,7 @@
   "folder": "20260930_134826_orion-office_01a0f36e",
   "root_task_id": "01a0f36e-0076-74a6-ac34-305efe8f8b0d",
   "created_at": "2026-09-30T17:48:26.653Z",
-  "updated_at": "2026-09-30T17:58:44.730Z",
+  "updated_at": "2026-09-30T18:00:40.359Z",
   "tasks": [
     {
       "task_id": "01a0f36e-0076-74a6-ac34-305efe8f8b0d",
@@ -50,17 +50,17 @@
     },
     {
       "task_id": "01a0f377-f956-743b-9d3f-86376a383bb1",
-      "task_type": "rigging",
+      "task_type": "rig",
       "resource": "rigging",
       "endpoint": "/openapi/v1/rigging",
       "stage": "rigging",
       "parent_task_id": "01a0f36e-0076-74a6-ac34-305efe8f8b0d",
-      "status": null,
+      "status": "SUCCEEDED",
       "files": [],
-      "task_json": null,
+      "task_json": "task_01a0f377-f956-743b-9d3f-86376a383bb1.json",
       "operation_id": "815ae1c3-9b49-4002-b8cc-ad5ceec2158a",
       "created_at": "2026-09-30T17:58:44.730Z",
-      "updated_at": "2026-09-30T17:58:44.730Z"
+      "updated_at": "2026-09-30T18:00:40.359Z"
     }
   ]
 }

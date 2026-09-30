@@ -368,7 +368,9 @@ function PixelOfficePanel({ agent, job, onDispatch, sending, err }) {
 function PixelOfficePage() {
   const [state, setState] = useStatePO(null);
   const [err, setErr] = useStatePO(null);
-  const [selected, setSelected] = useStatePO(null);
+  const [selected, setSelected] = useStatePO("orion");
+  const [view, setView] = useStatePO("3d");
+  const [orionMode, setOrionMode] = useStatePO("idle");
   const [job, setJob] = useStatePO(null);
   const [sending, setSending] = useStatePO(false);
   const [sendErr, setSendErr] = useStatePO(null);
@@ -390,7 +392,12 @@ function PixelOfficePage() {
 
   const agents = [];
   ((state && state.departments) || []).forEach((d) => (d.agents || []).forEach((a) => agents.push(a)));
+  if (state && state.director) agents.unshift(state.director);
   const agent = agents.find((a) => a.id === selected) || null;
+  async function refreshOffice() {
+    try { setState(await window.apiGet("/api/office/state")); }
+    catch (e) { setErr(e.message || String(e)); }
+  }
 
   // Follow whichever job belongs to the selected agent — live while running, then the
   // finished result stays on screen.
@@ -438,6 +445,7 @@ function PixelOfficePage() {
           </div>
         </div>
         <div style={{ flex: 1 }} />
+        <div className="orion-controls" aria-label="Office view"><button className="btn" aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D office</button><button className="btn" aria-pressed={view === "pixel"} onClick={() => setView("pixel")}>Pixel view</button></div>
         <div className="office-legend">
           {legend.map((k) => (
             <span key={k} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
@@ -452,10 +460,8 @@ function PixelOfficePage() {
 
       <div className="office-grid">
         <div className="card office-floor-card">
-          <PixelOfficeFloor
-            departments={(state && state.departments) || []}
-            selected={selected}
-            onSelect={setSelected} />
+          {view === "3d" ? <OrionOfficeFloor state={state} selected={selected} onSelect={setSelected} mode={orionMode} />
+            : <PixelOfficeFloor departments={(state && state.departments) || []} selected={selected} onSelect={setSelected} />}
           <div className="office-roster">
             {agents.map((a) => {
               const m = poMeta(a.activity);
@@ -475,11 +481,15 @@ function PixelOfficePage() {
               );
             })}
           </div>
+          <div className="orion-feed" aria-live="polite"><strong>Office handoffs</strong>
+            {((state && state.messages) || []).slice(0, 6).map(m => <div key={m.id}><small>{(agents.find(a => a.id === m.from) || {}).name || m.from} → {(agents.find(a => a.id === m.to) || {}).name || m.to}</small><span>{m.text}</span></div>)}
+            {!(state && state.messages && state.messages.length) && <div className="faint">No recent handoffs.</div>}
+          </div>
         </div>
 
-        <div style={{ position: "sticky", top: 12, height: "min(78vh, 720px)" }}>
-          <PixelOfficePanel agent={agent} job={job} onDispatch={dispatch}
-            sending={sending} err={sendErr} />
+        <div className="orion-panel-wrap">
+          {selected === "orion" ? <OrionOfficePanel state={state} onMode={setOrionMode} onRefresh={refreshOffice} />
+            : <PixelOfficePanel agent={agent} job={job} onDispatch={dispatch} sending={sending} err={sendErr} />}
         </div>
       </div>
     </div>
