@@ -1856,7 +1856,11 @@ _WATCHDOG_STATE = {}   # loop -> last status we alerted on (transition-based ded
 # Loop-down / recovered alerts go to the owning business's own Telegram chat, not HQ
 # (2026-09-30: Solomon's lanes were spamming the main chat). Unlisted loops stay in HQ.
 _WATCHDOG_BIZ = {"solomon": "daycare", "daycare_replies": "daycare",
-                 "daycare_leads": "daycare", "daycare_starts": "daycare"}
+                 "daycare_leads": "daycare", "daycare_starts": "daycare",
+                 "scout": "wholesale", "atlas": "wholesale", "followup": "wholesale",
+                 "marcus_sms": "wholesale", "contract": "wholesale", "midas": "dropship"}
+# HQ keeps only system-level alerts: the Anthropic credits/auth alert (hits every business),
+# clock/telegram/graphify/sync watchdogs, the do_today digest and Orion.
 
 
 def _watchdog_forever():
