@@ -623,7 +623,7 @@ function TestModeBanner() {
   );
 }
 
-const COMMAND_AGENTS = [["marcus", "Marcus"], ["scout", "Scout"]];
+const COMMAND_AGENTS = [["marcus", "Marcus"]];   // Scout is Marcus's lane (2026-09-30)
 
 function ClockCard() {
   const Icons = window.Icons;

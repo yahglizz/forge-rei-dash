@@ -211,6 +211,21 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 
 ## 5. The agents
 
+> **2026-09-30 CONSOLIDATION (owner decision — supersedes the row counts below).** ONE main agent per
+> business + ONE CEO: **Marcus** (wholesale), **Dyson** (agency), **Solomon** (daycare), **Midas**
+> (dropship, archived) and **Orion** (CEO: oversees them, checks in, proposes assignments). Scout,
+> Atlas, Follow-up, ACE and Autopilot are **Marcus's lanes**; Eco is **Dyson's** lane. A lane keeps its
+> engine/loop (Scout's sweep + Follow-up + Atlas ARE the speed-to-lead machinery) but has no row:
+> `agents_hub.LANE_OF`/`main_agent()` resolve a lane id to its owner for chat, tasks, the office and
+> the registry. **Scheduled briefs are cut** (morning brief, recap, Orion's CEO brief, Solomon's
+> daily brief): agents exist to close deals and win speed-to-lead, not to write digests. All scheduled
+> self-improvement is OFF too. Two model tiers (`review_agent.FAST_MODEL` Haiku 4.5 / `SMART_MODEL`
+> Sonnet 5.5): small jobs — scoring, screening, underwriting, follow-up bumps, parsing — run FAST;
+> only seller/parent reply drafts and chats with the main agents run SMART. Opus/Fable never.
+> Switches (all default OFF): `FORGE_BRIEFS`, `FORGE_SOLOMON_BRIEF`, `FORGE_SELF_IMPROVE`,
+> `FORGE_SKILL_FORGE`. Model knobs: `FORGE_FAST_MODEL`, `FORGE_SMART_MODEL`, `FORGE_DRAFT_MODEL`.
+> Guard: `test_model_policy.py`. Expected spend: ~$90–150/mo typical (was $150–300).
+
 **Eight brains, on purpose** (the Agent Control Center roster shows 12 rows: these
 brains + the brainless engines Follow-up, ACE, Autopilot and the daily brief/recap,
 which chat through their owner via `chatVia`. Solomon's two live **lanes** — Solomon ·
@@ -235,7 +250,7 @@ and a new Claude call per cycle.
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
-Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls — **Sonnet 5, adaptive thinking, explicit effort**: `effort="low"` default for chat/drafts/extraction, `"medium"` for briefs, `learn()` rewrites, Atlas, screening; Scout scoring stays Haiku; never call Sonnet 5 without an effort — it defaults to `high`. New judgment-heavy call site → pass `effort="medium"`), `brain_io`
+Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls — **default FAST = Haiku 4.5; SMART = Sonnet 5.5 (adaptive thinking) only where a site opts in with `model=review_agent.SMART_MODEL`** — see the 2026-09-30 consolidation note above; older note: Sonnet 5, adaptive thinking, explicit effort: `effort="low"` default for chat/drafts/extraction, `"medium"` for briefs, `learn()` rewrites, Atlas, screening; Scout scoring stays Haiku; never call Sonnet 5 without an effort — it defaults to `high`. New judgment-heavy call site → pass `effort="medium"`), `brain_io`
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back
 (agent's own key → wholesale `ghl.env` / agency `agency.env`).
 
@@ -496,7 +511,7 @@ update that skill if you improved the pattern.
 - **New-lead speed ping:** the first time Marcus ever proposes for a contact (tracked in
   `marcus_state/seen_contacts.jsonl`) the Telegram ping leads with **🆕 NEW LEAD — reply fast**
   so a fresh seller entering the funnel stands out from an ongoing thread. Re-engages never flag.
-- **Daily brief + end-of-day recap** (run-from-anywhere Telegram pulses, box-scheduled):
+- **Daily brief + end-of-day recap** (**OFF by default since 2026-09-30 — `FORGE_BRIEFS=1` to bring back**; run-from-anywhere Telegram pulses, box-scheduled):
   `daily_brief.py` (morning, `/api/brief{,/send,/config}`) and `daily_recap.py` (evening
   close-the-loops, `/api/recap{,/send,/config}`). Both gated by `forge_ops.paused()`, one send
   per day past the set hour (`FORGE_TZ_OFFSET` zone), heartbeat-monitored under `daily_brief`.
@@ -515,7 +530,10 @@ update that skill if you improved the pattern.
   | `FORGE_TODAY_LOOP` | **0 (off)** | DoToday's scheduled rebuild + 9 AM email. Paused by operator request. Costs $0 either way (DoToday makes no Claude call); `view()` self-rebuilds so `/today` + `/done` still work. |
   | `FORGE_SCOUT_INTERVAL` | 180 | Wholesale sweep. The money loop — leave hot. |
   | `FORGE_DAYCARE_LEADS` | 1 (on) | Solomon · Leads — the Daycare Lead Desk sweep (15 min, GET-only on the daycare GHL, zero Claude). `0` stops it and retires its heartbeat. |
-| `FORGE_SOLOMON_BRIEF_EVERY_H` | 24 | Daycare brief. Raise to 48 if enrollment goes quiet. |
+| `FORGE_SOLOMON_BRIEF` | **0 (off)** | Solomon's scheduled daily brief (cut 2026-09-30). `1` restarts the loop (`FORGE_SOLOMON_BRIEF_EVERY_H`, default 24, sets the cadence). His Replies/Leads/Starts lanes are unaffected. |
+| `FORGE_BRIEFS` | **0 (off)** | Morning brief, end-of-day recap and Orion's CEO brief. The clock thread still runs the git-sync watchdog. |
+| `FORGE_SELF_IMPROVE` | **0 (off)** | Every automatic learn()/playbook rewrite (Scout, Marcus, Atlas, Dyson/Eco, Solomon, Midas, Orion). Manual "Learn" buttons still work. |
+| `FORGE_SKILL_FORGE` | **0 (off)** | skill_forge's Claude-drafted skill proposals. |
   | `FORGE_DAYCARE_REPLIES` | 1 (on) | Solomon · Replies — the Daycare Reply Desk: parent-reply drafts every 5 min, ≤8 Sonnet calls/sweep, only when a parent is owed a reply. Bills to `solomon`. `0` stops it and retires its heartbeat. |
   | `FORGE_SCOUT_LEARN_EVERY` / `FORGE_ATLAS_LEARN_EVERY` | 25 / 12 | Self-improve cadence — the other real Claude cost. |
 

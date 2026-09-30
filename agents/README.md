@@ -1,5 +1,11 @@
 # FORGE — Agents
 
+> **2026-09-30 consolidation:** one main agent per business + the CEO (Marcus · Dyson · Solomon ·
+> Midas · Orion). Scout, Atlas, Follow-up, ACE and Autopilot are Marcus's lanes; Eco is Dyson's lane —
+> their cards below describe lanes, and `agents_hub.LANE_OF` maps each to its owner. Scheduled briefs
+> and scheduled self-improvement are OFF (see CLAUDE.md §5 consolidation note).
+
+
 One card per agent/worker, filed by business. Every card has the same 9 sections:
 Identity · Triggers · Reads · Outputs · Autonomy & gates · Self-improvement · Chat & tasks ·
 Cost · Verify it's alive. Code refs are relative to `forge rei/`. Last verified against code

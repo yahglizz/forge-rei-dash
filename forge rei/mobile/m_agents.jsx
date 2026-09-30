@@ -11,17 +11,13 @@
 //   GET  /api/bus?limit=30           → comms bus feed
 const { useState: useStateMA, useEffect: useEffectMA, useRef: useRefMA } = React;
 
+// One main agent per business (2026-09-30) — Scout/Atlas/Follow-up are Marcus's lanes, Eco is
+// Dyson's. Chat with a lane id still works server-side (it answers as the main agent).
 const MA_AGENTS = [
   { id: "marcus", name: "Marcus", color: "#4F7CFF", ep: "/api/agents/chat", crew: "rei",
-    role: "Lead Agent · screens sellers + directs the team" },
-  { id: "scout", name: "Scout", color: "#F59E0B", ep: "/api/agents/chat", crew: "rei",
-    role: "Lead Triage · ranks seller threads by motivation" },
-  { id: "atlas", name: "Atlas", color: "#22C55E", ep: "/api/agents/chat", crew: "rei",
-    role: "Deal Underwriter · offer anchors + MAO math" },
+    role: "Wholesale lead · triage, screening, underwriting, follow-up" },
   { id: "dyson", name: "Dyson", color: "#8B5CF6", ep: "/api/agency/agents/chat", crew: "agency",
-    role: "Agency Builder · plans + ships client site edits" },
-  { id: "eco", name: "Eco", color: "#2DD4BF", ep: "/api/agency/agents/chat", crew: "agency",
-    role: "Agency Ads · Meta strategy, analysis + concepts" },
+    role: "Agency lead · client sites + ads" },
 ];
 const MA_DYNAMIC_COLORS = ["#EC4899", "#0EA5E9", "#F97316", "#A78BFA"];
 
