@@ -1,0 +1,89 @@
+- generic [ref=f4e3]:
+  - complementary [ref=f4e4]:
+    - button "Back to Mission Control" [ref=f4e5] [cursor=pointer]
+    - navigation [ref=f4e10]:
+      - generic [ref=f4e11]: Overview
+      - button "Dashboard" [ref=f4e12] [cursor=pointer]
+      - generic [ref=f4e18]: Your team
+      - button "Agents" [ref=f4e19] [cursor=pointer]
+      - button "Agent Office" [ref=f4e24] [cursor=pointer]
+      - generic [ref=f4e29]: Wholesale operations
+      - button "Leads" [ref=f4e30] [cursor=pointer]
+      - button "Conversations" [ref=f4e35] [cursor=pointer]
+      - button "Deal Pipeline" [ref=f4e38] [cursor=pointer]
+      - button "Contracts" [ref=f4e41] [cursor=pointer]
+      - button "Deal Calc" [ref=f4e47] [cursor=pointer]
+      - button "Buyers" [ref=f4e51] [cursor=pointer]
+      - button "Buyer Blast" [ref=f4e57] [cursor=pointer]
+      - button "Outbound" [ref=f4e62] [cursor=pointer]
+      - generic [ref=f4e66]: Review & insights
+      - button "Tasks" [ref=f4e67] [cursor=pointer]
+      - button "Analytics" [ref=f4e70] [cursor=pointer]
+      - generic [ref=f4e73]: Workspace
+      - button "Brain" [ref=f4e74] [cursor=pointer]
+      - button "System Health" [ref=f4e77] [cursor=pointer]
+      - button "Costs" [ref=f4e81] [cursor=pointer]
+  - generic [ref=f4e87]:
+    - banner [ref=f4e88]:
+      - generic [ref=f4e89]:
+        - generic [ref=f4e90]: Real Estate
+        - strong [ref=f4e91]: Dashboard
+      - button "Y" [ref=f4e93] [cursor=pointer]
+    - generic [ref=f4e97]:
+      - generic [ref=f4e98]:
+        - generic [ref=f4e99]:
+          - generic [ref=f4e100]: Mirroring GoHighLevel
+          - generic "System health — tap for detail" [ref=f4e102] [cursor=pointer]: idle
+        - button "Refreshing…" [ref=f4e105] [cursor=pointer]
+      - generic [ref=f4e106]:
+        - generic [ref=f4e108]:
+          - generic [ref=f4e114]: Total Leads
+          - generic [ref=f4e115]: ···
+          - generic [ref=f4e116]: live · GoHighLevel
+        - generic [ref=f4e119]:
+          - generic [ref=f4e123]: Active Conversations
+          - generic [ref=f4e124]: ···
+          - generic [ref=f4e125]: 0 total
+        - generic [ref=f4e128]:
+          - generic [ref=f4e132]: Open Opportunities
+          - generic [ref=f4e133]: ···
+          - generic [ref=f4e134]: live · GoHighLevel
+        - generic [ref=f4e137]:
+          - generic [ref=f4e141]: Pipeline Value
+          - generic [ref=f4e142]: ···
+          - generic [ref=f4e143]: live · GoHighLevel
+        - generic [ref=f4e146]:
+          - generic [ref=f4e151]: Appointments
+          - generic [ref=f4e152]: ···
+          - generic [ref=f4e153]: live · GoHighLevel
+        - generic [ref=f4e156]:
+          - generic [ref=f4e161]: Tasks Due Today
+          - generic [ref=f4e162]: ···
+          - generic [ref=f4e163]: 0 open tasks
+      - generic [ref=f4e166]:
+        - generic [ref=f4e167]: FORGE DEAL DESK
+        - generic [ref=f4e168]: See the deal. Move the next action.
+        - generic [ref=f4e169]: Your live pipeline, buyer workflow, contract review, and AI operator controls in one place.
+        - button "Open Deal Pipeline" [ref=f4e170] [cursor=pointer]
+      - generic [ref=f4e171]:
+        - generic [ref=f4e172]:
+          - generic [ref=f4e173]:
+            - generic [ref=f4e177]: Text Back Now · Speed to Lead
+            - generic [ref=f4e178]: 0 hot
+            - generic [ref=f4e179]: tap a lead → AI drafts the reply → send
+          - button "Open ASAP" [ref=f4e180] [cursor=pointer]
+        - generic [ref=f4e181]: No hot sellers waiting right now. Scout auto-filters stop / not-interested and surfaces motivated replies here the moment they come in.
+      - generic [ref=f4e182]:
+        - generic [ref=f4e183]:
+          - generic [ref=f4e184]:
+            - generic [ref=f4e188]: Do Today
+            - generic [ref=f4e189]: 0/0 done
+            - generic [ref=f4e190]: on-demand rebuild (auto 9 AM ET rebuild is off by default)
+          - generic [ref=f4e191]:
+            - button "Rebuild + email now" [ref=f4e192] [cursor=pointer]
+            - button "↻" [ref=f4e193] [cursor=pointer]
+        - generic [ref=f4e194]: Building today's battle plan…
+      - generic [ref=f4e196]:
+        - generic [ref=f4e197]: Pipeline Overview
+        - generic [ref=f4e200]: Loading from GoHighLevel…
+      - button "More — Marcus, conversations, workforce, activity" [ref=f4e202] [cursor=pointer]
