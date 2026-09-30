@@ -283,7 +283,9 @@ def plan(message, chat_fn):
         return {"error": "Orion unavailable"}
     if out.get("error") or out.get("needsKey"):
         return {"error": out.get("error") or out.get("reply") or "Orion unavailable"}
-    raw = (out.get("reply") or "").strip()
+    if not isinstance(out.get("reply"), str):
+        return {"error": "Orion returned an invalid plan. No tasks were assigned."}
+    raw = out["reply"].strip()
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     try:
@@ -297,7 +299,7 @@ def plan(message, chat_fn):
         if not isinstance(row, dict):
             return {"error": "Invalid assignment. No tasks were assigned."}
         aid, title, note = row.get("agentId"), row.get("title"), row.get("note", "")
-        if (aid not in active or aid in seen or not isinstance(title, str) or not title.strip()
+        if (not isinstance(aid, str) or aid not in active or aid in seen or not isinstance(title, str) or not title.strip()
                 or len(title) > 600 or not isinstance(note, str) or len(note) > 4000):
             return {"error": "Invalid assignment. No tasks were assigned."}
         seen.add(aid)

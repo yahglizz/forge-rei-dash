@@ -80,7 +80,7 @@ function OrionOfficePanel({ state, onMode, onRefresh }) {
     // Each successful assignment is removed immediately: retry never repeats an accepted job.
     for (const assignment of proposal.assignments) {
       try {
-        const d = await window.apiPost('/api/office/task', { ...assignment, directedBy: 'orion', note: assignment.note + '\nOwner request: ' + proposal.request });
+        const d = await window.apiPost('/api/office/task', { ...assignment, directedBy: 'orion', note: (assignment.note + '\nOwner request: ' + proposal.request).slice(0, 4000) });
         if (d.error || !d.jobId) throw new Error(d.error || 'No job was created');
         accepted.push(assignment.agentId);
       } catch (e) { remaining.push(assignment); if (mounted.current) setError(String(e.message || e)); }
