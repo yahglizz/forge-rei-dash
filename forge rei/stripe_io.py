@@ -238,3 +238,28 @@ def invoice_status(daycare_invoice_id: str) -> dict:
     if not invoice:
         return {"ok": True, "configured": True, "sent": False}
     return {"ok": True, "configured": True, "sent": True, **_public(invoice)}
+
+
+_HEALTH: dict = {"at": 0.0, "val": None}
+
+
+def health(max_age: float = 120.0) -> dict:
+    """One cheap, cached read (GET /balance) answering 'does the Stripe key work right now?'.
+    Never raises, never writes. Shared by System Health, /api/stripe/status and the agency."""
+    key = _secret_key()
+    if not key:
+        return {"configured": False, "ok": False, "detail": "No STRIPE_SECRET_KEY configured"}
+    now = time.time()
+    if _HEALTH["val"] and now - _HEALTH["at"] < max_age:
+        return _HEALTH["val"]
+    kind = "_".join(key.split("_")[:2])
+    out = {"configured": True, "keyKind": kind, "mode": "live" if "_live" in kind else "test"}
+    try:
+        bal = _req("GET", "/balance")
+        money = lambda rows: round(sum(r.get("amount", 0) for r in rows or []) / 100, 2)
+        out.update(ok=True, availableUSD=money(bal.get("available")), pendingUSD=money(bal.get("pending")))
+    except StripeError as e:
+        out.update(ok=False, detail=e.message, status=e.status)
+    _HEALTH.update(at=now, val=out)
+    return out
+

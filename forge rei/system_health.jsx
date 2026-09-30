@@ -84,6 +84,23 @@ function ShAiRow({ ai }) {
   );
 }
 
+function ShStripeRow({ stripe }) {
+  const ok = !!stripe.ok, status = ok ? "green" : "red";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 4px" }}>
+      <ShDot status={status} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 13.5 }}>Stripe (payments)</div>
+        <div className="faint" style={{ fontSize: 11, marginTop: 2, color: ok ? undefined : "var(--red)" }}>
+          {ok ? stripe.mode + " key · balance $" + stripe.availableUSD + " available, $" + stripe.pendingUSD + " pending · one key for daycare + agency"
+              : (stripe.detail || "Stripe key not working")}
+        </div>
+      </div>
+      <div className="tabnum" style={{ fontSize: 12.5, fontWeight: 600, color: SH_COLOR[status], flexShrink: 0 }}>{ok ? "OK" : "DOWN"}</div>
+    </div>
+  );
+}
+
 function ShStat({ label, value, color }) {
   return (
     <div className="card card-pad" style={{ textAlign: "center" }}>
@@ -143,6 +160,7 @@ function SystemHealthPage() {
         <div className="card card-pad">
           <div className="card-title" style={{ fontSize: 15, marginBottom: 6 }}>AI dependency</div>
           <ShAiRow ai={d.ai} />
+          {d.stripe && d.stripe.configured && <ShStripeRow stripe={d.stripe} />}
         </div>
       )}
 

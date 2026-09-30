@@ -560,6 +560,7 @@ def api_system_health(_q):
         "logs": disk.get("logs"),
         "stateBytes": disk.get("stateBytes"),
         "telegramConfigured": bool(getattr(telegram_io, "configured", lambda: False)()),
+        "stripe": stripe_io.health() if LOOPS_ENABLED else None,   # informational — never gates `ok`
         # Marcus screening is event-driven (fires off Scout's scores) — no loop to heartbeat.
         "note": "Marcus screening is event-driven (no heartbeat).",
         "now": int(time.time() * 1000),
@@ -2748,7 +2749,17 @@ def api_agency_billing(q):
     return agency_billing.link_for_client(client_id, email)
 
 
+def api_stripe_status(_q):
+    """Zero-Claude Stripe health for the whole dashboard: the one shared key, balance, and who uses it."""
+    import agency_billing
+    h = dict(stripe_io.health())
+    h["agency"] = agency_billing.status()
+    h["now"] = int(time.time() * 1000)
+    return h
+
+
 ROUTES = {
+    "/api/stripe/status": api_stripe_status,
     "/api/sync": api_sync,
     "/api/health": api_health,
     "/api/system/health": api_system_health,
@@ -2880,7 +2891,7 @@ ROUTES = {
 
 # Marcus endpoints are real-time — never serve them from the 45s cache.
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
-NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status", "/api/autopilot/status",
+NO_CACHE = {"/api/stripe/status", "/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status", "/api/autopilot/status",
             "/api/cost/status", "/api/spend/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/office/state", "/api/office/job", "/api/office/jobs", "/api/office/checkins",

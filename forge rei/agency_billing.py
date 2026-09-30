@@ -69,7 +69,24 @@ def _secret_key() -> str:
                     return s.split("=", 1)[1].strip().strip('"').strip("'")
         except OSError:
             continue
+    # 2026-09-30 owner decision: ONE Stripe key across the dashboard. The agency reuses the
+    # daycare's unless it has its own above, or FORGE_STRIPE_SHARED=0 keeps them separate.
+    if os.environ.get("FORGE_STRIPE_SHARED", "1") != "0":
+        return stripe_io._secret_key()
     return ""
+
+
+def _own_key() -> bool:
+    """True when the agency has its OWN key (env or agency.env) rather than the shared one."""
+    if os.environ.get("AGENCY_STRIPE_SECRET_KEY", "").strip():
+        return True
+    for p in AGENCY_ENV_CANDIDATES:
+        try:
+            if p.exists() and any(l.strip().startswith("STRIPE_SECRET_KEY=") and l.split("=", 1)[1].strip().strip("\"'") for l in p.read_text().splitlines()):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def configured() -> bool:
@@ -207,6 +224,7 @@ def status() -> dict:
     return {"ok": True, "configured": True, "plan": plan["name"],
             "display": plan["display"],
             "webhook": False,
+            "sharedKey": not _own_key(),
             "detail": "Link generation is live. Payment confirmation is manual — "
                       "there is no public webhook listener yet."}
 
