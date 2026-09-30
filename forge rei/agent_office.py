@@ -705,6 +705,9 @@ def _selfcheck():
     import tempfile
     from pathlib import Path as _P
 
+    global AUTO_CHECKIN
+    AUTO_CHECKIN = False   # state() would import the live connector; checks below are explicit
+
     assert set(DEPT_OF) == {a for d in DEPARTMENTS for a in d["agents"]} | {"orion"}
     # 7 after the 2026-07-25 consolidation (Nora/Nova/Hawk/Blaze/Otto retired).
     assert len(DEPT_OF) == 8, DEPT_OF
@@ -777,6 +780,41 @@ def _selfcheck():
     assert any(m["from"] == "orion" and m["to"] == "scout" and m["data"].get("approvedBy") == "operator" for m in receipts)
     assert any(m["from"] == "scout" and m["to"] == "orion" for m in receipts)
     assert dispatch("scout", "x", directed_by="untrusted").get("error")
+
+    # Orion's check-in: verdict precedence, stall flag, AI-outage wording, suggestions
+    zed = {"id": "zzz", "name": "Zed", "activity": "idle"}
+    assert _review_agent(zed, now, {})["verdict"] == "idle"
+    assert _review_agent(zed, now, {"zzz": ["t1", "t2"]})["verdict"] == "waiting"
+    run = {"id": "j", "title": "T", "startedAt": now - 1000,
+           "steps": [{"phase": "think", "text": "working the task"}]}
+    assert _review_agent(zed, now, {}, live=run, last={})["verdict"] == "working"
+    run["startedAt"] = now - STALL_MS - 1
+    assert _review_agent(zed, now, {}, live=run, last={})["verdict"] == "attention"
+    failed = {"id": "k", "title": "T", "status": "error", "error": "Your credit balance is too low"}
+    assert _review_agent(zed, now, {}, live=False, last=failed)["verdict"] == "blocked"
+    failed["error"] = "boom"
+    assert _review_agent(zed, now, {}, live=False, last=failed)["verdict"] == "attention"
+    done = {"id": "d", "title": "T", "status": "done", "result": "line one\nline two"}
+    assert _review_agent(zed, now, {}, live=False, last=done)["verdict"] == "on_track"
+    done["result"] = " "
+    assert _review_agent(zed, now, {}, live=False, last=done)["verdict"] == "attention"
+    sick = dict(zed, activity="error", detail="HTTP 500 from CRM")
+    assert _review_agent(sick, now, {}, live=False, last={})["verdict"] == "attention"
+    floor = {"now": now, "ai": {"ok": False, "reason": "credits out"},
+             "departments": [{"agents": [{"id": "scout", "name": "Scout", "activity": "idle"},
+                                         {"id": "atlas", "name": "Atlas", "activity": "idle"}]}]}
+    with patch(__name__ + ".state", return_value=floor):
+        rec = checkin("operator")
+        assert rec["id"] and len(rec["reviews"]) == 2 and "AI is down" in rec["summary"], rec
+        assert latest_checkin()["id"] == rec["id"] and checkins(5)["checkins"][0]["id"] == rec["id"]
+        assert [r["agentId"] for r in checkin("auto", only="atlas")["reviews"]] == ["atlas"]
+        assert checkin("stranger").get("error") and checkin("auto", only="nobody").get("error")
+        # chat: a real reply passes through; an outage answers from the floor, labelled offline
+        assert chat("scout", "hi", lambda a, m: {"reply": "real"}) == {"reply": "real"}
+        off = chat("scout", "hi", lambda a, m: {"error": "credit balance is too low"})
+        assert off["offline"] and "Scout" in off["reply"] and "unreachable" in off["reply"], off
+        assert "Checked 2 agents" in chat("orion", "hi", lambda a, m: {"needsKey": True, "reply": "no key"})["reply"]
+        assert chat("nobody", "hi", lambda a, m: {"error": "x"}).get("error") == "x"
 
     assert dispatch("nobody", "x").get("error") == "unknown agent"
     assert dispatch("scout", "").get("error")

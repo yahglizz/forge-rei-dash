@@ -1147,6 +1147,11 @@ def api_office_jobs(q):
     return agent_office.jobs((q.get("business", [None]) or [None])[0])
 
 
+def api_office_checkins(q):
+    import agent_office
+    return agent_office.checkins()
+
+
 # Cross-agent coaching — the live feed powering the Agent Network's Coaching panel.
 # INSIGHTS ONLY (text): broadcasts/asks/answers, never a credential or outward action.
 def api_coach_feed(q):
@@ -2785,6 +2790,7 @@ ROUTES = {
     "/api/office/state": api_office_state,
     "/api/office/job": api_office_job,
     "/api/office/jobs": api_office_jobs,
+    "/api/office/checkins": api_office_checkins,
     "/api/coach/feed": api_coach_feed,
     "/api/scout/summary": api_scout_summary,
     "/api/scout/leads": api_scout_leads,
@@ -2870,7 +2876,7 @@ ROUTES = {
 NO_CACHE = {"/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status", "/api/autopilot/status",
             "/api/cost/status", "/api/spend/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
-            "/api/office/state", "/api/office/job", "/api/office/jobs",
+            "/api/office/state", "/api/office/job", "/api/office/jobs", "/api/office/checkins",
             "/api/coach/feed", "/api/sync/status", "/api/sync/check",
             "/api/ace/callready", "/api/ace/digest",
             "/api/contacts", "/api/conversations", "/api/messages",
@@ -3338,7 +3344,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/chat",
                                    "/api/hub/task",
                                    "/api/hub/task/update",
-                                   "/api/office/task", "/api/office/plan",
+                                   "/api/office/task", "/api/office/plan", "/api/office/chat", "/api/office/checkin",
                                    "/api/graphify/rebuild",
                                    "/api/coach/broadcast",
                                    "/api/coach/ask",
@@ -3556,7 +3562,7 @@ class Handler(BaseHTTPRequestHandler):
                                               body.get("note", ""))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
-            elif parsed.path in ("/api/office/task", "/api/office/plan"):
+            elif parsed.path in ("/api/office/task", "/api/office/plan", "/api/office/chat", "/api/office/checkin"):
                 # The Agent Office floor: file the task AND actually run that agent's
                 # real brain in the background so the operator watches it happen.
                 # chat_fn is the hub chat bound to THIS GHL sub-account (same pattern as
@@ -3572,6 +3578,14 @@ class Handler(BaseHTTPRequestHandler):
 
                 if parsed.path == "/api/office/plan":
                     result = agent_office.plan(body.get("message"), _office_chat)
+                elif parsed.path == "/api/office/chat":
+                    # Office chat: the agent's real brain, or a labelled live-status reply
+                    # when the AI provider is down (agent_office.chat).
+                    result = agent_office.chat(str(body.get("agentId") or "orion"),
+                                               str(body.get("message") or ""), _office_chat)
+                elif parsed.path == "/api/office/checkin":
+                    # Orion checks in on the team — read-only, zero Claude.
+                    result = agent_office.checkin("operator")
                 else:
                     result = agent_office.dispatch(body.get("agentId"), body.get("title"),
                                                    body.get("note", ""), chat_fn=_office_chat,
