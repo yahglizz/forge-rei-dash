@@ -375,6 +375,7 @@ class SolomonBackoffTest(unittest.TestCase):
              mock.patch.object(daycare_supabase.BRIDGE, "autoadmin_session", return_value=None), \
              mock.patch.object(eng, "build_brief", side_effect=build_brief) as bb, \
              mock.patch.object(eng, "_maybe_learn"), \
+             mock.patch.object(self.dd, "SCHEDULED_BRIEF", True), \
              mock.patch.object(self.dd.time, "sleep",
                                side_effect=[None] * (ticks - 1) + [self._Stop()]):
             with self.assertRaises(self._Stop):

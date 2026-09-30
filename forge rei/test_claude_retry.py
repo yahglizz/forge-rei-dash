@@ -139,7 +139,7 @@ class ClaudeRetryTest(unittest.TestCase):
     def test_marcus_engine_uses_shared_retry(self):
         src = (Path(__file__).resolve().parent / "marcus_engine.py").read_text()
         self.assertIn("review_agent.claude_urlopen(req, review_agent.call_timeout(", src)
-        self.assertIn("review_agent.thinking_params(review_agent.DRAFT_MODEL", src)
+        self.assertIn("review_agent.thinking_params(draft_model", src)
 
 
 class ThinkingParamsTest(unittest.TestCase):
