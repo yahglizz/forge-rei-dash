@@ -9,6 +9,7 @@ const VERDICT_LABEL = { working: 'WORKING', on_track: 'ON TRACK', waiting: 'WAIT
 const ACTIVITY = { error: '#ef4444', queued: '#f59e0b', think: '#60a5fa', read: '#2dd4bf', report: '#a78bfa', done: '#22c55e', reporting: '#22c55e', walk: '#9fb0c7', unknown: '#475569' };
 const BUSY = ['walk', 'read', 'think', 'report'];
 const DOGS = ['marcus', 'dyson', 'solomon', 'midas'];
+const PAW = { marcus: '#b7824f', dyson: '#2b2b30', solomon: '#e0a24e', midas: '#d8c7a8' };
 const DWELL = 4200;          // ms Orion stays with an agent during a check-in
 const ROUND_EVERY = 14000;   // ms between Orion's rounds while someone is working
 const played = { checkin: '', messages: new Set() };   // survives a remount: a replay is never a new event
@@ -137,7 +138,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     const { screen, furniture } = desk(x, z, dept.accent);
     const pad = new THREE.Mesh(new THREE.TorusGeometry(.62, .03, 8, 40), new THREE.MeshBasicMaterial({ color: '#64748b' }));
     pad.rotation.x = Math.PI / 2; pad.position.set(x, .03, z + .95); scene.add(pad);
-    return { group, badge, screen, furniture, pad, arms, bubble: makeBubble(3.5), x, z, agent: a, override: null, bodyTop: 1.75, headBase: head, bodyCap: body };
+    return { group, badge, screen, furniture, pad, arms, bubble: makeBubble(3.5), x, z, sx: x, sz: z + .95, stand: { dx: -.85, dz: .95 }, agent: a, override: null, bodyTop: 1.75, headBase: head, bodyCap: body };
   }
   function syncActors(state) {
     const alive = new Set(), liveDepts = new Set();
@@ -224,7 +225,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
     if (step) {
       dest = step.to ? actors.get(step.to) : null;
       if (step.to && (!dest || !dest.group.visible)) { step = null; dest = null; }   // agent went away (archived) — skip
-      else if (dest) target = new THREE.Vector3(dest.x - .85, 0, dest.z + 1.9);
+      else if (dest) target = new THREE.Vector3(dest.sx + dest.stand.dx, 0, dest.sz + dest.stand.dz);
     }
     const delta = target.clone().sub(orion.position), distance = delta.length();
     const arrived = distance <= .1 || reduced;
@@ -238,7 +239,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       if (t > step.until) { if (step.round) lastRound = t; step = null; }
     }
     if (arrived) {
-      if (dest) orion.rotation.y = Math.atan2(dest.x - orion.position.x, dest.z + .95 - orion.position.z);
+      if (dest) orion.rotation.y = Math.atan2(dest.sx - orion.position.x, dest.sz - orion.position.z);
       else orion.rotation.y = step ? 0 : .52;
     }
     return { walking: !arrived, talking: !!(step && arrived) };
@@ -255,9 +256,21 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       const busy = BUSY.includes(act) || thinking;
       const accent = ACTIVITY[act] || '#64748b';
       if (a.dog) {
-        // Unrigged Meshy dogs: paws never leave the floor. Work shows as breathing + an attentive look-around.
-        a.dog.rotation.y = a.facing + (!reduced && busy ? Math.sin(t / 1400 + a.x) * .08 : 0);
-        a.dog.scale.y = a.dog.userData.base * (1 + (!reduced && busy ? Math.sin(t / 240) * .014 : Math.sin(t / 1600) * .006));
+        // Unrigged Meshy dogs: paws never leave the floor, so the whole body performs. Each dog works at its
+        // desk facing the monitor: typing = head bob + paws tapping the keys; walk = trot; done = happy wag;
+        // error = slumps; idle = breathes and looks around the office.
+        const d = a.dog, ph = a.x * 1.7, typing = !reduced && busy && act !== 'walk', trot = !reduced && act === 'walk';
+        let yaw = a.facing, pitch = 0, roll = 0, lift = 0, squash = 1 + (reduced ? 0 : Math.sin(t / 1600 + ph) * .006);
+        if (!reduced) {
+          if (trot) { lift = Math.abs(Math.sin(t / 110 + ph)) * .05; pitch = Math.sin(t / 110 + ph) * .05; roll = Math.sin(t / 220 + ph) * .03; squash = 1 + Math.sin(t / 110 + ph) * .015; }
+          else if (typing) { pitch = .07 + Math.sin(t / 135 + ph) * .03; roll = Math.sin(t / 380 + ph) * .02; yaw += Math.sin(t / 1500 + ph) * .07; squash = 1 + Math.sin(t / 240 + ph) * .014; }
+          else if (act === 'done' || act === 'reporting') { lift = Math.abs(Math.sin(t / 170 + ph)) * .07; yaw += Math.sin(t / 85 + ph) * .09; }
+          else if (act === 'error') { pitch = .2 + Math.sin(t / 900 + ph) * .02; }
+          else if (act === 'queued') { yaw += Math.sin(t / 700 + ph) * .14; }
+          else { const glance = Math.pow(Math.max(0, Math.sin(t / 4300 + ph)), 3); yaw -= glance * 2; pitch = -glance * .05; }
+        }
+        d.rotation.set(pitch, yaw, roll); d.position.y = lift; d.scale.y = d.userData.base * squash;
+        a.paws.forEach((paw, i) => { paw.position.y = 1.04 + (typing ? Math.max(0, Math.sin(t / 85 + i * Math.PI)) * .04 : 0); });
         if (a.walkAction) a.walkAction.paused = reduced || act !== 'walk';
         if (a.mixer && !reduced) a.mixer.update(dt);
       } else {
@@ -276,7 +289,7 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       else if (act === 'queued') text = '• ' + (a.agent.detail || 'Task waiting');
       else if (act === 'unknown') text = '? not reachable';
       else if (busy) text = a.agent.detail || 'Working';
-      say(a.bubble, text, color, a.x, a.dog ? 2.05 : 2.25, a.group.position.z);
+      say(a.bubble, text, color, a.sx, a.dog ? 2.05 : 2.25, a.sz);
     });
     const { walking, talking } = direct(state, t, dt);
     const director = state.director || {};
@@ -318,9 +331,14 @@ export async function createOfficeScene(host, getState, onSelect, onStatus) {
       normalized.scale.setScalar(scale); normalized.userData.base = scale;
       model.scene.position.set(-center.x, -bounds.min.y, -center.z); normalized.add(model.scene);
       [...actor.group.children].forEach(child => { actor.group.remove(child); release(child); });
-      actor.arms = []; actor.group.add(normalized); actor.dog = normalized;
-      actor.facing = manifest.rotationY || 0;
-      actor.badge.position.y = 1.7;
+      actor.arms = []; actor.group.add(normalized); actor.dog = normalized; normalized.rotation.order = 'YXZ';
+      // Turn to the monitor (-z), angled a little toward the camera so the face still reads; head over the keyboard.
+      actor.facing = Math.PI + .5 + (manifest.rotationY || 0);
+      const fx = Math.sin(actor.facing), fz = Math.cos(actor.facing);
+      actor.sx = actor.x - .04 - fx * .9; actor.sz = actor.z + .42 - fz * .9; actor.stand = { dx: -1.15, dz: .1 };
+      actor.group.position.set(actor.sx, 0, actor.sz); actor.pad.position.set(actor.sx, .03, actor.sz);
+      actor.badge.position.set(actor.sx, 1.7, actor.sz);
+      actor.paws = [-.13, .13].map(dx => { const paw = new THREE.Mesh(new THREE.SphereGeometry(.075, 12, 10), new THREE.MeshStandardMaterial({ color: PAW[id] || '#c79a6b', roughness: .9 })); paw.scale.set(1, .7, 1.25); paw.position.set(actor.x + dx, 1.04, actor.z + .13); paw.castShadow = true; actor.furniture.add(paw); return paw; });
       if (model.animations.length && manifest.animation === 'quadruped-walk') {
         actor.mixer = new THREE.AnimationMixer(model.scene);
         actor.walkAction = actor.mixer.clipAction(model.animations[0]); actor.walkAction.play(); actor.walkAction.paused = true;
