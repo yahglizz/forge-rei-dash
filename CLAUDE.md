@@ -387,19 +387,27 @@ update that skill if you improved the pattern.
 - **Seller 5-class label** (`scout_triage.seller_class`, computed on read): HOT/WARM/NURTURE/
   NOT_INTERESTED/DO_NOT_CONTACT + `optOut`/`wrongNumber`/`classReason`. Label only — never moves
   bucket, tags or pipeline (`test_seller_class.py`).
-- **Agent Office** (`pixel_office.py` + `pixel_office.jsx`, nav "Agent Office" in all four
-  workspaces — three visible while Dropship is archived): the visual floor — four department rooms, twelve agents as pixel characters,
-  animated from REAL signals only (live job → agent_bus → open hub tasks → engine status;
-  an agent we can't reach reads "unknown", never "idle"). Clicking a character opens its
-  status + live step log + a task box. Sending a task files it via `agents_hub.send_task`
-  AND runs that agent's real brain in a background thread (`agents_hub.chat` for the eight
-  hub agents; `analyze`/`build_brief` for the dropship four), then posts the result on the
-  bus and closes the task. Rule 2 holds — the run is THINKING, never an outward action.
-  Routes `/api/office/{state,job,jobs}` (GET) + `/api/office/task` (POST). Self-check:
-  `python3 pixel_office.py`. Idea borrowed from github.com/pixel-agents-hq/pixel-agents;
-  rebuilt on this stack (their Vite/React-19/Fastify/VS-Code build can't drop into a
-  buildless UMD dashboard) with procedurally drawn characters, so no third-party sprite
-  art ships in this public repo.
+- **Agent Office — 3D only** (`agent_office.py` + `agent_office.jsx` page, `office_scene.js` Three.js
+  floor, `orion_office.jsx` chat/voice panel; nav "Agent Office" in all four workspaces — three
+  visible while Dropship is archived). The pixel view was **removed 2026-09-30**. Orion, the kid CEO,
+  oversees the real agents; Marcus/Dyson/Solomon/Midas are Meshy dogs (unrigged — paws stay on the
+  floor; a real quadruped walk needs a signed-in Meshy web rig, owner action), the rest are
+  procedural figures with typing arms. Everything that moves is a REAL signal from `/api/office/state`
+  (live job step → agent_bus → open hub tasks → engine status; unreachable = "unknown", never
+  "idle"): per-agent speech bubbles carry the real current step, a coloured pad + monitor glow show
+  work, Orion walks to an agent when an owner-approved assignment lands on the bus and on his rounds
+  past whoever is working. **Orion's check-in** (`agent_office.checkin`, header/panel button "Check in
+  on team", plus an automatic one-agent review the moment any job finishes): reads each agent's live
+  job, last result, errors and open tasks → verdict working / on_track / waiting / idle / attention /
+  blocked, with owner-approvable follow-up suggestions ("Approve & assign" = the owner's tap, rule 2).
+  **Zero Claude calls**, so it works with the AI account out of credits; the floor shows an "AI is
+  offline" banner from `forge_heartbeat.ai_health`. **Chat** (`POST /api/office/chat`, every agent, not
+  just the dogs) goes to the agent's real brain; if the provider is down it answers from the live floor
+  and labels itself `offline` — it never pretends to reason. Sending a task files it via
+  `agents_hub.send_task` AND runs that agent's real brain in a background thread, then posts the
+  result on the bus and closes the task. Rule 2 holds — the run is THINKING, never an outward action.
+  Routes: `GET /api/office/{state,job,jobs,checkins}`, `POST /api/office/{task,plan,chat,checkin}`.
+  Checks: `python3 agent_office.py` (selfcheck), `test_agent_office_ui.py`, `test_office_dogs.py`.
 
 - **FORGE Mobile + business portal (2026-09-23).** `forge rei/mobile/` (`/m/`) is the phone
   app; `ios/ForgeMobile/` is its native iOS shell (SwiftUI + WKWebView loading the box `/m/` over

@@ -1,5 +1,5 @@
 // agent_office.jsx — the Agent Office page: the 3D floor, the roster, Orion's check-ins
-// and a chat + task panel for every agent. (The old pixel view was removed 2026-09-30.)
+// and a chat + task panel for every agent. (The old 2D canvas view was removed 2026-09-30.)
 //
 // All motion on the floor comes from office_scene.js reading /api/office/state: real job
 // steps, real agent-bus assignments, real check-ins. Nothing here invents activity.

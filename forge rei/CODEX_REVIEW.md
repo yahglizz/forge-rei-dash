@@ -19,8 +19,9 @@ globals). Runs on one DigitalOcean box under systemd `forge-reios`. State = JSON
 
 ### Orion’s 3D Agent Office (2026-09-30)
 The Office page has a lazy-loaded, locally vendored Three.js scene and a Meshy-rigged Orion
-character with idle, walk and talking clips. The original pixel floor remains selectable.
-Typed Orion chat reuses `/api/hub/chat`; browser dictation and speech synthesis are optional.
+character with idle, walk and talking clips. The pixel floor was removed 2026-09-30; the 3D office is the only view.
+Chat for every agent goes through `POST /api/office/chat` (real brain; labelled live-status reply when the AI provider is down); browser dictation and speech synthesis are optional.
+Orion's check-in (`/api/office/checkin`, also automatic after each job) reviews the team from real signals with zero Claude calls and proposes owner-approvable follow-ups.
 `/api/office/plan` returns validated proposals only, using active department agents. The owner
 reviews the exact assignments and taps Approve & assign; existing office jobs run each real
 brain and post Orion handoffs/completion receipts. No new outward-action autonomy. Chat now
