@@ -743,7 +743,12 @@ key on the box. New migrations go in BOTH migration folders.
     `money`/`people`/`roster`/`followUps` as Growth economics / Capacity to enroll / Seats /
     Keep + refer. Live data adds `startsDesk` + per-room `openSeats` (null = Unknown).
     `daycare_context.context_block()` now defaults to 12000 chars — the old 3500 cut dropped
-    the offers, referral terms and CCIS angle. Guard: `python3 test_solomon_growth.py`.
+    the offers, referral terms and CCIS angle. Only growth-era brief notes (≥ `GROWTH_SINCE`
+    2026-09-30, last 14 days) feed back in as his operating record; an empty Supabase roster
+    reads as Unknown seats (`rosterEmpty`), and `roster.centerLabel` matches Lead Desk centers.
+    Eval loop (no API credits needed): capture the exact prompt on the box with
+    `review_agent._claude` monkeypatched → stand-in model → critic. Guard:
+    `python3 test_solomon_growth.py`.
     The creed comes from `agent_creed` (invisible to `learn()`); the top skills come from
     `_load_skills()` while `_playbook_only()` feeds `learn()` — so self-improvement can rewrite
     the playbook and nothing above it.
