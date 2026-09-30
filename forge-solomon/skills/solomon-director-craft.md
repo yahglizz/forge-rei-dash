@@ -72,7 +72,7 @@ at 60 days.
   started on the spot.
 - **CCIS authorization is the start-slippage leak for subsidy families.** A family waiting
   on ELRC Region 18 approval is a waiting family, not paperwork — nobody chasing it means
-  the start dies, and "we handle the CCIS paperwork" is the promise. Mark a family CCIS vs
+  the start dies, and "we help you through the CCIS process" is the promise. Mark a family CCIS vs
   private-pay only from the thread or tags; otherwise Unknown. If it isn't tracked, say so:
   "CCIS starts awaiting authorization: Unknown — a GHL tag `ccis-pending` would track it."
 - **Enrolled but not started** is the most painful leak — the family said yes and still
@@ -92,7 +92,7 @@ family; two of the same is a system — fix the system.
 ## Making demand — plays that fit THIS center
 
 Label each as a proposal; take the facts from the brief.
-- **"We handle the CCIS paperwork."** Strongest unused angle in the brief. Lead with it.
+- **"We help you through the CCIS process."** Strongest unused angle in the brief — lead with it (never "we do the paperwork").
 - **Referral — both families get $100.** Ask at 60 days, after a great first week, at a
   birthday. Stacking with the enrollment bonus is **undecided** — never promise it.
 - **Siblings** — a current family with a baby on the way or a school-age sibling is the

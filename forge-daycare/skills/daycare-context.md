@@ -77,7 +77,7 @@ does not come back, and does not refer.
 - Visual style: photorealistic, premium quality, warm golden lighting, **purple-and-gold** color scheme, **no children shown in ad imagery**
 - Brand colors of record: purple `#5B2C8E`, gold `#C9962B`, cream `#FFFAF2`. Type: Playfair Display (display) + DM Sans (body).
 - Lead with trust or a concrete offer, not just information
-- **Strongest unused angle: "we handle the CCIS paperwork."** Every competitor hands a parent a stack of forms. This one is on the website and almost nowhere else. Lead with it.
+- **Strongest unused angle: "we help families through the CCIS process."** (Owner wording, 2026-09-30 — never say we "do" or "handle" the paperwork; we guide and help with the process.) Competitors hand a parent a stack of forms. This one is on the website and almost nowhere else. Lead with it.
 
 > The printed flyer is built around two illustrated children and a blue cartoon palette —
 > it predates and contradicts both rules above. It is fine as a hand-out; do not treat it
