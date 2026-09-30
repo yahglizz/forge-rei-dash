@@ -32,8 +32,10 @@ operator, one standard of care:
   proven playbook: ship reviewable plans, read metrics honestly, never claim
   something is live that isn't.
 - **Daycare (A Touch of Blessings Learning Academy)** — real childcare centers,
-  real families, real licensing. The proven playbook: safety and ratio above
-  everything, then compliance, then cash, then growth — never the reverse.
+  real families, real licensing. The humans running the centers own safety,
+  ratio and compliance. The agent's lane is growth only (owner decision
+  2026-09-30): families touring, starting, and staying — answer first, fix the
+  leaking stage, fill real seats, keep families, never promise what isn't there.
 - **Dropship (FORGE Dropship)** — an e-commerce store on Shopify + AutoDS, paid
   traffic on Meta. The proven playbook: test products cheaply, kill losers fast,
   scale winners — but only on real contribution margin, and never at the cost of
@@ -136,13 +138,12 @@ CCIS/Child Care Works subsidy — across three Philadelphia locations. The
 dashboard is the owner's management lens; a separate Next.js app is the
 parent/staff lens, both on one Supabase database.
 
-**Chain of command:** Solomon (`daycare_director.py`) is the head of all
-daycare agents — a 50-year childcare-director persona who reads the whole
-center and owns enrollment. He runs the whole center in ONE brief (Nora and
-Nova were merged into him on 2026-07-25): ops, enrollment, money, people, plus
-the **roster & family-comms** lane (roster gaps, ratio/capacity, who needs a
-nudge after a Family Text Blast — grounded only in what the blast log recorded)
-and the **ad-ops** lane (campaign health, competitor intel, creative direction
+**Chain of command:** Solomon (`daycare_director.py`) is the daycare's ONE
+agent — a 50-year childcare **growth director** (2026-09-30: enrollment only;
+paperwork, compliance, billing collections and staff admin belong to humans).
+His ONE growth brief covers families waiting on us, the leaking funnel stage,
+sellable seats per room (now + forecast), retention and referral moves, and
+the **ad-ops** lane (campaign health, competitor intel, creative direction
 against the real Meta account). He never touches Higgsfield or Meta's ad manager
 himself — no tool access from the background loop; that stays a human or a
 chat-session action — and he consumes bus delegations addressed to any of those
@@ -160,8 +161,7 @@ ad imagery. Full voice + real ad assets: `forge-daycare/skills/daycare-context.m
 and `forge-daycare/skills/enrollment-ad-agent.md`.
 
 **Business facts + current status:** see `forge-daycare/skills/daycare-context.md`
-— staffing (not lead volume) is the real growth constraint; never promise a
-start date the brief doesn't support.
+— never promise a seat or a start date the data doesn't support.
 
 ## 6. Dropship — FORGE Dropship
 
@@ -209,7 +209,7 @@ directly, not stuffed into every agent's live prompt (the loader in
 | Wholesale | Atlas | `forge rei/deal_prep.py` | `forge-marcus/skills/` (rides on Marcus's folder — "Atlas reports to Marcus" is literal) | `Skills/atlas-underwriter.md` | `wholesale-evidence-discipline.md` |
 | Agency | Dyson | `forge rei/agency_agents.py` (`agent_id="dyson"`) | `forge-agency/skills/` | `Skills/dyson-playbook.md` | `agency-evidence-discipline.md` |
 | Agency | Eco | `forge rei/agency_agents.py` (`agent_id="eco"`) | `forge-agency/skills/` | `Skills/eco-playbook.md` | `agency-evidence-discipline.md` |
-| Daycare | Solomon (director + roster/family-comms + ad ops; live lanes Solomon · Replies + Solomon · Leads) | `forge rei/daycare_director.py` (lanes: `forge rei/daycare_replies.py`, `forge rei/daycare_leads.py`) | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md`, `solomon-roster-craft.md`, `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
+| Daycare | Solomon (growth director: enrollment, seats, retention, ad ops; live lanes Solomon · Replies + Leads + Starts) | `forge rei/daycare_director.py` (lanes: `forge rei/daycare_replies.py`, `forge rei/daycare_leads.py`) | `forge-solomon/skills/` (top skills: `solomon-decision-loop.md`, `solomon-director-craft.md` (growth craft), `solomon-systems-craft.md`, `solomon-roster-craft.md` (seats & retention), `solomon-adops-craft.md`) | `Skills/solomon-playbook.md` | `daycare-evidence-discipline.md` |
 | Dropship | Midas (director + research + ads + fulfillment) | `forge rei/dropship_director.py` | `forge-dropship/skills/` — 11 skills total: always-on `midas-decision-loop.md`, `midas-craft.md`, `dropship-account-health.md`; lane-gated `dropship-adspy-method.md` (research), `dropship-four-triggers-ad-writer.md`/`dropship-meta-ads-diagnostician.md`/`dropship-ad-launch-sop.md`/`dropship-creative-testing-doctrine.md`/`dropship-account-optimization-doctrine.md`/`dropship-adspy-method.md` (creative & ads), `dropship-support-macros.md` (fulfillment); on-demand `dropship-store-setup.md` (chat only) | *(none yet — `Skills/midas-playbook.md` is written by Midas's FIRST `learn()`; until then the seed `forge-dropship/skills/midas-playbook.md` IS the live playbook)* | `dropship-evidence-discipline.md` |
 
 Shared infra used by every agent above: `review_agent._claude`/`review_agent.MODEL`

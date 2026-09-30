@@ -124,11 +124,11 @@ AGENTS = [
     # on this row: their heartbeats fold into his status, their pending drafts are his
     # approval queue, and _probe/_delegate_context add their live state.
     {"id": "solomon", "name": "Solomon", "business": "daycare", "emoji": "🏛️",
-     "role": "Executive Director — the whole center",
-     "blurb": "Ops, enrollment, money, people, roster + family follow-ups, and the "
-              "enrollment ads. Lanes: Solomon · Replies drafts every parent text-back "
+     "role": "Growth Director — enrollment",
+     "blurb": "Grows enrollment only: families waiting on us, funnel leaks, sellable seats, "
+              "retention + referrals, and the enrollment ads (paperwork is not his lane). Lanes: Solomon · Replies drafts every parent text-back "
               "(you tap send), Solomon · Leads watches enrollment leads and Solomon · Starts texts the app login on a confirmed start day. Ranks it all, "
-              "owns enrollment, never acts outward.",
+              "never acts outward.",
      # "solomon" (the scheduled-brief loop) is OFF by default and retired at boot — a retired loop
      # in `hb` would read the whole row as DISABLED, so it is only listed when the brief is on.
      "hb": (["solomon"] if os.environ.get("FORGE_SOLOMON_BRIEF", "0") != "0" else [])
@@ -372,8 +372,8 @@ def _director_chat(agent_id, message, history):
 
     # Same constitution the brief runs on: TOP SKILLS above the learned playbook. Chat
     # used to ship the playbook alone, so the agent you talked to was weaker than the one
-    # that wrote the brief. getattr, so a director without top skills (Solomon) is
-    # unchanged. Playbook slice matches the brief's 4000 — 1500 cut it off mid-rubric.
+    # that wrote the brief. Every director now exposes top_skills_text() (Solomon since
+    # 2026-09-30); getattr keeps one without it working. Playbook slice matches the brief's 4000 — 1500 cut it off mid-rubric.
     skills = playbook = ""
     try:
         mod = __import__(pb_mod)

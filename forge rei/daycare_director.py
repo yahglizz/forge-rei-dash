@@ -65,6 +65,7 @@ BRIEF_DIR_REL = "Reports/daycare"          # living operating record written eve
 # `daycare_leads`, lands in his brief.
 BUS_ROLES = ("solomon", "family-comms", "enrollment", "ads", "growth", "nora", "nova",
              "daycare_replies", "daycare_leads")
+GROWTH_METRICS = ("childrenActive", "presentToday", "classroomsActive")
 RECENT_BLASTS = 5                          # blast history depth for the follow-up lane
 LEARN_EVERY = int(os.environ.get("FORGE_SOLOMON_LEARN_EVERY", "8"))
 # The autonomous daily operating brief is OFF (owner cut scheduled briefs 2026-09-30): Solomon's
@@ -442,10 +443,9 @@ class SolomonEngine:
             m = brief.get("metrics") or {}
             if m:
                 lines.append("## Center snapshot")
-                lines.append(f"- Enrolled {m.get('childrenActive','?')} · present {m.get('presentToday','?')} "
-                             f"· staff {m.get('staffActive','?')} · capacity {m.get('capacityTotal','?')}")
-                lines.append(f"- Invoices due {m.get('invoicesDue','?')} (${m.get('amountDue','?')}) "
-                             f"· open incidents {m.get('openIncidents','?')} · unread {m.get('unreadNotifications','?')}")
+                # growth lens only — invoices/incidents here echoed back into the next
+                # brief via _recent_brain_context and kept paperwork alive (2026-09-30)
+                lines.append(f"- Enrolled {m.get('childrenActive','?')} · present {m.get('presentToday','?')}")
                 lines.append("")
             def _sec(title, items, fmt):
                 if not items:
@@ -456,12 +456,12 @@ class SolomonEngine:
                 lines.append("")
             _sec("Attention now", brief.get("priorities"),
                  lambda p: f"[{p.get('urgency','?')}/{p.get('area','?')}] {p.get('title','')} — {p.get('why','')}")
-            _sec("Enrollment (Solomon owns)", brief.get("enrollment"), lambda s: str(s))
-            _sec("Money", brief.get("money"), lambda s: str(s))
-            _sec("People", brief.get("people"), lambda s: str(s))
-            _sec("Roster", brief.get("roster"),
+            _sec("Enrollment moves", brief.get("enrollment"), lambda s: str(s))
+            _sec("Growth economics", brief.get("money"), lambda s: str(s))
+            _sec("Capacity to enroll", brief.get("people"), lambda s: str(s))
+            _sec("Seats", brief.get("roster"),
                  lambda r: f"[{r.get('urgency','?')}/{r.get('area','?')}] {r.get('title','')} — {r.get('why','')}")
-            _sec("Family follow-ups", brief.get("followUps"),
+            _sec("Keep + refer", brief.get("followUps"),
                  lambda f: f"{f.get('family','?')} — {f.get('reason','')} → {f.get('suggestedNextStep','')}")
             _sec("Campaign health", brief.get("campaignHealth"),
                  lambda c: f"[{c.get('urgency','?')}] {c.get('title','')} — {c.get('why','')}")
@@ -614,7 +614,7 @@ class SolomonEngine:
             return {"status": "unavailable", "error": str(e)}
 
     def build_brief(self, session=None):
-        """Read the whole center + the brief, produce a prioritized operating brief.
+        """Read the growth picture + the brief, produce a ranked growth brief.
 
         Read-only. Never contacts anyone. Delegations are recorded + posted to the
         bus for role agents; the human executes any outward action.
@@ -700,9 +700,10 @@ class SolomonEngine:
             + self._recent_brain_context()
         )
         live = {
-            "metrics": metrics,
-            # growth lens: billing alerts are not his lane (capacity alerts stay — seats)
-            "alerts": [a for a in alerts if a.get("kind") != "billing"],
+            # growth lens only: invoices/incidents/staff/unread are paperwork, and
+            # capacityTotal invites "capacity − enrolled = vacancy" (seats come per room)
+            "metrics": {k: metrics.get(k) for k in GROWTH_METRICS if k in metrics},
+            "alerts": [a for a in alerts if a.get("kind") == "capacity"],
             "behaviorChart": behavior,
             "roster": roster,
             "recentBlasts": blasts,
@@ -924,7 +925,7 @@ class SolomonEngine:
             "ok": True,
             "agent": "solomon",
             "name": "Solomon",
-            "title": "Executive Director",
+            "title": "Growth Director",
             "aiReady": bool(key),
             "skillsLoaded": bool(self._load_skills()),
             "topSkills": self.loaded_skill_names(),
