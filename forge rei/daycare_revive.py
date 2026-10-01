@@ -23,7 +23,6 @@ import json
 import os
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
 
 import daycare_ghl
@@ -110,11 +109,6 @@ def pick(leads, drafts, st, now, ai_down=False):
 
 
 # ── drafting ──────────────────────────────────────────────────────────────────
-def _greeting(now):
-    h = datetime.fromtimestamp(now, daycare_leads.ET).hour
-    return "good morning" if h < 12 else "good afternoon" if h < 17 else "good evening"
-
-
 def template(contact, ev, now):
     """Voice-matched check-in with zero Claude (daycare-voice.md register 2, own-the-miss
     first when the parent's text sat). Facts: none beyond the center name — nothing to invent."""
@@ -122,7 +116,7 @@ def template(contact, ev, now):
     tags = {str(t).strip().lower() for t in (contact or {}).get("tags") or []}
     _label, brand = daycare_replies._center(tags)
     first, child = (fam.get("parent_first") or "").strip(), (fam.get("child_first") or "").strip()
-    hi = f"hey {_greeting(now)} {first}" if len(first) >= 2 else f"hey {_greeting(now)}"
+    hi = f"hey {first}" if len(first) >= 2 else "hey"      # no time-of-day: a draft may sit overnight
     for_kid = f" for {child}" if len(child) >= 2 and child.lower() != first.lower() else ""
     who = f"this is management over at {brand or 'A Touch of Blessings'}"
     keep = "we do first come first served so i want to make sure we keep you at the top of the list, thank you"
