@@ -175,6 +175,7 @@ def extract(messages):
     start date even without a start word — it wins, so a stale date never sends."""
     blasts = {m.get("body") for m in messages or []
               if str(m.get("source") or "").lower() in _BLAST_SOURCES}
+    parent_at = [e[0] for e in daycare_leads._events(messages) if e[1] == "inbound"]
     later = None                  # newest dated follow-up seen before the start message
     for t, direction, _human, _type, body in reversed(daycare_leads._events(messages)):
         if not body or body in blasts:
@@ -186,7 +187,8 @@ def extract(messages):
             if later and later[0] != got[0]:
                 got, t, direction = later[:2], later[2], later[3]
             return {"date": got[0].isoformat(), "evidence": _clean(got[1]),
-                    "at": int(t * 1000), "dir": direction, "source": "messages"}
+                    "at": int(t * 1000), "dir": direction, "source": "messages",
+                    "confirmed": direction == "inbound" or any(x > t for x in parent_at)}
         if later is None and not (_TOUR_RE.search(body) or _PAST_RE.search(body)
                                   or _NOT_START_RE.search(body)):
             d = parse_date(body, ref)
@@ -293,13 +295,14 @@ def _apply(entries, contact, found, now):
             "center": daycare_leads.CENTER_LABEL.get(loc_tag) or loc_tag or "Center unknown",
             "locationId": daycare_ghl.LOCATION_ID_BY_TAG.get(loc_tag) or ""}
     fresh = {"startDate": found["date"], "evidence": found["evidence"], "evidenceAt": found["at"],
-             "evidenceDir": found["dir"], "source": found["source"]}
+             "evidenceDir": found["dir"], "source": found["source"],
+             "evidenceConfirmed": found.get("confirmed")}
     if e is None:
         entries[cid] = dict(base, **fresh, status="proposed", proposedAt=_ms(now), tries=0)
         return True
     status = e.get("status")
     if status == "proposed":
-        e.update(base)
+        e.update(base, evidenceConfirmed=found.get("confirmed"))
     else:                         # confirmed data (e.g. the owner's center pick) stays put
         e.update({k: v for k, v in base.items() if v and not e.get(k)})
     if status in ("sent", "sending", "failed") or found["date"] == e.get("startDate"):

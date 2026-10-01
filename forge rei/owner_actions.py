@@ -391,6 +391,9 @@ def _src_daycare_replies(ctx):
         if d.get("action") == "escalate":
             title = f"Answer {who}{where} — Solomon escalated ({cat})"
             why = f"Solomon · Replies: {cat} — holding line only, this one needs you"
+        elif d.get("revive"):
+            title = f"Revive {who}{where} — approve Solomon's check-in text"
+            why = f"Solomon · Revive: quiet {d.get('quietDays', '?')} days — one-tap check-in drafted"
         else:
             title = f"Approve Solomon's reply to {who}{where}"
             why = f"Solomon · Replies: {cat} — draft ready for your tap"
@@ -427,7 +430,9 @@ def _src_daycare_starts(ctx):
         when = "today" if left == 0 else "tomorrow" if left == 1 else f"in {left} days" if left and left > 0 else "— date passed"
         out.append(_item(f"daycare:{cid}", "APPROVE", "daycare", "urgent" if (left or 0) <= 1 else "revenue",
                          f"Confirm {who}'s start date — {day} ({when})",
-                         "Solomon · Starts: from " + ("the enrollment form" if r.get("source") == "form" else "their texts")
+                         "Solomon · Starts: from " + ("the enrollment form" if r.get("source") == "form"
+                                                      else "your text — the parent has not replied since"
+                                                      if r.get("evidenceConfirmed") is False else "their texts")
                          + " · confirm and the app login texts that morning", r.get("proposedAt"), link, "daycare_starts"))
     return out
 

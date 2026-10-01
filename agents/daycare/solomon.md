@@ -257,3 +257,13 @@ Code: `forge rei/daycare_ads_autopilot.py` (+ Pipeboard reads/writes in `forge r
 - **Gates:** only the operator flips the mode (CLAUDE.md §2 exception). Hold one entity: `POST /api/daycare/ads-auto/hold`.
 - **Routes:** `GET /api/daycare/ads-auto/status`; `POST /api/daycare/ads-auto/{run,mode,approve,reject,undo,hold}`. Telegram: Solomon's business-partner chat can `approve` proposals through the same routes (tap-gated).
 - **Verify:** `cd "forge rei" && python3 test_daycare_ads_auto.py`; `GET …/ads-auto/status` → `wired`, `lastRun`; `state: forge rei/marcus_state/daycare_ads_auto.json`.
+
+## 14. Lane: Solomon · Revive — win back quiet leads (added 2026-09-30)
+
+- **Why:** Replies only looks back 7 days and the Lead Desk only flags "needs a human" — paid Meta leads that stalled 2–5 weeks ago had nobody drafting a follow-up. Revive drafts the check-in so reviving a cold lead is one tap.
+- **Trigger:** `daycare_revive.run_once` runs right after each Replies sweep in the same `daycare_replies` thread (no drafts-file race). No new loop/heartbeat. `FORGE_DAYCARE_REVIVE=0` or `forge_ops` clock-out stops it.
+- **Picks (pure `pick`):** Lead Desk rows, contacted, not enrolled/lost/opted-out, quiet ≥7 d (≤90 d), or — only while the AI circuit is open — a parent text left unanswered at any age. Unanswered parents first, then warmest. ≤5 pending, ≤3 new/sweep, 2 attempts per contact ever, 14 d apart.
+- **Draft:** one Claude call (Replies prompt + REVIVE task, creed/fact-sheet/voice loaded) when the AI is up; a voice-matched **template with zero Claude** when it is down — never waits on credits. Always ends with the STOP line; never states a seat, rate, date or offer.
+- **Writes:** into the SAME `marcus_state/daycare_replies.json` drafts store (`revive:true`, `category:"revive"`, `autoEligible:false` — never auto-sent), so the Messages tab, Owner Actions ("Revive X — approve Solomon's check-in text") and `approve()` gates (live thread re-check, opt-out, DND, 8am–9pm ET) apply unchanged. When a parent texts back and the AI is up, the Replies lane supersedes the revive draft. One Telegram line per batch (daycare chat). Revive state: `marcus_state/daycare_revive.json`.
+- **Starts honesty (same day):** `daycare_starts.extract` now records `confirmed` — whether the PARENT backed the date (their own text, or any parent text after our proposal). Owner Actions says "from your text — the parent has not replied since" when only we proposed it.
+- **Verify:** `cd "forge rei" && python3 test_daycare_revive.py && python3 test_daycare_starts.py`; Owner Actions → daycare rows; `state: forge rei/marcus_state/daycare_revive.json`.

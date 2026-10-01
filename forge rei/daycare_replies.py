@@ -427,7 +427,7 @@ def run_once(client, now=None, drafter=None):
         if now - last_at > LOOKBACK_SEC:
             continue
         done = drafts.get(cid)
-        if done and (done.get("inboundAt") or 0) >= int(last_at * 1000) - 2000:
+        if done and not done.get("revive") and (done.get("inboundAt") or 0) >= int(last_at * 1000) - 2000:
             held["already_drafted"] = held.get("already_drafted", 0) + 1
             continue                          # same inbound already drafted/closed — no GETs
         if reads >= MAX_READS or drafted >= MAX_DRAFTS:
@@ -449,7 +449,7 @@ def run_once(client, now=None, drafter=None):
             ev = _events(msgs)
             last_in = [e for e in ev if e["dir"] == "inbound"][-1]
             cur = drafts.get(cid)
-            if cur and cur.get("inboundId") == last_in["id"]:
+            if cur and not cur.get("revive") and cur.get("inboundId") == last_in["id"]:
                 held["already_drafted"] = held.get("already_drafted", 0) + 1
                 continue
             res = drafter(contact, ev, now)
@@ -682,6 +682,11 @@ def run_forever(client):
         try:
             if not forge_ops.paused():
                 err = run_once(client).get("error")
+                try:                      # Solomon · Revive shares this thread: no drafts-file race
+                    import daycare_revive
+                    daycare_revive.run_once(client)
+                except Exception as e:  # noqa: BLE001 — revive never fails the Replies lane
+                    print(f"[daycare_revive] {type(e).__name__}: {str(e)[:160]}")
         except Exception as e:  # noqa: BLE001
             err = type(e).__name__
         forge_heartbeat.beat("daycare_replies", INTERVAL, "Solomon · Replies", error=err)

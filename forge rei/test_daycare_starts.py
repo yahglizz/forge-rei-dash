@@ -121,6 +121,12 @@ class StartDateTests(unittest.TestCase):
         # outbound agreement counts too
         got = ds.extract([msg("See you Monday Oct 5 for Mia's first day!", t0, "outbound")])
         self.assertEqual((got["date"], got["dir"]), ("2026-10-05", "outbound"))
+        # our proposal alone is not the parent's agreement; a later parent text is (or isn't) evidence of reply
+        self.assertFalse(got["confirmed"])
+        got = ds.extract([msg("See you Monday Oct 5 for Mia's first day!", t0, "outbound"),
+                          msg("ok thank you", t0 + 600)])
+        self.assertTrue(got["confirmed"])
+        self.assertTrue(ds.extract([msg("Can she start Oct 6?", t0)])["confirmed"])
 
     def test_form_fallback_only_when_ahead(self):
         now = ts(2026, 9, 29)
