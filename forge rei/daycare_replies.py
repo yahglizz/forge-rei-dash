@@ -397,6 +397,18 @@ def run_once(client, now=None, drafter=None):
             st.update(lastRunAt=int(now * 1000), error=err)
             _save(st)
         return {"ok": False, "error": err}
+    if drafter is draft_reply and review_agent.ai_blocked():
+        # AI circuit open (credits/auth out): skip the whole sweep — no GHL reads, no doomed
+        # Sonnet calls. Not a lane failure (heartbeat stays green); the state says why. A probe
+        # slot reopens every FORGE_AI_PROBE_SEC and the next sweep then tries for real.
+        msg = ("Drafting paused — Anthropic credits/key out (AI circuit open). Resumes on its "
+               "own once credits are back; no parent texts are lost.")
+        with _LOCK:
+            st = _load()
+            st.update(lastRunAt=int(now * 1000), error=msg,
+                      lastSweep={"drafted": 0, "read": 0, "held": {"ai_down": 1}, "errors": 0})
+            _save(st)
+        return {"ok": True, "skipped": "ai_down", "error": None}
     held, drafted, reads, errors, ai_err = {}, 0, 0, 0, None
     convs = client.get("/conversations/search", {
         "locationId": client.location_id, "limit": 100, "sortBy": "last_message_date"})

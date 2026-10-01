@@ -272,6 +272,8 @@ def ai_fail(code, msg, key=None):
     """A Claude call failed. code = HTTP status (None for network/timeouts). A hard
     failure marks THIS credential down (by fingerprint). Never raises."""
     try:
+        if str(msg).lstrip().startswith("[circuit open]"):
+            return   # review_agent fast-fail — never touched Anthropic, not a new failure
         now = int(time.time() * 1000)
         kind, hard = ai_classify(code, msg)
         with _LOCK:

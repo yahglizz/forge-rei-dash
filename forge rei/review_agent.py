@@ -12,6 +12,7 @@ Needs ANTHROPIC_API_KEY; without it returns {needsKey: true} and the UI prompts 
 import json
 import socket
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -114,10 +115,90 @@ _RETRY_CODES = {429, 500, 502, 503, 529}
 _RETRY_BACKOFF = (2, 5)
 
 
+# --- AI circuit breaker (2026-09-30) -------------------------------------------------
+# Billing/auth outages are hard-down for a KEY (forge_heartbeat.ai_health). Before this, every
+# loop kept hammering Anthropic anyway (~1,440 failed Sonnet calls/day from one lane alone).
+# Now: while a key is hard-down, claude_urlopen fails FAST (no network) and lets exactly ONE
+# probe through per _PROBE_SEC; a successful probe -> ai_ok() clears hardBy -> breaker closes.
+# Replacing the key changes its fingerprint, so a new key is never blocked.
+# ponytail: per-process probe clock (a restart probes once at boot, fine). FORGE_AI_PROBE_SEC=0 disables.
+_CIRCUIT_MARK = "[circuit open]"
+_PROBE_AT = {}
+_PROBE_LOCK = threading.Lock()
+
+
+def _probe_sec():
+    try:
+        return int(os.environ.get("FORGE_AI_PROBE_SEC", "900"))
+    except ValueError:
+        return 900
+
+
+class AICircuitOpen(urllib.error.HTTPError):
+    """Raised instead of calling Anthropic while a key is hard-down. An HTTPError (400, with
+    an Anthropic-shaped body) so every existing `except HTTPError` still reads the real
+    reason; forge_heartbeat.ai_fail ignores it (no phantom failures inflating failStreak)."""
+
+
+def _req_key(req):
+    for k, v in req.header_items():
+        if k.lower() == "x-api-key":
+            return v
+    return None
+
+
+def ai_blocked(key=None, now=None):
+    """True while the breaker is open (hard-down AND probed < _PROBE_SEC ago). Does NOT
+    consume the probe, so a loop can skip its whole sweep (GHL reads included) and still
+    wake up in time to be the one that probes. key=None -> fleet view."""
+    try:
+        import forge_heartbeat
+        gap = _probe_sec()
+        h = forge_heartbeat.ai_health()
+        if gap <= 0 or not h.get("hard"):
+            return False
+        now = now or time.time()
+        hb = h.get("hardBy") or {}
+        fps = [forge_heartbeat._ai_fp(key)] if key else list(hb)
+        if key and fps[0] not in hb:
+            return False
+        return all(now - _PROBE_AT.get(f, 0) < gap for f in fps)
+    except Exception:  # noqa: BLE001 — a breaker bug must never block a healthy call
+        return False
+
+
+def _circuit_gate(req):
+    """Raise AICircuitOpen when the key is hard-down and a probe already ran recently;
+    otherwise (healthy, or this call IS the probe) return and let the call proceed."""
+    try:
+        import forge_heartbeat
+        gap = _probe_sec()
+        key = _req_key(req)
+        fp = forge_heartbeat._ai_fp(key)
+        h = forge_heartbeat.ai_health()
+        if gap <= 0 or fp not in (h.get("hardBy") or {}):
+            return
+        now = time.time()
+        with _PROBE_LOCK:
+            wait = gap - (now - _PROBE_AT.get(fp, 0))
+            if wait <= 0:
+                _PROBE_AT[fp] = now        # this call is the probe
+                return
+        why = (h.get("lastError") or h.get("reason") or "Anthropic credit balance exhausted")
+    except Exception:  # noqa: BLE001
+        return
+    msg = (f"{_CIRCUIT_MARK} {why} — AI paused, next probe in {int(wait)}s "
+           "(top up credits / replace the key)")
+    body = json.dumps({"error": {"type": "circuit_open", "message": msg}}).encode()
+    import io
+    raise AICircuitOpen(req.full_url, 400, msg, {}, io.BytesIO(body))
+
+
 def claude_urlopen(req, timeout):
     """urllib.request.urlopen(req) -> parsed JSON, with <=2 retries on transient failures.
     Re-raises the ORIGINAL exception (HTTPError body unread) so callers' except blocks
     read the real Anthropic message exactly as before."""
+    _circuit_gate(req)
     for wait in (*_RETRY_BACKOFF, None):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:

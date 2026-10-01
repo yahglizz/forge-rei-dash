@@ -8,6 +8,16 @@
 # Read-only on GHL. No outward action. Each call is one Claude reflection; we space them
 # out and keep going if one fails, so a single hiccup never skips the rest.
 set -u
+# Honour the self-improve switch (CLAUDE.md §5: FORGE_SELF_IMPROVE defaults OFF). This unit has no
+# EnvironmentFile, so read the knob from the box env file by name — never source/print the file.
+SI="${FORGE_SELF_IMPROVE:-}"
+if [ -z "$SI" ] && [ -r /etc/default/forge-reios ]; then
+  SI=$(grep -E '^FORGE_SELF_IMPROVE=' /etc/default/forge-reios | tail -1 | cut -d= -f2 | tr -d "\"' ")
+fi
+if [ "${SI:-0}" != "1" ]; then
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) daily learn skipped: FORGE_SELF_IMPROVE is off" >> "/opt/forge/forge-rei/marcus_state/daily-learn.log"
+  exit 0
+fi
 PORT="${FORGE_PORT:-7799}"
 BASE="http://127.0.0.1:${PORT}"
 LOG="/opt/forge/forge-rei/marcus_state/daily-learn.log"
