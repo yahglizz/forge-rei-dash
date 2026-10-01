@@ -563,6 +563,7 @@ update that skill if you improved the pattern.
 | `FORGE_BRIEFS` | **0 (off)** | Morning brief, end-of-day recap and Orion's CEO brief. The clock thread still runs the git-sync watchdog. |
 | `FORGE_SELF_IMPROVE` | **0 (off)** | Every automatic learn()/playbook rewrite (Scout, Marcus, Atlas, Dyson/Eco, Solomon, Midas, Orion). Manual "Learn" buttons still work. |
 | `FORGE_SKILL_FORGE` | **0 (off)** | skill_forge's Claude-drafted skill proposals. |
+  | `FORGE_AI_PROBE_SEC` | 900 | **AI circuit breaker** (2026-09-30, `review_agent.claude_urlopen`): while a key is hard-down (credits/auth), every Claude call fails fast with no network and ONE probe goes through per this many seconds; a good probe closes it. `0` disables. Solomon · Replies skips its whole sweep while open. Test: `test_ai_breaker.py`. |
   | `FORGE_DAYCARE_REPLIES` | 1 (on) | Solomon · Replies — the Daycare Reply Desk: parent-reply drafts every 60 s (answer lands ~90 s–5 min after the parent texts), ≤8 Sonnet calls/sweep, only when a parent is owed a reply. Bills to `solomon`. `0` stops it and retires its heartbeat. |
   | `FORGE_SCOUT_LEARN_EVERY` / `FORGE_ATLAS_LEARN_EVERY` | 25 / 12 | Self-improve cadence — the other real Claude cost. |
 
@@ -633,6 +634,13 @@ key on the box. New migrations go in BOTH migration folders.
   `systemctl restart forge-reios` to put the PIN back instantly.
   See `daycare_supabase.request_is_secure` / `autoadmin_session` /
   `is_owner_loopback` and `connector._daycare_resolve_session`.
+- **Pipeboard = the Meta path (2026-09-30, `pipeboard_io.py`).** `PIPEBOARD_API_TOKEN` (+ `PIPEBOARD_AD_ACCOUNT_ID`)
+  in `daycare.env` makes `agency_ads.connection/accounts/analytics` read Meta through Pipeboard's JSON-RPC
+  endpoint (stdlib, no MCP client; Pipeboard owns the Meta login + refresh) — it wins over `META_ACCESS_TOKEN`
+  when keyed. READ-ONLY (insights/campaigns/account health); payloads carry `via:"pipeboard"` + `dateRange`; a
+  rejection is cached 15 min and reads `auth_error`. Launch/activate/budget are NOT in it (rule 2).
+  Self-check: `python3 pipeboard_io.py`; test: `test_pipeboard_io.py`. The Pipeboard login currently carries ONE
+  ad account — the daycare's `act_1175564690150627`; the agency has none yet.
 - **Ads + Social + Ideas (Growth tab).** `daycare_growth.py` reuses the agency
   `agency_ads`/`agency_social`/`agency_eco` engines with the daycare's OWN creds (locked
   env-swap; agency code untouched). Mock until `META_ACCESS_TOKEN` / `METRICOOL_USER_TOKEN`
