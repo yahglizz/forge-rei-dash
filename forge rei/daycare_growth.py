@@ -132,6 +132,57 @@ def ads_overview(account: str | None = None, days: int = 7) -> dict:
             "analytics": analytics, "configured": True}
 
 
+_SHARE_FILE = None
+
+
+def share_ad_results(days: int = 30) -> dict:
+    """Solomon -> Eco: broadcast the daycare's REAL ad results as one coaching insight, so the
+    agency's ad agent learns what converts for enrollment (and Solomon's tips flow both ways).
+
+    Zero Claude, read-only on Meta, internal + reversible (coaching moves TEXT only — CLAUDE.md §11).
+    Evidence discipline: figures carry source + window; one account is a hypothesis, not a law.
+    Sent at most once per distinct (window, totals) so a polling loop never spams the feed."""
+    import json
+    from pathlib import Path
+    import agent_coach
+    path = _SHARE_FILE or Path(__file__).resolve().parent / "marcus_state" / "ad_share.json"
+    try:
+        out = ads_overview(days=days)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "skipped": f"ads read failed: {type(e).__name__}"}
+    a = out.get("analytics") or {}
+    t = a.get("totals") or {}
+    if not out.get("configured") or a.get("dataSource") != "live" or not (t.get("spend") or 0) > 0:
+        return {"ok": True, "skipped": "no live spend to report"}
+    rng = a.get("dateRange") or {}
+    ads = [x for x in (a.get("topAds") or []) + (a.get("weakAds") or []) if x.get("spend")]
+    best = max(ads, key=lambda x: (x.get("leads", 0), x.get("ctr", 0)), default=None)
+    worst = min(ads, key=lambda x: (x.get("leads", 0), x.get("ctr", 0)), default=None)
+    text = (f"Daycare enrollment ads (Meta via Pipeboard, {rng.get('since')}→{rng.get('until')}): "
+            f"${t.get('spend'):.2f} spend → {t.get('leads', 0)} leads"
+            + (f" (CPL ${t.get('cpl'):.2f})" if t.get("leads") else "")
+            + f", CTR {t.get('ctr')}%, {t.get('clicks')} clicks.")
+    if best and best is not worst:
+        text += (f" Best ad: \"{str(best.get('name'))[:60]}\" ({best.get('leads', 0)} leads on "
+                 f"${best.get('spend'):.2f}); weakest: \"{str(worst.get('name'))[:60]}\" "
+                 f"({worst.get('leads', 0)} leads on ${worst.get('spend'):.2f}).")
+    text += " One account, small sample — treat as a hypothesis to test, not a rule."
+    key = f"{rng.get('since')}|{rng.get('until')}|{t.get('spend')}|{t.get('leads')}"
+    try:
+        last = json.loads(path.read_text()).get("key") if path.exists() else None
+    except Exception:  # noqa: BLE001
+        last = None
+    if last == key:
+        return {"ok": True, "skipped": "already shared"}
+    res = agent_coach.broadcast("solomon", text, to="eco",
+                                tags=["daycare", "meta-ads", "results"])
+    if res.get("ok"):
+        import forge_atomic
+        forge_atomic.atomic_write_json(path, {"key": key, "at": int(__import__("time").time() * 1000)})
+    return {"ok": bool(res.get("ok")), "shared": text if res.get("ok") else None,
+            "error": res.get("error")}
+
+
 def social_overview(network: str | None = None) -> dict:
     """Metricool social connection + analytics + scheduled posts (mock until keyed)."""
     if not (_daycare_creds().get("METRICOOL_USER_TOKEN") or "").strip():
@@ -159,6 +210,14 @@ def eco_overview(account: str | None = None) -> dict:
     """
     with _ENV_LOCK, _scoped_env(_ADS_KEYS):
         built = agency_eco.recommendations(account=account, client="daycare")
+    if _is_demo_account(built.get("account")):
+        # Same creed guard as ads_overview: unmapped/unkeyed -> agency_eco serves the AGENCY's
+        # Bloom Dental concepts (dentistry copy, ROAS 10.26). Never present that as the daycare's.
+        return {"ok": True, "configured": False, "dataSource": "none", "next": [], "best": [],
+                "weak": [], "account": None,
+                "detail": "Daycare Meta account not connected — no strategy built from "
+                          "another business's numbers.",
+                "context": daycare_context.status()}
     return {
         **built,
         "context": daycare_context.status(),

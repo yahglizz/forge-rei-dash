@@ -810,6 +810,16 @@ an offer.
 - **Source of truth:** vault `Coaching/feed.md` (human-readable, git-committed via
   `brain_io`), mirrored on the agent bus (`kind=="coach"`). Surface + manual coaching:
   the **Agent Network** tab; routes `/api/coach/{feed,ask,broadcast}`.
+- **Agency ↔ daycare wiring (2026-09-30).** (1) Solomon's constitution loads the OWNER'S AD METHOD
+  straight from the agency skills (`agency_agents._four_triggers_skill` + the methodology principles) — one
+  source: edit `forge-agency/skills/agency-four-triggers-ad-writer.md` and Eco AND Solomon change; it is NOT in
+  `_playbook_only`, so `learn()` can't rewrite it. (2) Peer coaching is injected into Solomon's brief, every hub
+  chat and the daycare idea generator — not only `learn()`. (3) Solomon → Eco: `daycare_growth.share_ad_results`
+  broadcasts the daycare's REAL ad results (zero Claude, window + "hypothesis" attached, deduped, skipped on
+  mock data) every ≤6 h from the Leads lane; Solomon's "Ads" delegations also file an open hub task for Eco.
+  (4) Bus prune evicts alerts/status/notes before coaching/tasks/handoffs, and `agent_coach` reads the whole bus.
+  Test: `test_agent_comms.py`. Agency "Personal lens" (`agency:p`, my own businesses) is the lens that hosts the
+  daycare's ads/ideas next to Eco; reactivate with `POST /api/businesses/set {id:"agency:p",archived:false}`.
 - **The one invariant:** coaching moves **INSIGHTS ONLY** — plain text. It **never** moves
   a credential, token, GHL client object, or location id (the 3 GHL sub-accounts stay
   byte-for-byte isolated), and it **never** carries an instruction to take an outward

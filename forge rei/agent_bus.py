@@ -34,6 +34,24 @@ MAX_MESSAGES = 200
 _NOTIFIERS = []
 
 
+_EPHEMERAL = ("alert", "status", "note")
+
+
+def _prune(msgs):
+    """Cap at MAX_MESSAGES, newest first. Evict the OLDEST ephemeral kinds (watchdog alerts,
+    status pings, notes) before anything else: 122 of 200 live slots were alerts, so the
+    coaching tips / tasks / handoffs that agents actually act on were being pushed out."""
+    if len(msgs) <= MAX_MESSAGES:
+        return msgs
+    msgs = list(msgs)
+    i = len(msgs) - 1
+    while len(msgs) > MAX_MESSAGES and i >= 0:
+        if msgs[i].get("kind") in _EPHEMERAL:
+            msgs.pop(i)
+        i -= 1
+    return msgs[:MAX_MESSAGES]
+
+
 def register_notifier(fn):
     """Tap the bus: every send() fans out to each registered notifier (best-effort).
     Additive — multiple taps coexist (e.g. Telegram alerts + Marcus auto-screen)."""
@@ -90,7 +108,7 @@ def send(frm, to, kind, text, data=None):
         }
         msgs = d.get("messages", [])
         msgs.insert(0, msg)
-        d["messages"] = msgs[:MAX_MESSAGES]
+        d["messages"] = _prune(msgs)
         _save(d)
     for _fn in list(_NOTIFIERS):
         try:

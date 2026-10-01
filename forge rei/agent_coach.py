@@ -38,6 +38,9 @@ BUSINESS_OF = {
     "dyson": "agency", "eco": "agency",
     "solomon": "daycare",
     "midas": "dropship",
+    # lanes (agents_hub.LANE_OF) — so ask()/insights_for() resolve them to their business
+    "ace": "wholesale", "followup": "wholesale", "autopilot": "wholesale",
+    "daycare_replies": "daycare", "daycare_leads": "daycare", "daycare_starts": "daycare",
 }
 # Every KNOWN business (valid broadcast targets). Archived ones (business_scope) are
 # filtered at read time in insights_for, so reactivating needs no code change.
@@ -101,10 +104,12 @@ def _archived_businesses() -> set:
 def _coach_messages(limit: int = 200) -> list[dict]:
     """All coaching entries on the bus, newest first."""
     try:
-        msgs = (agent_bus.recent(limit) or {}).get("messages", [])
+        # Read the WHOLE bus, then filter: `limit` caps coaching entries, not bus rows (a limit of
+        # 40 over the newest 40 messages returned [] whenever alerts had been chattier than tips).
+        msgs = (agent_bus.recent(agent_bus.MAX_MESSAGES) or {}).get("messages", [])
     except Exception:
         return []
-    return [m for m in msgs if m.get("kind") == _COACH_KIND]
+    return [m for m in msgs if m.get("kind") == _COACH_KIND][:limit]
 
 
 def _to_entry(m: dict) -> dict:

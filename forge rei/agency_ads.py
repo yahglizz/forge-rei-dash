@@ -500,6 +500,15 @@ def _live_create_ad(token, spec, paused):
 
     camp_status = "PAUSED" if paused else "ACTIVE"
 
+    # Validate BEFORE the first POST: campaign -> adset -> creative is three separate writes, so
+    # a late creative failure used to leave orphaned campaigns/adsets in the ad account.
+    creative = spec.get("creative", {})
+    missing = [n for n, v in (("page_id", spec.get("page_id")),
+                              ("creative.link", creative.get("link"))) if not v]
+    if missing:
+        return {"ok": False, "detail": f"spec missing {', '.join(missing)} — nothing was created "
+                                       "(set META_PAGE_ID / META_DEFAULT_LINK or add them to the concept)"}
+
     # 1. Create campaign
     camp_data = urllib.parse.urlencode({
         "name": spec.get("name", "New Campaign"),
@@ -543,7 +552,6 @@ def _live_create_ad(token, spec, paused):
         return {"ok": False, "detail": f"Adset creation failed: {adset_resp}"}
 
     # 3. Create ad creative + ad
-    creative = spec.get("creative", {})
     creative_data = urllib.parse.urlencode({
         "name": f"{spec.get('name', 'Ad')} — Creative",
         "object_story_spec": json.dumps({

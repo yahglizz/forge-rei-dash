@@ -244,6 +244,34 @@ def _seat_row(r, ages=None):
             "agesMonths": sorted(ages) if ages else None}
 
 
+def _peer_coaching():
+    """Lessons other FORGE agents (Eco, Dyson…) shared with Solomon — in the PROMPT, not just learn().
+    Before this a tip only mattered after a successful playbook rewrite (self-improve is off)."""
+    try:
+        import agent_coach
+        return agent_coach.insights_block("solomon", "daycare")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _ads_method_block():
+    """The OWNER'S ad method — Eco's Four Triggers ad writer + marketing principles, read from the
+    agency skills (ONE source of truth: edit it there and both agents change). Read-only floor in
+    Solomon's constitution; learn() never sees it (it is not in _playbook_only). The daycare creed and
+    solomon-adops-craft hard rules (campaigns PAUSED, grounded numbers, daycare facts) outrank it."""
+    try:
+        import agency_agents
+        ft = (agency_agents._four_triggers_skill() or "").strip()
+        mm = (agency_agents._marketing_methodology() or "").split("\n## 3.")[0].strip()
+    except Exception:  # noqa: BLE001
+        return ""
+    if not (ft or mm):
+        return ""
+    return ("=== THE OWNER'S AD METHOD (the same method Eco runs for the agency — apply it to this "
+            "daycare's Meta ads; the daycare creed and the ad-ops hard rules above outrank it) ===\n\n"
+            + mm + ("\n\n---\n\n" + ft if ft else ""))
+
+
 def top_skills_text():
     """Solomon's constitution (top skills) for chat — so the Solomon you talk to runs on
     the same growth skills as the one that writes the brief. agents_hub looks this up."""
@@ -424,6 +452,10 @@ class SolomonEngine:
                 seen.add(rp)
                 parts.append(p.read_text(errors="ignore"))
                 sig.append((rp, p.stat().st_mtime))
+            method = _ads_method_block()
+            if method:
+                parts.append(method)
+                sig.append(("ads-method", hash(method)))
             sig = tuple(sig)
             if self._sk_mtime != sig:
                 self._sk_text = "\n\n---\n\n".join(parts)
@@ -540,6 +572,8 @@ class SolomonEngine:
             except Exception:
                 continue
             for m in (res.get("messages") or [])[:10]:
+                if m.get("kind") in ("coach", "status"):
+                    continue   # peer lessons / status pings are not delegations; leave them unread
                 mid = m.get("id")
                 if mid and mid not in seen_ids:
                     seen_ids.add(mid)
@@ -765,6 +799,7 @@ class SolomonEngine:
                if skills else "")
             + ("\n\n=== YOUR PLAYBOOK (learned rubric — apply it within the skills "
                "above) ===\n" + playbook[:4000] if playbook else "")
+            + _peer_coaching()
             + self._recent_brain_context()
         )
         live = {
@@ -844,6 +879,20 @@ class SolomonEngine:
         self._broadcast_brief(brief)
         return {"ok": True, "brief": brief, "gatherError": gather_err, "brainCommitted": committed}
 
+    def _task_eco(self, task):
+        """Solomon's 'Ads' delegation -> an open hub task for Eco (the agency's ad agent), so Eco
+        actually SEES it in chat. An assignment, never an action (rule 2). One open copy only."""
+        try:
+            import agents_hub
+            title = f"Daycare ads (from Solomon): {task[:140]}"
+            if any(r.get("agentId") == "eco" and r.get("title") == title and r.get("status") == "open"
+                   for r in agents_hub._load()):
+                return
+            agents_hub.send_task("eco", title, note="Daycare enrollment ads — use the daycare context brief "
+                                 "and the owner's ad method. Propose only; campaigns stay PAUSED.")
+        except Exception:  # noqa: BLE001
+            pass
+
     def _broadcast_brief(self, brief):
         """Post a status note + a delegation hand-off per role onto the shared bus."""
         try:
@@ -858,6 +907,8 @@ class SolomonEngine:
                 if task:
                     agent_bus.send("solomon", role.lower(), "handoff",
                                    f"[{role}] {task}", {"role": role})
+                    if role.lower() == "ads":
+                        self._task_eco(task)
         except Exception:
             pass
 

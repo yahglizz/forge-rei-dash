@@ -70,6 +70,15 @@ class DaycareAdsHonestyTest(unittest.TestCase):
         self.assertTrue(err, "no err -> the do-not-fabricate instruction never fires")
         self.assertNotIn("Bloom", repr(data))
 
+    def test_eco_overview_never_serves_demo_concepts(self):
+        """/api/daycare/eco used to return Bloom Dental's dentistry concepts under the daycare."""
+        with mock.patch.object(agency_ads, "connection",
+                               return_value={"connected": False, "source": "mock"}):
+            out = daycare_growth.eco_overview()
+        self.assertFalse(out.get("configured", True))
+        self.assertEqual(out["next"], [])
+        self.assertNotIn("Bloom", repr(out))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -22,7 +22,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 STATE = HERE / "marcus_state" / "agency_approvals.json"
-_LOCK = threading.Lock()
+# RLock: decide() holds this while an executor runs, and executors legitimately call add()
+# (agency_social.publish -> set_status('ready') -> add()). A plain Lock deadlocked Approvals,
+# Dyson, Eco and Social until restart (audit 2026-09-30). add() callers hold no other lock, so
+# re-entry cannot invert lock order.
+_LOCK = threading.RLock()
 
 KINDS = ["dyson", "workflow", "eco", "social"]
 ACTIONS = {"approve": "approved", "revise": "revision", "reject": "rejected"}

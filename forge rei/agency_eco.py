@@ -324,7 +324,7 @@ def daycare_enrollment_ideas(context_block, key, analytics_block=""):
         "Generate 3 fresh daycare enrollment concepts for A Touch of Blessings, each aimed "
         "at booking a tour. Vary the angles (trust, offer, referral, local-community, "
         "seasonal). Do not recycle the offers already listed in the brief verbatim — build "
-        "on them." + analytics
+        "on them." + analytics + _peer_coaching("solomon", "daycare")
     )
     raw = review_agent._claude(key, system, user, max_tokens=3200, model=review_agent.SMART_MODEL).strip()
     if raw.startswith("```"):
@@ -485,6 +485,15 @@ def _save(d):
 
 
 # --- public API (same shape as before) ----------------------------------------
+def _peer_coaching(agent, business):
+    """Lessons peers shared with `agent` (agent_coach) as a prompt block; "" if none/unavailable."""
+    try:
+        import agent_coach
+        return agent_coach.insights_block(agent, business)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def recommendations(account=None, client=None, extra_context=""):
     """Read-only strategy view (no persistence, no approval push).
 
@@ -614,6 +623,14 @@ def _approve_ad(rec_id, concept_index=0):
 
     spec = {
         "account_id": acct.get("id", ""),
+        # agency_ads.create_ad reads ad_account_id / page_id / creative{} — the flat keys below
+        # were never read, so every Eco approve died at "spec.ad_account_id required".
+        "ad_account_id": acct.get("id", ""),
+        "page_id": concept.get("pageId") or os.environ.get("META_PAGE_ID", ""),
+        "creative": {"message": concept.get("primaryText", ""),
+                     "headline": concept.get("headline", ""),
+                     "link": concept.get("link") or os.environ.get("META_DEFAULT_LINK", ""),
+                     "description": ""},
         "name": concept.get("title", f"Eco Concept {idx + 1}"),
         "angle": concept.get("angle", ""),
         "hook": concept.get("hook", ""),

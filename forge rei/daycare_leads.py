@@ -645,6 +645,23 @@ def view():
     }
 
 
+_SHARE_EVERY = 6 * 3600
+_share_at = 0.0
+
+
+def _maybe_share_ads():
+    """Solomon -> Eco coaching with the daycare's real ad results (zero Claude, deduped, best-effort)."""
+    global _share_at
+    if time.time() - _share_at < _SHARE_EVERY:
+        return
+    _share_at = time.time()
+    try:
+        import daycare_growth
+        daycare_growth.share_ad_results()
+    except Exception as e:  # noqa: BLE001 — coaching must never hurt the lead sweep
+        print(f"[daycare_leads] ad share: {type(e).__name__}: {str(e)[:100]}")
+
+
 def run_forever(client):
     """Background loop (thread name `daycare_leads`). Skips work while the crew is
     clocked out; beats the heartbeat every tick either way."""
@@ -658,4 +675,5 @@ def run_forever(client):
         except Exception as e:  # noqa: BLE001
             err = type(e).__name__
         forge_heartbeat.beat("daycare_leads", INTERVAL, "Solomon · Leads", error=err)
+        _maybe_share_ads()
         time.sleep(INTERVAL)
