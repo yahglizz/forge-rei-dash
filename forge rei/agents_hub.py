@@ -132,7 +132,7 @@ AGENTS = [
      # "solomon" (the scheduled-brief loop) is OFF by default and retired at boot — a retired loop
      # in `hb` would read the whole row as DISABLED, so it is only listed when the brief is on.
      "hb": (["solomon"] if os.environ.get("FORGE_SOLOMON_BRIEF", "0") != "0" else [])
-           + ["daycare_replies", "daycare_leads", "daycare_starts"], "queue": "daycare_replies"},
+           + ["daycare_replies", "daycare_leads", "daycare_starts", "daycare_ads"], "queue": "daycare_replies"},
     {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "🛒",
      "role": "E-com Director — the whole store",
      "blurb": "Product research, creative + ads, fulfillment and support. Ranks the "
@@ -402,6 +402,7 @@ def _director_chat(agent_id, message, history):
         + (("\n\n=== YOUR PLAYBOOK ===\n" + playbook) if playbook else "")
         + _lanes_block(agent_id)
         + _open_tasks_block(agent_id)
+        + _peer_block(agent_id)
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
@@ -411,6 +412,15 @@ def _director_chat(agent_id, message, history):
         return {"reply": f"Hit an error reaching my brain: {e}", "error": str(e),
                 "agent": meta["name"]}
     return {"reply": reply or "On it.", "agent": meta["name"]}
+
+
+def _peer_block(agent_id):
+    """Peer coaching addressed to this agent (agent_coach) — never raises, "" when none."""
+    try:
+        import agent_coach
+        return agent_coach.insights_block(main_agent(agent_id))
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def lanes_block(agent_id):

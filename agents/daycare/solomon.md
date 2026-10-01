@@ -245,3 +245,15 @@ Spec: `docs/superpowers/specs/2026-09-29-daycare-start-date-design.md`. Code: `f
 - **Outward (after confirm only):** on the start day, first tick 8am–9pm ET: fresh PIN (`provision-user reset-pin`, never stored) → `daycare_ghl.start_day_text` via `daycare_replies.send_manual` (opt-out/DND/window) → tag `app-login-sent`. Marked `sending` first, so a crash never double-texts; 3 failures → Owner Actions FIX.
 - **Safety:** a different date in the thread after confirm reopens it to `proposed` (sweep runs before send each tick). Owner edits/dismissals beat older evidence.
 - **Verify:** `cd "forge rei" && python3 test_daycare_starts.py`; `GET /api/daycare/starts` → `lastRunAt` fresh.
+
+## 13. Lane: Solomon · Ads — the daily ad optimizer + creative loop (added 2026-09-30)
+
+Code: `forge rei/daycare_ads_autopilot.py` (+ Pipeboard reads/writes in `forge rei/pipeboard_io.py`). Skill: `forge-daycare/skills/daycare-ad-optimizer.md` (marketing-skills Meta decision system, distilled; edit it and the next run uses it). UI: Growth → Autopilot.
+
+- **Trigger:** thread `daycare_ads` wakes every 15 min on the box; the cycle runs once per local day after `FORGE_DAYCARE_ADS_HOUR` (default 8), on COMPLETE days only. `FORGE_DAYCARE_ADS=0` retires it. Heartbeat `daycare_ads` "Solomon · Ads", bills to `solomon`.
+- **Reads:** Pipeboard (daycare token from `daycare.env`): account health, campaigns/ad sets/ads, 14 days of per-day ad rows + a 14-day window row for frequency. Competitor ads (Meta Ad Library via `dropship_adspy`, Apify; cached 7 days; ads running ≥21 days = the market's winners) when `APIFY_TOKEN` exists — else "Unknown", never invented.
+- **Decides (pure code, `evaluate`):** thresholds are multiples of TCPL (`FORGE_DAYCARE_ADS_TCPL`, $40): 3×T data gate; kill = zero leads at 3×T or CPL >1.5×T at 4×T; delivery-kill a starved mature ad; scale +20% (CPL ≤T, ≥3 leads, 7d ≤1.2×T, freq <3, still converting), cut −25% (7d CPL >1.5×T or no leads). Claude (FAST tier) may only veto/annotate and writes the owner note + creative brief; **no Anthropic credit = rules-only**, still works.
+- **Writes (only after the mode allows):** `shadow` (default) = proposals + Telegram, nothing on Meta; `auto` = pause/budget/activate with `guard()` (cooldown 5d up / 2d down, ≤+20% step, account ceiling `FORGE_DAYCARE_ADS_MAX_DAILY`, never the last active ad, ≤4/run), each write dry-run → real → re-read verified, `action_log` row, `undo`. Creative loop: ≤1 new test per 3 days, ≤2 in their 14-day read, ad-count ceiling, built PAUSED inside the best delivering ad set (no new spend dimension), Higgsfield art disclosed to Meta (`ai_media`).
+- **Gates:** only the operator flips the mode (CLAUDE.md §2 exception). Hold one entity: `POST /api/daycare/ads-auto/hold`.
+- **Routes:** `GET /api/daycare/ads-auto/status`; `POST /api/daycare/ads-auto/{run,mode,approve,reject,undo,hold}`. Telegram: Solomon's business-partner chat can `approve` proposals through the same routes (tap-gated).
+- **Verify:** `cd "forge rei" && python3 test_daycare_ads_auto.py`; `GET …/ads-auto/status` → `wired`, `lastRun`; `state: forge rei/marcus_state/daycare_ads_auto.json`.

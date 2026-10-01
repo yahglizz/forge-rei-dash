@@ -1033,6 +1033,7 @@ import agency_offers  # noqa: E402
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
+import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
@@ -1855,7 +1856,7 @@ def _contract_poll_forever():
 _WATCHDOG_STATE = {}   # loop -> last status we alerted on (transition-based dedupe)
 # Loop-down / recovered alerts go to the owning business's own Telegram chat, not HQ
 # (2026-09-30: Solomon's lanes were spamming the main chat). Unlisted loops stay in HQ.
-_WATCHDOG_BIZ = {"solomon": "daycare", "daycare_replies": "daycare",
+_WATCHDOG_BIZ = {"solomon": "daycare", "daycare_replies": "daycare", "daycare_ads": "daycare",
                  "daycare_leads": "daycare", "daycare_starts": "daycare",
                  "scout": "wholesale", "atlas": "wholesale", "followup": "wholesale",
                  "marcus_sms": "wholesale", "contract": "wholesale", "midas": "dropship"}
@@ -4484,7 +4485,9 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/family/run", "/api/daycare/family/learn",
                 "/api/daycare/adops/run", "/api/daycare/adops/learn",
                 "/api/daycare/nova/generate", "/api/daycare/nova/image",
-                "/api/daycare/nova/create-ad", "/api/daycare/nova/discard"}:
+                "/api/daycare/nova/create-ad", "/api/daycare/nova/discard",
+                "/api/daycare/ads-auto/run", "/api/daycare/ads-auto/mode", "/api/daycare/ads-auto/approve",
+                "/api/daycare/ads-auto/reject", "/api/daycare/ads-auto/undo", "/api/daycare/ads-auto/hold"}:
             return self._send_json(
                 {"ok": False, "error": "unknown endpoint", "code": "not_found"}, 404)
         try:
@@ -4542,6 +4545,20 @@ class Handler(BaseHTTPRequestHandler):
                 result = daycare_ads_studio.create_ad(body.get("id"))
             elif path == "/api/daycare/nova/discard":
                 result = daycare_ads_studio.discard(body.get("id"))
+            # --- Solomon · Ads (rule-2 exception, operator opt-in: shadow default, auto = one POST) ---
+            elif path == "/api/daycare/ads-auto/run":
+                result = daycare_ads_autopilot.run_once(force=True)
+            elif path == "/api/daycare/ads-auto/mode":
+                result = daycare_ads_autopilot.set_mode(body.get("mode"))
+            elif path == "/api/daycare/ads-auto/approve":
+                result = daycare_ads_autopilot.approve(body.get("id"))
+            elif path == "/api/daycare/ads-auto/reject":
+                result = daycare_ads_autopilot.reject(body.get("id"))
+            elif path == "/api/daycare/ads-auto/undo":
+                result = daycare_ads_autopilot.undo(body.get("id"))
+            elif path == "/api/daycare/ads-auto/hold":
+                result = daycare_ads_autopilot.hold(body.get("entityId"), bool(body.get("on", True)))
+            # --- /Solomon · Ads ---
             elif path == "/api/daycare/stripe/send-invoice":
                 ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
                 result = stripe_io.send_invoice(ctx)
@@ -4675,6 +4692,7 @@ class Handler(BaseHTTPRequestHandler):
             # Nova's ad studio — saved ad packages + what's actually wired.
             "/api/daycare/nova/ideas": lambda session: daycare_ads_studio.saved(),
             "/api/daycare/nova/status": lambda session: daycare_ads_studio.status(),
+            "/api/daycare/ads-auto/status": lambda session: daycare_ads_autopilot.status(),
             "/api/daycare/director/status": lambda session: SOLOMON.status(),
             "/api/daycare/director/overview": lambda session: SOLOMON.overview(),
             "/api/daycare/director/brief": lambda session: SOLOMON.brief(),
@@ -5385,6 +5403,16 @@ def main():
         else:
             forge_heartbeat.retire("daycare_leads")
         # --- /WP-E ---
+        # Solomon · Ads: daily optimizer (what to turn up/down) + creative loop, read through
+        # Pipeboard. Default mode is SHADOW (proposes, writes nothing); the operator flips
+        # `auto` with one POST. FORGE_DAYCARE_ADS=0 retires the loop.
+        if os.environ.get("FORGE_DAYCARE_ADS", "1") != "0":
+            print(f"   Solomon · Ads: daily ad optimizer · mode={daycare_ads_autopilot.get_mode()}"
+                  f" · {'Pipeboard wired' if daycare_ads_autopilot.configured() else 'Pipeboard NOT configured'}")
+            threading.Thread(target=daycare_ads_autopilot.run_forever, daemon=True,
+                             name="daycare_ads").start()
+        else:
+            forge_heartbeat.retire("daycare_ads")
         # Solomon · Starts: start dates from the threads → owner confirm → start-day login
         # text (the confirm tap is its approval). Zero Claude. FORGE_DAYCARE_STARTS=0 = off.
         if os.environ.get("FORGE_DAYCARE_STARTS", "1") != "0":

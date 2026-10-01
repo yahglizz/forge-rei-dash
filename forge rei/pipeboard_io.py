@@ -20,8 +20,10 @@ not_configured read — never a silent zero.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -42,8 +44,24 @@ class PipeboardAuthError(PipeboardError):
     """Pipeboard refused our token, or its Meta login expired — owner must fix it."""
 
 
+_tl = threading.local()
+
+
+@contextlib.contextmanager
+def creds(tok: str, url: str = ""):
+    """Run Pipeboard calls on THIS thread with one business's token (the daycare's, not
+    the agency's) — no process-wide env swap, so a long run never holds a lock the UI needs."""
+    prev = getattr(_tl, "c", None)
+    _tl.c = (tok or "", url or "")
+    try:
+        yield
+    finally:
+        _tl.c = prev
+
+
 def token() -> str:
-    return (os.environ.get("PIPEBOARD_API_TOKEN") or "").strip()
+    c = getattr(_tl, "c", None)
+    return ((c[0] if c and c[0] else os.environ.get("PIPEBOARD_API_TOKEN")) or "").strip()
 
 
 def configured() -> bool:
@@ -71,7 +89,8 @@ def _rpc(method: str, params: dict | None = None, timeout: int = 60) -> dict:
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method,
                        "params": params or {}}).encode()
     req = urllib.request.Request(
-        os.environ.get("PIPEBOARD_MCP_URL") or DEFAULT_URL, data=body, method="POST",
+        ((getattr(_tl, "c", None) or ("", ""))[1] or os.environ.get("PIPEBOARD_MCP_URL") or DEFAULT_URL),
+        data=body, method="POST",
         headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json",
                  "Accept": "application/json, text/event-stream", "User-Agent": _UA})
     last = None
@@ -183,7 +202,7 @@ def analytics(account_id: str, days: int = 7) -> dict:
     for r in rows:
         a = {"spend": _num(r.get("spend")), "impressions": int(_num(r.get("impressions"))),
              "reach": int(_num(r.get("reach"))), "clicks": int(_num(r.get("clicks"))),
-             "leads": _action(r, "lead", "onsite_conversion.lead_grouped"),
+             "leads": lead_count(r),
              "conversions": _action(r, "purchase", "omni_purchase"), "revenue": 0.0}
         cid = str(r.get("campaign_id") or r.get("campaign_name") or "unknown")
         c = camps.setdefault(cid, {"id": cid, "name": r.get("campaign_name") or "Unknown",
@@ -209,6 +228,105 @@ def analytics(account_id: str, days: int = 7) -> dict:
         "weakAds": sorted(ads_out, key=key)[:3],
         "source": "live", "dataSource": "live", "via": "pipeboard", "dateRange": rng,
     }
+
+
+# ── daily-optimizer reads (fresh, uncached) ───────────────────────────────────
+# Lead events, first match wins (NOT summed — one lead is reported under several action types).
+LEAD_ACTIONS = ("lead", "offsite_conversion.fb_pixel_lead", "onsite_web_lead",
+                "onsite_conversion.lead_grouped")
+
+
+def lead_count(row: dict) -> int:
+    return _action(row, *LEAD_ACTIONS)
+
+
+def account_info(account_id: str) -> dict:
+    return call("get_account_info", {"account_id": account_id})
+
+
+def daily_ad_rows(account_id: str, since: str, until: str) -> list[dict]:
+    """One row per (day, ad) with spend/impressions/clicks/actions, each tagged `day`.
+    Pipeboard returns time_breakdown=day as segmented_metrics[].metrics (one ad per segment)."""
+    d = call("get_insights", {"object_id": account_id, "level": "ad", "limit": 1000,
+                              "time_breakdown": "day",
+                              "time_range": {"since": since, "until": until}})
+    return [dict(seg["metrics"], day=seg.get("period_start") or seg.get("period"))
+            for seg in d.get("segmented_metrics") or []
+            if isinstance(seg.get("metrics"), dict) and seg["metrics"].get("ad_id")]
+
+
+def window_ad_rows(account_id: str, since: str, until: str) -> list[dict]:
+    """One row per ad over the whole window — the only place Meta's reach/frequency is right
+    (reach is not additive across days)."""
+    d = call("get_insights", {"object_id": account_id, "level": "ad", "limit": 500,
+                              "time_range": {"since": since, "until": until}})
+    return d.get("data") or []
+
+
+def structure(account_id: str) -> dict:
+    """Live campaigns/adsets/ads with status + budgets (budget strings are minor units)."""
+    out = {}
+    for key, tool in (("campaigns", "get_campaigns"), ("adsets", "get_adsets"), ("ads", "get_ads")):
+        out[key] = call(tool, {"account_id": account_id, "limit": 200}).get("data") or []
+    return out
+
+
+# ── WRITES — called ONLY by daycare_ads_autopilot, which owns the mode switch (off/shadow/
+# auto), the budget guardrails and the undo ledger. CLAUDE.md rule 2: nothing else may spend,
+# pause or change a budget. Every write supports dry_run (Meta validates, nothing persists).
+def _w(tool: str, args: dict, dry_run: bool) -> dict:
+    if dry_run:
+        args = dict(args, dry_run=True)
+    out = call(tool, args)
+    clear_cache()
+    return out
+
+
+def set_status(kind: str, obj_id: str, status: str, dry_run: bool = False) -> dict:
+    """kind = campaign|adset|ad; status = ACTIVE|PAUSED. Never DELETED/ARCHIVED — pause only."""
+    if status not in ("ACTIVE", "PAUSED"):
+        raise PipeboardError(f"refusing status {status!r} — pause/activate only")
+    tool, key = {"campaign": ("update_campaign", "campaign_id"),
+                 "adset": ("update_adset", "adset_id"), "ad": ("update_ad", "ad_id")}[kind]
+    return _w(tool, {key: obj_id, "status": status}, dry_run)
+
+
+def set_budget(kind: str, obj_id: str, daily_budget_cents: int, dry_run: bool = False) -> dict:
+    """kind = campaign (CBO) | adset (ABO). Minor units (cents)."""
+    tool, key = {"campaign": ("update_campaign", "campaign_id"),
+                 "adset": ("update_adset", "adset_id")}[kind]
+    return _w(tool, {key: obj_id, "daily_budget": int(daily_budget_cents)}, dry_run)
+
+
+def upload_image(account_id: str, image_url: str, name: str = "") -> str:
+    """Upload a public image URL; returns Meta's image hash."""
+    d = call("upload_ad_image", {"account_id": account_id, "image_url": image_url,
+                                 **({"name": name} if name else {})})
+    h = d.get("hash") or d.get("image_hash")
+    if not h:                                 # response nests the hash under images.<name>.hash
+        for v in (d.get("images") or {}).values():
+            h = (v or {}).get("hash") or h
+    if not h:
+        raise PipeboardError("image upload returned no hash")
+    return h
+
+
+def create_creative(account_id: str, **kw) -> str:
+    d = _w("create_ad_creative", dict(account_id=account_id, **kw), False)
+    cid = d.get("id") or d.get("creative_id") or (d.get("details") or {}).get("id")
+    if not cid:
+        raise PipeboardError(f"creative create returned no id: {str(d)[:160]}")
+    return str(cid)
+
+
+def create_ad(account_id: str, name: str, adset_id: str, creative_id: str) -> str:
+    """Always created PAUSED — activation is a separate, guarded set_status."""
+    d = _w("create_ad", {"account_id": account_id, "name": name, "adset_id": adset_id,
+                         "creative_id": creative_id, "status": "PAUSED"}, False)
+    aid = d.get("id") or d.get("ad_id")
+    if not aid:
+        raise PipeboardError(f"ad create returned no id: {str(d)[:160]}")
+    return str(aid)
 
 
 def clear_cache() -> None:

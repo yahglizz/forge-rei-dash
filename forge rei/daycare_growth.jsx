@@ -265,13 +265,99 @@ function DaycareNova() {
   </div>;
 }
 
-function DaycareGrowth() {
-  const [tab, setTab] = useStateDca("ideas");
+// ── Solomon · Ads — the daily optimizer. Shadow = proposes (one tap each); Auto = executes inside
+// hard guardrails; Off = nothing. Only the operator flips the mode (CLAUDE.md §2 exception).
+const DCAA_MODES = [["off", "Off", "Does nothing."],
+  ["shadow", "Shadow", "Decides every day, tells you, changes nothing until you tap Approve."],
+  ["auto", "Auto", "Pauses losers, cuts bleeding budgets 25%, scales winners +20% — on its own, inside the guardrails."]];
+
+function DcaaPill({ on, label }) {
+  const c = on ? "#22C55E" : "#F4B860";
+  return <span className="dc-live dc-mock" style={{ color: c, borderColor: c, marginRight: 6 }}><i style={{ background: c }} /> {label}{on ? "" : " — not wired"}</span>;
+}
+
+function DaycareAdsAuto() {
+  const res = window.DcxUseResource("/ads-auto/status", "dc-ads-auto", 30000);
+  const [busy, setBusy] = useStateDca("");
+  const [msg, setMsg] = useStateDca(null);
+  const d = res.data || {};
+  const cfgd = d.config || {}, wired = d.wired || {}, run = d.lastRun || null;
+  const act = async (label, path, body, okMsg) => {
+    setBusy(label); setMsg(null);
+    try {
+      const out = await window.DcxRequest(path, { body: body || {} });
+      if (out && out.ok === false) throw new Error(out.error || "Not applied.");
+      setMsg({ ok: true, text: okMsg || "Done." }); if (res.refresh) res.refresh();
+    } catch (e) { setMsg({ ok: false, text: (e && e.message) || "Failed." }); }
+    finally { setBusy(""); }
+  };
+  const setMode = (m) => {
+    if (m === "auto" && !window.confirm("Switch to AUTO? Solomon will pause losing ads, cut budgets 25% and scale winners +20% on his own — never above $" + (cfgd.maxDaily || "?") + "/day total. Every action is logged and undoable, and you can switch it off any time.")) return;
+    act("mode", "/ads-auto/mode", { mode: m }, "Mode is now " + m + ".");
+  };
+  const ads = ((run && run.entities) || []).filter((e) => e.level === "ad");
+  const money = (v) => (v == null ? "—" : window.DcxMoney(DcaNum(v)));
+  const when = (ts) => ts ? new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+  const fmt = (a) => a.kind === "budget"
+    ? (a.to > a.from ? "▲ " : "▼ ") + a.name + ": $" + (a.from / 100).toFixed(0) + " → $" + (a.to / 100).toFixed(0) + "/day"
+    : (a.to === "PAUSED" ? "⏸ Pause " : "▶ Turn on ") + a.level + " “" + a.name + "”";
+
   return <div className="dc-page">
-    <div className="dc-hero" style={{ marginBottom: 14 }}><div><div className="dc-eyebrow">GROWTH ENGINE</div><h1>Grow enrollment. Run the ads. Watch the socials.</h1><p>The daycare's marketing command center — <b>Solomon</b> drafts complete enrollment ads from your business brief and builds them on Meta, PAUSED. Going live, changing budget, and publishing posts stay behind your one-tap approval.</p><div className="dc-hero-actions"><button className={tab === "ideas" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ideas")}><window.Icons.Bot size={15} /> Ad Studio</button><button className={tab === "ads" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ads")}><window.Icons.Dollar size={15} /> Ads</button><button className={tab === "social" ? "dc-primary" : "dc-outline"} onClick={() => setTab("social")}><window.Icons.Bell size={15} /> Social</button></div></div></div>
-    {tab === "ideas" ? <DaycareNova /> : tab === "ads" ? <DaycareAds /> : <DaycareSocial />}
+    <window.DcxPageHead title="Ads autopilot" eyebrow="GROWTH · SOLOMON"
+      copy={"Every morning Solomon reads yesterday's results from Meta (via Pipeboard), judges each ad against a $" + (cfgd.tcpl || "—") + " target cost per lead, and decides what to turn up and what to turn down. Then he drafts and draws one new test ad from what's winning in your market."}
+      actions={<button className="dc-outline" onClick={() => act("run", "/ads-auto/run", {}, "Run finished — see below.")} disabled={!!busy}>{busy === "run" ? "Running…" : "Run now"}</button>} />
+    <window.DcxState loading={res.loading && !res.data} error={res.error} onRetry={res.refresh} />
+    {msg && <div className="dc-form-hint" style={{ color: msg.ok ? undefined : "#EF4444" }}>{msg.text}</div>}
+
+    <div className="card card-pad dc-panel">
+      <div className="dc-panel-head"><div><div className="card-title">Mode</div><div className="faint">{(DCAA_MODES.find((m) => m[0] === d.mode) || [])[2]}</div></div></div>
+      <div className="dc-hero-actions">{DCAA_MODES.map((m) => <button key={m[0]} className={d.mode === m[0] ? "dc-primary" : "dc-outline"} disabled={!!busy || !d.mode} onClick={() => d.mode !== m[0] && setMode(m[0])}>{m[1]}</button>)}</div>
+      <div style={{ marginTop: 10 }}>
+        <DcaaPill on={wired.pipeboard} label="Pipeboard (Meta)" /><DcaaPill on={wired.claude} label="Claude" />
+        <DcaaPill on={wired.higgsfield} label="Higgsfield art" /><DcaaPill on={wired.competitorIntel} label="Competitor ads (Apify)" />
+      </div>
+      <div className="faint" style={{ marginTop: 8 }}>Guardrails: target CPL ${cfgd.tcpl} · total daily budget never above ${cfgd.maxDaily} · +{Math.round((cfgd.step || 0) * 100)}% / −{Math.round((cfgd.cutStep || 0) * 100)}% steps · 5-day cooldown · never pauses the last ad in an ad set · pause only, never delete.</div>
+    </div>
+
+    {d.lastError && <div className="dc-form-hint" style={{ color: "#EF4444" }}><window.Icons.Shield size={14} /> Last run failed: {d.lastError}</div>}
+
+    {run && <div className="card card-pad dc-panel">
+      <div className="dc-panel-head"><div><div className="card-title">Latest read — {run.day}</div><div className="faint">{run.mode} mode · {run.judge === "claude" ? "analyst reviewed" : "rules only"} · {money(run.totalBudget)}/day total budget · leads are Meta pixel leads, not enrollments</div></div></div>
+      <p style={{ margin: "6px 0" }}>{run.note}</p>
+      {run.creative && <div className="faint">🎨 {run.creative.ran ? "New test: " + run.creative.title + (run.creative.activated ? " (live)" : " (built PAUSED)") : "No new test — " + (run.creative.why || "n/a")}</div>}
+    </div>}
+
+    {(d.pending || []).length > 0 && <div className="card card-pad dc-panel">
+      <div className="dc-panel-head"><div><div className="card-title">Waiting for your tap</div><div className="faint">Shadow-mode proposals — nothing has changed on Meta.</div></div></div>
+      {d.pending.map((a) => <div key={a.aid} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+        <div style={{ flex: 1 }}><b>{fmt(a)}</b><div className="faint">{a.reason}</div></div>
+        <button className="dc-primary" disabled={!!busy} onClick={() => act("ap" + a.aid, "/ads-auto/approve", { id: a.aid }, "Applied on Meta.")}>Approve</button>
+        <button className="dc-outline" disabled={!!busy} onClick={() => act("rj" + a.aid, "/ads-auto/reject", { id: a.aid }, "Skipped.")}>Skip</button>
+      </div>)}
+    </div>}
+
+    {ads.length > 0 && <div className="card dc-table-wrap"><table className="lead-table dc-table"><thead><tr><th>Ad</th><th>Verdict</th><th>14d spend</th><th>Leads</th><th>CPL</th><th>Freq</th><th>Why</th></tr></thead><tbody>
+      {ads.map((e) => <tr key={e.id}><td><b>{e.name}</b></td><td>{e.verdict}</td><td className="tabnum">{money(e.spend14)}</td><td className="tabnum">{e.leads14}</td><td className="tabnum">{money(e.cpl14)}</td><td className="tabnum">{e.freq ? DcaNum(e.freq).toFixed(1) : "—"}</td><td className="faint">{e.reason}</td></tr>)}
+    </tbody></table></div>}
+    {run && !ads.length && <div className="dc-all-clear"><window.Icons.Dollar size={22} /><div><b>Nothing is delivering</b><span>No campaign, ad set and ad are all ACTIVE together, so there is nothing to turn up or down. Turn a campaign on in Meta (or approve a launch) and Solomon takes it from there.</span></div></div>}
+
+    {(d.recent || []).length > 0 && <div className="card card-pad dc-panel">
+      <div className="dc-panel-head"><div><div className="card-title">What he did</div><div className="faint">Every action is logged. Executed ones can be undone while Meta still shows the value he set.</div></div></div>
+      {d.recent.slice(0, 12).map((a) => <div key={a.aid} style={{ display: "flex", gap: 10, alignItems: "center", padding: "6px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+        <div style={{ flex: 1 }}><b>{fmt(a)}</b> <span className="faint">· {a.status}{a.verified === false ? " · NOT VERIFIED on Meta" : ""} · {when(a.ts)}</span><div className="faint">{a.why || a.reason}</div></div>
+        {a.status === "executed" && (a.kind === "budget" || a.kind === "status") && <button className="dc-outline" disabled={!!busy} onClick={() => act("un" + a.aid, "/ads-auto/undo", { id: a.aid }, "Undone.")}>Undo</button>}
+      </div>)}
+    </div>}
   </div>;
 }
 
-Object.assign(window, { DaycareGrowth, DaycareAds, DaycareSocial,
+function DaycareGrowth() {
+  const [tab, setTab] = useStateDca("ideas");
+  return <div className="dc-page">
+    <div className="dc-hero" style={{ marginBottom: 14 }}><div><div className="dc-eyebrow">GROWTH ENGINE</div><h1>Grow enrollment. Run the ads. Watch the socials.</h1><p>The daycare's marketing command center — <b>Solomon</b> drafts complete enrollment ads from your business brief and builds them on Meta, PAUSED. Going live, changing budget, and publishing posts stay behind your one-tap approval — unless you switch Autopilot to Auto.</p><div className="dc-hero-actions"><button className={tab === "ideas" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ideas")}><window.Icons.Bot size={15} /> Ad Studio</button><button className={tab === "ads" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ads")}><window.Icons.Dollar size={15} /> Ads</button><button className={tab === "auto" ? "dc-primary" : "dc-outline"} onClick={() => setTab("auto")}><window.Icons.Shield size={15} /> Autopilot</button><button className={tab === "social" ? "dc-primary" : "dc-outline"} onClick={() => setTab("social")}><window.Icons.Bell size={15} /> Social</button></div></div></div>
+    {tab === "ideas" ? <DaycareNova /> : tab === "ads" ? <DaycareAds /> : tab === "auto" ? <DaycareAdsAuto /> : <DaycareSocial />}
+  </div>;
+}
+
+Object.assign(window, { DaycareGrowth, DaycareAds, DaycareSocial, DaycareAdsAuto,
   DaycareNova, DcaNovaCard });
