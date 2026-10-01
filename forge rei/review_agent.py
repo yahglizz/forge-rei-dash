@@ -176,13 +176,14 @@ def _circuit_gate(req):
         key = _req_key(req)
         fp = forge_heartbeat._ai_fp(key)
         h = forge_heartbeat.ai_health()
-        if gap <= 0 or fp not in (h.get("hardBy") or {}):
-            return
         now = time.time()
+        down = fp in (h.get("hardBy") or {})
         with _PROBE_LOCK:
             wait = gap - (now - _PROBE_AT.get(fp, 0))
-            if wait <= 0:
-                _PROBE_AT[fp] = now        # this call is the probe
+            # Stamp EVERY call we let through: a failure then starts the quiet window at once,
+            # and while down, a pass-through is the probe.
+            if gap <= 0 or not down or wait <= 0:
+                _PROBE_AT[fp] = now
                 return
         why = (h.get("lastError") or h.get("reason") or "Anthropic credit balance exhausted")
     except Exception:  # noqa: BLE001

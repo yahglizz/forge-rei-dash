@@ -279,6 +279,7 @@ class ReviewAgentHookTest(_TempState):
     def test_success_records_ok_and_clears_outage(self):
         import review_agent
         fh.ai_fail(400, AiHealthTest.CREDIT, key="k")   # same credential _claude uses below
+        review_agent._PROBE_AT.clear()                  # breaker: probe window has elapsed
         resp = _FakeResp({"content": [{"type": "text", "text": "hello"}],
                           "stop_reason": "end_turn", "usage": {}})
         with mock.patch("urllib.request.urlopen", return_value=resp), \
@@ -430,7 +431,8 @@ class MetaAuthCacheTest(unittest.TestCase):
         self.ads = agency_ads
         agency_ads._AUTH_DEAD.clear()
         self._env = mock.patch.dict(os.environ, {"META_ACCESS_TOKEN": "unit-test-token-not-real",
-                                                 "META_AD_ACCOUNT_MAP": ""})
+                                                 "META_AD_ACCOUNT_MAP": "",
+                                                 "PIPEBOARD_API_TOKEN": ""})  # Pipeboard path wins when keyed
         self._env.start()
 
     def tearDown(self):

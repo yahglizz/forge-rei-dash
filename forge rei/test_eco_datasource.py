@@ -6,6 +6,7 @@ import os
 
 os.environ.pop("META_ACCESS_TOKEN", None)
 os.environ.pop("META_AD_ACCOUNT_MAP", None)
+os.environ.pop("PIPEBOARD_API_TOKEN", None)   # Pipeboard path wins when keyed
 
 import agency_ads
 import agency_eco
