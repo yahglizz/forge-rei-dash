@@ -21,6 +21,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import pipeboard_io
+
 # --- MOCK ad accounts, one per demo client ----------------------------------
 _ACCOUNTS = [
     {"id": "act_1001", "name": "Bloom Dental — Meta", "clientId": "demo-bloom",
@@ -371,8 +373,22 @@ def _auth_dead(token, acct_id=None):
 # --- /WP-A ---
 
 
+def _pb_map():
+    try:
+        m = json.loads(os.environ.get("META_AD_ACCOUNT_MAP") or "{}")
+        return m if isinstance(m, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
 def connection():
     """Connection state — connected=True when token present, source flag included."""
+    if pipeboard_io.configured():        # Pipeboard wins when keyed: it owns Meta's token refresh
+        if pipeboard_io.auth_dead():
+            return {"connected": False, "hasToken": True, "source": "auth_error", "via": "pipeboard",
+                    "todo": "PIPEBOARD_API_TOKEN was rejected (or its Meta login expired) — re-paste "
+                            "the token / reconnect at pipeboard.co/connections (retried every 15 min)."}
+        return {"connected": True, "hasToken": True, "source": "live", "via": "pipeboard", "todo": None}
     token = os.environ.get("META_ACCESS_TOKEN", "")
     has_token = bool(token)
     if has_token and _auth_dead(token):   # WP-A — cached "not connected", no Meta call
@@ -394,6 +410,13 @@ def connection():
 
 def accounts():
     """Return ad accounts. Live: reads META_AD_ACCOUNT_MAP. Else: mock _ACCOUNTS."""
+    if pipeboard_io.configured():
+        amap = _pb_map() or ({"default": pipeboard_io.default_account()}
+                             if pipeboard_io.default_account() else {})
+        if amap:
+            return {"accounts": [{"id": a, "name": f"{c} — Meta (Pipeboard)",
+                                  "clientId": c, "clientName": c} for c, a in amap.items()],
+                    "connection": connection()}
     token = os.environ.get("META_ACCESS_TOKEN", "")
     if token:
         raw_map = os.environ.get("META_AD_ACCOUNT_MAP", "")
@@ -412,7 +435,18 @@ def accounts():
 
 
 def analytics(account=None, client=None, days=7):
-    """Aggregate analytics. Live when META_ACCESS_TOKEN present; mock fallback."""
+    """Aggregate analytics. Live when Pipeboard or META_ACCESS_TOKEN is present; mock fallback."""
+    if pipeboard_io.configured():
+        acct_id = account or _pb_map().get(client) or pipeboard_io.default_account()
+        if acct_id and not pipeboard_io.auth_dead():
+            try:
+                out = pipeboard_io.analytics(acct_id, days)
+                out["connection"] = connection()
+                return out
+            except Exception as e:   # noqa: BLE001 — fall back to an honestly-labeled mock
+                import sys
+                print(f"[ads] pipeboard fetch failed, falling back to mock: {e}", file=sys.stderr)
+        return _mock_analytics(account=account, client=client, days=days)
     token = os.environ.get("META_ACCESS_TOKEN", "")
     if token:
         acct_id = account
