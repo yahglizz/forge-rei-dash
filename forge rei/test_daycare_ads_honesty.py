@@ -19,6 +19,14 @@ import daycare_growth
 
 
 class DaycareAdsHonestyTest(unittest.TestCase):
+    def setUp(self):
+        # Hermetic: these cases model a daycare with NO Pipeboard key and an unmapped Meta
+        # token. The real daycare.env is keyed for Pipeboard now, so never read it here.
+        for p in (mock.patch.object(daycare_growth, "_daycare_creds", return_value={}),
+                  mock.patch.dict("os.environ", {"PIPEBOARD_API_TOKEN": ""})):
+            p.start()
+            self.addCleanup(p.stop)
+
     def test_demo_account_is_never_served_as_daycare_data(self):
         """Token present, no account map -> honest not-configured, NOT Bloom Dental."""
         with mock.patch.object(agency_ads, "connection",
