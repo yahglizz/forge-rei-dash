@@ -842,6 +842,18 @@ def api_dashboard(_q):
     convos = f_convos_r.get("conversations", []) or []
     out["totalConversations"] = f_convos_r.get("total", len(convos))
     out["activeConversations"] = sum(1 for c in convos if (c.get("unreadCount") or 0) > 0)
+    out["recentConversations"] = [
+        {
+            "id": c.get("id"),
+            "contactId": c.get("contactId"),
+            "name": c.get("fullName") or c.get("contactName") or "(unknown)",
+            "phone": c.get("phone") or "",
+            "lastMessage": c.get("lastMessageBody") or "",
+            "lastMessageDate": c.get("lastMessageDate"),
+            "unread": c.get("unreadCount", 0) or 0,
+        }
+        for c in convos[:6]
+    ]
 
     open_opps = [o for o in opps if o["status"] == "open"]
     out["openOpportunities"] = len(open_opps)
@@ -849,6 +861,19 @@ def api_dashboard(_q):
     out["appointments"] = sum(
         1 for o in opps if "appointment" in (o["stage"] or "").lower()
     )
+    pipeline_rows = []
+    for p in pls:
+        for stage in p.get("stages", []) or []:
+            cards = [o for o in opps if o.get("stageId") == stage.get("id")]
+            if cards:
+                pipeline_rows.append({
+                    "id": stage.get("id"),
+                    "name": stage.get("name") or "Unknown",
+                    "count": len(cards),
+                    "value": sum(o.get("value", 0) for o in cards),
+                    "pipelineName": p.get("name") or "Pipeline",
+                })
+    out["pipelineStages"] = pipeline_rows[:12]
 
     # Tasks due today (best-effort scan of recent contacts).
     try:
@@ -860,9 +885,11 @@ def api_dashboard(_q):
             if not t["completed"] and (t.get("dueDate") or "").startswith(today)
         )
         out["openTasks"] = sum(1 for t in tdata["tasks"] if not t["completed"])
+        out["openTaskRows"] = [t for t in tdata["tasks"] if not t["completed"]][:5]
     except Exception as e:  # noqa: BLE001
         out["tasksDueToday"] = 0
         out["openTasks"] = 0
+        out["openTaskRows"] = []
         out.setdefault("_errors", {})["tasks"] = str(e)
 
     out["pipelineNames"] = [p.get("name") for p in pls]

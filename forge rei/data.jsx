@@ -5,7 +5,7 @@
 // pile of per-agent tabs. The old per-agent PAGES are untouched — they're now rendered as
 // each agent's "Console" inside the hub (HUB_CONSOLE), just no longer their own nav item.
 const NAV = [
-  ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"], ["Leads", "Leads"], ["Conversations", "Conversations"],
+  ["Dashboard", "Dashboard"], ["CRM", "CRM"], ["Agents", "Agents"], ["Office", "Agent Office"], ["Leads", "Leads"], ["Conversations", "Conversations"],
   ["Pipeline", "Deal Pipeline"], ["Contracts", "Contracts"], ["DealCalc", "Deal Calc"], ["Buyers", "Buyers"], ["Blast", "Buyer Blast"],
   ["Outbound", "Outbound"],
   ["Tasks", "Tasks"], ["Analytics", "Analytics"],

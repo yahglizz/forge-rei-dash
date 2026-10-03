@@ -4,6 +4,7 @@ const { useState: useStateA } = React;
 // Page renderers per workspace. Keys match each workspace's NAV keys.
 const REI_PAGES = {
   Dashboard:     () => <window.Dashboard />,
+  CRM:           () => <window.CRMPage />,
   Leads:         () => <window.Leads />,
   Pipeline:      () => <window.PIPipelineHubPage />,
   Contracts:     () => <window.CTContractsPage />,
