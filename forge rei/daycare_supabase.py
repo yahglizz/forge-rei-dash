@@ -577,10 +577,11 @@ class SupabaseBridge:
                 )
             raise self._upstream_error(error) from None
 
-    def rpc(self, session: Session, name: str, body: dict[str, Any], *, surface_errors: bool = False) -> Any:
+    def rpc(self, session: Session, name: str, body: dict[str, Any], *, surface_errors: bool = False,
+            write: bool = True) -> Any:
         if not re.fullmatch(r"[a-z_]+", name):
             raise DaycareError(500, "Invalid internal daycare operation", "internal_error")
-        self.require_available(write=True)
+        self.require_available(write=write)
         if session.token_expires_at <= time.time() + TOKEN_REFRESH_LEEWAY_SECONDS:
             self._refresh(session)
         url = f"{self.config.url}/rest/v1/rpc/{name}"
@@ -1856,7 +1857,10 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
                 "email": require_text(guardian_email, "guardian_email", maximum=254),
                 "first_name": require_text(_body_value(source, "guardian_first_name", "guardianFirstName"), "guardian_first_name", maximum=100),
                 "last_name": require_text(_body_value(source, "guardian_last_name", "guardianLastName"), "guardian_last_name", maximum=100),
-            })
+                # Create login (Contact-Form inbox) links a sibling to the parent's existing
+                # login instead of re-issuing its PIN (spec 2026-10-06 D3).
+                **({"link_only": True} if source.get("guardian_link_only") is True else {}),
+            }, surface_errors=True)
             guardian_id = provision.get("profile_id")
             if guardian_id:
                 guardian_id = require_uuid(guardian_id, "guardian_profile_id")
@@ -1882,9 +1886,13 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         else:
             record["location_id"] = active_location(session)
             rows = BRIDGE.rest(session, "POST", "children", body=record, prefer="return=representation")
+        already_linked = bool(guardian_email and existing and existing.get("guardian_profile_id") and not provision)
         response = {"ok": True, "child": _single(rows, "Child")}
+        if already_linked:
+            response["already_linked"] = True
         if provision:
-            response["provision"] = {key: provision.get(key) for key in ("profile_id", "login_id", "pin", "existing") if key in provision}
+            response["provision"] = {key: provision.get(key) for key in (
+                "profile_id", "login_id", "pin", "existing", "linked", "reissued") if key in provision}
         return response
     finally:
         if restore_location:
@@ -1907,13 +1915,21 @@ def reset_credentials(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     PIN is returned exactly once — never stored in FORGE.
     """
     profile_id = require_uuid(_body_value(body, "profile_id", "profileId"), "profile_id")
-    result = BRIDGE.edge_function(session, "provision-user", {
-        "action": "reset-pin",
-        "profile_id": profile_id,
-    })
+    payload = {"action": "reset-pin", "profile_id": profile_id}
+    if body.get("only_if_never_signed_in") is True:
+        payload["only_if_never_signed_in"] = True
+    result = BRIDGE.edge_function(session, "provision-user", payload, surface_errors=True)
     return {"ok": True, "provision": {
         key: result.get(key) for key in ("profile_id", "login_id", "pin", "reset") if key in result
     }}
+
+
+def app_tracking(session: Session, location_id: Any) -> dict[str, Any]:
+    """App Tracking page: one center's adoption / coins / Pass / payments in one read
+    (RPC app_tracking, migration 202610060001). A read — never behind the write gate."""
+    loc = require_uuid(location_id, "location_id")
+    return {"ok": True, "tracking": BRIDGE.rpc(session, "app_tracking", {"p_location": loc},
+                                               surface_errors=True, write=False)}
 
 
 def save_classroom(session: Session, body: dict[str, Any]) -> dict[str, Any]:
@@ -2062,7 +2078,7 @@ _OWN_DB_MESSAGES = (
     "Only management can key in a past day", "The arrival time is still in the future",
     "The pickup time must be after the arrival time", "The pickup time is still in the future",
     "This day is already recorded in the app", "A family asked for this pickup",
-    "Only management can change a paper entry", "Someone recorded this child for that day",
+    "Only management can change a paper entry", "Only an admin of this center can read app tracking", "Someone recorded this child for that day",
     "Only management can change a past day", "Sign your name to request pickup",
 )
 
