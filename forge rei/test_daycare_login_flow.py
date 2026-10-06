@@ -101,3 +101,80 @@ class Readiness(unittest.TestCase):
     def test_app_tracking_centers_never_list_qa(self):
         self.assertEqual(set(g.APP_TRACKING_CENTERS), {"921", "2318", "1923"})
         self.assertNotIn("99999999-9999-9999-9999-999999999999", g.APP_TRACKING_CENTERS.values())
+
+
+import json
+import tempfile
+from pathlib import Path
+
+import daycare_login_queue as lq
+
+# 2026-10-07 08:05 and 22:30 America/New_York (EDT, UTC-4)
+AT_0805 = 1791374700.0
+AT_2230 = 1791426600.0
+ENTRY = {"profile_id": "a0000000-0000-0000-0000-000000000001", "contact_id": "ghl1",
+         "location_id": LOC, "parent_first": "Ana", "child_first": "Maria"}
+
+
+class LoginQueue(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.patch = mock.patch.object(lq, "STATE", Path(self.tmp.name) / "q.json")
+        self.patch.start()
+
+    def tearDown(self):
+        self.patch.stop()
+        self.tmp.cleanup()
+
+    def tick(self, mint, send=None, now=AT_0805):
+        return lq.run_once(lambda: "S", mint, send or (lambda e, p: {"ok": True}), now=now)
+
+    def test_enqueue_dedupes_by_profile(self):
+        lq.enqueue(ENTRY); lq.enqueue({**ENTRY, "child_first": "Juan"})
+        self.assertEqual(len(lq.view()["queued"]), 1)
+
+    def test_nothing_sent_outside_window(self):
+        lq.enqueue(ENTRY)
+        mint = mock.Mock()
+        self.assertEqual(self.tick(mint, now=AT_2230)["sent"], 0)
+        mint.assert_not_called()
+
+    def test_8am_tick_mints_and_sends_then_clears(self):
+        lq.enqueue(ENTRY)
+        send = mock.Mock(return_value={"ok": True})
+        out = self.tick(lambda s, e: {"pin": "12345678", "login_id": "Ana Lopez"}, send)
+        self.assertEqual(out["sent"], 1)
+        self.assertEqual(send.call_args.args[1]["pin"], "12345678")
+        self.assertEqual(lq.view()["queued"], [])
+
+    def test_already_signed_in_is_dropped_not_retried(self):
+        lq.enqueue(ENTRY)
+        send = mock.Mock()
+        out = self.tick(lambda s, e: {"error": "already_signed_in"}, send)
+        send.assert_not_called()
+        self.assertEqual((out["dropped"], lq.view()["queued"]), (1, []))
+        self.assertIn("already signed in", lq.view()["done"][-1]["outcome"])
+
+    def test_force_entry_mints_without_signed_in_guard(self):
+        lq.enqueue({**ENTRY, "force": True})
+        seen = {}
+        self.tick(lambda s, e: seen.update(e) or {"pin": "1", "login_id": "x"})
+        self.assertTrue(seen["force"])
+
+    def test_three_failures_drop_with_reason(self):
+        lq.enqueue(ENTRY)
+        for _ in range(3):
+            self.tick(lambda s, e: {"pin": "1", "login_id": "x"}, lambda e, p: {"ok": False, "error": "GHL 500"})
+        self.assertEqual(lq.view()["queued"], [])
+        self.assertIn("GHL 500", lq.view()["done"][-1]["outcome"])
+
+    def test_no_session_reports_error_and_keeps_queue(self):
+        lq.enqueue(ENTRY)
+        out = lq.run_once(lambda: None, mock.Mock(), mock.Mock(), now=AT_0805)
+        self.assertFalse(out["ok"])
+        self.assertEqual(len(lq.view()["queued"]), 1)
+
+    def test_pin_never_written_to_state(self):
+        lq.enqueue(ENTRY)
+        self.tick(lambda s, e: {"pin": "87654321", "login_id": "x"}, lambda e, p: {"ok": False, "error": "x"})
+        self.assertNotIn("87654321", lq.STATE.read_text())
