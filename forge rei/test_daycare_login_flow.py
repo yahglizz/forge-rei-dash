@@ -243,5 +243,18 @@ class EnrollAfterHours(unittest.TestCase):
         self.assertTrue(handler._daycare_child_save.call_args.args[1]["child"]["guardian_link_only"])
 
 
+class AppTrackingNoCrossSessionCache(unittest.TestCase):
+    """Security: a result read by an authorized admin must never be served to another session."""
+    def test_second_session_is_checked_by_the_database(self):
+        h = object.__new__(connector.Handler)
+        denied = connector.daycare_supabase.DaycareError(403, "Only an admin of this center can read app tracking", "rejected")
+        reader = mock.Mock(side_effect=[{"ok": True, "tracking": {"totals": {"families": 2}}}, denied])
+        with mock.patch.object(connector.daycare_supabase, "app_tracking", reader):
+            self.assertEqual(h._daycare_app_tracking("ADMIN", "921")["tracking"]["totals"]["families"], 2)
+            with self.assertRaises(connector.daycare_supabase.DaycareError):
+                h._daycare_app_tracking("MANAGER", "921")
+        self.assertEqual(reader.call_count, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -75,6 +75,7 @@ const DAYCARE_PAGES = {
   Staff:      () => <window.DaycareStaff />,
   Enrollment: () => <window.DaycareEnrollment />,
   ParentLogins: () => <window.DaycareParentLogins />,
+  AppTracking: () => <window.DaycareAppTracking />,
   Messages:   () => <window.DaycareMessages />,
   Announcements: () => <window.DaycareAnnouncements />,
   Blast:      () => <window.DaycareBlast />,

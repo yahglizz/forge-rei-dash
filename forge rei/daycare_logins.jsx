@@ -92,7 +92,7 @@ function DaycareParentLogins() {
     const gid = child.guardian_profile_id || (guardian && guardian.id) || null;
     const student = window.DcxChildName(child);
     if (gid) {
-      if (!groups[gid]) groups[gid] = { gid, parent: child.guardian_name || window.DcxName(guardian, "Parent"), loginId: (guardian && guardian.login_id) || "", students: [] };
+      if (!groups[gid]) groups[gid] = { gid, loc: child.location_id || "", parent: child.guardian_name || window.DcxName(guardian, "Parent"), loginId: (guardian && guardian.login_id) || "", students: [] };
       groups[gid].students.push(student);
     } else {
       solo.push({ gid: null, parent: child.guardian_name || "No guardian linked", loginId: "", students: [student] });
@@ -111,6 +111,19 @@ function DaycareParentLogins() {
     finally { setBusyGid(""); }
   };
 
+  // Resend login: fresh PIN texted through GoHighLevel (queued for 8am after 9pm).
+  const resend = async (f) => {
+    if (!f.gid) return;
+    if (!window.confirm("Text " + f.parent + " a fresh login PIN through GoHighLevel? Their current PIN stops working and any signed-in phone is signed out.")) return;
+    setBusyGid(f.gid);
+    try {
+      const payload = await window.DcxRequest("/guardian/resend-login", { body: { profile_id: f.gid, location_id: f.loc || activeLoc } });
+      if (payload.queued) window.alert("It's after 9pm — the login text is queued and goes out after 8am with a fresh PIN.");
+      else if (payload.provision) setCredentials(payload.provision);
+    } catch (error) { window.alert(error.message); }
+    finally { setBusyGid(""); }
+  };
+
   const dismissFamily = async (contactId) => {
     try { await window.DcxRequest("/ghl/dismiss", { body: { contact_id: contactId } }); pendingRes.refresh(); }
     catch (error) { window.alert(error.message); }
@@ -124,6 +137,7 @@ function DaycareParentLogins() {
     setBusyContact(family.card_id || family.contact_id);
     try {
       const payload = await window.DcxRequest("/ghl/enroll", { body: { family } });
+      if (payload.already_linked) window.alert("This child is already linked to a parent login — nothing new to send. Use Resend login below if the parent needs their PIN.");
       if (payload.provision) setCredentials(payload.provision);
       childrenRes.refresh(); roomsRes.refresh(); pendingRes.refresh();
     } catch (error) { window.alert(error.message); }
@@ -140,7 +154,7 @@ function DaycareParentLogins() {
       <td><div className="dc-person"><div className="dc-avatar">{(f.parent || "?").slice(0, 1)}</div><div><b>{f.parent}</b><small>{f.students.length} {f.students.length === 1 ? "child" : "children"}</small></div></div></td>
       <td>{f.students.join(", ")}</td>
       <td>{f.loginId ? <span className="dcl-login"><code>{f.loginId}</code> <DclCopy text={f.loginId} /></span> : <span className="quiet">No login yet</span>}</td>
-      <td><div className="dc-row-actions">{f.gid ? <button onClick={() => resetPin(f.gid)} disabled={busyGid === f.gid}>{busyGid === f.gid ? "Revealing…" : "Reveal / Reset PIN"}</button> : <button onClick={() => window.GoTo("Enrollment")}>Enroll</button>}</div></td>
+      <td><div className="dc-row-actions">{f.gid && <button onClick={() => resend(f)} disabled={busyGid === f.gid}>Resend login</button>}{f.gid ? <button onClick={() => resetPin(f.gid)} disabled={busyGid === f.gid}>{busyGid === f.gid ? "Revealing…" : "Reveal / Reset PIN"}</button> : <button onClick={() => window.GoTo("Enrollment")}>Enroll</button>}</div></td>
     </tr>)}</tbody></table>{!visible.length && <div className="dc-inline-empty">No parent or student matches that search.</div>}</div>}
     {credentials && <window.DcoProvisionCredentials provision={credentials} onClose={() => setCredentials(null)} />}
   </div>;

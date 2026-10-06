@@ -3302,9 +3302,6 @@ def _daycare_start_mint(session, entry):
 
 
 
-_APP_TRACKING_CACHE: dict = {}
-
-
 def _daycare_queue_mint(session, entry):
     """Login queue: a fresh PIN at the family's center. A normal entry never resets a parent
     who already signed in (409 already_signed_in → dropped); a Resend entry (force) always does."""
@@ -4423,12 +4420,9 @@ class Handler(BaseHTTPRequestHandler):
         location_id = daycare_ghl.APP_TRACKING_CENTERS.get(str(center or ""))
         if not location_id:
             raise daycare_supabase.DaycareError(400, "center must be 921, 2318 or 1923", "validation_error")
-        hit = _APP_TRACKING_CACHE.get(location_id)
-        if hit and time.time() - hit[0] < 60:
-            return hit[1]
-        result = daycare_supabase.app_tracking(session, location_id)
-        _APP_TRACKING_CACHE[location_id] = (time.time(), result)
-        return result
+        # No cache: every read re-runs the RPC's admin-of-this-center check for THIS session
+        # (a shared cache served one admin's read to any other dashboard session). ~30 ms.
+        return daycare_supabase.app_tracking(session, location_id)
 
     def _daycare_family_child_body(self, session, family):
         """Map a Contact-Form inbox family object to a save_child body (no guardian

@@ -48,7 +48,7 @@ const DAYCARE_NAV = [
   ["Dashboard", "Dashboard"], ["Agents", "Agents"], ["Office", "Agent Office"],
   ["Children", "Children"], ["Attendance", "Attendance"], ["TimeSheets", "Time Sheets"],
   ["CareLogs", "Daily Logs"], ["Incidents", "Incidents"], ["Rewards", "Blessing Coins"], ["Pass", "Blessings Pass"], ["Classrooms", "Classrooms"],
-  ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["ParentLogins", "Parent Logins"], ["Messages", "Messages"],
+  ["Staff", "Staff & Schedules"], ["Enrollment", "Enrollment"], ["ParentLogins", "Parent Logins"], ["AppTracking", "App Tracking"], ["Messages", "Messages"],
   ["Announcements", "Announcements"], ["Blast", "Text Blast"],
   ["Billing", "Billing"], ["Payroll", "Payroll"],
   ["Growth", "Ads & Social"],

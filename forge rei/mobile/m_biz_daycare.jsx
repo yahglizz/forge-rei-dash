@@ -444,8 +444,8 @@ function MBDCredsSheet(props) {
     <div className="m-card mbd-creds">
       {props.who && <div className="m-fade">{props.who}</div>}
       <small>Login ID</small><b>{p.login_id || "—"}</b>
-      {!p.existing && p.pin && <React.Fragment><small>One-time PIN</small><b>{p.pin}</b></React.Fragment>}
-      <div className="m-fade">{p.existing ? "An existing account was connected — their current PIN still works." : "The PIN is shown once and never stored. Hand it over in person — not in notes."}</div>
+      {p.pin && <React.Fragment><small>One-time PIN</small><b>{p.pin}</b></React.Fragment>}
+      <div className="m-fade">{p.existing && !p.pin ? "An existing account was connected — their current PIN still works." : "The PIN is shown once and never stored. Hand it over in person — not in notes."}</div>
     </div>
     {p.login_id && <window.MBtn kind="ghost" onClick={async () => setCopied(await MBDCopy(text))}>{copied ? "Copied ✓" : "Copy login"}</window.MBtn>}
     <window.MBtn onClick={props.onClose}>I saved them</window.MBtn>
@@ -545,7 +545,7 @@ function MBDFamilies() {
     const child = f.child_name || "this child";
     const who = child + (f.parent_name ? " (parent " + f.parent_name + ")" : "") + (f.location_name ? " at " + f.location_name : "");
     const what = f.child_id ? who + " is already on the roster. Link/create the parent's app login and clear this card?" : "Enroll " + who + "?";
-    if (!window.confirm(what + "\n\nThis writes to the daycare roster, creates the parent's app login if an email is on file, and updates their GoHighLevel contact. No text is sent.")) return;
+    if (!window.confirm(what + "\n\nThis writes to the daycare roster, creates the parent's app login if an email is on file, and updates their GoHighLevel contact. A new login is texted to the parent through GoHighLevel (after 9pm it's queued for 8am).")) return;
     setBusyId(f.card_id || f.contact_id); setNotice("");
     try {
       const r = await window.apiPostM("/api/daycare/ghl/enroll", { family: f });
