@@ -362,5 +362,25 @@ class ResendContactChecks(unittest.TestCase):
         send.assert_not_called()
 
 
+class FindContactByPhone(unittest.TestCase):
+    """GHL's list search lags new contacts and matches fuzzily; the duplicate lookup is exact
+    and consistent right after a write (found live: a 30s-old contact was missed)."""
+    def client(self, payload):
+        c = mock.Mock(location_id="LOC1")
+        c.get.return_value = payload
+        return c
+
+    def test_uses_exact_duplicate_lookup_in_e164(self):
+        c = self.client({"contact": {"id": "ghl7"}})
+        self.assertEqual(g.find_contact_by_phone(c, "(215) 555-0142"), "ghl7")
+        path, params = c.get.call_args.args
+        self.assertEqual(path, "/contacts/search/duplicate")
+        self.assertEqual(params, {"locationId": "LOC1", "number": "+12155550142"})
+
+    def test_no_match_is_none(self):
+        self.assertIsNone(g.find_contact_by_phone(self.client({"contact": None}), "+12155550142"))
+        self.assertIsNone(g.find_contact_by_phone(self.client({}), ""))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -144,15 +144,20 @@ def health(client) -> dict:
 
 
 def find_contact_by_phone(client, phone: str) -> str | None:
-    normalized = _digits(phone)
-    if not normalized:
+    """Exact phone lookup. GET /contacts/?query= lags fresh contacts and matches fuzzily;
+    the duplicate lookup is exact and consistent right after a write."""
+    digits = re.sub(r"\D", "", str(phone or ""))
+    if len(digits) == 10:
+        digits = "1" + digits
+    if len(digits) != 11:
         return None
     try:
-        data = client.get("/contacts/", {"locationId": client.location_id, "query": normalized})
+        data = client.get("/contacts/search/duplicate",
+                          {"locationId": client.location_id, "number": "+" + digits})
     except Exception:  # noqa: BLE001
         return None
-    contacts = data.get("contacts", []) if isinstance(data, dict) else []
-    return contacts[0]["id"] if contacts else None
+    found = data.get("contact") if isinstance(data, dict) else None
+    return found.get("id") if isinstance(found, dict) and found.get("id") else None
 
 
 def ensure_contact(client, *, name: str, phone: str, email: str | None = None) -> str:
