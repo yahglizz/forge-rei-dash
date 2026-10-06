@@ -64,6 +64,7 @@ class EnrollTextsParentTests(unittest.TestCase):
         with mock.patch.object(connector.daycare_ghl, "form_child_id", return_value="child-1"), \
                 mock.patch.object(connector.daycare_ghl, "record_form_child"), \
                 mock.patch.object(connector.daycare_ghl, "dismiss", return_value={"ok": True}), \
+                mock.patch.object(connector.daycare_leads, "in_hours", return_value=True), \
                 mock.patch.object(connector.daycare_replies, "send_manual", **send) as send_manual:
             result = connector.Handler._daycare_ghl_enroll(handler, None, {"family": dict(self.FAMILY)})
         return result, send_manual

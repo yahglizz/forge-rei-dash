@@ -66,9 +66,6 @@ class AppTrackingReader(unittest.TestCase):
             daycare.app_tracking(object(), "921")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 import daycare_ghl as g
 
@@ -178,3 +175,73 @@ class LoginQueue(unittest.TestCase):
         lq.enqueue(ENTRY)
         self.tick(lambda s, e: {"pin": "87654321", "login_id": "x"}, lambda e, p: {"ok": False, "error": "x"})
         self.assertNotIn("87654321", lq.STATE.read_text())
+
+
+import connector
+
+
+class ConnectorLoginPieces(unittest.TestCase):
+    def test_queue_mint_uses_signed_in_guard_unless_forced(self):
+        reset = mock.Mock(return_value={"provision": {"pin": "1", "login_id": "x"}})
+        with mock.patch.object(connector.daycare_supabase, "reset_credentials", reset), \
+             mock.patch.object(connector.daycare_supabase, "at_location", mock.MagicMock()):
+            connector._daycare_queue_mint("S", {**ENTRY, "force": False})
+            self.assertTrue(reset.call_args.args[1]["only_if_never_signed_in"])
+            connector._daycare_queue_mint("S", {**ENTRY, "force": True})
+            self.assertNotIn("only_if_never_signed_in", reset.call_args.args[1])
+
+    def test_queue_mint_maps_409_to_already_signed_in(self):
+        err = connector.daycare_supabase.DaycareError(409, "already_signed_in", "function_error")
+        with mock.patch.object(connector.daycare_supabase, "reset_credentials", side_effect=err), \
+             mock.patch.object(connector.daycare_supabase, "at_location", mock.MagicMock()):
+            self.assertEqual(connector._daycare_queue_mint("S", ENTRY), {"error": "already_signed_in"})
+
+    def test_resend_without_contact_shows_pin_only(self):
+        h = object.__new__(connector.Handler)
+        with mock.patch.object(connector.daycare_supabase, "at_location", mock.MagicMock()), \
+             mock.patch.object(connector.daycare_supabase, "guardian_contact",
+                               return_value={"id": ENTRY["profile_id"], "name": "Ana Lopez", "phone": ""}), \
+             mock.patch.object(connector.daycare_ghl, "find_contact_by_phone", return_value=None), \
+             mock.patch.object(connector.daycare_supabase, "reset_credentials",
+                               return_value={"provision": {"login_id": "Ana Lopez", "pin": "12345678"}}), \
+             mock.patch.dict("sys.modules", {"action_log": mock.Mock()}), \
+             mock.patch.object(connector.daycare_replies, "send_manual") as send:
+            out = h._daycare_resend_login("S", {"profile_id": ENTRY["profile_id"], "location_id": LOC})
+        send.assert_not_called()
+        self.assertEqual(out["provision"]["pin"], "12345678")
+        self.assertIn("No GHL contact", out["provision"]["texted"]["error"])
+
+    def test_app_tracking_rejects_unknown_center(self):
+        h = object.__new__(connector.Handler)
+        for bad in ("9999", "", "4444"):
+            with self.assertRaises(connector.daycare_supabase.DaycareError):
+                h._daycare_app_tracking("S", bad)
+
+
+class EnrollAfterHours(unittest.TestCase):
+    """Create login at night: no text now, the login is queued (never the PIN itself)."""
+    def test_after_9pm_queues_instead_of_texting(self):
+        handler = object.__new__(connector.Handler)
+        handler._daycare_family_child_body = lambda _s, fam: {
+            "first_name": "Maria", "last_name": "Lopez", "location_id": LOC}
+        handler._daycare_child_save = mock.Mock(return_value={"ok": True, "child": {"id": "c1"}, "provision": {
+            "profile_id": ENTRY["profile_id"], "login_id": "Ana Lopez", "pin": "482913"}})
+        family = {"contact_id": "ghl1", "parent_first": "Ana", "parent_last": "Lopez", "child_first": "Maria",
+                  "email": "ana@example.com", "location_id": LOC}
+        with mock.patch.object(connector.daycare_ghl, "form_child_id", return_value="c1"), \
+             mock.patch.object(connector.daycare_ghl, "record_form_child"), \
+             mock.patch.object(connector.daycare_ghl, "dismiss", return_value={"ok": True}), \
+             mock.patch.object(connector.daycare_leads, "in_hours", return_value=False), \
+             mock.patch.object(connector.daycare_login_queue, "enqueue", return_value={"ok": True}) as enq, \
+             mock.patch.object(connector.daycare_replies, "send_manual") as send:
+            result = connector.Handler._daycare_ghl_enroll(handler, None, {"family": family})
+        send.assert_not_called()
+        entry = enq.call_args.args[0]
+        self.assertEqual((entry["profile_id"], entry["contact_id"]), (ENTRY["profile_id"], "ghl1"))
+        self.assertNotIn("pin", entry)
+        self.assertTrue(result["provision"]["texted"]["queued"])
+        self.assertTrue(handler._daycare_child_save.call_args.args[1]["child"]["guardian_link_only"])
+
+
+if __name__ == "__main__":
+    unittest.main()

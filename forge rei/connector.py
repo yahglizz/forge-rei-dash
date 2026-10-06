@@ -1063,6 +1063,7 @@ import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad 
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
+import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
 import daycare_family_confirm  # noqa: E402 — Family Contact Form YES-reply reader
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 # --- WP-E ---
@@ -3300,6 +3301,31 @@ def _daycare_start_mint(session, entry):
         return (daycare_supabase.reset_credentials(session, {"profile_id": guardian}) or {}).get("provision") or {}
 
 
+
+_APP_TRACKING_CACHE: dict = {}
+
+
+def _daycare_queue_mint(session, entry):
+    """Login queue: a fresh PIN at the family's center. A normal entry never resets a parent
+    who already signed in (409 already_signed_in → dropped); a Resend entry (force) always does."""
+    payload = {"profile_id": entry.get("profile_id")}
+    if not entry.get("force"):
+        payload["only_if_never_signed_in"] = True
+    try:
+        with daycare_supabase.at_location(session, entry.get("location_id")):
+            return (daycare_supabase.reset_credentials(session, payload) or {}).get("provision") or {}
+    except daycare_supabase.DaycareError as error:
+        message = error.payload().get("error") or "reset failed"
+        return {"error": "already_signed_in" if message == "already_signed_in" else message}
+
+
+def _daycare_queue_send(entry, provision):
+    """Login queue: the same GHL login text Create login sends (PIN in the body, never stored)."""
+    return daycare_replies.send_manual(DAYCARE_GHL, entry.get("contact_id"), daycare_ghl.login_text(
+        entry.get("parent_first"), entry.get("child_first"), provision.get("login_id"),
+        provision["pin"], entry.get("location_id")), close_draft=False)
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):  # quieter logs
         pass
@@ -4317,13 +4343,24 @@ class Handler(BaseHTTPRequestHandler):
                 "guardian_last_name": family.get("parent_last") or "",
                 "guardian_phone": family.get("phone") or "",
                 "guardian_email": family.get("email"),
+                "guardian_link_only": True,
             })
         result = self._daycare_child_save(session, {"child": child_body})
         provision = result.get("provision") or {}
         if provision.get("pin") and not text_login:
             provision.pop("pin")   # start-date path: a fresh PIN is minted on the start day
             provision["pinWithheld"] = True
-        if provision.get("pin"):
+        if provision.get("pin") and not daycare_leads.in_hours(time.time()):
+            # After 9pm: no text now. Queue it — 8am mints a FRESH PIN and texts it, unless the
+            # parent already signed in with the one in the modal (spec 2026-10-06 D1).
+            queued = daycare_login_queue.enqueue({
+                "profile_id": provision.get("profile_id"), "contact_id": contact_id,
+                "location_id": child_body.get("location_id"), "parent_first": family.get("parent_first"),
+                "child_first": family.get("child_first") or child_body.get("first_name")})
+            provision["texted"] = {"ok": False, "queued": bool(queued.get("ok")),
+                                   "error": "after 9pm — queued for 8am" if queued.get("ok")
+                                   else queued.get("error")}
+        elif provision.get("pin"):
             # A brand-new login: text the parent their sign-in. The owner's Create-login
             # click is the approval (rule 2); send_manual re-checks the 8am–9pm ET window,
             # opt-out and DND and logs the send. No pin (existing account) = no text.
@@ -4343,6 +4380,54 @@ class Handler(BaseHTTPRequestHandler):
         if saved_id:
             daycare_ghl.record_form_child(card_id, saved_id)
         result["dismissed"] = daycare_ghl.dismiss(card_id)
+        return result
+
+    def _daycare_resend_login(self, session, body):
+        """Resend login (Parent Logins / App Tracking): fresh PIN + the GHL login text. The
+        owner's confirm tap is the approval (rule 2). After 9pm → queued (force: Resend always
+        re-issues). No GHL contact → PIN shown once, share in person."""
+        profile_id = daycare_supabase.require_uuid(body.get("profile_id"), "profile_id")
+        location_id = (daycare_supabase.require_uuid(body.get("location_id"), "location_id", optional=True)
+                       or daycare_supabase.active_location(session))
+        with daycare_supabase.at_location(session, location_id):
+            guardian = daycare_supabase.guardian_contact(session, profile_id)
+            if not guardian:
+                raise daycare_supabase.DaycareError(404, "That parent is not at this center", "not_found")
+            contact_id = daycare_ghl.find_contact_by_phone(DAYCARE_GHL, guardian.get("phone") or "")
+            entry = {"profile_id": profile_id, "contact_id": contact_id or "", "location_id": location_id,
+                     "parent_first": str(guardian.get("name") or "").split(" ")[0], "child_first": "",
+                     "force": True}
+            if contact_id and not daycare_leads.in_hours(time.time()):
+                daycare_login_queue.enqueue(entry, reason="resend after 9pm")
+                return {"ok": True, "queued": True}
+            provision = (daycare_supabase.reset_credentials(session, {"profile_id": profile_id}) or {}).get("provision") or {}
+        if not contact_id:
+            provision["texted"] = {"ok": False, "error": "No GHL contact for this parent's phone — share the PIN in person"}
+        elif provision.get("pin"):
+            try:
+                sent = _daycare_queue_send(entry, provision)
+                provision["texted"] = {"ok": bool(sent.get("ok")),
+                                       "error": None if sent.get("ok") else sent.get("error") or "send failed"}
+            except Exception as error:  # noqa: BLE001 — never leak a token, never fail the reset
+                provision["texted"] = {"ok": False, "error": f"GHL send failed: {type(error).__name__}"}
+        try:
+            import action_log
+            action_log.record("operator", "daycare_login_resend", business="daycare", trigger="owner_tap",
+                              ref=profile_id, result="sent" if (provision.get("texted") or {}).get("ok") else "not_texted",
+                              ok=bool(provision.get("pin")), approval_required=True)
+        except Exception:  # noqa: BLE001 — the log never blocks
+            pass
+        return {"ok": True, "provision": provision}
+
+    def _daycare_app_tracking(self, session, center):
+        location_id = daycare_ghl.APP_TRACKING_CENTERS.get(str(center or ""))
+        if not location_id:
+            raise daycare_supabase.DaycareError(400, "center must be 921, 2318 or 1923", "validation_error")
+        hit = _APP_TRACKING_CACHE.get(location_id)
+        if hit and time.time() - hit[0] < 60:
+            return hit[1]
+        result = daycare_supabase.app_tracking(session, location_id)
+        _APP_TRACKING_CACHE[location_id] = (time.time(), result)
         return result
 
     def _daycare_family_child_body(self, session, family):
@@ -4508,6 +4593,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
                 "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply",
+                "/api/daycare/guardian/resend-login", "/api/daycare/login-queue/run",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
                 "/api/daycare/starts/confirm", "/api/daycare/starts/date", "/api/daycare/starts/dismiss",
                 "/api/daycare/replies/run", "/api/daycare/replies/approve",
@@ -4564,6 +4650,11 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/daycare/child/save":
                 # Enroll in the ACTIVE center + auto-sync the family into GHL, tagged.
                 result = self._daycare_child_save(session, body)
+            elif path == "/api/daycare/guardian/resend-login":
+                result = self._daycare_resend_login(session, body)
+            elif path == "/api/daycare/login-queue/run":
+                result = daycare_login_queue.run_once(_daycare_start_session, _daycare_queue_mint,
+                                                      _daycare_queue_send)
             elif path == "/api/daycare/location/switch":
                 # The DB's set_active_location RPC is the gate — it refuses any center
                 # this profile has no membership row for. We never trust the browser's id.
@@ -4745,6 +4836,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/locations": lambda session: daycare_supabase.list_locations(session),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
             "/api/daycare/ghl/pending-families": lambda session: self._daycare_pending_families(session),
+            "/api/daycare/app-tracking": lambda session: self._daycare_app_tracking(
+                session, q.get("center", [""])[0]),
+            "/api/daycare/login-queue": lambda session: daycare_login_queue.view(),
             # --- WP-E --- Lead Desk: served from state, no GHL call on the request path.
             "/api/daycare/leads": lambda session: daycare_leads.view(),
             "/api/daycare/starts": lambda session: daycare_starts.view(),
@@ -5476,6 +5570,15 @@ def main():
                              daemon=True, name="daycare_family_confirm").start()
         else:
             forge_heartbeat.retire("daycare_family_confirm")
+        # Solomon · Login texts: Create/Resend login after 9pm → fresh PIN texted from 8am
+        # (never to a parent who already signed in). FORGE_DAYCARE_LOGIN_QUEUE=0 = off.
+        if os.environ.get("FORGE_DAYCARE_LOGIN_QUEUE", "1") != "0":
+            print("   Solomon · Login texts: after-hours login texts go out from 8am")
+            threading.Thread(target=daycare_login_queue.run_forever,
+                             args=(_daycare_start_session, _daycare_queue_mint, _daycare_queue_send),
+                             daemon=True, name="daycare_login_queue").start()
+        else:
+            forge_heartbeat.retire("daycare_login_queue")
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work
