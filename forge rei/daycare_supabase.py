@@ -937,7 +937,7 @@ def guardian_contact(session: Session, guardian_profile_id: Any) -> dict[str, An
         query={
             "id": f"eq.{guardian_profile_id}",
             "location_id": f"eq.{active_location(session)}",
-            "select": "id,first_name,last_name,display_name",
+            "select": "id,first_name,last_name,display_name,role",
             "limit": "1",
         },
     ))
@@ -952,6 +952,7 @@ def guardian_contact(session: Session, guardian_profile_id: Any) -> dict[str, An
         "name": name or "Family",
         "phone": guardian.get("phone"),
         "email": guardian.get("auth_email"),
+        "role": guardian.get("role"),
     }
 
 
@@ -967,6 +968,13 @@ def list_locations(session: Session) -> dict[str, Any]:
     return {"ok": True, "locations": rows, "activeLocationId": current}
 
 
+# my_location() is ONE value per profile in the DB, shared by the owner's dashboard session and
+# the lanes' own logins of the same admin. Every switch (and every block standing in another
+# center) holds this, so a lane's switch can never interleave with the owner's enroll/Resend.
+# ponytail: process-wide, and reads outside a switch can still see a lane's center for ~1s.
+LOCATION_LOCK = threading.RLock()
+
+
 def switch_location(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     """Move the caller into another center.
 
@@ -975,7 +983,8 @@ def switch_location(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     """
     target = _body_value(body, "location_id", "locationId")
     target = require_uuid(target, "location_id", optional=True)
-    result = BRIDGE.rpc(session, "set_active_location", {"target": target})
+    with LOCATION_LOCK:
+        result = BRIDGE.rpc(session, "set_active_location", {"target": target})
     resolved = result if isinstance(result, str) else (
         result[0] if isinstance(result, list) and result else target)
     # Keep the cached session profile in step with the DB, so the very next request
@@ -992,15 +1001,16 @@ def at_location(session: Session, location_id: Any):
     any read about a family at ANOTHER center must happen inside this. No-op when the
     target is empty or already active.
     """
-    restore = None
-    if location_id and location_id != active_location(session):
-        restore = active_location(session)
-        switch_location(session, {"location_id": location_id})
-    try:
-        yield
-    finally:
-        if restore:
-            switch_location(session, {"location_id": restore})
+    with LOCATION_LOCK:
+        restore = None
+        if location_id and location_id != active_location(session):
+            restore = active_location(session)
+            switch_location(session, {"location_id": location_id})
+        try:
+            yield
+        finally:
+            if restore:
+                switch_location(session, {"location_id": restore})
 
 
 def validate_storage_path(path: Any) -> str:
@@ -1825,6 +1835,11 @@ def save_child(session: Session, body: dict[str, Any]) -> dict[str, Any]:
     # (the inbox's Create-login button now UPDATES the auto-enrolled child at its own
     # center), and the active center is restored afterward so the dashboard view is
     # unchanged. switch_location's RPC refuses any center the caller has no membership for.
+    with LOCATION_LOCK:
+        return _save_child_at(session, source, child_id, classroom_id, record)
+
+
+def _save_child_at(session, source, child_id, classroom_id, record):
     restore_location = None
     target_location = require_uuid(_body_value(source, "location_id", "locationId"), "location_id", optional=True)
     if target_location and target_location != active_location(session):

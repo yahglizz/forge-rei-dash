@@ -644,6 +644,23 @@ def thread(client, contact_id, now=None):
             "draft": d if d and d.get("status") == "pending" else None}
 
 
+def send_block(client, contact_id, now=None):
+    """Why a text to this contact would be refused right now (window, opt-out, DND), or None.
+    Side-effect free: the login queue asks this BEFORE minting a PIN it couldn't deliver."""
+    now = now or time.time()
+    cid = str(contact_id or "").strip()
+    if client is None or not getattr(client, "configured", False):
+        return "Daycare GHL not configured"
+    if not daycare_leads.in_hours(now):
+        return "outside 8am–9pm ET texting window — send after 8am"
+    ev = _events(daycare_leads._messages(client, daycare_leads._conversation(client, cid)))
+    if any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in ev):
+        return "parent opted out — not sent"
+    if _contact(client, cid).get("dnd"):
+        return "contact is on Do Not Disturb in GHL — not sent"
+    return None
+
+
 def send_manual(client, contact_id, text, now=None, close_draft=True):
     """POST /api/daycare/ghl/reply — the owner typed this and tapped send; that tap IS the
     approval (rule 2). Same gates as approve(): texting window, opt-out, DND.
@@ -658,13 +675,9 @@ def send_manual(client, contact_id, text, now=None, close_draft=True):
         return {"ok": False, "error": f"message too long — keep it under {MANUAL_MAX_CHARS} characters"}
     if client is None or not getattr(client, "configured", False):
         return _not_configured()
-    if not daycare_leads.in_hours(now):
-        return {"ok": False, "error": "outside 8am–9pm ET texting window — send after 8am"}
-    ev = _events(daycare_leads._messages(client, daycare_leads._conversation(client, cid)))
-    if any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in ev):
-        return {"ok": False, "error": "parent opted out — not sent"}
-    if _contact(client, cid).get("dnd"):
-        return {"ok": False, "error": "contact is on Do Not Disturb in GHL — not sent"}
+    block = send_block(client, cid, now)
+    if block:
+        return {"ok": False, "error": block}
     res = daycare_ghl.send_sms(client, contact_id=cid, message=body)
     try:
         import action_log

@@ -3316,6 +3316,18 @@ def _daycare_queue_mint(session, entry):
         return {"error": "already_signed_in" if message == "already_signed_in" else message}
 
 
+def _daycare_queue_can_send(entry):
+    """Login queue pre-check: never mint a PIN for a text GHL would refuse."""
+    try:
+        return daycare_replies.send_block(DAYCARE_GHL, entry.get("contact_id"))
+    except Exception as error:  # noqa: BLE001 — unreachable GHL = don't reset the PIN yet
+        return f"GHL not reachable ({type(error).__name__})"
+
+
+def _phone10(value):
+    return re.sub(r"\D", "", str(value or ""))[-10:]
+
+
 def _daycare_queue_send(entry, provision):
     """Login queue: the same GHL login text Create login sends (PIN in the body, never stored)."""
     return daycare_replies.send_manual(DAYCARE_GHL, entry.get("contact_id"), daycare_ghl.login_text(
@@ -4388,9 +4400,15 @@ class Handler(BaseHTTPRequestHandler):
                        or daycare_supabase.active_location(session))
         with daycare_supabase.at_location(session, location_id):
             guardian = daycare_supabase.guardian_contact(session, profile_id)
-            if not guardian:
+            if not guardian or guardian.get("role") != "parent":
                 raise daycare_supabase.DaycareError(404, "That parent is not at this center", "not_found")
             contact_id = daycare_ghl.find_contact_by_phone(DAYCARE_GHL, guardian.get("phone") or "")
+            # GHL's contact search is fuzzy: a PIN only goes to a contact whose phone IS this
+            # parent's phone. Anything else = no contact, share in person.
+            if contact_id and (not _phone10(guardian.get("phone"))
+                               or _phone10(daycare_replies._contact(DAYCARE_GHL, contact_id).get("phone"))
+                               != _phone10(guardian.get("phone"))):
+                contact_id = None
             entry = {"profile_id": profile_id, "contact_id": contact_id or "", "location_id": location_id,
                      "parent_first": str(guardian.get("name") or "").split(" ")[0], "child_first": "",
                      "force": True}
@@ -4399,7 +4417,7 @@ class Handler(BaseHTTPRequestHandler):
                 return {"ok": True, "queued": True}
             provision = (daycare_supabase.reset_credentials(session, {"profile_id": profile_id}) or {}).get("provision") or {}
         if not contact_id:
-            provision["texted"] = {"ok": False, "error": "No GHL contact for this parent's phone — share the PIN in person"}
+            provision["texted"] = {"ok": False, "error": "No GHL contact with this parent's phone — share the PIN in person"}
         elif provision.get("pin"):
             try:
                 sent = _daycare_queue_send(entry, provision)
@@ -4648,7 +4666,7 @@ class Handler(BaseHTTPRequestHandler):
                 result = self._daycare_resend_login(session, body)
             elif path == "/api/daycare/login-queue/run":
                 result = daycare_login_queue.run_once(_daycare_start_session, _daycare_queue_mint,
-                                                      _daycare_queue_send)
+                                                      _daycare_queue_send, can_send_fn=_daycare_queue_can_send)
             elif path == "/api/daycare/location/switch":
                 # The DB's set_active_location RPC is the gate — it refuses any center
                 # this profile has no membership row for. We never trust the browser's id.
@@ -5569,7 +5587,8 @@ def main():
         if os.environ.get("FORGE_DAYCARE_LOGIN_QUEUE", "1") != "0":
             print("   Solomon · Login texts: after-hours login texts go out from 8am")
             threading.Thread(target=daycare_login_queue.run_forever,
-                             args=(_daycare_start_session, _daycare_queue_mint, _daycare_queue_send),
+                             args=(_daycare_start_session, _daycare_queue_mint, _daycare_queue_send,
+                                   _daycare_queue_can_send),
                              daemon=True, name="daycare_login_queue").start()
         else:
             forge_heartbeat.retire("daycare_login_queue")

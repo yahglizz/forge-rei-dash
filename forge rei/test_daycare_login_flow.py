@@ -158,12 +158,71 @@ class LoginQueue(unittest.TestCase):
         self.tick(lambda s, e: seen.update(e) or {"pin": "1", "login_id": "x"})
         self.assertTrue(seen["force"])
 
-    def test_three_failures_drop_with_reason(self):
+    def test_send_failure_after_mint_is_never_retried(self):
+        # A retry would mint ANOTHER PIN nobody sees. One reset, then a staff-visible problem.
         lq.enqueue(ENTRY)
+        mint = mock.Mock(return_value={"pin": "1", "login_id": "x"})
         for _ in range(3):
-            self.tick(lambda s, e: {"pin": "1", "login_id": "x"}, lambda e, p: {"ok": False, "error": "GHL 500"})
+            self.tick(mint, lambda e, p: {"ok": False, "error": "GHL 500"})
+        self.assertEqual(mint.call_count, 1)
         self.assertEqual(lq.view()["queued"], [])
-        self.assertIn("GHL 500", lq.view()["done"][-1]["outcome"])
+        problem = lq.view()["problems"][-1]
+        self.assertIn("GHL 500", problem["outcome"])
+        self.assertEqual((problem["parent"], problem["child"]), ("Ana", "Maria"))
+
+    def test_blocked_contact_is_never_minted(self):
+        lq.enqueue(ENTRY)
+        mint = mock.Mock()
+        out = lq.run_once(lambda: "S", mint, mock.Mock(), now=AT_0805,
+                          can_send_fn=lambda e: "parent opted out — not sent")
+        mint.assert_not_called()
+        self.assertEqual(out["dropped"], 1)
+        self.assertIn("opted out", lq.view()["problems"][-1]["outcome"])
+        self.assertIn("PIN unchanged", lq.view()["problems"][-1]["outcome"])
+
+    def test_mint_outage_keeps_retrying_well_past_three_ticks(self):
+        lq.enqueue(ENTRY)
+        for _ in range(5):
+            self.tick(lambda s, e: {"error": "Daycare database request failed"})
+        self.assertEqual(len(lq.view()["queued"]), 1)
+        self.assertEqual(lq.view()["problems"], [])
+
+    def test_mint_outage_gives_up_after_max_tries(self):
+        lq.enqueue(ENTRY)
+        for _ in range(lq.MAX_TRIES):
+            self.tick(lambda s, e: {"error": "Daycare database request failed"})
+        self.assertEqual(lq.view()["queued"], [])
+        self.assertIn("gave up", lq.view()["problems"][-1]["outcome"])
+
+    def test_concurrent_run_is_skipped(self):
+        lq.enqueue(ENTRY)
+        mint = mock.Mock()
+        self.assertTrue(lq._RUN.acquire(blocking=False))
+        try:
+            out = self.tick(mint)
+        finally:
+            lq._RUN.release()
+        mint.assert_not_called()
+        self.assertEqual(out.get("skipped"), "already running")
+
+    def test_resend_queued_during_a_run_is_not_lost(self):
+        lq.enqueue(ENTRY)
+        def mint(_s, e):
+            lq.enqueue({**ENTRY, "force": True})   # owner taps Resend while the 8am tick runs
+            return {"error": "already_signed_in"}
+        self.tick(mint)
+        queued = lq.view()["queued"]
+        self.assertEqual(len(queued), 1)
+        self.assertTrue(queued[0]["force"])
+
+    def test_interrupted_send_becomes_a_problem_not_a_resend(self):
+        lq.STATE.write_text(json.dumps({"queue": {}, "inflight": {ENTRY["profile_id"]: {
+            **ENTRY, "force": False, "queued_at": AT_0805 - 4000, "tries": 0, "started": AT_0805 - 1000}}}))
+        mint = mock.Mock()
+        self.tick(mint)
+        mint.assert_not_called()
+        self.assertIn("interrupted", lq.view()["problems"][-1]["outcome"])
+        self.assertEqual(lq.view()["queued"], [])
 
     def test_no_session_reports_error_and_keeps_queue(self):
         lq.enqueue(ENTRY)
@@ -200,7 +259,7 @@ class ConnectorLoginPieces(unittest.TestCase):
         h = object.__new__(connector.Handler)
         with mock.patch.object(connector.daycare_supabase, "at_location", mock.MagicMock()), \
              mock.patch.object(connector.daycare_supabase, "guardian_contact",
-                               return_value={"id": ENTRY["profile_id"], "name": "Ana Lopez", "phone": ""}), \
+                               return_value={"id": ENTRY["profile_id"], "name": "Ana Lopez", "phone": "", "role": "parent"}), \
              mock.patch.object(connector.daycare_ghl, "find_contact_by_phone", return_value=None), \
              mock.patch.object(connector.daycare_supabase, "reset_credentials",
                                return_value={"provision": {"login_id": "Ana Lopez", "pin": "12345678"}}), \
@@ -254,6 +313,53 @@ class AppTrackingNoCrossSessionCache(unittest.TestCase):
             with self.assertRaises(connector.daycare_supabase.DaycareError):
                 h._daycare_app_tracking("MANAGER", "921")
         self.assertEqual(reader.call_count, 2)
+
+
+class LocationLock(unittest.TestCase):
+    """Center switches (at_location / save_child / the switch route) are serialized per process."""
+    def test_at_location_holds_the_lock_for_the_block(self):
+        session = mock.Mock(profile={"active_location_id": LOC})
+        with mock.patch.object(daycare, "switch_location"):
+            with daycare.at_location(session, "44444444-4444-4444-4444-444444444444"):
+                self.assertTrue(daycare.LOCATION_LOCK._is_owned())
+        self.assertFalse(daycare.LOCATION_LOCK._is_owned())
+
+
+class ResendContactChecks(unittest.TestCase):
+    def resend(self, guardian, contact):
+        h = object.__new__(connector.Handler)
+        with mock.patch.object(connector.daycare_supabase, "at_location", mock.MagicMock()), \
+             mock.patch.object(connector.daycare_supabase, "guardian_contact", return_value=guardian), \
+             mock.patch.object(connector.daycare_ghl, "find_contact_by_phone", return_value="ghl9"), \
+             mock.patch.object(connector.daycare_replies, "_contact", return_value=contact), \
+             mock.patch.object(connector.daycare_leads, "in_hours", return_value=True), \
+             mock.patch.object(connector.daycare_supabase, "reset_credentials",
+                               return_value={"provision": {"login_id": "Ana Lopez", "pin": "12345678"}}) as reset, \
+             mock.patch.dict("sys.modules", {"action_log": mock.Mock()}), \
+             mock.patch.object(connector.daycare_replies, "send_manual", return_value={"ok": True}) as send:
+            try:
+                return h._daycare_resend_login("S", {"profile_id": ENTRY["profile_id"], "location_id": LOC}), send, reset
+            except connector.daycare_supabase.DaycareError as error:
+                return error, send, reset
+
+    def test_pin_never_texted_to_a_contact_whose_phone_differs(self):
+        out, send, _ = self.resend({"id": ENTRY["profile_id"], "name": "Ana Lopez", "phone": "+12155550120", "role": "parent"},
+                                   {"id": "ghl9", "phone": "+12675550999"})
+        send.assert_not_called()
+        self.assertIn("share the PIN in person", out["provision"]["texted"]["error"])
+
+    def test_matching_contact_is_texted(self):
+        out, send, _ = self.resend({"id": ENTRY["profile_id"], "name": "Ana Lopez", "phone": "(215) 555-0120", "role": "parent"},
+                                   {"id": "ghl9", "phone": "+12155550120"})
+        send.assert_called_once()
+        self.assertTrue(out["provision"]["texted"]["ok"])
+
+    def test_resend_refuses_non_parent_accounts(self):
+        out, send, reset = self.resend({"id": ENTRY["profile_id"], "name": "Staff Person", "phone": "+12155550120", "role": "staff"},
+                                       {"id": "ghl9", "phone": "+12155550120"})
+        self.assertIsInstance(out, connector.daycare_supabase.DaycareError)
+        reset.assert_not_called()
+        send.assert_not_called()
 
 
 if __name__ == "__main__":
