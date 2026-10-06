@@ -546,7 +546,7 @@ function MBDFamilies() {
     const who = child + (f.parent_name ? " (parent " + f.parent_name + ")" : "") + (f.location_name ? " at " + f.location_name : "");
     const what = f.child_id ? who + " is already on the roster. Link/create the parent's app login and clear this card?" : "Enroll " + who + "?";
     if (!window.confirm(what + "\n\nThis writes to the daycare roster, creates the parent's app login if an email is on file, and updates their GoHighLevel contact. No text is sent.")) return;
-    setBusyId(f.contact_id); setNotice("");
+    setBusyId(f.card_id || f.contact_id); setNotice("");
     try {
       const r = await window.apiPostM("/api/daycare/ghl/enroll", { family: f });
       if (r && r.provision) setCreds({ provision: r.provision, who: f.parent_name || child });
@@ -556,10 +556,13 @@ function MBDFamilies() {
     setBusyId("");
   }
 
-  const famRow = (f, action) => <div className="mbd-row" key={f.contact_id}>
+  // One row per CHILD (card_id = contact_id, or "contact_id#i" for a sibling).
+  const famRow = (f, action) => <div className="mbd-row" key={f.card_id || f.contact_id}>
     <span className="mbd-avatar">{MBDInitials(f.child_name || f.parent_name)}</span>
     <div className="mbd-row-main"><strong>{MBDName(f.child_name, "Student")}{f.parent_name ? " · " + f.parent_name : ""}</strong>
-      <small>{[f.location_name || f.location_tag, f.enrolled ? (f.child_id ? "On roster" : "Enrolled family") : "Inquiry"].filter(Boolean).join(" · ")}</small></div>
+      <small>{[f.children_count > 1 ? "Child " + (f.child_index + 1) + "/" + f.children_count : "", f.location_name || f.location_tag, f.enrolled ? (f.child_id ? "On roster" : "Enrolled family") : "Inquiry",
+        f.confirm_state === "confirmed" ? "Confirmed ✓" : f.confirm_state === "pending" ? (f.confirm_reply ? "Replied — check thread" : "Awaiting YES") : f.confirm_state === "no_reply" ? "No reply 48h+" : "",
+        f.enrolled && f.missing && f.missing.length ? "Missing: " + f.missing.join(", ") : ""].filter(Boolean).join(" · ")}</small></div>
     {f.phone && <a className="mbd-call" href={"tel:" + f.phone} aria-label="Call"><window.MIcons.Phone size={17} /></a>}
     {action}
   </div>;
@@ -594,8 +597,8 @@ function MBDFamilies() {
         {pd && pd.connected === false && <div className="mw-warn">Daycare GoHighLevel isn't connected — the inbox can't load.</div>}
         {inbox.loading && !inbox.data ? <window.MSpin /> : pd && <React.Fragment>
           {pd.connected !== false && !toEnroll.length && !inquiries.length && <window.MEmpty title="All caught up" sub="New form submissions for this center show here." />}
-          {toEnroll.map((f) => famRow(f, <button className="mbd-pill" disabled={busyId === f.contact_id} onClick={() => enroll(f)}>
-            {busyId === f.contact_id ? "…" : f.child_id ? "Finish" : "Enroll"}</button>))}
+          {toEnroll.map((f) => famRow(f, <button className="mbd-pill" disabled={busyId === (f.card_id || f.contact_id) || f.ready === false} onClick={() => enroll(f)}>
+            {busyId === (f.card_id || f.contact_id) ? "…" : f.child_id ? "Finish" : "Enroll"}</button>))}
           {inquiries.length > 0 && <div className="mbd-sub">New inquiries — not enrolled yet · no login</div>}
           {inquiries.map((f) => famRow(f, null))}
           {elsewhere > 0 && <div className="m-fade" style={{ padding: "10px 2px 0" }}>{elsewhere} more waiting at other centers — switch center on Home.</div>}

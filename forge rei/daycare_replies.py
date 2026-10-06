@@ -39,6 +39,7 @@ from datetime import datetime
 from pathlib import Path
 
 import daycare_ghl
+import daycare_family_confirm
 import daycare_leads
 import forge_atomic
 import forge_heartbeat
@@ -127,6 +128,12 @@ def gate(contact, messages, now):
         return False, "opted_out"
     if _is_keyword(last["body"]):
         return False, "keyword"                  # GHL STOP/HELP auto-replies own it
+    # A "YES" to the Family Contact Form confirmation text needs no human answer —
+    # daycare_family_confirm.py tags the family confirmed. A hedged reply still drafts.
+    ftags = {str(t).strip().lower() for t in (contact.get("tags") or [])}
+    if ftags & {"family-confirm-pending", "family-confirmed"} \
+            and daycare_family_confirm.classify(last["body"]) == "yes":
+        return False, "family_confirm"
     if contact.get("dnd"):
         return False, "dnd"
     age = now - last["t"]

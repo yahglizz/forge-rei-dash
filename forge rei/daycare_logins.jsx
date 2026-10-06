@@ -29,13 +29,21 @@ function DclPendingPanel({ families, activeLoc, onCreate, onDismiss, error, busy
   const inquiries = fresh.filter((f) => !f.enrolled);
   const linked = here.length - fresh.length;
   const centerName = (here.find((f) => f.location_name) || {}).location_name || "";
-  const dismissBtn = (f) => <button className="dc-quiet" title="Dismiss — already handled" disabled={busyContact === f.contact_id}
-      style={{ flex: "0 0 auto", fontSize: "16px", lineHeight: 1 }} onClick={() => onDismiss(f.contact_id)}>&times;</button>;
-  const row = (f, action) => <div key={f.contact_id} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
+  // One card per CHILD: card_id = contact_id for the first child, "contact_id#i" for siblings.
+  const key = (f) => f.card_id || f.contact_id;
+  const chip = (text, color, bg, title) => <span title={title} style={{ flex: "0 0 auto", whiteSpace: "nowrap", fontSize: "11px", fontWeight: 600, color, background: bg, borderRadius: "99px", padding: "3px 9px" }}>{text}</span>;
+  const confirmChip = (f) => f.confirm_state === "confirmed" ? chip("Confirmed ✓", "#81c995", "rgba(129,201,149,.1)", "Parent replied YES to the confirmation text")
+    : f.confirm_state === "pending" ? chip(f.confirm_reply ? "Replied — read it" : "Awaiting YES", "#8ab4f8", "rgba(138,180,248,.1)", f.confirm_reply ? "Parent wrote: " + f.confirm_reply : "Confirmation text sent; no reply yet")
+    : f.confirm_state === "no_reply" ? chip("No reply 48h+", "#f6c979", "rgba(244,184,96,.1)", f.confirm_reply ? "Parent wrote: " + f.confirm_reply : "Follow up — no reply to the confirmation text")
+    : null;
+  const dismissBtn = (f) => <button className="dc-quiet" title="Dismiss — already handled" disabled={busyContact === key(f)}
+      style={{ flex: "0 0 auto", fontSize: "16px", lineHeight: 1 }} onClick={() => onDismiss(key(f))}>&times;</button>;
+  const row = (f, action) => <div key={key(f)} className="dcl-inbox-row" style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
       <span className={"dc-severity " + (f.enrolled ? "info" : "warning")} style={{ flex: "0 0 auto" }} />
       <div style={{ flex: "1 1 auto", minWidth: 0 }}>
         <b style={{ fontWeight: 500 }}>{f.child_name || "Student"}{f.parent_name ? " · " + f.parent_name : ""}</b>
-        <small style={{ display: "block", opacity: .6 }}>{[f.location_name || f.location_tag, f.email, f.phone].filter(Boolean).join("  ·  ") || "No contact details"}</small>
+        <small style={{ display: "block", opacity: .6 }}>{[f.children_count > 1 ? "Child " + (f.child_index + 1) + " of " + f.children_count : "", f.location_name || f.location_tag, f.classroom_label, f.email, f.phone, (f.shirt_size || f.pants_size) ? "Uniform " + [f.shirt_size && "shirt " + f.shirt_size, f.pants_size && "pants " + f.pants_size].filter(Boolean).join(" / ") : ""].filter(Boolean).join("  ·  ") || "No contact details"}</small>
+        {f.missing && f.missing.length > 0 && f.enrolled && <small style={{ display: "block", color: "#f6c979" }}>Missing for login: {f.missing.join(", ")}</small>}
       </div>
       {action}
       {dismissBtn(f)}
@@ -47,8 +55,9 @@ function DclPendingPanel({ families, activeLoc, onCreate, onDismiss, error, busy
       ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard for this center." : "New form submissions for this center will show here to create a login."}</span></div></div>
       : <div className="dcl-inbox-list">{enrolledFresh.map((f) => row(f,
           <React.Fragment>
-            {f.child_id && <span style={{ flex: "0 0 auto", whiteSpace: "nowrap", fontSize: "11px", fontWeight: 600, color: "#81c995", background: "rgba(129,201,149,.1)", borderRadius: "99px", padding: "3px 9px" }}>Enrolled ✓</span>}
-            <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} disabled={busyContact === f.contact_id} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> {busyContact === f.contact_id ? "Creating…" : "Create login"}</button>
+            {confirmChip(f)}
+            {f.child_id && chip("Enrolled ✓", "#81c995", "rgba(129,201,149,.1)")}
+            <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} disabled={busyContact === key(f) || f.ready === false} title={f.ready === false ? "Missing: " + (f.missing || []).join(", ") : ""} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> {busyContact === key(f) ? "Creating…" : "Create login"}</button>
           </React.Fragment>))}</div>}
     {inquiries.length > 0 && <div className="dcl-inquiries" style={{ marginTop: "14px" }}>
       <div className="faint" style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500 }}><window.Icons.Bell size={13} /> New inquiries — not enrolled yet · no app login</div>
@@ -111,7 +120,7 @@ function DaycareParentLogins() {
   // and dismisses the card — no review form. The click itself is the approval (an
   // explicit owner action on one already-consented family record).
   const createFromForm = async (family) => {
-    setBusyContact(family.contact_id);
+    setBusyContact(family.card_id || family.contact_id);
     try {
       const payload = await window.DcxRequest("/ghl/enroll", { body: { family } });
       if (payload.provision) setCredentials(payload.provision);

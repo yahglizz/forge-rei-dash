@@ -463,8 +463,116 @@ def iter_contacts(client, *, max_pages: int = 6, page_size: int = 100):
         after = (str(nxt_id), str(meta.get("startAfter") or ""))
 
 
+# --- Family-form confirmation + multi-child (spec 2026-10-05-family-form-automation) ---
+# forms/api/submit.js keeps one entry per child in children_json; child 0 is the contact's
+# identity. Each child is its own inbox card keyed card_id = contact_id (child 0) or
+# "contact_id#i" — the key dismiss() and the form-child ledger use, so enrolling or
+# dismissing one sibling never touches another.
+CF_CHILDREN_JSON = "e7YOKwZiHYM5lUnehTGE"
+CF_SHIRT = "YlJ22B5f89vAQBFWBkW5"
+CF_PANTS = "HnSCMs702Efn0eNPEEfi"
+CF_CONFIRM_SENT = "D1HjF1rkDPhTQsNoPCoc"
+CF_CONFIRMED_AT = "T4h8YJeha9uvQE5MgBNf"
+CONFIRM_PENDING_TAG = "family-confirm-pending"
+CONFIRMED_TAG = "family-confirmed"
+GROUP_TAG_BY_LABEL = {"Infants": "group-infants", "Toddlers": "group-toddlers",
+                      "Pre-K": "group-prek", "School-Age": "group-schoolage"}
+
+
+def card_contact_id(card_id: str | None) -> str:
+    """'abc#1' -> 'abc' (the GHL contact a sibling card belongs to)."""
+    return str(card_id or "").split("#", 1)[0]
+
+
+def _children_entries(contact: dict) -> list[dict]:
+    raw = _cf_map(contact).get(CF_CHILDREN_JSON)
+    if not raw:
+        return []
+    try:
+        arr = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return [c for c in arr if isinstance(c, dict) and str(c.get("name") or "").strip()] \
+        if isinstance(arr, list) else []
+
+
+def _confirm_state(contact: dict, tags: set[str], now: float) -> str:
+    """'confirmed' | 'pending' | 'no_reply' | '' (never texted)."""
+    if CONFIRMED_TAG in tags:
+        return "confirmed"
+    if CONFIRM_PENDING_TAG not in tags:
+        return ""
+    sent = str(_cf_map(contact).get(CF_CONFIRM_SENT) or "")
+    try:
+        from datetime import datetime
+        at = datetime.fromisoformat(sent.replace("Z", "+00:00")).timestamp()
+        if now - at > 48 * 3600:
+            return "no_reply"
+    except ValueError:
+        pass
+    return "pending"
+
+
+def _readiness(card: dict) -> list[str]:
+    """What Create login still needs. Empty = ready. Mirrors _daycare_enroll_family:
+    a login needs an email; a child row needs a first name, a surname (child's or
+    parent's), and a known center."""
+    missing = []
+    if not card.get("enrolled"):
+        missing.append("not enrolled")
+    if not str(card.get("child_first") or "").strip():
+        missing.append("child name")
+    if not str(card.get("child_last") or card.get("parent_last") or "").strip():
+        missing.append("last name")
+    if not LOCATION_ID_BY_TAG.get(str(card.get("location_tag") or "").lower()):
+        missing.append("location")
+    if not str(card.get("email") or "").strip():
+        missing.append("parent email")
+    if not str(card.get("phone") or "").strip():
+        missing.append("parent phone")
+    return missing
+
+
+def family_cards(contact: dict, now: float | None = None) -> list[dict]:
+    """One inbox card per child on the contact (a contact with no children_json = one card,
+    exactly the pre-2026-10-05 behaviour)."""
+    import time as _time
+    now = now or _time.time()
+    base = _family_from_contact(contact)
+    tags = {str(t).lower() for t in (contact.get("tags") or [])}
+    cf = _cf_map(contact)
+    cid = str(base.get("contact_id") or "")
+    base.update({"card_id": cid, "child_index": 0, "children_count": 1,
+                 "shirt_size": cf.get(CF_SHIRT) or "", "pants_size": cf.get(CF_PANTS) or "",
+                 "confirm_state": _confirm_state(contact, tags, now),
+                 "confirmed_at": cf.get(CF_CONFIRMED_AT) or ""})
+    kids = _children_entries(contact)
+    cards = []
+    for i, kid in enumerate(kids or [None]):
+        card = dict(base)
+        if kid is not None:
+            first, last = _split_name(kid.get("name"))
+            card.update({
+                "card_id": cid if i == 0 else f"{cid}#{i}", "child_index": i,
+                "children_count": len(kids),
+                "child_name": str(kid.get("name") or "").strip(),
+                "child_first": first, "child_last": last,
+                "child_dob": kid.get("dob") or (base["child_dob"] if i == 0 else ""),
+                "shirt_size": kid.get("shirt") or "", "pants_size": kid.get("pants") or "",
+            })
+            if kid.get("loc"):
+                card["location_tag"] = kid["loc"]
+            if kid.get("group") in GROUP_TAG_BY_LABEL:
+                card["classroom_label"] = GROUP_TAG_LABEL[GROUP_TAG_BY_LABEL[kid["group"]]]
+        card["missing"] = _readiness(card)
+        card["ready"] = not card["missing"]
+        cards.append(card)
+    return cards
+
+
 def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> list[dict]:
-    """List families submitted through the Family Contact Form (tagged FORM_TAG).
+    """List families submitted through the Family Contact Form (tagged FORM_TAG) —
+    one card per child.
 
     Read-only. Pages the location's contacts (iter_contacts) and filters client-side.
     """
@@ -476,7 +584,7 @@ def pending_families(client, *, max_pages: int = 6, page_size: int = 100) -> lis
         # Existing-student form families (get a login) AND brand-new website inquiries
         # (shown marked, no login) — so the inbox tells them apart instead of guessing.
         if FORM_TAG in tags or LEAD_TAG in tags:
-            out.append(_family_from_contact(contact))
+            out.extend(family_cards(contact))
     return out
 
 

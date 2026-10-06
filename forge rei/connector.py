@@ -1063,6 +1063,7 @@ import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad 
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
+import daycare_family_confirm  # noqa: E402 — Family Contact Form YES-reply reader
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 # --- WP-E ---
 import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead visibility, no Claude)
@@ -4132,6 +4133,7 @@ class Handler(BaseHTTPRequestHandler):
         except daycare_supabase.DaycareError:
             pass
         families = daycare_ghl.pending_families(DAYCARE_GHL)
+        intakes = {}
         emails = set()
         try:
             roster = (daycare_supabase.get_children(session) or {}).get("children") or []
@@ -4154,7 +4156,11 @@ class Handler(BaseHTTPRequestHandler):
             family["in_roster"] = bool(
                 family.get("is_lead") and loc_id and str(loc_id) == str(active)
                 and mail and mail in emails)
-            family["dismissed"] = daycare_ghl.is_dismissed(family.get("contact_id"))
+            # Per-child key: child 0 = contact_id (unchanged), sibling i = "contact_id#i".
+            card_id = family.get("card_id") or family.get("contact_id")
+            family["dismissed"] = daycare_ghl.is_dismissed(card_id)
+            family["confirm_reply"] = (daycare_family_confirm.status(family.get("contact_id"))
+                                       .get("reply") if family.get("confirm_state") in ("pending", "no_reply") else None)
             # For families the owner can still provision, read the GHL intake note for the
             # bits the form keeps only there — authorized-pickup people + the freeform note —
             # so the explicit "Enroll" action carries them into the child's pickup_notes /
@@ -4162,7 +4168,10 @@ class Handler(BaseHTTPRequestHandler):
             # enroll a child or write a ledger entry.
             if (not family["in_roster"] and not family["dismissed"]
                     and family.get("enrolled") and family.get("contact_id")):
-                intake = daycare_ghl.family_intake(DAYCARE_GHL, family["contact_id"])
+                # One note read per contact, shared by every sibling card.
+                if family["contact_id"] not in intakes:
+                    intakes[family["contact_id"]] = daycare_ghl.family_intake(DAYCARE_GHL, family["contact_id"])
+                intake = intakes[family["contact_id"]]
                 people = intake.get("authorized_pickup") or []
                 if people:
                     base = family.get("pickup_notes") or ""
@@ -4171,7 +4180,7 @@ class Handler(BaseHTTPRequestHandler):
                         + "\n".join("  - " + p for p in people)).strip()
                 if intake.get("notes"):
                     family["medical_notes"] = intake["notes"]
-            family["child_id"] = daycare_ghl.form_child_id(family.get("contact_id"))
+            family["child_id"] = daycare_ghl.form_child_id(card_id)
         return {"ok": True, "families": families,
                 "connected": bool(DAYCARE_GHL.configured),
                 "active_location_id": active}
@@ -4291,13 +4300,18 @@ class Handler(BaseHTTPRequestHandler):
         contact_id = family.get("contact_id")
         if not contact_id:
             raise daycare_supabase.DaycareError(400, "contact_id is required", "validation_error")
+        # Sibling cards share the contact (texts go to contact_id) but each child has its
+        # own ledger + dismiss key, so a second child is never "already enrolled".
+        card_id = family.get("card_id") or contact_id
+        if daycare_ghl.card_contact_id(card_id) != contact_id:
+            raise daycare_supabase.DaycareError(400, "card_id does not belong to contact_id", "validation_error")
         child_body = self._daycare_family_child_body(session, family)
         if enrollment_date:
             child_body["enrollment_date"] = enrollment_date
         # If this contact was already enrolled once (ledgered by a prior enroll click,
         # or by the retired auto-enroll path), pass that child id so save_child UPDATES
         # the row (and provisions the login) instead of inserting a duplicate.
-        child_body["id"] = (daycare_ghl.form_child_id(contact_id) or daycare_supabase.find_child_id(
+        child_body["id"] = (daycare_ghl.form_child_id(card_id) or daycare_supabase.find_child_id(
             session, child_body.get("location_id"), child_body["first_name"],
             child_body["last_name"]) or None)
         # A parent login is created ONLY when the family gave an email — enrollment and
@@ -4334,8 +4348,8 @@ class Handler(BaseHTTPRequestHandler):
                 provision["texted"] = {"ok": False, "error": f"GHL send failed: {type(error).__name__}"}
         saved_id = ((result or {}).get("child") or {}).get("id")
         if saved_id:
-            daycare_ghl.record_form_child(contact_id, saved_id)
-        result["dismissed"] = daycare_ghl.dismiss(contact_id)
+            daycare_ghl.record_form_child(card_id, saved_id)
+        result["dismissed"] = daycare_ghl.dismiss(card_id)
         return result
 
     def _daycare_family_child_body(self, session, family):
@@ -5460,6 +5474,15 @@ def main():
             tdr.start()
         else:
             forge_heartbeat.retire("daycare_replies")
+        # Family Contact Form confirmation: reads parents' YES replies to the confirm text
+        # and tags family-confirmed (internal + reversible, never sends).
+        # FORGE_DAYCARE_FAMILY_CONFIRM=0 switches it off.
+        if os.environ.get("FORGE_DAYCARE_FAMILY_CONFIRM", "1") != "0":
+            print(f"   Solomon · Family confirm: reply check every {daycare_family_confirm.INTERVAL}s")
+            threading.Thread(target=daycare_family_confirm.run_forever, args=(DAYCARE_GHL,),
+                             daemon=True, name="daycare_family_confirm").start()
+        else:
+            forge_heartbeat.retire("daycare_family_confirm")
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work
