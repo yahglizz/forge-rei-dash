@@ -866,3 +866,4 @@ kill switch: `FORGE_CAVEMAN=0`. When adding any new operator-facing AI chat surf
 
 ## Daily notes (Claude + Codex)
 Shared handoff log: `~/Desktop/A Touch of Blessings — Brand Kit/docs/daily/`. Read the newest 2 files at session start; append to today's `YYYY-MM-DD.md` at session end and after any deploy/migration/workflow change. Rules in that folder's README.md.
+Codex (no hooks): run `bash "$HOME/Desktop/A Touch of Blessings — Brand Kit/scripts/daily-note.sh" start` first and `... stop` last. Claude hooks do this automatically.
