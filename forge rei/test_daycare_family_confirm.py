@@ -24,11 +24,12 @@ def msg(body, t, direction="inbound"):
 
 class Classify(unittest.TestCase):
     def test_plain_yeses(self):
-        for b in ("YES", "yes!", "Y", "Yes it's correct", "yep", "Confirmed", "ok", "👍"):
+        for b in ("YES", "yes!", "Y", "Yes it's correct", "yep", "Confirmed", "ok", "👍", "Yes thank you", "yes everything's correct"):
             self.assertEqual(fc.classify(b), "yes", b)
 
     def test_hedged_or_other(self):
-        for b in ("yes but my phone changed", "No that's wrong", "who is this?", "not yet"):
+        for b in ("yes but my phone changed", "No that's wrong", "who is this?", "not yet",
+                  "ok what is this", "y'all open tomorrow?", "yes the DOB is 3/4", ""):
             self.assertEqual(fc.classify(b), "other", b)
 
     def test_stop(self):
@@ -39,8 +40,10 @@ class Decide(unittest.TestCase):
     def c(self):
         return contact(tags=[fc.PENDING_TAG], **{fc.CF_CONFIRM_SENT: SENT})
 
+    OURS = staticmethod(lambda: msg("Reply YES to confirm", T_SENT + 180, "outbound"))
+
     def test_yes_after_send_confirms(self):
-        v = fc.decide(self.c(), [msg("Yes", T_SENT + 300)], T_SENT + 400)
+        v = fc.decide(self.c(), [self.OURS(), msg("Yes", T_SENT + 300)], T_SENT + 400)
         self.assertEqual(v["state"], "confirmed")
 
     def test_yes_before_send_is_ignored(self):
@@ -48,11 +51,19 @@ class Decide(unittest.TestCase):
         self.assertEqual(v["state"], "waiting")
 
     def test_question_is_surfaced_not_confirmed(self):
-        v = fc.decide(self.c(), [msg("what is this for?", T_SENT + 60)], T_SENT + 400)
+        v = fc.decide(self.c(), [self.OURS(), msg("what is this for?", T_SENT + 260)], T_SENT + 400)
         self.assertEqual((v["state"], v["reply"]), ("replied", "what is this for?"))
 
     def test_no_reply_after_48h(self):
         self.assertEqual(fc.decide(self.c(), [], T_SENT + 49 * 3600)["state"], "no_reply")
+
+    def test_yes_between_marker_and_our_text_is_ignored(self):
+        # marker written, workflow still waiting 3 min, parent texts "yes" to something else
+        v = fc.decide(self.c(), [msg("yes", T_SENT + 60), self.OURS()], T_SENT + 400)
+        self.assertEqual(v["state"], "waiting")
+
+    def test_no_text_out_yet_means_waiting(self):
+        self.assertEqual(fc.decide(self.c(), [msg("yes", T_SENT + 60)], T_SENT + 400)["state"], "waiting")
 
     def test_outbound_never_counts(self):
         v = fc.decide(self.c(), [msg("Reply YES to confirm", T_SENT + 1, "outbound")], T_SENT + 60)

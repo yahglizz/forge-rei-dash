@@ -40,8 +40,12 @@ CF_CONFIRM_SENT = "D1HjF1rkDPhTQsNoPCoc"
 CF_CONFIRMED_AT = "T4h8YJeha9uvQE5MgBNf"
 NO_REPLY_SEC = 48 * 3600
 
-_YES_RE = re.compile(r"^(y|ya|yes+|yea+h?|yep|yup|confirm(ed)?|correct|ok(ay)?|all good|looks good|"
-                     r"that'?s right|right)\b")
+# WHOLE-message match only: "ok what is this" and "yes but the DOB is wrong" must not
+# confirm. An optional "it's correct" / "thank you" tail is allowed.
+_YES_RE = re.compile(
+    r"^(y|ya|yes+|yea+h?|yep|yup|confirm(ed)?|correct|ok(ay)?|k|all good|looks good|that'?s right)"
+    r"( (it is|it'?s|its|that'?s|thats|everything'?s|all|is) ?(correct|right|good|fine|all good|accurate))?"
+    r"( (thanks|thank you|thank u|ty|god bless))*$")
 _HEDGE_RE = re.compile(r"\b(no|not|wrong|incorrect|change|update|but|except|fix|mistake)\b")
 
 
@@ -50,11 +54,11 @@ def classify(body: str) -> str:
     text = str(body or "").strip()
     if seller_classify.is_opt_out(text):
         return "opt_out"
-    low = re.sub(r"\s+", " ", text.lower())
-    if low.startswith(("👍", "✅")) and not _HEDGE_RE.search(low):
+    low = re.sub(r"\s+", " ", text.lower()).strip()
+    if low in ("👍", "✅", "👍🏽", "👍🏾", "👍🏿", "👍🏼", "👍🏻"):
         return "yes"
-    words = re.sub(r"[^a-z' ]", " ", low).strip()
-    if _YES_RE.match(words) and not _HEDGE_RE.search(words):
+    words = re.sub(r"\s+", " ", re.sub(r"[^a-z' ]", " ", low)).strip()
+    if words and _YES_RE.match(words) and not _HEDGE_RE.search(words):
         return "yes"
     return "other"
 
@@ -71,17 +75,20 @@ def decide(contact: dict, messages: list, now: float) -> dict:
     {"state": confirmed|opted_out|replied|no_reply|waiting, "reply": text|None, "at": sec|None}."""
     cf = daycare_ghl._cf_map(contact)
     sent = _iso_sec(cf.get(CF_CONFIRM_SENT))
-    inbound = []
+    rows = []
     for m in messages or []:
         t = daycare_leads._sec(m.get("dateAdded") or m.get("date"))
         mtype = str(m.get("messageType") or m.get("type") or "").upper()
-        if t is None or m.get("direction") != "inbound" or "ACTIVITY" in mtype:
+        if t is None or m.get("direction") not in ("inbound", "outbound") or "ACTIVITY" in mtype:
             continue
-        # Only replies to OUR text count; a message from before it can't be a YES to it.
-        if sent is not None and t < sent - 5:
-            continue
-        inbound.append((t, str(m.get("body") or "")))
-    inbound.sort()
+        rows.append((t, m.get("direction"), str(m.get("body") or ""), "SMS" in mtype))
+    rows.sort(key=lambda r: r[0])
+    # Our confirmation text = the first outbound SMS at/after the marker (the workflow
+    # sends ~3 min after it is written). Only replies AFTER that text count, so a "yes"
+    # to an earlier message (e.g. the speed-to-lead text) can never confirm.
+    ours = next((t for t, d, _b, sms in rows if d == "outbound" and sms
+                 and (sent is None or t >= sent - 5)), None)
+    inbound = [(t, b) for t, d, b, _s in rows if d == "inbound" and ours is not None and t > ours]
     for t, body in reversed(inbound):           # newest decisive reply wins
         verdict = classify(body)
         if verdict == "yes":
