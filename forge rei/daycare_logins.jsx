@@ -44,6 +44,7 @@ function DclPendingPanel({ families, activeLoc, onCreate, onDismiss, error, busy
         <b style={{ fontWeight: 500 }}>{f.child_name || "Student"}{f.parent_name ? " · " + f.parent_name : ""}</b>
         <small style={{ display: "block", opacity: .6 }}>{[f.children_count > 1 ? "Child " + (f.child_index + 1) + " of " + f.children_count : "", f.location_name || f.location_tag, f.classroom_label, f.email, f.phone, (f.shirt_size || f.pants_size) ? "Uniform " + [f.shirt_size && "shirt " + f.shirt_size, f.pants_size && "pants " + f.pants_size].filter(Boolean).join(" / ") : ""].filter(Boolean).join("  ·  ") || "No contact details"}</small>
         {f.missing && f.missing.length > 0 && f.enrolled && <small style={{ display: "block", color: "#f6c979" }}>Missing for login: {f.missing.join(", ")}</small>}
+        {f.review && f.review.length > 0 && <small style={{ display: "block", color: "#f28b82" }}>Check: {f.review.join(" · ")}</small>}
       </div>
       {action}
       {dismissBtn(f)}

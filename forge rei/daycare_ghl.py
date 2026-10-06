@@ -475,6 +475,11 @@ CF_CONFIRM_SENT = "D1HjF1rkDPhTQsNoPCoc"
 CF_CONFIRMED_AT = "T4h8YJeha9uvQE5MgBNf"
 CONFIRM_PENDING_TAG = "family-confirm-pending"
 CONFIRMED_TAG = "family-confirmed"
+# Tags forms/api/submit.js (or the backfill) sets when a human must look before trusting
+# the data. Shown on the card as a warning; they do not block Create login.
+REVIEW_TAGS = {"child-age-review": "age — DOB and typed age disagree, check the classroom",
+               "child-name-review": "child name — a submission was not added as a new child",
+               "contact-match-review": "contact — matched by email under a different phone"}
 GROUP_TAG_BY_LABEL = {"Infants": "group-infants", "Toddlers": "group-toddlers",
                       "Pre-K": "group-prek", "School-Age": "group-schoolage"}
 
@@ -545,7 +550,8 @@ def family_cards(contact: dict, now: float | None = None) -> list[dict]:
     base.update({"card_id": cid, "child_index": 0, "children_count": 1,
                  "shirt_size": cf.get(CF_SHIRT) or "", "pants_size": cf.get(CF_PANTS) or "",
                  "confirm_state": _confirm_state(contact, tags, now),
-                 "confirmed_at": cf.get(CF_CONFIRMED_AT) or ""})
+                 "confirmed_at": cf.get(CF_CONFIRMED_AT) or "",
+                 "review": [msg for tag, msg in REVIEW_TAGS.items() if tag in tags]})
     kids = _children_entries(contact)
     cards = []
     for i, kid in enumerate(kids or [None]):

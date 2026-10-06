@@ -115,6 +115,15 @@ class Cards(unittest.TestCase):
                          ("pending", "no_reply", "confirmed"))
 
 
+class Review(unittest.TestCase):
+    def test_review_tags_warn_without_blocking(self):
+        c = contact(tags=["family-contact-form", "enrolled", "loc-921-n-18th", "child-age-review"],
+                    **{g.CF_PARENT_NAME: "Ana Lopez", g.CF_CHILD_NAME: "Maria Lopez"})
+        card = g.family_cards(c, now=T_SENT)[0]
+        self.assertTrue(card["ready"])
+        self.assertTrue(card["review"] and card["review"][0].startswith("age"))
+
+
 class ReplyDeskHold(unittest.TestCase):
     def test_plain_yes_to_confirm_text_needs_no_draft(self):
         c = {"tags": ["family-confirm-pending"]}

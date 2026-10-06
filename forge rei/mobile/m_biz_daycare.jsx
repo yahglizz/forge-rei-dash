@@ -562,7 +562,8 @@ function MBDFamilies() {
     <div className="mbd-row-main"><strong>{MBDName(f.child_name, "Student")}{f.parent_name ? " · " + f.parent_name : ""}</strong>
       <small>{[f.children_count > 1 ? "Child " + (f.child_index + 1) + "/" + f.children_count : "", f.location_name || f.location_tag, f.enrolled ? (f.child_id ? "On roster" : "Enrolled family") : "Inquiry",
         f.confirm_state === "confirmed" ? "Confirmed ✓" : f.confirm_state === "pending" ? (f.confirm_reply ? "Replied — check thread" : "Awaiting YES") : f.confirm_state === "no_reply" ? "No reply 48h+" : "",
-        f.enrolled && f.missing && f.missing.length ? "Missing: " + f.missing.join(", ") : ""].filter(Boolean).join(" · ")}</small></div>
+        f.enrolled && f.missing && f.missing.length ? "Missing: " + f.missing.join(", ") : "",
+        f.review && f.review.length ? "Check " + f.review.map((r) => r.split(" — ")[0]).join(", ") : ""].filter(Boolean).join(" · ")}</small></div>
     {f.phone && <a className="mbd-call" href={"tel:" + f.phone} aria-label="Call"><window.MIcons.Phone size={17} /></a>}
     {action}
   </div>;
