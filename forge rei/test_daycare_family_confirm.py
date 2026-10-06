@@ -118,7 +118,7 @@ class Cards(unittest.TestCase):
 class Review(unittest.TestCase):
     def test_review_tags_warn_without_blocking(self):
         c = contact(tags=["family-contact-form", "enrolled", "loc-921-n-18th", "child-age-review"],
-                    **{g.CF_PARENT_NAME: "Ana Lopez", g.CF_CHILD_NAME: "Maria Lopez"})
+                    **{g.CF_PARENT_NAME: "Ana Lopez", g.CF_CHILD_NAME: "Maria Lopez", g.CF_CHILD_DOB: "2022-04-04"})
         card = g.family_cards(c, now=T_SENT)[0]
         self.assertTrue(card["ready"])
         self.assertTrue(card["review"] and card["review"][0].startswith("age"))

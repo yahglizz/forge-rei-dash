@@ -68,3 +68,36 @@ class AppTrackingReader(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+import daycare_ghl as g
+
+
+class Readiness(unittest.TestCase):
+    def card(self, **kw):
+        base = {"enrolled": True, "child_first": "Maria", "child_last": "Lopez", "child_dob": "2022-04-04",
+                "parent_first": "Ana", "parent_last": "Lopez", "location_tag": "loc-921-n-18th",
+                "email": "ana@example.com", "phone": "+12155550120"}
+        base.update(kw)
+        return base
+
+    def test_complete_card_is_ready(self):
+        self.assertEqual(g._readiness(self.card()), [])
+
+    def test_missing_dob_and_parent_names_listed(self):
+        missing = g._readiness(self.card(child_dob="", parent_first="", parent_last=""))
+        for item in ("child birth date", "parent first name", "parent last name"):
+            self.assertIn(item, missing)
+
+    def test_us_dob_is_fine_future_dob_is_not(self):
+        self.assertEqual(g._readiness(self.card(child_dob="03/14/2023")), [])
+        self.assertIn("child birth date", g._readiness(self.card(child_dob="2099-01-01")))
+
+    def test_iso_date(self):
+        self.assertEqual(g.iso_date("03/14/2023"), "2023-03-14")
+        self.assertEqual(g.iso_date("2023-03-14"), "2023-03-14")
+        self.assertEqual(g.iso_date("next spring"), "")
+
+    def test_app_tracking_centers_never_list_qa(self):
+        self.assertEqual(set(g.APP_TRACKING_CENTERS), {"921", "2318", "1923"})
+        self.assertNotIn("99999999-9999-9999-9999-999999999999", g.APP_TRACKING_CENTERS.values())

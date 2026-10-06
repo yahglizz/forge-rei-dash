@@ -3267,15 +3267,8 @@ def handle_marcus_post(path, body):
 # HTTP server
 # ---------------------------------------------------------------------------
 def _daycare_iso_date(value):
-    """GHL's Child DOB is free text ("03/14/2023" or "2023-03-14") → YYYY-MM-DD, else ""."""
-    raw = re.sub(r"\s+", " ", str(value or "").strip())
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%m.%d.%Y", "%B %d, %Y", "%b %d, %Y", "%B %d %Y"):
-        try:
-            got = datetime.strptime(raw[:10] if fmt == "%Y-%m-%d" else raw, fmt).date()
-        except ValueError:
-            continue
-        return got.isoformat() if got <= datetime.now().date() else ""   # a future DOB is a typo
-    return ""
+    """GHL's Child DOB is free text → YYYY-MM-DD, else "" (daycare_ghl.iso_date)."""
+    return daycare_ghl.iso_date(value)
 
 
 def _daycare_start_session():
@@ -4365,7 +4358,7 @@ class Handler(BaseHTTPRequestHandler):
             # Forms often carry a first-name-only child ("Mu'nir") — fall back to the
             # family surname so save_child's required last_name never blocks intake.
             "last_name": family.get("child_last") or family.get("parent_last") or "",
-            "birth_date": family.get("child_dob") or "",
+            "birth_date": daycare_ghl.iso_date(family.get("child_dob")),
             "classroom_id": classroom_id,
             "allergies": family.get("allergies") or "",
             "medical_notes": family.get("medical_notes") or "",

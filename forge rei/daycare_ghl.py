@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+from datetime import datetime
 import urllib.error
 from pathlib import Path
 
@@ -520,8 +521,8 @@ def _confirm_state(contact: dict, tags: set[str], now: float) -> str:
 
 def _readiness(card: dict) -> list[str]:
     """What Create login still needs. Empty = ready. Mirrors _daycare_enroll_family:
-    a login needs an email; a child row needs a first name, a surname (child's or
-    parent's), and a known center."""
+    a login needs an email, a child DOB, and the parent's first + last name; a child row
+    needs a first name, a surname (child's or parent's), and a known center."""
     missing = []
     if not card.get("enrolled"):
         missing.append("not enrolled")
@@ -535,6 +536,12 @@ def _readiness(card: dict) -> list[str]:
         missing.append("parent email")
     if not str(card.get("phone") or "").strip():
         missing.append("parent phone")
+    if not iso_date(card.get("child_dob")):
+        missing.append("child birth date")
+    if not str(card.get("parent_first") or "").strip():
+        missing.append("parent first name")
+    if not str(card.get("parent_last") or "").strip():
+        missing.append("parent last name")
     return missing
 
 
@@ -621,6 +628,25 @@ LOCATION_ID_BY_TAG = {
     "loc-2318-cecil-b-moore": "22222222-2222-2222-2222-222222222222",  # A Touch of Blessings 2
     "loc-1923-cecil-b-moore": "44444444-4444-4444-4444-444444444444",  # A Mother's Touch
 }
+
+# App Tracking page tabs -> center. QA 9999 is deliberately absent.
+APP_TRACKING_CENTERS = {
+    "921": LOCATION_ID_BY_TAG["loc-921-n-18th"],
+    "2318": LOCATION_ID_BY_TAG["loc-2318-cecil-b-moore"],
+    "1923": LOCATION_ID_BY_TAG["loc-1923-cecil-b-moore"],
+}
+
+
+def iso_date(value) -> str:
+    """GHL's Child DOB is free text ("03/14/2023" or "2023-03-14") → YYYY-MM-DD, else ""."""
+    raw = re.sub(r"\s+", " ", str(value or "").strip())
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%m/%d/%y", "%m.%d.%Y", "%B %d, %Y", "%b %d, %Y", "%B %d %Y"):
+        try:
+            got = datetime.strptime(raw[:10] if fmt == "%Y-%m-%d" else raw, fmt).date()
+        except ValueError:
+            continue
+        return got.isoformat() if got <= datetime.now().date() else ""   # a future DOB is a typo
+    return ""
 
 
 def _brand_link(location_id):
