@@ -129,3 +129,6 @@ Operator-facing **agent chat** replies run in a terse, high-signal "caveman" sty
 to cut Anthropic output tokens (`docs/skills/caveman-brevity.md`). Chat answers
 only — it never touches seller-facing SMS drafts (voice + quality critical), the
 creed, or evidence discipline.
+
+## Daily notes (Claude + Codex)
+Shared handoff log: `~/Desktop/A Touch of Blessings — Brand Kit/docs/daily/`. Read the newest 2 files at session start; append to today's `YYYY-MM-DD.md` at session end and after any deploy/migration/workflow change. Rules in that folder's README.md.
