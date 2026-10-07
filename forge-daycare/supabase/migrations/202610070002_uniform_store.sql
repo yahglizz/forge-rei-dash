@@ -25,8 +25,8 @@ as $$
        - case when extract(month from (p_ts at time zone 'America/New_York')) < 8 then 1 else 0 end
 $$;
 
--- 2. Sizes jsonb: [{ "label": text, "in_stock": bool }] - 1..20 entries, non-empty labels of at
--- most 10 chars, unique case-insensitively, in_stock a real boolean.
+-- 2. Sizes jsonb: [{ "label": text, "in_stock": bool }] - 1..20 entries, each with exactly those two
+-- keys, non-empty labels of at most 10 chars, unique case-insensitively, in_stock a real boolean.
 create or replace function public.uniform_sizes_valid(p jsonb)
 returns boolean
 language plpgsql
@@ -47,6 +47,9 @@ begin
        or jsonb_typeof(e->'in_stock') is distinct from 'boolean' then
       return false;
     end if;
+    if (select count(*) from jsonb_object_keys(e)) <> 2 then
+      return false;  -- exactly { label, in_stock }, no extra keys
+    end if;
     l := lower(btrim(e->>'label'));
     if length(l) = 0 or length(e->>'label') > 10 or l = any(seen) then
       return false;
@@ -64,7 +67,7 @@ create table public.uniform_items (
   kind text not null default 'other' check (kind in ('shirt', 'pants', 'other')),
   price_cents integer not null check (price_cents between 0 and 1000000),
   -- Non-null => redeemable free with coins. These items live ONLY here (never in reward_items).
-  coin_cost integer check (coin_cost > 0),
+  coin_cost integer check (coin_cost between 1 and 100000),
   sizes jsonb not null check (public.uniform_sizes_valid(sizes)),
   image_path text,
   active boolean not null default true,
@@ -116,9 +119,22 @@ create index uniform_orders_child_placed on public.uniform_orders (child_id, pla
 create index uniform_orders_open on public.uniform_orders (location_id, placed_at)
   where status in ('awaiting_payment', 'paid');
 
+-- Staff-only notes on an order (a manager's free-text override reason). uniform_orders.note and the
+-- coin ledger note are readable by the family, so nothing sensitive goes there.
+create table public.uniform_order_staff_notes (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.uniform_orders(id) on delete cascade,
+  location_id uuid not null references public.locations(id),
+  note text not null check (length(btrim(note)) between 1 and 500),
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+create index uniform_order_staff_notes_order on public.uniform_order_staff_notes (order_id);
+
 -- 5. Row-level security.
 alter table public.uniform_items enable row level security;
 alter table public.uniform_orders enable row level security;
+alter table public.uniform_order_staff_notes enable row level security;
 
 -- Families and staff see the active catalog of their centre; management sees every row.
 create policy "active uniform catalog read" on public.uniform_items
@@ -131,15 +147,23 @@ create policy "management adds uniforms" on public.uniform_items
 create policy "management edits uniforms" on public.uniform_items
   for update using (public.my_role() in ('manager', 'admin') and location_id = public.my_location())
   with check (public.my_role() in ('manager', 'admin') and location_id = public.my_location());
--- Orders read like the coin ledger: families their children, staff their classrooms, management the
--- centre. No write policy at all: every write goes through the functions below.
+-- Orders: families read their own children's (can_access_child); staff / manager / admin read every
+-- order of their centre (the Uniform orders queue is centre-wide, not per classroom). No write policy
+-- at all: every write goes through the functions below.
 create policy "scoped uniform order read" on public.uniform_orders
-  for select using (public.can_access_child(child_id));
+  for select using (
+    public.can_access_child(child_id)
+    or (public.my_role() in ('staff', 'manager', 'admin') and location_id = public.my_location()));
+-- Staff notes: staff of that centre only (never the family). No write policy: written by the RPC.
+create policy "staff read uniform order notes" on public.uniform_order_staff_notes
+  for select using (public.my_role() in ('staff', 'manager', 'admin') and location_id = public.my_location());
 
 -- Same restrictive gate the other tables carry (202610040001): a deactivated account reads nothing.
 create policy "active account required" on public.uniform_items as restrictive for all to authenticated
   using ((select public.my_role()) is not null) with check ((select public.my_role()) is not null);
 create policy "active account required" on public.uniform_orders as restrictive for all to authenticated
+  using ((select public.my_role()) is not null) with check ((select public.my_role()) is not null);
+create policy "active account required" on public.uniform_order_staff_notes as restrictive for all to authenticated
   using ((select public.my_role()) is not null) with check ((select public.my_role()) is not null);
 
 -- Belt and braces: with no write grant a direct UPDATE/INSERT errors (42501) instead of silently
@@ -148,6 +172,8 @@ revoke all on public.uniform_items from anon, authenticated;
 grant select, insert, update on public.uniform_items to authenticated;
 revoke all on public.uniform_orders from anon, authenticated;
 grant select on public.uniform_orders to authenticated;
+revoke all on public.uniform_order_staff_notes from anon, authenticated;
+grant select on public.uniform_order_staff_notes to authenticated;
 
 do $$
 begin
@@ -178,6 +204,22 @@ language sql
 immutable
 set search_path to 'public'
 as $$ select '$' || to_char(p_cents / 100.0, 'FM999990.00') $$;
+
+-- Who may act on a child's uniform order: a parent for their own child (can_access_child), and
+-- staff / manager / admin for ANY child of their own centre (not only their classroom).
+create or replace function public.uniform_can_act(p_child uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+as $$
+  select case
+    when coalesce(public.my_role()::text, '') in ('staff', 'manager', 'admin')
+      then exists (select 1 from public.children c where c.id = p_child and c.location_id = public.my_location())
+    else public.can_access_child(p_child)
+  end
+$$;
 
 -- Validate + price a cart from the catalog. p_lines: [{uniform_item_id, size, qty}]. Extra keys
 -- (a tampered price, say) are ignored. Duplicate item+size lines are merged. p_coins = redeeming
@@ -277,6 +319,9 @@ begin
     if p_coins and v_item.coin_cost is null then
       raise exception '% can''t be redeemed with coins.', v_item.name using errcode = 'P0001';
     end if;
+    if not p_coins and v_item.price_cents < 1 then
+      raise exception '% can''t be bought by card.', v_item.name using errcode = 'P0001';
+    end if;
     v_unit := case when p_coins then 0 else v_item.price_cents end;
     v_coin := case when p_coins then v_item.coin_cost end;
     o_items := o_items || jsonb_build_object(
@@ -290,6 +335,8 @@ end $$;
 
 -- 7. Card order. p_lines: [{uniform_item_id, size, qty}]. The centre's UNIFORM_STORE_LOCATIONS gate
 -- lives in the edge function (the env var lives there); everything data-related is enforced here.
+-- Parents only: the edge function creates the Stripe customer from the caller, so a staff member
+-- must never place a card order. Staff take coins in person (redeem_uniform_with_coins).
 create or replace function public.create_uniform_order(
   p_child uuid, p_lines jsonb, p_request_id uuid, p_expected_total_cents integer)
 returns public.uniform_orders
@@ -298,12 +345,17 @@ security definer
 set search_path to 'public'
 as $$
 declare
+  c_max_waiting constant int := 3;
   v_child public.children;
   v_order public.uniform_orders;
+  v_waiting int;
   b record;
 begin
   if auth.uid() is null or p_request_id is null or not public.can_access_child(p_child) then
     raise exception 'not allowed' using errcode = '42501';
+  end if;
+  if coalesce(public.my_role()::text, '') <> 'parent' then
+    raise exception 'Only a parent can place a card order.' using errcode = '42501';
   end if;
 
   -- Serialise every order for this child. Taken BEFORE the request-id check so a concurrent double
@@ -315,12 +367,33 @@ begin
     if v_order.child_id <> p_child or v_order.pay_method <> 'card' then
       raise exception 'not allowed' using errcode = '42501';
     end if;
+    -- A retry must still be for the total the family agreed to. An expired / cancelled order is
+    -- returned as it is (the edge function decides what to do with it).
+    if p_expected_total_cents is distinct from v_order.total_cents then
+      raise exception 'Prices changed while you were checking out: this order is now %. Review the cart again.',
+        public.uniform_money(v_order.total_cents) using errcode = 'P0001';
+    end if;
     return v_order;
   end if;
 
+  if p_expected_total_cents is null then
+    raise exception 'The order total is missing. Review the cart again.' using errcode = '22023';
+  end if;
+
+  select count(*) into v_waiting from public.uniform_orders
+   where child_id = p_child and status = 'awaiting_payment';
+  if v_waiting >= c_max_waiting then
+    raise exception 'You already have % uniform orders waiting for payment. Finish or cancel one before starting another.', c_max_waiting
+      using errcode = 'P0001';
+  end if;
+
   select * into b from public.uniform_build_lines(v_child.location_id, p_lines, false);
-  if b.o_total_cents <= 0 then
-    raise exception 'There is nothing to pay for in this order.' using errcode = '22023';
+  if b.o_total_cents > 99999999 then
+    raise exception 'That order is too large. Please order fewer items at a time.' using errcode = '22023';
+  end if;
+  -- Stripe will not charge less than 50 cents.
+  if b.o_total_cents < 50 then
+    raise exception 'A card order must come to at least $0.50.' using errcode = '22023';
   end if;
   if p_expected_total_cents is distinct from b.o_total_cents then
     raise exception 'Prices changed while you were checking out: this order is now %. Review the cart again.',
@@ -371,10 +444,18 @@ begin
 end $$;
 
 -- The webhook's only way to mark an order paid. Idempotent. The amount must equal the order total
--- (else it raises and the order is untouched - the edge function logs the failure). Bells fire only
+-- (else it raises P0001 and nothing is recorded - the edge function alerts on it). Bells fire only
 -- on a real status change.
+--
+-- p_order is the order id Stripe carries in the session metadata. It is a fallback so a payment is
+-- never lost when the session id was never attached (the attach call failed after the Stripe
+-- session was created): if no order owns p_session and p_order names a card order with no session,
+-- the session is attached to it here and the payment goes through the normal path below.
+--
+-- An order that was EVER paid (paid_at set) is never resurrected: a replay after a staff
+-- cancellation of a paid order leaves it cancelled.
 create or replace function public.mark_uniform_order_paid(
-  p_session text, p_payment_intent text, p_amount_total_cents integer)
+  p_session text, p_payment_intent text, p_amount_total_cents integer, p_order uuid default null)
 returns public.uniform_orders
 language plpgsql
 security definer
@@ -387,10 +468,19 @@ declare
   v_child_name text;
 begin
   select * into v_order from public.uniform_orders where stripe_session_id = p_session for update;
+  if v_order.id is null and p_order is not null then
+    select * into v_order from public.uniform_orders where id = p_order for update;
+    if v_order.id is not null and (v_order.stripe_session_id is not null or v_order.pay_method <> 'card') then
+      v_order := null;
+    end if;
+    if v_order.id is not null then
+      update public.uniform_orders set stripe_session_id = p_session where id = v_order.id returning * into v_order;
+    end if;
+  end if;
   if v_order.id is null then
     raise exception 'No uniform order for that Stripe session.' using errcode = 'P0002';
   end if;
-  if v_order.status in ('paid', 'handed_over') then
+  if v_order.status in ('paid', 'handed_over') or v_order.paid_at is not null then
     return v_order;
   end if;
   if p_amount_total_cents is distinct from v_order.total_cents then
@@ -471,6 +561,8 @@ as $$
 $$;
 
 -- 9. Free uniform with coins.
+-- A parent redeems for their own child (can_access_child). Staff / manager / admin act for any child
+-- of their own centre - not only their classroom - so the front desk can hand a uniform over.
 create or replace function public.redeem_uniform_with_coins(
   p_child uuid, p_lines jsonb, p_request_id uuid,
   p_override boolean default false, p_override_reason text default null)
@@ -496,7 +588,7 @@ declare
   v_note text;
   v_tx uuid;
 begin
-  if auth.uid() is null or p_request_id is null or not public.can_access_child(p_child) then
+  if auth.uid() is null or p_request_id is null or not public.uniform_can_act(p_child) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   if v_override and not v_mgr then
@@ -544,8 +636,10 @@ begin
       using errcode = 'P0001';
   end if;
 
+  -- The family can read uniform_orders.note and the ledger note, so they only ever say "Manager
+  -- override" (+ the coin gap). The manager's free-text reason goes to the staff-only notes table.
   if v_override then
-    v_note := 'Manager override: ' || v_reason
+    v_note := 'Manager override'
       || case when v_paid < b.o_total_coins then ' (' || (b.o_total_coins - v_paid) || ' coins given without a balance)' else '' end;
   end if;
 
@@ -560,6 +654,11 @@ begin
   exception when unique_violation then
     raise exception 'not allowed' using errcode = '42501';
   end;
+
+  if v_override then
+    insert into public.uniform_order_staff_notes (order_id, location_id, note, created_by)
+    values (v_order.id, v_order.location_id, v_reason, auth.uid());
+  end if;
 
   -- The ledger debit. coin_parent_notification rings the family's bell for this row ("spent N
   -- Blessing Coins on Uniform order #…"), so the family gets NO second uniform bell from here.
@@ -581,7 +680,7 @@ begin
   return v_order;
 end $$;
 
--- 10. Hand-over: staff / manager / admin of that child's centre, once, only a paid order.
+-- 10. Hand-over: staff / manager / admin of that child's centre (any classroom), once, only a paid order.
 create or replace function public.hand_over_uniform_order(p_order uuid)
 returns public.uniform_orders
 language plpgsql
@@ -594,7 +693,7 @@ begin
   select * into v_order from public.uniform_orders where id = p_order;
   if v_order.id is null
      or coalesce(public.my_role()::text, '') not in ('staff', 'manager', 'admin')
-     or not public.can_access_child(v_order.child_id) then
+     or not public.uniform_can_act(v_order.child_id) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
 
@@ -618,10 +717,11 @@ begin
   return v_order;
 end $$;
 
--- 11. Cancel. A parent: only their own order, only while it can still be undone (a paid coins order
--- not yet handed over, or a card order still awaiting payment). Staff / manager: a paid order, with a
--- reason; a paid card order is refunded by hand in Stripe (the note says so). A handed-over order
--- can never be cancelled.
+-- 11. Cancel. A parent (any guardian of the child, not only whoever placed it): a family-placed paid
+-- coins order not yet handed over, or a card order still awaiting payment. An order a staff member
+-- placed in person is never cancellable by a parent. Staff / manager of the centre: a paid order,
+-- with a reason; a paid card order is refunded by hand in Stripe (the note says so). A handed-over
+-- order can never be cancelled.
 create or replace function public.cancel_uniform_order(p_order uuid, p_reason text default null)
 returns public.uniform_orders
 language plpgsql
@@ -632,11 +732,12 @@ declare
   v_order public.uniform_orders;
   v_staff boolean := coalesce(public.my_role()::text, '') in ('staff', 'manager', 'admin');
   v_reason text := left(nullif(btrim(p_reason), ''), 200);
+  v_prior text;
   v_note text;
   v_tx uuid;
 begin
   select * into v_order from public.uniform_orders where id = p_order;
-  if v_order.id is null or auth.uid() is null or not public.can_access_child(v_order.child_id) then
+  if v_order.id is null or auth.uid() is null or not public.uniform_can_act(v_order.child_id) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
   -- Child lock first, then the order row (the order every function here uses; mark_uniform_order_paid
@@ -658,7 +759,7 @@ begin
       raise exception 'That order is still waiting for payment, so there is nothing to cancel yet.' using errcode = 'P0001';
     end if;
   else
-    if v_order.placed_by <> auth.uid() then
+    if (select role from public.profiles where id = v_order.placed_by) is distinct from 'parent' then
       raise exception 'not allowed' using errcode = '42501';
     end if;
     if v_order.pay_method = 'card' and v_order.status = 'paid' then
@@ -666,7 +767,8 @@ begin
     end if;
   end if;
 
-  v_note := case when v_order.pay_method = 'card' and v_order.status = 'paid'
+  v_prior := v_order.status;
+  v_note := case when v_order.pay_method = 'card' and v_prior = 'paid'
                  then coalesce(v_order.note || ' · ', '') || 'Cancelled by staff — refund the card payment manually in Stripe.'
                  else v_order.note end;
   update public.uniform_orders
@@ -684,24 +786,25 @@ begin
   end if;
 
   if not v_staff then
-    insert into public.notifications (profile_id, kind, title, body, link)
-    select s.profile_id, 'uniform', 'Uniform order #' || v_order.order_no || ' cancelled',
-      c.first_name || '''s family cancelled ' || public.uniform_order_summary(v_order.items)
-        || case when v_order.pay_method = 'coins' then '. The coins went back.' else '.' end,
-      null
-    from public.coin_order_staff(v_order.child_id) s
-    cross join public.children c
-    where c.id = v_order.child_id;
+    -- Staff only hear about an order that had been paid for (a never-paid waiting order is just dropped).
+    if v_prior = 'paid' then
+      insert into public.notifications (profile_id, kind, title, body, link)
+      select s.profile_id, 'uniform', 'Uniform order #' || v_order.order_no || ' cancelled',
+        c.first_name || '''s family cancelled ' || public.uniform_order_summary(v_order.items)
+          || case when v_order.pay_method = 'coins' then '. The coins went back.' else '.' end,
+        null
+      from public.coin_order_staff(v_order.child_id) s
+      cross join public.children c
+      where c.id = v_order.child_id;
+    end if;
   elsif v_order.pay_method = 'card' then
-    -- (A coins order's family already got the refund bell from the ledger row.)
+    -- (A coins order's family already got the refund bell from the ledger row.) Neutral wording: the
+    -- centre follows up about the card refund; the bell never promises one.
     insert into public.notifications (profile_id, kind, title, body, link)
     select gp.profile_id, 'uniform', 'Uniform order #' || v_order.order_no || ' cancelled',
-      'The center cancelled ' || c.first_name || '''s ' || public.uniform_order_summary(v_order.items)
-        || '. Your card will be refunded' || coalesce(' (' || v_reason || ')', '') || '.',
+      'Your uniform order was cancelled. The school will follow up with you about any card refund.',
       '/dashboard?view=uniform'
-    from public.ghl_child_parents(v_order.child_id) gp
-    cross join public.children c
-    where c.id = v_order.child_id;
+    from public.ghl_child_parents(v_order.child_id) gp;
   end if;
   return v_order;
 end $$;
@@ -718,16 +821,17 @@ grant execute on function public.hand_over_uniform_order(uuid) to authenticated;
 grant execute on function public.cancel_uniform_order(uuid, text) to authenticated;
 
 revoke all on function public.attach_uniform_session(uuid, text) from public, anon, authenticated;
-revoke all on function public.mark_uniform_order_paid(text, text, integer) from public, anon, authenticated;
+revoke all on function public.mark_uniform_order_paid(text, text, integer, uuid) from public, anon, authenticated;
 revoke all on function public.expire_uniform_order(uuid) from public, anon, authenticated;
 revoke all on function public.sweep_stale_uniform_orders(integer) from public, anon, authenticated;
 grant execute on function public.attach_uniform_session(uuid, text) to service_role;
-grant execute on function public.mark_uniform_order_paid(text, text, integer) to service_role;
+grant execute on function public.mark_uniform_order_paid(text, text, integer, uuid) to service_role;
 grant execute on function public.expire_uniform_order(uuid) to service_role;
 grant execute on function public.sweep_stale_uniform_orders(integer) to service_role;
 
 revoke all on function public.uniform_build_lines(uuid, jsonb, boolean) from public, anon, authenticated;
 revoke all on function public.uniform_money(integer) from public, anon, authenticated;
+revoke all on function public.uniform_can_act(uuid) from public, anon, authenticated;
 revoke all on function public.uniform_order_summary(jsonb) from public, anon, authenticated;
 -- school_year_start / uniform_sizes_valid stay callable: a CHECK constraint evaluates the latter as
 -- the inserting manager, and both are pure.
