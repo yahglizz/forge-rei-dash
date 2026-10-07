@@ -59,7 +59,7 @@ function DcpSeasons({ payload, onDone }) {
     <div className="card card-pad dc-panel">
       <div className="dc-panel-head"><div><div className="card-title">Seasons</div><div className="faint">The pass resets each season. The season running today is the live one.</div></div><button className="dc-primary" onClick={() => setEdit({})}><window.Icons.Plus size={14} /> New season</button></div>
       {seasons.length ? <div className="dc-locbar-tabs">{seasons.map((item) => { const live = item.starts_on <= today && today <= item.ends_on; return <button key={item.id} className={season && season.id === item.id ? "active" : ""} onClick={() => setPicked(item.id)}>{item.name}{live ? " · LIVE" : ""}</button>; })}</div> : <div className="dc-inline-empty">No seasons yet — create the first one to turn the pass on.</div>}
-      {season && <div className="faint" style={{ marginTop: 10 }}>{DcpDay(season.starts_on)} → {DcpDay(season.ends_on)} · {season.xp_per_level} XP per level · {season.max_level} levels · <button className="dc-quiet" onClick={() => setEdit(season)}>Edit season</button></div>}
+      {season && <div className="faint" style={{ marginTop: 10 }}>{DcpDay(season.starts_on)} → {DcpDay(season.ends_on)} · {season.xp_per_level} XP for level 2, +{season.xp_growth || 0} more each level · {season.max_level} levels · <button className="dc-quiet" onClick={() => setEdit(season)}>Edit season</button></div>}
     </div>
 
     {season && <div className="card card-pad dc-panel">
@@ -80,7 +80,7 @@ function DcpSeasons({ payload, onDone }) {
 }
 
 function DcpSeasonForm({ season, onClose, onSaved }) {
-  const [form, setForm] = useStateDcp({ name: "", starts_on: window.DcxToday(), ends_on: "", xp_per_level: 400, max_level: 20, ...(season || {}) });
+  const [form, setForm] = useStateDcp({ name: "", starts_on: window.DcxToday(), ends_on: "", xp_per_level: 200, xp_growth: 50, max_level: 20, ...(season || {}) });
   const [busy, setBusy] = useStateDcp(false);
   const [error, setError] = useStateDcp("");
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
@@ -88,16 +88,17 @@ function DcpSeasonForm({ season, onClose, onSaved }) {
     if (!String(form.name).trim()) { setError("Name the season (e.g. Fall 2026)."); return; }
     if (!form.starts_on || !form.ends_on) { setError("Pick a start and end date."); return; }
     setBusy(true); setError("");
-    try { await window.DcxRequest("/pass/season/save", { body: { id: season && season.id, name: String(form.name).trim(), starts_on: form.starts_on, ends_on: form.ends_on, xp_per_level: Number(form.xp_per_level), max_level: Number(form.max_level) } }); onSaved(); }
+    try { await window.DcxRequest("/pass/season/save", { body: { id: season && season.id, name: String(form.name).trim(), starts_on: form.starts_on, ends_on: form.ends_on, xp_per_level: Number(form.xp_per_level), xp_growth: Number(form.xp_growth), max_level: Number(form.max_level) } }); onSaved(); }
     catch (requestError) { setError(requestError.message); } finally { setBusy(false); }
   };
-  return <window.DcxModal title={season ? "Edit season" : "New season"} copy="+100 XP per day checked in, +50 more for a green day. A full-time child earns about 700 XP a week." onClose={onClose}>
+  return <window.DcxModal title={season ? "Edit season" : "New season"} copy="Each day: +100 XP signed in, +5 for every 30 min there (up to +100), +50 for a green day, plus teacher bonus XP (up to 50 a day). A full-time child earns about 1,100 XP a week. Early levels come fast; each level after costs a little more." onClose={onClose}>
     {error && <div className="dc-form-error">{error}</div>}
     <div className="dc-form-grid">
       <window.DcxField label="Season name *"><input autoFocus value={form.name} onChange={set("name")} placeholder="Fall 2026" /></window.DcxField>
       <window.DcxField label="Starts *"><input type="date" value={form.starts_on} onChange={set("starts_on")} /></window.DcxField>
       <window.DcxField label="Ends *"><input type="date" value={form.ends_on} onChange={set("ends_on")} /></window.DcxField>
-      <window.DcxField label="XP per level"><input type="number" min="50" step="50" value={form.xp_per_level} onChange={set("xp_per_level")} /></window.DcxField>
+      <window.DcxField label="XP for level 2"><input type="number" min="50" step="50" value={form.xp_per_level} onChange={set("xp_per_level")} /></window.DcxField>
+      <window.DcxField label="Extra XP each level"><input type="number" min="0" max="1000" step="5" value={form.xp_growth} onChange={set("xp_growth")} /></window.DcxField>
       <window.DcxField label="Levels"><input type="number" min="1" max="100" value={form.max_level} onChange={set("max_level")} /></window.DcxField>
     </div>
     <div className="dc-modal-actions"><button className="dc-quiet" onClick={onClose}>Cancel</button><button className="dc-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save season"}</button></div>

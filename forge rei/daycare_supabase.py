@@ -2404,7 +2404,7 @@ def set_reward_item_active(session: Session, body: dict[str, Any]) -> dict[str, 
 # this console reads them and edits the config tables (seasons, rewards, ranks) through
 # the management write policies. Money perks (free day, discount…) are typed in by the
 # owner and never touch invoices — a claimed prize waits here until it is handed over.
-_PASS_SEASON_COLS = "id,location_id,name,starts_on,ends_on,xp_per_level,max_level,created_at"
+_PASS_SEASON_COLS = "id,location_id,name,starts_on,ends_on,xp_per_level,xp_growth,max_level,created_at"
 _PASS_REWARD_COLS = "id,season_id,level,title,description,kind,coin_amount"
 _PASS_RANK_COLS = "id,location_id,min_days,name,perk"
 
@@ -2436,7 +2436,9 @@ def save_pass_season(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         "name": require_text(source.get("name"), "name", maximum=80),
         "starts_on": starts,
         "ends_on": ends,
-        "xp_per_level": require_int(_body_value(source, "xp_per_level", "xpPerLevel") or 400, "xp_per_level", 50, 5000),
+        "xp_per_level": require_int(_body_value(source, "xp_per_level", "xpPerLevel") or 200, "xp_per_level", 50, 5000),
+        # Each level costs xp_growth more than the one before (0 = flat). 0 is a real answer, so no `or`.
+        "xp_growth": require_int(50 if _body_value(source, "xp_growth", "xpGrowth") in (None, "") else _body_value(source, "xp_growth", "xpGrowth"), "xp_growth", 0, 1000),
         "max_level": require_int(_body_value(source, "max_level", "maxLevel") or 20, "max_level", 1, 100),
     }
     if source.get("id"):
