@@ -19,18 +19,18 @@ class LoginTextCopyTests(unittest.TestCase):
             "Hi Jasmine! Mu'nir's A Touch of Blessings family app is ready.\n"
             "Sign in with your name: Jasmine Smith\n"
             "PIN: 482913\n"
-            "Get the app: https://atouchofblessing.com/get-app\n"
+            "Open the app: https://blessings-daycare-app.vercel.app/\n"
             "Keep your PIN private. Questions? Just ask a staff member.")
 
     def test_unknown_location_defaults_to_atob(self):
         text = daycare_ghl.login_text("Jasmine", "Mu'nir", "Jasmine Smith", "482913", None)
         self.assertIn("A Touch of Blessings family app", text)
-        self.assertIn("https://atouchofblessing.com/get-app\n", text)
+        self.assertIn("Open the app: https://blessings-daycare-app.vercel.app/\n", text)
 
     def test_mothers_touch_copy_and_link(self):
         text = daycare_ghl.login_text("Jasmine", "Mu'nir", "Jasmine Smith", "482913", AMT)
         self.assertIn("Mu'nir's A Mother's Touch family app is ready.", text)
-        self.assertIn("Get the app: https://atouchofblessing.com/get-app-mothers-touch\n", text)
+        self.assertIn("Open the app: https://blessings-daycare-app.vercel.app/\n", text)
         self.assertNotIn("A Touch of Blessings", text)
 
     def test_missing_names_read_naturally(self):

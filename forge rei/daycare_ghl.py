@@ -654,6 +654,9 @@ def iso_date(value) -> str:
     return ""
 
 
+APP_URL = "https://blessings-daycare-app.vercel.app/"   # the get-app pages no longer carry this link
+
+
 def _brand_link(location_id):
     if str(location_id or "").startswith(AMT_LOCATION_PREFIX):
         return "A Mother's Touch", "https://atouchofblessing.com/get-app-mothers-touch"
@@ -674,12 +677,12 @@ def start_day_text(parent_first, child_first, login_id, pin, location_id) -> str
     how = "your Login ID" if bl else "your first + last name"
     if not pin:     # the parent already has a login: welcome + guide, never a PIN reset
         return (f"Hi {greet}! Welcome to {brand} - today is {whose} first day!\n"
-                f"Your family app: open {link} and tap Open the app, then sign in the way you "
+                f"Your family app: open {APP_URL} (set-up steps: {link}) then sign in the way you "
                 "already do (your name or Login ID + your PIN). Forgot your PIN? Just ask a staff member.\n"
                 "iPhone: Share > Add to Home Screen keeps it one tap away.")
     return (f"Hi {greet}! Welcome to {brand} - today is {whose} first day!\n"
             f"Your family app login:\n{label}: {login_id}\nPIN: {pin}\n"
-            f"Get the app: open {link} and tap Open the app, then sign in with {how} + PIN. "
+            f"Open the app: {APP_URL} then sign in with {how} + PIN. How to set it up: {link} "
             "iPhone: Share > Add to Home Screen keeps it one tap away.\n"
             "Keep your PIN private. Questions? Just ask a staff member.")
 
@@ -697,5 +700,5 @@ def login_text(parent_first, child_first, login_id, pin, location_id) -> str:
     return (f"Hi {greet}! {whose} {brand} family app is ready.\n"
             f"{label}: {login_id}\n"
             f"PIN: {pin}\n"
-            f"Get the app: {link}\n"
+            f"Open the app: {APP_URL}\n"
             "Keep your PIN private. Questions? Just ask a staff member.")
