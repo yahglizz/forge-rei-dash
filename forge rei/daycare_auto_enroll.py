@@ -103,6 +103,8 @@ def review(cards: list[dict], today: date | None = None) -> tuple[list[dict], li
     for c in family_cards:
         reasons: list[str] = list(c.get("missing") or [])
         dob = daycare_ghl.iso_date(c.get("child_dob"))
+        if str(c.get("child_dob") or "").strip() and not dob:
+            reasons.append(f"birth date {c.get('child_dob')} is unreadable or in the future")
         if dob:
             age = _age(dob, today)
             if age is None or age < 0 or age > 13:
@@ -110,6 +112,8 @@ def review(cards: list[dict], today: date | None = None) -> tuple[list[dict], li
         names = _norm(f"{c.get('child_first')}{c.get('child_last')}{c.get('parent_first')}")
         if any(names.startswith(j) for j in JUNK) or any(j in _norm(c.get("email")) for j in ("e2e", "zztest")):
             reasons.append("test or junk record")
+        for note in c.get("review") or []:
+            reasons.append(f"needs a look: {note}")
         if not _phone_ok(c.get("phone")):
             reasons.append("parent phone is not a US number")
         if len(str(c.get("parent_first") or "").strip()) < 2 or len(str(c.get("parent_last") or "").strip()) < 2:

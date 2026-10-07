@@ -1064,6 +1064,7 @@ import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimize
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
+import daycare_auto_enroll  # noqa: E402 — Family Contact Form -> child + parent login, hands-free (2026-10-07)
 import daycare_family_confirm  # noqa: E402 — Family Contact Form YES-reply reader
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 # --- WP-E ---
@@ -3302,6 +3303,12 @@ def _daycare_start_mint(session, entry):
 
 
 
+def _daycare_auto_enroll(session, family, text_login):
+    """Auto-enroll lane: the same enroll core the Create login click runs. The core only
+    calls sibling Handler helpers, so an un-served Handler instance is enough."""
+    return Handler._daycare_enroll_family(Handler.__new__(Handler), session, family, text_login=text_login)
+
+
 def _daycare_queue_mint(session, entry):
     """Login queue: a fresh PIN at the family's center. A normal entry never resets a parent
     who already signed in (409 already_signed_in → dropped); a Resend entry (force) always does."""
@@ -4851,6 +4858,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/app-tracking": lambda session: self._daycare_app_tracking(
                 session, q.get("center", [""])[0]),
             "/api/daycare/login-queue": lambda session: daycare_login_queue.view(),
+            "/api/daycare/auto-enroll": lambda session: daycare_auto_enroll.view(),
             # --- WP-E --- Lead Desk: served from state, no GHL call on the request path.
             "/api/daycare/leads": lambda session: daycare_leads.view(),
             "/api/daycare/starts": lambda session: daycare_starts.view(),
@@ -5592,6 +5600,16 @@ def main():
                              daemon=True, name="daycare_login_queue").start()
         else:
             forge_heartbeat.retire("daycare_login_queue")
+        # Solomon · Auto-enroll: every READY Family Contact Form card becomes a child + parent
+        # login at its center, no click (owner decision 2026-10-07). Odd cards are held with a
+        # reason. PIN texts wait on FORGE_DAYCARE_AUTO_ENROLL_TEXT=1. FORGE_DAYCARE_AUTO_ENROLL=0 = off.
+        if os.environ.get("FORGE_DAYCARE_AUTO_ENROLL", "1") != "0":
+            print(f"   Solomon · Auto-enroll: form families -> app every {daycare_auto_enroll.INTERVAL // 60} min")
+            threading.Thread(target=daycare_auto_enroll.run_forever,
+                             args=(DAYCARE_GHL, _daycare_start_session, _daycare_auto_enroll),
+                             daemon=True, name="daycare_auto_enroll").start()
+        else:
+            forge_heartbeat.retire("daycare_auto_enroll")
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work

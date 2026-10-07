@@ -291,7 +291,7 @@ class StartDateTests(unittest.TestCase):
         self.assertIn("Login ID: BL-1234", amt)
         self.assertIn("get-app-mothers-touch", amt)
         # login_text unchanged by the brand refactor
-        self.assertIn("Get the app: https://atouchofblessing.com/get-app\n",
+        self.assertIn("Open the app: https://blessings-daycare-app.vercel.app/\n",
                       daycare_ghl.login_text("Ana", "Mia", "Ana Lopez", "1", "11111111"))
 
 

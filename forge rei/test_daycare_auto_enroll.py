@@ -33,7 +33,7 @@ class ReviewTests(unittest.TestCase):
     def test_bad_birth_dates_held(self):
         for dob in ("2000-01-05", "2027-01-01"):
             _, held = ae.review([card(dob=dob)], TODAY)
-            self.assertTrue(any("looks wrong" in r for r in held[0]["reasons"]), dob)
+            self.assertTrue(any("birth date" in r for r in held[0]["reasons"]), dob)
 
     def test_test_records_and_foreign_phone_held(self):
         self.assertTrue(ae.review([card(first="ZZTest")], TODAY)[1])
