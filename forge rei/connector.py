@@ -1066,6 +1066,7 @@ import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
 import daycare_auto_enroll  # noqa: E402 — Family Contact Form -> child + parent login, hands-free (2026-10-07)
 import daycare_family_confirm  # noqa: E402 — Family Contact Form YES-reply reader
+import daycare_family_forms  # noqa: E402 — Family Contact Form PDFs (private Blob store, read-through)
 import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated, never autonomous)
 # --- WP-E ---
 import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead visibility, no Claude)
@@ -4857,6 +4858,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/ghl/pending-families": lambda session: self._daycare_pending_families(session),
             "/api/daycare/app-tracking": lambda session: self._daycare_app_tracking(
                 session, q.get("center", [""])[0]),
+            "/api/daycare/family-forms": lambda session: daycare_family_forms.view(
+                _load_env(DAYCARE_ENV_CANDIDATES)),
+            "/api/daycare/family-forms/pdf": lambda session: None,  # streamed below, not JSON
             "/api/daycare/login-queue": lambda session: daycare_login_queue.view(),
             "/api/daycare/auto-enroll": lambda session: daycare_auto_enroll.view(),
             # --- WP-E --- Lead Desk: served from state, no GHL call on the request path.
@@ -4925,6 +4929,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(daycare_supabase.get_status(session))
             self._daycare_require_secure()
             session, set_cookie = self._daycare_resolve_session(sid)
+            if path == "/api/daycare/family-forms/pdf":
+                return self._send_family_form_pdf(q, set_cookie)
             return self._send_json(
                 handlers[path](session),
                 headers=({"Set-Cookie": set_cookie} if set_cookie else None),
@@ -4940,6 +4946,33 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:  # never leak tokens, credentials, PII, or upstream bodies
             return self._send_json(
                 {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
+
+    def _send_family_form_pdf(self, q, set_cookie):
+        """Stream one stored Family Contact Form PDF. Session + HTTPS already checked by
+        the caller; the path is matched against the exact stored shape before any fetch."""
+        form_path = (q.get("path", [""])[0] or "")
+        try:
+            body = daycare_family_forms.fetch_pdf(_load_env(DAYCARE_ENV_CANDIDATES), form_path)
+        except daycare_family_forms.FormsError as e:
+            return self._send_json({"ok": False, "error": e.message, "code": "family_form_error"}, e.status)
+        disposition = "attachment" if q.get("download", [""])[0] == "1" else "inline"
+        name = daycare_family_forms.download_name(form_path)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Disposition", f'{disposition}; filename="{name}"')
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            if set_cookie:
+                self.send_header("Set-Cookie", set_cookie)
+            self.end_headers()
+            self.wfile.write(body)
+        except Exception as exc:  # noqa: BLE001
+            if self._client_disconnected(exc):
+                return
+            raise
 
     def _handle_dropship_get(self, path, q):
         """FORGE Dropship read router — open on the tailnet/loopback like the agency side
