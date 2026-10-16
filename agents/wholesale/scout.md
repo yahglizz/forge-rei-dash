@@ -18,7 +18,7 @@
 | Field | Value |
 |---|---|
 | Thread | `scout` (`connector.py:5076`) |
-| Gate | `FORGE_MARCUS` != `0` (default on, `connector.py:45`). No separate on/off knob. |
+| Gate | `FORGE_MARCUS=1` (default off, `connector.py:50`; the box unit sets it). No separate on/off knob. |
 | Interval | `FORGE_SCOUT_INTERVAL`, default 180 s (`scout_triage.py:74`) |
 | Per tick | `poll_once()` then `_maybe_weekly_audit()` (`scout_triage.py:1854`) |
 | Batch knobs | `FORGE_SCOUT_BATCH` 15 leads/sweep to Claude · `FORGE_SCOUT_PAGES` 4 pages (`scout_triage.py:75-76`) |

@@ -341,8 +341,10 @@ quick-deploy (or `git push`); on the other machine `git pull` before you start. 
 either at `https://forge-reios.tail0a2dda.ts.net` (Tailscale — no tunnel, bypasses DO
 firewall).
 
-**Box:** systemd `forge-reios`, `FORGE_MARCUS=1` (only the box runs the poll/triage loops —
-the Mac runs `FORGE_MARCUS=0`, UI-only, so sellers aren't double-contacted).
+**Box:** systemd `forge-reios`, `FORGE_MARCUS=1` (only the box runs the poll/triage loops).
+Loops are **OFF by default** — they start only when `FORGE_MARCUS=1` exactly (`connector.py`
+`LOOPS_ENABLED`), so the Mac, `start.sh`, tests or any stray shell are UI-only and sellers
+are never double-contacted. Never set `FORGE_MARCUS=1` anywhere but the box unit.
 
 ---
 
@@ -357,7 +359,7 @@ update that skill if you improved the pattern.
 
 ## 9. Quick reference
 
-- Local run (UI-only): `FORGE_MARCUS=0 FORGE_PORT=7799 python3 connector.py`
+- Local run (UI-only; loops are off unless `FORGE_MARCUS=1`): `FORGE_PORT=7799 python3 connector.py`
 - Box: `ssh -i ~/.ssh/forge_droplet root@24.199.81.124` · `systemctl status forge-reios`
 - Scout: `/api/scout/{summary,leads,overview,pipeline,run,apply,dismiss,pipeline,learn,handoff,audit,audit/run}`
 - Missed-leads deep-audit (`scout_triage.retro_audit`): scans the last N days of FULL seller

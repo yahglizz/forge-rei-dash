@@ -1,6 +1,7 @@
 #!/bin/bash
-# Install FORGE REI OS connector as a macOS LaunchAgent so Marcus runs 24/7
-# (auto-start at login, auto-restart if it crashes).
+# Install FORGE REI OS connector as a macOS LaunchAgent (auto-start at login, auto-restart
+# if it crashes). UI-only: FORGE_MARCUS=0 — the 24/7 box is the ONLY machine that runs the
+# agent loops; a second fleet here would double-text sellers and steal Telegram taps.
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PY="$(command -v python3)"
@@ -19,7 +20,7 @@ cat > "$PLIST" <<EOF
   <array><string>$PY</string><string>$DIR/connector.py</string></array>
   <key>WorkingDirectory</key><string>$DIR</string>
   <key>EnvironmentVariables</key>
-  <dict><key>FORGE_PORT</key><string>$PORT</string></dict>
+  <dict><key>FORGE_PORT</key><string>$PORT</string><key>FORGE_MARCUS</key><string>0</string></dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>$DIR/marcus_state/connector.out.log</string>

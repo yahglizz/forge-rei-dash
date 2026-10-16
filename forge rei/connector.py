@@ -43,7 +43,11 @@ PORT = int(os.environ.get("FORGE_PORT", "7799"))
 # FORGE_HOST=0.0.0.0 so Tailscale peers can reach it; the firewall keeps :7799
 # private to the tailnet (never exposed to the public internet).
 HOST = os.environ.get("FORGE_HOST", "127.0.0.1")
-LOOPS_ENABLED = os.environ.get("FORGE_MARCUS", "1") != "0"
+# Fail-safe: background loops (GHL poll, texting, Telegram long-poll, auto-enroll...) run
+# ONLY when FORGE_MARCUS=1 — set in the box's systemd unit (deploy/setup_droplet.sh). Any
+# other start (Mac start.sh, a test, a stray shell) is UI-only, so a second fleet can never
+# double-text sellers or steal the box's Telegram taps.
+LOOPS_ENABLED = os.environ.get("FORGE_MARCUS", "0") == "1"
 BUSINESS_TZ = os.environ.get("TZ") or os.environ.get("FORGE_TZ", "America/New_York")
 os.environ.setdefault("TZ", BUSINESS_TZ)
 if hasattr(time, "tzset"):
@@ -5530,8 +5534,8 @@ def main():
         return
     print(f"FORGE REI OS connector -> http://localhost:{PORT}")
     print(f"   GHL location {LOCATION_ID} ({API_VERSION})")
-    # Only ONE machine should poll GHL, or two pollers double-act. Box runs the loops
-    # (default); set FORGE_MARCUS=0 on the Mac to run UI-only. Two simple agents:
+    # Only ONE machine should poll GHL, or two pollers double-act. Only the box runs the
+    # loops (its unit sets FORGE_MARCUS=1); everywhere else is UI-only by default. Two simple agents:
     #   Scout  — finds + ranks + organizes every seller reply (24/7 sweep).
     #   Marcus — auto-screens what Scout flags into call-ready reports + nurture drafts.
     if LOOPS_ENABLED:
@@ -5718,7 +5722,7 @@ def main():
         except Exception as _e:  # noqa: BLE001
             print(f"   Graphify: builder not started ({_e})")
     else:
-        print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS=0) — UI/proxy only")
+        print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS!=1) — UI/proxy only")
     _start_portal_server()  # public-safe client portal (only if FORGE_PORTAL_PORT set)
     print(f"   binding {HOST}:{PORT}")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

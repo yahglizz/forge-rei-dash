@@ -5,4 +5,6 @@ PORT="${FORGE_PORT:-7799}"
 echo "Starting FORGE REI OS on http://localhost:$PORT"
 # Open the browser once the server is up.
 ( sleep 1; command -v open >/dev/null && open "http://localhost:$PORT" ) &
+# UI-only unless the caller explicitly opts in: only the box runs the loops (FORGE_MARCUS=1).
+export FORGE_MARCUS="${FORGE_MARCUS:-0}"
 exec python3 connector.py

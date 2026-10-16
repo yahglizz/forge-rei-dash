@@ -20,8 +20,8 @@ out the door.
 - **Backend:** one Python stdlib connector (`connector.py`, port 7799) — mirrors
   GoHighLevel, serves the API, and runs the agent loops.
 - **Runs 24/7** on a DigitalOcean box (systemd `forge-reios`, `FORGE_MARCUS=1`).
-  Your PC/Mac are UI + editing workspaces (`FORGE_MARCUS=0`) so sellers are never
-  double-contacted.
+  Loops are OFF unless `FORGE_MARCUS=1`, so your PC/Mac are UI + editing workspaces by
+  default and sellers are never double-contacted.
 - **Brain:** an Obsidian vault the agents read their skills from and write their
   learned playbooks back to (git-committed).
 

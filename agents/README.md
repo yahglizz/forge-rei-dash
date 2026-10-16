@@ -66,8 +66,8 @@ Not documented as agents (no brain, no agent role): `do_today` (thread `do_today
 
 ### 1. Scheduled loops — `connector.main()` (`connector.py:5060`)
 
-- Every loop starts only when `FORGE_MARCUS` != `0` (`LOOPS_ENABLED`, `connector.py:45`). The box
-  runs them; a UI-only Mac sets `FORGE_MARCUS=0`. With it off, no thread starts and nothing is retired.
+- Every loop starts only when `FORGE_MARCUS=1` (`LOOPS_ENABLED`, `connector.py:50`; default OFF). The
+  box unit sets it; everywhere else is UI-only. With it off, no thread starts and nothing is retired.
 - Each loop names its thread; that name is also its cost bucket (`cost_tracker.AGENT_THREADS`),
   except lane threads, which bill to their owner (`cost_tracker.THREAD_ALIAS`: `daycare_replies`,
   `daycare_leads` → `solomon`).
