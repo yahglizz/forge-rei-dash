@@ -479,6 +479,8 @@ def create_ad(spec, paused=True):
 
     spec: {name, objective, adset_name, targeting, creative, budget_daily,
            ad_account_id, page_id, instagram_actor_id?}
+    objective, targeting.geo_locations and budget_daily are REQUIRED (no defaults):
+    a spec without them is refused before any Meta call.
     Returns: {ok, detail, url?}
     """
     token = os.environ.get("META_ACCESS_TOKEN", "")
@@ -502,17 +504,29 @@ def _live_create_ad(token, spec, paused):
 
     # Validate BEFORE the first POST: campaign -> adset -> creative is three separate writes, so
     # a late creative failure used to leave orphaned campaigns/adsets in the ad account.
+    # No silent defaults for what decides who sees the ad and what it spends: objective,
+    # targeting (Meta rejects an adset with no geo AFTER the campaign exists) and budget
+    # must be chosen explicitly, or nothing is sent to Meta.
     creative = spec.get("creative", {})
+    targeting = spec.get("targeting") if isinstance(spec.get("targeting"), dict) else {}
+    try:
+        budget_ok = int(spec.get("budget_daily") or 0) > 0
+    except (TypeError, ValueError):
+        budget_ok = False
     missing = [n for n, v in (("page_id", spec.get("page_id")),
-                              ("creative.link", creative.get("link"))) if not v]
+                              ("creative.link", creative.get("link")),
+                              ("objective", spec.get("objective")),
+                              ("targeting.geo_locations", targeting.get("geo_locations")),
+                              ("budget_daily", budget_ok)) if not v]
     if missing:
-        return {"ok": False, "detail": f"spec missing {', '.join(missing)} — nothing was created "
-                                       "(set META_PAGE_ID / META_DEFAULT_LINK or add them to the concept)"}
+        return {"ok": False, "detail": f"spec missing {', '.join(missing)} — nothing was sent to Meta "
+                                       "(set META_PAGE_ID / META_DEFAULT_LINK, and choose objective, "
+                                       "targeting and a daily budget)"}
 
     # 1. Create campaign
     camp_data = urllib.parse.urlencode({
         "name": spec.get("name", "New Campaign"),
-        "objective": spec.get("objective", "OUTCOME_LEADS"),
+        "objective": spec["objective"],
         "status": camp_status,
         "special_ad_categories": "[]",
         "access_token": token,
@@ -529,11 +543,10 @@ def _live_create_ad(token, spec, paused):
         return {"ok": False, "detail": f"Campaign creation failed: {camp_resp}"}
 
     # 2. Create adset
-    targeting = spec.get("targeting", {"age_min": 25, "age_max": 65})
     adset_data = urllib.parse.urlencode({
         "name": spec.get("adset_name", f"{spec.get('name', 'AdSet')} — Set 1"),
         "campaign_id": camp_id,
-        "daily_budget": int(spec.get("budget_daily", 1000)),
+        "daily_budget": int(spec["budget_daily"]),
         "billing_event": "IMPRESSIONS",
         "optimization_goal": "LEAD_GENERATION",
         "targeting": json.dumps(targeting),
