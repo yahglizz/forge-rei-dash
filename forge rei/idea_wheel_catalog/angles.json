@@ -1,0 +1,223 @@
+[
+ {
+  "id": "before_after",
+  "label": "Before/after",
+  "seconds": 20,
+  "hooks": [
+   "What if {a_niche} {format_lower} worked like this?",
+   "Same {niche_lower}. A different first impression."
+  ],
+  "beats": [
+   [
+    "Split screen: generic template vs. the concept",
+    "hook"
+   ],
+   [
+    "Scroll the new hero",
+    "reveal"
+   ],
+   [
+    "The {pattern_lower} flow in three taps",
+    "flow"
+   ],
+   [
+    "Owner view reveal",
+    "owner"
+   ],
+   [
+    "End card",
+    "cta"
+   ]
+  ]
+ },
+ {
+  "id": "demo_walkthrough",
+  "label": "Demo walkthrough",
+  "seconds": 35,
+  "hooks": [
+   "Walk through {a_format} concept for {a_niche}.",
+   "Here's how {a_niche} client would {verb}."
+  ],
+  "beats": [
+   [
+    "Phone frame on the first screen",
+    "hook"
+   ],
+   [
+    "Step 1 of the {pattern_lower} flow",
+    "flow"
+   ],
+   [
+    "Step 2 with demo data",
+    "flow2"
+   ],
+   [
+    "Owner-side view",
+    "owner"
+   ],
+   [
+    "Value line on screen",
+    "value"
+   ],
+   [
+    "End card",
+    "cta"
+   ]
+  ]
+ },
+ {
+  "id": "problem_solution",
+  "label": "Problem to solution",
+  "seconds": 25,
+  "hooks": [
+   "{problem_short}",
+   "Every {niche_lower} owner knows this problem."
+  ],
+  "beats": [
+   [
+    "The problem as one line of text",
+    "hook"
+   ],
+   [
+    "Illustrated status quo: texts, calls, sticky notes",
+    "status_quo"
+   ],
+   [
+    "Reveal the concept screen",
+    "reveal"
+   ],
+   [
+    "The key interaction up close",
+    "flow"
+   ],
+   [
+    "End card",
+    "cta"
+   ]
+  ]
+ },
+ {
+  "id": "speed_build",
+  "label": "Speed build",
+  "seconds": 30,
+  "hooks": [
+   "I designed {a_niche} {format_lower} concept. Here's the build.",
+   "Blank canvas to {niche_lower} concept, sped up."
+  ],
+  "beats": [
+   [
+    "Flash of the finished screen",
+    "hook"
+   ],
+   [
+    "Time-lapse of the layout coming together",
+    "timelapse"
+   ],
+   [
+    "Palette and type choices",
+    "palette"
+   ],
+   [
+    "Interaction pass",
+    "flow"
+   ],
+   [
+    "Final reveal",
+    "reveal"
+   ],
+   [
+    "End card",
+    "cta"
+   ]
+  ]
+ },
+ {
+  "id": "ui_reveal",
+  "label": "UI reveal",
+  "seconds": 15,
+  "hooks": [
+   "{A_style} look for {a_niche}.",
+   "UI reveal: {niche_lower} concept."
+  ],
+  "beats": [
+   [
+    "Dramatic hero reveal",
+    "hook"
+   ],
+   [
+    "Slow pan across key screens",
+    "reveal"
+   ],
+   [
+    "Close-up of the signature interaction",
+    "closeup"
+   ],
+   [
+    "End card",
+    "cta"
+   ]
+  ]
+ },
+ {
+  "id": "workflow_automation",
+  "label": "Workflow automation",
+  "seconds": 30,
+  "hooks": [
+   "What happens after {a_niche} gets an inquiry?",
+   "Mapping {a_niche} workflow from inquiry to done."
+  ],
+  "beats": [
+   [
+    "Inquiry lands",
+    "hook"
+   ],
+   [
+    "Flow map animates step by step",
+    "flowmap"
+   ],
+   [
+    "Message previews (mock)",
+    "messages"
+   ],
+   [
+    "Owner dashboard state",
+    "owner"
+   ],
+   [
+    "End card",
+    "cta"
+   ]
+  ]
+ },
+ {
+  "id": "owner_roi",
+  "label": "Owner-focused value",
+  "seconds": 30,
+  "hooks": [
+   "If you run {a_niche}, this is for you.",
+   "What {a_niche} owner gets back from {a_pattern} system."
+  ],
+  "beats": [
+   [
+    "Talk to the owner directly",
+    "hook"
+   ],
+   [
+    "Name the time sink in plain words (no made-up stats)",
+    "problem"
+   ],
+   [
+    "The concept handling it",
+    "reveal"
+   ],
+   [
+    "What the owner does instead",
+    "owner"
+   ],
+   [
+    "End card",
+    "cta"
+   ]
+  ]
+ }
+]

@@ -1,0 +1,98 @@
+[
+ {
+  "id": "food",
+  "label": "Food & Beverage",
+  "icon": "iw-food",
+  "color": "#F59E0B"
+ },
+ {
+  "id": "home",
+  "label": "Home Services & Trades",
+  "icon": "iw-home",
+  "color": "#4F7CFF"
+ },
+ {
+  "id": "beauty",
+  "label": "Beauty & Personal Care",
+  "icon": "iw-beauty",
+  "color": "#EC4899"
+ },
+ {
+  "id": "health",
+  "label": "Health & Wellness",
+  "icon": "iw-health",
+  "color": "#2DD4BF"
+ },
+ {
+  "id": "auto",
+  "label": "Automotive",
+  "icon": "iw-auto",
+  "color": "#EF4444"
+ },
+ {
+  "id": "fitness",
+  "label": "Fitness & Sports",
+  "icon": "iw-fitness",
+  "color": "#22C55E"
+ },
+ {
+  "id": "education",
+  "label": "Education & Childcare",
+  "icon": "iw-education",
+  "color": "#8B5CF6"
+ },
+ {
+  "id": "professional",
+  "label": "Professional & B2B Services",
+  "icon": "iw-professional",
+  "color": "#64748B"
+ },
+ {
+  "id": "retail",
+  "label": "Retail & Shops",
+  "icon": "iw-retail",
+  "color": "#F97316"
+ },
+ {
+  "id": "events",
+  "label": "Events & Creative",
+  "icon": "iw-events",
+  "color": "#A855F7"
+ },
+ {
+  "id": "pets",
+  "label": "Pets & Animals",
+  "icon": "iw-pets",
+  "color": "#14B8A6"
+ },
+ {
+  "id": "transport",
+  "label": "Transport & Logistics",
+  "icon": "iw-transport",
+  "color": "#0EA5E9"
+ },
+ {
+  "id": "property",
+  "label": "Real Estate & Property",
+  "icon": "iw-property",
+  "color": "#6366F1"
+ },
+ {
+  "id": "community",
+  "label": "Nonprofit & Community",
+  "icon": "iw-community",
+  "color": "#10B981"
+ },
+ {
+  "id": "care",
+  "label": "Senior & Home Care",
+  "icon": "iw-care",
+  "color": "#F472B6"
+ },
+ {
+  "id": "local",
+  "label": "Neighborhood Services",
+  "icon": "iw-local",
+  "color": "#EAB308"
+ }
+]

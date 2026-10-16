@@ -1,0 +1,170 @@
+[
+ {
+  "id": "NAICS",
+  "title": "U.S. Census Bureau — 2022 NAICS 2-6 digit codes (official list, xlsx)",
+  "url": "https://www.census.gov/naics/2022NAICS/2-6%20digit_2022_Codes.xlsx",
+  "method": "fetched",
+  "note": "Every catalog NAICS code is checked against this file by the builder.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_SIP",
+  "title": "City of Philadelphia — Storefront Improvement Program: 1,000+ recipients (2026-06-26)",
+  "url": "https://www.phila.gov/2026-06-26-city-highlights-more-than-1000-recipients-of-the-storefront-improvement-program-launches-new-storymap-and-increases-program-funding/",
+  "method": "fetched",
+  "note": "Corridor recipients: restaurant/food & beverage 28%, retail 26%, plus fitness & wellness, auto services, laundromats, pet services, hospitality.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_COMMERCE",
+  "title": "City of Philadelphia Dept. of Commerce — support for key industries",
+  "url": "https://www.phila.gov/departments/department-of-commerce/for-businesses/support-for-key-industries/",
+  "method": "fetched",
+  "note": "Key industries: advanced manufacturing/logistics, commercial investment, creative economy, life sciences, nighttime economy, technology.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_FED",
+  "title": "Federal Reserve Bank of Philadelphia — The Rise and Fall of Philadelphia's Commercial Corridors",
+  "url": "https://www.philadelphiafed.org/community-development/the-rise-and-fall-of-philadelphias-commercial-corridors",
+  "method": "fetched",
+  "note": "Neighborhood corridors are launch points for small retailers; merchant cooperation/BIDs are hard on lower-income corridors.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_BODYART",
+  "title": "City of Philadelphia — Open a body art establishment",
+  "url": "https://www.phila.gov/services/permits-violations-licenses/get-a-license/business-licenses-permits-and-approvals/body-artists/open-a-body-art-establishment/",
+  "method": "fetched",
+  "note": "Tattooing, piercing, permanent makeup, microblading; regulated by the Dept. of Public Health.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_CAL",
+  "title": "City of Philadelphia — Get a Commercial Activity License",
+  "url": "https://www.phila.gov/services/permits-violations-licenses/get-a-license/business-licenses/activity/get-a-commercial-activity-license/",
+  "method": "search result",
+  "note": "Any person or entity doing business in Philadelphia needs this L&I license (search snippet; page not fetched).",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_FOODTRUCK",
+  "title": "City of Philadelphia — Food Establishment Retail, Non-Permanent Location License",
+  "url": "https://www.phila.gov/services/business-self-employment/starting-a-business/business-licenses-permits-and-approvals/food-businesses/get-a-food-establishment-retail-non-permanent-location-license/",
+  "method": "search result",
+  "note": "License for food trucks, carts and stands (search snippet; page not fetched).",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_CATERER",
+  "title": "City of Philadelphia — Get a food caterer license",
+  "url": "https://www.phila.gov/fr/services/permits-violations-licenses/get-a-license/business-licenses-permits-and-approvals/food-businesses/get-a-food-caterer-license/",
+  "method": "search result",
+  "note": "Caterer license exists as its own category (search result title; page not fetched).",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PA_OCDEL",
+  "title": "Pennsylvania DHS / OCDEL — Bureau of Certification Services (child care)",
+  "url": "https://www.pa.gov/agencies/dhs/departments-offices/ocdel-info/ocdel-bureau-certification-services.html",
+  "method": "search result",
+  "note": "Centers, group and family child care homes need a certificate of compliance (search summary; page not fetched).",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PHL_MATP",
+  "title": "Pennsylvania Health Law Project — Medical Assistance Transportation Program (MATP) update",
+  "url": "https://www.phlp.org/en/news/matp-update",
+  "method": "search result",
+  "note": "Non-emergency rides to Medical Assistance-covered care; Philadelphia program run by a contracted broker (search summary; page not fetched).",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "HHS_HIPAA",
+  "title": "HHS — Covered entities and business associates",
+  "url": "https://www.hhs.gov/hipaa/for-professionals/covered-entities/index.html",
+  "method": "search result",
+  "note": "HIPAA applies to covered entities and business associates (search summary; direct fetch returned 403).",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "FTC_REVIEWS",
+  "title": "FTC — Final rule banning fake reviews and testimonials (2024-08-14)",
+  "url": "https://www.ftc.gov/news-events/news/press-releases/2024/08/federal-trade-commission-announces-final-rule-banning-fake-reviews-testimonials",
+  "method": "fetched",
+  "note": "Bans fake/AI-generated reviews and testimonials and fake social influence indicators.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "FTC_COPPA",
+  "title": "FTC — Children's Online Privacy Protection Rule (COPPA)",
+  "url": "https://www.ftc.gov/legal-library/browse/rules/childrens-online-privacy-protection-rule-coppa",
+  "method": "fetched",
+  "note": "Requirements on operators collecting personal information from children under 13.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "JOBBER",
+  "title": "Jobber — industries served (field-service software vendor)",
+  "url": "https://getjobber.com/industries/",
+  "method": "fetched",
+  "note": "Vendor page. Lists cleaning, landscaping, plumbing, HVAC, roofing, pest control, junk removal, dog walking, auto detailing and more; workflows: quotes, scheduling/dispatch, route optimization, invoicing, online payments, client self-serve hub.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "HOUSECALL",
+  "title": "Housecall Pro — home service software (vendor)",
+  "url": "https://www.housecallpro.com/",
+  "method": "fetched",
+  "note": "Vendor page. Electrical, HVAC, plumbing, cleaning, pool, garage door, pest control, window cleaning; workflows: online booking, estimates, dispatch, invoicing, reviews, recurring service plans.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "SQUARE_APPT",
+  "title": "Square Appointments (vendor)",
+  "url": "https://squareup.com/us/en/appointments",
+  "method": "fetched",
+  "note": "Vendor page. Salons, barbershops, nail salons, spas, med spas, tattoo & piercing studios; workflows: online booking (site/Instagram/QR), reminders, cancellation policy, waitlist, recurring and class booking.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "MINDBODY",
+  "title": "Mindbody for business (vendor)",
+  "url": "https://www.mindbodyonline.com/business",
+  "method": "fetched",
+  "note": "Vendor page. Gyms, yoga, Pilates, dance, martial arts, personal training, spas, massage, chiropractic, PT, salons; workflows: class/appointment booking, memberships, check-in, waivers, payments.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "PROCARE",
+  "title": "Procare Solutions — child care management software (vendor)",
+  "url": "https://www.procaresoftware.com/",
+  "method": "fetched",
+  "note": "Vendor page. Enrollment/waitlist, family registration & eDocuments, check-in/out, ratio tracking, family messaging, tuition and subsidy billing, payment reminders, licensing reporting.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "TEKMETRIC",
+  "title": "Tekmetric — auto repair shop software (vendor)",
+  "url": "https://www.tekmetric.com/",
+  "method": "fetched",
+  "note": "Vendor page. Digital vehicle inspections, estimates, customer approvals by text, two-way texting, text-to-pay, invoicing.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "APPFOLIO",
+  "title": "AppFolio — property manager software (vendor)",
+  "url": "https://www.appfolio.com/property-manager",
+  "method": "fetched",
+  "note": "Vendor page. Online rent, maintenance requests and work orders, leasing/applications, resident and owner portals, inspections/unit turns.",
+  "accessed": "2026-10-16"
+ },
+ {
+  "id": "GINGR",
+  "title": "Gingr — pet care software (vendor)",
+  "url": "https://www.gingrapp.com/",
+  "method": "fetched",
+  "note": "Vendor page. Boarding, dog daycare, grooming, training; workflows: reservations with deposits, check-in dashboard, grooming booking, vaccine/waiver pre-check, report cards with photos.",
+  "accessed": "2026-10-16"
+ }
+]
