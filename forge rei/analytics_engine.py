@@ -38,22 +38,29 @@ def _to_ms(v):
 
 
 def _pull_conversations(ghl_get, location_id, pages=5, per=100):
-    out, start_after, start_after_id = [], None, None
+    """Newest-first pages, deduped by id. GHL ignores startAfter/startAfterId, so the old
+    cursor returned the same page `pages` times (every count 4x). Same shape as
+    scout_triage._fetch_conversations: startAfterDate cursor, stop when nothing is new."""
+    out, seen, start_after_date = [], set(), None
     for _ in range(pages):
-        params = {"locationId": location_id, "limit": per, "sortBy": "last_message_date"}
-        if start_after:
-            params["startAfter"] = start_after
-            params["startAfterId"] = start_after_id
+        params = {"locationId": location_id, "limit": per,
+                  "sortBy": "last_message_date", "sort": "desc"}
+        if start_after_date:
+            params["startAfterDate"] = start_after_date
         data = ghl_get("/conversations/search", params)
         batch = data.get("conversations", []) or []
-        out.extend(batch)
-        if len(batch) < per:
+        fresh = 0
+        for c in batch:
+            if c.get("id") not in seen:
+                seen.add(c.get("id"))
+                out.append(c)
+                fresh += 1
+        if not fresh:
             break
-        last = batch[-1]
-        start_after = last.get("sort", [None])[0] if isinstance(last.get("sort"), list) else last.get("lastMessageDate")
-        start_after_id = last.get("id")
-        if not start_after:
+        last_date = batch[-1].get("lastMessageDate")
+        if not last_date or len(batch) < per:
             break
+        start_after_date = last_date
     return out
 
 
@@ -131,7 +138,7 @@ def build(ghl_get, opp_view, location_id, days=30, pages=4, sample=25):
     convos = _pull_conversations(ghl_get, location_id, pages=pages)
 
     in_window = [c for c in convos if (_to_ms(c.get("lastMessageDate")) or 0) >= now - window]
-    scope = in_window or convos
+    scope = in_window   # an empty window is empty, never silently all-time
 
     inbound_last = [c for c in scope if c.get("lastMessageDirection") == "inbound"]
     outbound_last = [c for c in scope if c.get("lastMessageDirection") == "outbound"]
