@@ -35,10 +35,13 @@ seller to a signed contract without wasting their time or ours?**
 ## Current Status
 *(this section expires fast — update it, don't trust it blindly)*
 
-- Primary market context is env-configured (`PRIMARY_MARKET`/`PRIMARY_ZIP`/
-  `PRIMARY_COUNTY` in `marcus-wholesale-agent/config/ghl.env`) rather than
-  hardcoded here — check that file for the current target market rather than
-  assuming one.
+- There is no single fixed primary market. The `PRIMARY_MARKET`/`PRIMARY_ZIP`/
+  `PRIMARY_COUNTY` keys once referenced here were NOT present in
+  `marcus-wholesale-agent/config/ghl.env` when last checked (2026-06-20, key names
+  only). Per `marcus-wholesale-agent/CLAUDE.md` (2026-06-18) each market has its own
+  GHL trigger tag (e.g. DE = `delaware wholesale lead`, PA 267 = `pa 267 number leads`;
+  Ohio splits across Dayton/Akron workflows). Treat the live market list as owner-confirmed
+  in the dashboard, not as something to assume from this file.
 - Current deal-flow volume, active pipeline count, and monthly closings are
   tracked live in the dashboard (Pipeline tab), not duplicated here.
 

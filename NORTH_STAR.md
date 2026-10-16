@@ -128,8 +128,10 @@ cites carries its source and date range or is marked Unknown — see the agency
 creed (§5). Dyson never says "done" for something not actually deployed.
 
 **Business facts + current status:** see `forge-agency/skills/agency-context.md`
-— note this file honestly flags a real gap: there is no consolidated client
-list/ICP doc today. Fill it in as real clients are documented.
+— the offer/price lives in `forge-agency/skills/agency-offer-sheet.md` and the ICP in
+`forge-agency/skills/agency-icp.md`. The honest gaps that remain: no consolidated client
+roster doc (it lives in the dashboard Clients tab) and no measured conversion data.
+Fill them in as real clients are documented.
 
 ## 5. Daycare — A Touch of Blessings Learning Academy
 
