@@ -3176,8 +3176,13 @@ def _blast_transport(recipient, sheet):
     (toolkit_blast gates both). SMS only for v1 — GHL email needs a configured
     location mailbox, so email recipients are skipped, not failed. Buyers are
     upserted into GHL tagged `buyer` so replies land in the mirrored convos.
-    TCPA quiet hours block buyer texts the same as seller texts.
+    Every text goes through sms_guard.guard like every other send (quiet hours,
+    STOP/DNC in the thread, pending-dupe + daily cap) and fails closed if the guard is
+    missing; a contact GHL marks DND is skipped.
     """
+    guard = getattr(sms_guard, "guard", None)
+    if not callable(guard):
+        return {"ok": False, "note": "central sms_guard unavailable", "gate": "sms_guard_missing"}
     if recipient.get("channel") != "sms":
         return {"ok": False, "skipped": True,
                 "note": "email transport not wired (GHL SMS only)"}
@@ -3193,16 +3198,34 @@ def _blast_transport(recipient, sheet):
         "locationId": LOCATION_ID, "phone": phone,
         "name": recipient.get("name") or "Cash Buyer", "tags": ["buyer"],
     })
-    contact_id = (up.get("contact") or {}).get("id") or up.get("id")
+    contact = up.get("contact") or {}
+    contact_id = contact.get("id") or up.get("id")
     if not contact_id:
         return {"ok": False, "note": "GHL contact upsert failed"}
+    if contact.get("dnd"):
+        return {"ok": False, "skipped": True, "note": "contact is DND in GHL"}
     conv_id = _get_or_create_conversation(contact_id)
     if not conv_id:
         return {"ok": False, "note": "could not open GHL conversation"}
-    ghl_post("/conversations/messages", {
-        "type": "SMS", "conversationId": conv_id,
-        "contactId": contact_id, "message": message,
-    })
+    gate = guard(contact_id, message, conv_id=conv_id, name=recipient.get("name"),
+                 scout=SCOUT, kind="buyer_blast", autonomous=False)
+    if not gate.get("ok"):
+        return {"ok": False, "skipped": gate.get("gate") == "hard_no",
+                "note": gate.get("error") or "blocked by sms_guard", "gate": gate.get("gate")}
+    reservation = gate.get("reservation")
+    try:
+        ghl_post("/conversations/messages", {
+            "type": "SMS", "conversationId": conv_id,
+            "contactId": contact_id, "message": message,
+        })
+    except Exception as e:  # noqa: BLE001
+        sms_guard.release(reservation)
+        return {"ok": False, "note": f"GHL send failed: {e}", "gate": "ghl_send"}
+    try:
+        sms_guard.record_success(reservation=reservation, conv_id=conv_id,
+                                 contact_id=contact_id, message=message, kind="buyer_blast")
+    except Exception:  # noqa: BLE001 — the text already left; bookkeeping only
+        pass
     return {"ok": True, "note": "sent via GHL SMS"}
 
 
