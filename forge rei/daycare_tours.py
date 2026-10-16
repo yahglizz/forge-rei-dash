@@ -19,6 +19,7 @@ Rollback: FORGE_GOOGLE_CALENDAR=0 + restart. Stdlib only.
 from __future__ import annotations
 
 import os
+import re
 import time
 
 import daycare_ghl
@@ -30,6 +31,31 @@ BOOKED_TAG = "tour-booked"          # daycare_leads.STAGE_TAGS maps it to TOUR_B
 OFFER_N = 3
 DOWN_SEC = 300                      # after a Google failure, skip offers this long (sweep stays fast)
 _DOWN_UNTIL = 0.0
+
+
+def _phones(raw):
+    """FORGE_TOURS_ONLY_PHONES -> set of last-10-digit numbers, or None when unset/empty
+    (= every contact). Set but with no usable number -> empty set = nobody (fails closed)."""
+    if not (raw or "").strip():
+        return None
+    return {re.sub(r"\D", "", p)[-10:] for p in raw.split(",") if re.sub(r"\D", "", p)}
+
+
+# Test-only allowlist: while set, tour times / booking happen ONLY for these phones; everyone
+# else (and any contact with no phone) gets exactly the flag-off behavior.
+ONLY_PHONES = _phones(os.environ.get("FORGE_TOURS_ONLY_PHONES", ""))
+
+
+def _allowed(contact, cid=""):
+    if ONLY_PHONES is None:
+        return True
+    d = re.sub(r"\D", "", str((contact or {}).get("phone") or ""))
+    if d and d[-10:] in ONLY_PHONES:
+        return True
+    who = f"phone …{d[-4:]}" if d else "no phone on file"
+    print(f"[daycare_tours] {cid or (contact or {}).get('id') or '?'}: {who} not on "
+          "FORGE_TOURS_ONLY_PHONES — skipped")
+    return False
 
 RULES = ("These exact times override the rubric's \"never offer a specific slot\" rule, for these "
          "times only. If this text is about a tour (category \"tour\"), offer them in plain words "
@@ -66,6 +92,8 @@ def offer(contact, prev, now):
     loc = _loc(contact)
     cfg = google_io.tours_config()
     if not loc or not cfg or google_io.is_placeholder(cfg) or loc not in cfg["locations"]:
+        return None
+    if not _allowed(contact):
         return None
     if time.time() < _DOWN_UNTIL:
         return None                     # Google failed recently: don't slow the parent-reply sweep
@@ -107,7 +135,7 @@ def attach(row, tour, res, contact):
     return row
 
 
-def book(cid, auto=False):
+def book(cid, auto=False, client=None):
     """The owner's tap on a tour-confirmation draft: claim it, then create the event.
     -> google_io result ({ok, data:{eventId,…}}) or {ok: False, error} (nothing is sent)."""
     import daycare_replies as dr
@@ -116,6 +144,14 @@ def book(cid, auto=False):
     if not ON:
         return {"ok": False, "error": "tour booking is off (FORGE_GOOGLE_CALENDAR=0) — this draft "
                                       "confirms a tour time; send your own text from the Messages tab"}
+    if ONLY_PHONES is not None:         # test allowlist: the LIVE contact's phone decides, fail closed
+        try:
+            ok = client is not None and _allowed(dr._contact(client, cid), cid)
+        except Exception:  # noqa: BLE001 — can't read the phone = not on the list
+            ok = False
+        if not ok:
+            return {"ok": False, "error": "tour booking is limited to FORGE_TOURS_ONLY_PHONES and this "
+                                          "contact is not on it — nothing booked or sent"}
     with dr._LOCK:
         st = dr._load()
         d = (st.get("drafts") or {}).get(cid)
@@ -134,7 +170,7 @@ def book(cid, auto=False):
                               ref=cid, result="booked", ok=True, approval_required=True)
         except Exception:  # noqa: BLE001 — the log never blocks
             pass
-        return res
+        return {**res, "cleared": True}       # passed every gate above; after_send checks this
     if res.get("error") == "slot_taken":
         # Closed + inbound cleared: the next sweep redrafts this thread with fresh open times.
         _set(cid, status="slot_taken", inboundId="", inboundAt=0)
@@ -147,7 +183,11 @@ def book(cid, auto=False):
 def after_send(client, cid, booked, res):
     """After approve()'s send. res None = send raised (delivery unknown): keep the event, flag
     the row. Not ok = definitely not sent: cancel the event, draft back to pending.
-    Ok = tag `tour-booked` + a GHL note (best effort — the parent is already confirmed)."""
+    Ok = tag `tour-booked` + a GHL note (best effort — the parent is already confirmed).
+    Under FORGE_TOURS_ONLY_PHONES it touches nothing that book() did not clear."""
+    if ONLY_PHONES is not None and not booked.get("cleared"):
+        print(f"[daycare_tours] {cid}: not cleared by book() under FORGE_TOURS_ONLY_PHONES — skipped")
+        return
     ev = booked["data"]
     if res is None:
         _set(cid, status="send_error", tourEventId=ev["eventId"])

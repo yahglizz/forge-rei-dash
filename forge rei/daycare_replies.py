@@ -554,7 +554,7 @@ def approve(client, contact_id, text=None, now=None, auto=False):
         return {"ok": False, "error": "parent opted out — not sent"}
     booked = None
     if d.get("tourSlot"):              # tour confirmation: book first; a taken slot sends nothing
-        booked = daycare_tours.book(cid, auto=auto)
+        booked = daycare_tours.book(cid, auto=auto, client=client)
         if not booked.get("ok"):
             return booked
     res = None

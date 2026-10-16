@@ -38,8 +38,9 @@ class FakeGHL:
         self.contacts, self.threads = {}, {}
         self.sms, self.tags, self.notes, self.fail_send = [], [], [], False
 
-    def add(self, cid, tags, msgs):
-        self.contacts[cid] = {"id": cid, "tags": tags, "firstName": "Ava"}
+    def add(self, cid, tags, msgs, phone=None):
+        self.contacts[cid] = {"id": cid, "tags": tags, "firstName": "Ava",
+                              **({"phone": phone} if phone else {})}
         self.threads[cid] = msgs
 
     def _conv(self, cid):
@@ -89,7 +90,7 @@ class Drafter:
 def fresh(on=True, cfg=tg.CFG):
     dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
     dr.daycare_leads.in_hours = lambda now: True
-    dt.ON, dt._DOWN_UNTIL = on, 0.0
+    dt.ON, dt._DOWN_UNTIL, dt.ONLY_PHONES = on, 0.0, None
     return tg.setup(cfg=cfg, fake=tg.FakeGoogle())
 
 
@@ -241,6 +242,63 @@ def test_pick_beats_category_label():
     assert "tourSlot" not in row("c9")
 
 
+def test_phone_allowlist():
+    import contextlib
+    import io
+    variants = ("+1 267-555-0166", "(267) 555 0166", "2675550166")
+    assert dt._phones("") is None and dt._phones("  ") is None                      # empty = everyone
+    assert dt._phones(",".join(variants)) == {"2675550166"}
+    assert dt._phones("not a number") == set()                                      # set but junk = nobody
+    for listed in variants:                                                         # every format matches
+        for on_file in variants + ("+12675550166",):
+            fresh()
+            dt.ONLY_PHONES = dt._phones(listed)
+            assert dt.offer({"tags": LEAD, "phone": on_file}, None, NOW), (listed, on_file)
+    # unlisted phone and NO phone: no slots, no Google call, logged without the full number
+    fake = fresh()
+    dt.ONLY_PHONES = dt._phones("+1 267-555-0166")
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        assert dt.offer({"id": "cX", "tags": LEAD, "phone": "+1 (215) 555-0123"}, None, NOW) is None
+        assert dt.offer({"id": "cY", "tags": LEAD}, None, NOW) is None
+        assert dt.offer({"id": "cZ", "tags": LEAD, "phone": ""}, None, NOW) is None
+    log = out.getvalue()
+    assert fake.calls == [] and "…0123" in log and "2155550123" not in log and "555-0123" not in log
+    assert log.count("no phone on file") == 2
+    # unlisted: the sweep's draft row is byte-identical to flag-off
+    def sweep(on, allow):
+        fresh(on=on)
+        dt.ONLY_PHONES = dt._phones(allow)
+        cl = FakeGHL()
+        cl.add("c1", LEAD, [FIRST_TOUCH, msg(1, "inbound", "can we tour?", 10 * MIN)], phone="+12155550123")
+        d = Drafter()
+        dr.run_once(cl, now=NOW, drafter=d)
+        return d.calls, row("c1")
+    off_calls, off_row = sweep(False, "")
+    on_calls, on_row = sweep(True, "2675550166")
+    assert off_calls == on_calls == [None] and on_row == off_row
+    # listed phone: offered; empty var: everyone (the unlisted phone gets slots too)
+    assert sweep(True, "2675550166 , +1 215 555 0123")[0][0] is not None
+    assert sweep(True, "")[0][0] is not None
+    # book(): a tour draft made before the allowlist was set -> refused, nothing booked or sent
+    gfake = fresh()
+    cl = FakeGHL()
+    cl.add("c2", LEAD, [FIRST_TOUCH, msg(1, "inbound", "thursday", 10 * MIN)], phone="+12155550123")
+    cl.add("c3", LEAD, [FIRST_TOUCH, msg(1, "inbound", "friday", 10 * MIN)])            # no phone on file
+    cl.add("c4", LEAD, [FIRST_TOUCH, msg(1, "inbound", "monday", 10 * MIN)], phone="(267) 555-0166")
+    dr.run_once(cl, now=NOW, drafter=Drafter(pick=lambda t: t["slots"][0]["id"]))
+    dt.ONLY_PHONES = dt._phones("2675550166")
+    for cid in ("c2", "c3"):
+        r = dr.approve(cl, cid, now=NOW)
+        assert not r["ok"] and "FORGE_TOURS_ONLY_PHONES" in r["error"] and row(cid)["status"] == "pending"
+    assert gfake.events == {} and cl.sms == [] and cl.tags == [] and cl.notes == []
+    assert dr.approve(cl, "c4", now=NOW)["ok"]                                       # listed: books
+    assert len(gfake.events) == 1 and len(cl.sms) == 1 and cl.tags == [("c4", ["tour-booked"])]
+    # after_send never writes for a booking book() did not clear
+    dt.after_send(cl, "c2", {"ok": True, "data": {"eventId": "x", "label": "l"}}, {"ok": True})
+    assert cl.tags == [("c4", ["tour-booked"])] and len(cl.notes) == 1
+
+
 def test_offer_refuses_when_not_ready():
     fake = fresh(cfg=dict(tg.CFG, _note="PLACEHOLDER tour policy - owner must replace"))
     assert dt.offer({"tags": LEAD}, None, NOW) is None and fake.calls == []        # placeholder
@@ -273,5 +331,6 @@ if __name__ == "__main__":
     test_failed_send_undoes_booking()
     test_never_auto_and_flag_rollback()
     test_pick_beats_category_label()
+    test_phone_allowlist()
     test_offer_refuses_when_not_ready()
     print("test_daycare_tours: all passed")
