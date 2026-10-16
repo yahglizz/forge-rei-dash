@@ -1162,6 +1162,7 @@ import marcus_screening  # noqa: E402
 import agent_bus  # noqa: E402
 import forge_ops  # noqa: E402
 import forge_heartbeat  # noqa: E402
+import forge_atomic  # noqa: E402
 import sms_guard  # noqa: E402
 import telegram_io  # noqa: E402
 import test_mode  # noqa: E402
@@ -1929,6 +1930,109 @@ _WATCHDOG_BIZ = {"solomon": "daycare", "daycare_replies": "daycare", "daycare_ad
 # clock/telegram/graphify/sync watchdogs, the do_today digest and Orion.
 
 
+_AI_REALERT_MS = 24 * 3600 * 1000   # re-alert cadence while AI stays hard-down
+
+
+def _watchdog_ai_tick(now=None):
+    """--- WP-A --- AI dependency (Anthropic credits/auth): one alert the moment it goes
+    hard-down, a reminder every 24 h while it STAYS down (B1 sat dead 3+ weeks after one
+    alert), one recovery on the way back. `alerted`/`alertedAt` live in ai_health.json so a
+    restart mid-outage neither re-fires nor resets the 24 h clock. Marked only once Telegram
+    accepts (or isn't configured), so a transient Telegram failure retries next tick
+    instead of losing the alert. Never raises."""
+    try:
+        now = int(now if now is not None else time.time() * 1000)
+        ai = forge_heartbeat.ai_health()
+        if ai.get("hard"):
+            alerted_at = ai.get("alertedAt")
+            if ai.get("alerted") and not alerted_at:
+                forge_heartbeat.ai_alerted(True, now)   # pre-alertedAt state: start the clock, no resend
+                return
+            if ai.get("alerted") and now - int(alerted_at) < _AI_REALERT_MS:
+                return
+            esc = getattr(telegram_io, "_esc", str)   # HTML parse mode — escape raw errors
+            head = "🔴 FIX REQUIRED"
+            if ai.get("alerted") and ai.get("downSince"):
+                head = f"🔴 STILL DOWN ({(now - int(ai['downSince'])) // 3600000} h)"
+            txt = (f"{head}: Anthropic credits/auth — all agents' AI calls "
+                   f"failing. {esc(ai.get('reason'))}. Last error: {esc(ai.get('lastError'))}")
+            res = telegram_io.send(txt, dedupe_key=f"watchdog:ai:{ai.get('downSince')}:{alerted_at or 0}")
+            if (res or {}).get("ok") or not telegram_io.configured():
+                forge_heartbeat.ai_alerted(True, now)
+                try:
+                    agent_bus.send("watchdog", "all", "alert", txt,
+                                   {"type": "ai_down", "kind": ai.get("kind"),
+                                    "downSince": ai.get("downSince")})
+                except Exception:
+                    pass
+        elif ai.get("ok") and ai.get("alerted"):
+            txt = "🟢 Anthropic AI calls recovered — agents are thinking again."
+            res = telegram_io.send(txt, dedupe_key=f"watchdog-ok:ai:{ai.get('lastOkAt')}")
+            if (res or {}).get("ok") or not telegram_io.configured():
+                forge_heartbeat.ai_alerted(False)
+                try:
+                    agent_bus.send("watchdog", "all", "note", txt, {"type": "ai_up"})
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+# Approval-backlog nudge: once a day per business chat, "N waiting, oldest X h" — the only
+# thing between a lead and a reply is the owner's tap. Reuses owner_actions' read-only
+# sources (no sends, no Claude); only these queues count.
+_NUDGE_SOURCES = ("marcus_proposals", "screenings", "agency_approvals",
+                  "daycare_replies", "daycare_inquiries")
+_NUDGE_STATE = HERE / "marcus_state" / "backlog_nudge.json"   # {business: "YYYY-MM-DD" last sent}
+_NUDGE_HOUR = 9   # local business time — no nudge before the workday starts
+
+
+def _backlog_nudge_tick(now=None, ctx=None):
+    """Box-only (LOOPS_ENABLED), silent while clocked out. At most one Telegram per business
+    per local day, only when something is waiting. Marked sent only once Telegram accepts.
+    `now` is epoch seconds. Never raises."""
+    if not LOOPS_ENABLED:
+        return
+    try:
+        if forge_ops.paused():
+            return
+        lt = time.localtime(now if now is not None else time.time())
+        if lt.tm_hour < _NUDGE_HOUR:
+            return
+        today = time.strftime("%Y-%m-%d", lt)
+        try:
+            sent = json.loads(_NUDGE_STATE.read_text())
+            sent = sent if isinstance(sent, dict) else {}
+        except Exception:
+            sent = {}
+        if ctx is None:
+            ctx = {"marcus": MARCUS, "screener": SCREENER, "deal_prep": DEAL_PREP,
+                   "daycare_client": DAYCARE_GHL}
+        by = {}
+        for name, biz, fn in owner_actions.SOURCES:
+            if name not in _NUDGE_SOURCES or sent.get(biz) == today or owner_actions._is_archived(biz):
+                continue
+            try:
+                items = fn(ctx) or []
+            except Exception:
+                continue   # an unreadable queue shows on Owner Actions as a FIX; no nudge noise
+            by.setdefault(biz, []).extend(i for i in items if i.get("kind") != "FIX")
+        for biz, items in by.items():
+            items = owner_actions.merge_and_sort(items)   # dedupe by id (one family = one row)
+            if not items:
+                continue
+            ages = [i["ageSec"] for i in items if isinstance(i.get("ageSec"), (int, float))]
+            txt = (f"⏳ {len(items)} waiting on you"
+                   + (f", oldest {int(max(ages) // 3600)} h" if ages else "")
+                   + " — open the dashboard to clear them.")
+            res = telegram_io.send(txt, dedupe_key=f"backlog:{biz}:{today}", business=biz)
+            if (res or {}).get("ok"):
+                sent[biz] = today
+                forge_atomic.atomic_write_json(_NUDGE_STATE, sent)
+    except Exception:
+        pass
+
+
 def _watchdog_forever():
     """The thing that watches the watchers. Every FORGE_WATCHDOG_SEC it reads the heartbeat
     snapshot and fires a SINGLE Telegram + bus alert the moment a loop transitions INTO red
@@ -1941,42 +2045,13 @@ def _watchdog_forever():
     every = max(60, int(os.environ.get("FORGE_WATCHDOG_SEC", "300")))
     while True:
         try:
-            # --- WP-A --- AI dependency (Anthropic credits/auth): ONE alert on hard-down,
-            # ONE on recovery. `alerted` lives in ai_health.json so a restart mid-outage
-            # doesn't re-fire it. Marked only once Telegram accepts (or isn't configured),
-            # so a transient Telegram failure retries next tick instead of losing the alert.
-            # Runs ABOVE the clocked-out check: a dead key is a fix-required fact whether or
-            # not the crew is paused, and it is transition-based, so it cannot spam.
-            try:
-                ai = forge_heartbeat.ai_health()
-                if ai.get("hard") and not ai.get("alerted"):
-                    esc = getattr(telegram_io, "_esc", str)   # HTML parse mode — escape raw errors
-                    txt = ("🔴 FIX REQUIRED: Anthropic credits/auth — all agents' AI calls "
-                           f"failing. {esc(ai.get('reason'))}. Last error: {esc(ai.get('lastError'))}")
-                    res = telegram_io.send(txt, dedupe_key=f"watchdog:ai:{ai.get('downSince')}")
-                    if (res or {}).get("ok") or not telegram_io.configured():
-                        forge_heartbeat.ai_alerted(True)
-                        try:
-                            agent_bus.send("watchdog", "all", "alert", txt,
-                                           {"type": "ai_down", "kind": ai.get("kind"),
-                                            "downSince": ai.get("downSince")})
-                        except Exception:
-                            pass
-                elif ai.get("ok") and ai.get("alerted"):
-                    txt = "🟢 Anthropic AI calls recovered — agents are thinking again."
-                    res = telegram_io.send(txt, dedupe_key=f"watchdog-ok:ai:{ai.get('lastOkAt')}")
-                    if (res or {}).get("ok") or not telegram_io.configured():
-                        forge_heartbeat.ai_alerted(False)
-                        try:
-                            agent_bus.send("watchdog", "all", "note", txt, {"type": "ai_up"})
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-            # --- /WP-A ---
+            # AI dependency (Anthropic credits/auth). Runs ABOVE the clocked-out check: a
+            # dead key is a fix-required fact whether or not the crew is paused.
+            _watchdog_ai_tick()
             if forge_ops.paused():          # clocked out — everything is intentionally idle
                 time.sleep(every)
                 continue
+            _backlog_nudge_tick()
             for l in forge_heartbeat.snapshot():
                 loop = l.get("loop")
                 status = l.get("status")

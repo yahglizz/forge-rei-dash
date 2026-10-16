@@ -572,15 +572,19 @@ class SystemHealthRouteTest(unittest.TestCase):
         self.assertIn('"ai": ai', seg)
         self.assertIn('"reason":', seg)
         self.assertIn('bool(ai.get("ok"))', seg)
+        tick = next(n for n in tree.body
+                    if isinstance(n, ast.FunctionDef) and n.name == "_watchdog_ai_tick")
+        tseg = ast.get_source_segment(src, tick)
+        self.assertIn("FIX REQUIRED", tseg)
+        self.assertIn("Anthropic credits/auth", tseg)
+        self.assertIn("forge_heartbeat.ai_alerted(True, now)", tseg)
+        self.assertIn("forge_heartbeat.ai_alerted(False)", tseg)
         wd = next(n for n in tree.body
                   if isinstance(n, ast.FunctionDef) and n.name == "_watchdog_forever")
         wseg = ast.get_source_segment(src, wd)
-        self.assertIn("FIX REQUIRED: Anthropic credits/auth", wseg)
-        self.assertIn("forge_heartbeat.ai_alerted(True)", wseg)
-        self.assertIn("forge_heartbeat.ai_alerted(False)", wseg)
         # The AI alert runs ABOVE the clocked-out `continue`: a dead key is fix-required
-        # whether or not the crew is paused (transition-based, so it can't spam).
-        self.assertLess(wseg.index("FIX REQUIRED: Anthropic"), wseg.index("forge_ops.paused()"))
+        # whether or not the crew is paused (behavior: test_watchdog_alerts.py).
+        self.assertLess(wseg.index("_watchdog_ai_tick()"), wseg.index("forge_ops.paused()"))
 
 
 if __name__ == "__main__":

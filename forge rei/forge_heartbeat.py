@@ -296,13 +296,15 @@ def ai_fail(code, msg, key=None):
         pass
 
 
-def ai_alerted(flag):
-    """Persist whether the watchdog has already alerted on the current outage (survives
-    restarts so one outage = one alert). Never raises."""
+def ai_alerted(flag, now=None):
+    """Persist whether the watchdog has already alerted on the current outage, and when
+    (alertedAt, epoch ms — drives the 24 h STILL DOWN reminder). Survives restarts so a
+    restart neither re-fires nor resets the clock. Clearing drops alertedAt. Never raises."""
     try:
         with _LOCK:
             d = _ai_load()
             d["alerted"] = bool(flag)
+            d["alertedAt"] = int(now if now is not None else time.time() * 1000) if flag else None
             _ai_save(d)
     except Exception:
         pass
@@ -314,7 +316,7 @@ def ai_health():
     base = {"ok": True, "hard": False, "kind": None, "reason": None, "lastOkAt": None,
             "lastErrorAt": None, "lastError": None, "lastKind": None, "downSince": None,
             "failStreak": 0, "callsTotal": 0, "errorsTotal": 0, "alerted": False,
-            "hardBy": {}}   # {key fingerprint: {kind, code, since}} — never the key itself
+            "alertedAt": None, "hardBy": {}}   # {key fingerprint: {kind, code, since}} — never the key itself
     try:
         with _LOCK:
             d = _ai_load()
