@@ -164,9 +164,12 @@ this was decided?*
    (CTR/CPC/CPL/ROAS/frequency/hook rate), calls scale/hold/kill/refresh, drafts
    new concepts. Eco never spends on its own.
 
-**Honest gaps (don't invent past them).** No client roster / ICP, pricing model,
-or client-facing brand voice is documented yet — the agency-context file flags
-these as genuinely-missing, to be filled as real clients onboard, not fabricated.
+**Honest gaps (don't invent past them).** The pricing/offer and the ICP are now
+documented: `forge-agency/skills/agency-offer-sheet.md` (single source of truth for
+the offer and price) and `forge-agency/skills/agency-icp.md`. Still genuinely missing,
+to be filled as real clients onboard, not fabricated: a consolidated client roster
+(it lives in the dashboard Clients tab), a client-facing brand voice, and *measured*
+cold-call conversion (the figures in agency-context are planning assumptions).
 
 **Full context:**
 [`forge-agency/skills/agency-context.md`](forge-agency/skills/agency-context.md)
