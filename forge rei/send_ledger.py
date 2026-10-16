@@ -14,7 +14,7 @@ from pathlib import Path
 
 import forge_atomic
 
-STATE = Path(__file__).resolve().parent / "marcus_state" / "send_ledger.json"
+STATE = forge_atomic.guard_state_path(Path(__file__).resolve().parent / "marcus_state" / "send_ledger.json")  # temp dir under tests
 _LOCK = threading.Lock()
 _DAY_MS = 24 * 60 * 60 * 1000
 

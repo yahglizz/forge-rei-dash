@@ -20,7 +20,7 @@ from pathlib import Path
 
 import forge_atomic
 
-STATE = Path(__file__).resolve().parent / "marcus_state" / "cost_tracker.json"
+STATE = forge_atomic.guard_state_path(Path(__file__).resolve().parent / "marcus_state" / "cost_tracker.json")  # temp dir under tests
 _LOCK = threading.Lock()
 
 _KEEP_DAYS = 92          # rolling window of per-day rows

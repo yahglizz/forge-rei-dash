@@ -21,7 +21,7 @@ import marcus_engine
 import send_ledger
 
 HERE = Path(__file__).resolve().parent
-STATE = HERE / "marcus_state" / "sms_guard.json"
+STATE = forge_atomic.guard_state_path(HERE / "marcus_state" / "sms_guard.json")  # temp dir under tests
 _LOCK = threading.Lock()
 
 SEND_START = int(os.environ.get("FORGE_SMS_SEND_START", "9"))

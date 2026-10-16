@@ -18,6 +18,9 @@ sys.path.insert(0, str(HERE))
 import action_log  # noqa: E402
 import agent_bus  # noqa: E402
 import agents_history  # noqa: E402
+import cost_tracker  # noqa: E402
+import send_ledger  # noqa: E402
+import sms_guard  # noqa: E402
 import forge_atomic  # noqa: E402
 
 
@@ -27,7 +30,7 @@ def _digest(p):
 
 class UnderTest(unittest.TestCase):
     def test_paths_redirected_and_live_files_untouched(self):
-        mods = (action_log, agent_bus, agents_history)
+        mods = (action_log, agent_bus, agents_history, cost_tracker, send_ledger, sms_guard)
         live = {m: LIVE / m.STATE.name for m in mods}
         before = {m: _digest(p) for m, p in live.items()}
         for m in mods:
@@ -36,6 +39,7 @@ class UnderTest(unittest.TestCase):
         self.assertTrue(action_log.flush())
         agent_bus.send("scout", "marcus", "note", "isolation probe")
         agents_history.record("scout", "isolation probe", "ok")
+        sms_guard.record_success(conv_id="conv-probe", contact_id="c-probe", message="probe")
         self.assertIn("isolation-probe", action_log.STATE.read_text())
         self.assertEqual(before, {m: _digest(p) for m, p in live.items()})
         self.assertEqual(os.environ.get("FORGE_UNDER_TEST"), "1")   # children inherit
