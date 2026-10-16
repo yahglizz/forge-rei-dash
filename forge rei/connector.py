@@ -16,6 +16,7 @@ import ipaddress
 import json
 import re
 import os
+import socket
 import threading
 import time
 import urllib.parse
@@ -126,6 +127,23 @@ def _http_error_detail(e, limit=500):
     return detail
 
 
+class GHLSendUnknown(RuntimeError):
+    """A GHL message send hit a timeout/5xx: it may or may not have gone out. Never retried
+    (a retry could double-text); the operator checks the conversation before resending."""
+
+    def __init__(self, why):
+        super().__init__(f"send outcome UNKNOWN ({why}) — not retried to avoid a double-send; "
+                         "check the GHL conversation before resending")
+
+
+def _retry_after(e, attempt):
+    """Seconds to wait before retrying a 429: GHL's Retry-After (capped at 30 s), else backoff."""
+    try:
+        return min(30.0, max(0.0, float(e.headers.get("Retry-After"))))
+    except (AttributeError, TypeError, ValueError):
+        return 0.6 * (attempt + 1)
+
+
 class GHLClient:
     """One GoHighLevel account (sub-account). Wholesale and agency each get their
     own instance, so their tokens + location IDs never mix."""
@@ -157,23 +175,35 @@ class GHLClient:
             url += "?" + urllib.parse.urlencode(params)
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, headers=self._headers(), method=method)
+        # A message SEND (SMS/email to a seller, parent, client) is not idempotent: a
+        # timeout/5xx after GHL accepted it would text the person twice on retry. Sends
+        # retry ONLY on 429 (GHL rejected it — nothing went out); anything uncertain raises
+        # GHLSendUnknown so the caller shows "unknown — check the conversation".
+        send = method != "GET" and endpoint.startswith("/conversations/messages")
         for attempt in range(retries + 1):
             try:
                 with urllib.request.urlopen(req, timeout=30) as resp:
                     raw = resp.read().decode("utf-8")
                     return json.loads(raw) if raw.strip() else {}
             except urllib.error.HTTPError as e:
-                # GHL rate-limits bursts (429) — back off and retry.
-                if e.code in (429, 500, 502, 503) and attempt < retries:
+                # GHL rate-limits bursts (429) — back off (honor Retry-After) and retry.
+                if e.code == 429 and attempt < retries:
+                    time.sleep(_retry_after(e, attempt))
+                    continue
+                if e.code in (500, 502, 503) and attempt < retries and not send:
                     time.sleep(0.6 * (attempt + 1))
                     continue
-                _http_error_detail(e)
+                detail = _http_error_detail(e)
+                if send and e.code >= 500:
+                    raise GHLSendUnknown(f"GHL {e.code} {detail}".strip()) from e
                 raise
-            except (urllib.error.URLError, TimeoutError, ConnectionError):
+            except (urllib.error.URLError, TimeoutError, ConnectionError, socket.timeout) as e:
                 # Transient network: read-timeout, DNS flap, connection reset/refused —
                 # the most common real-world failure. Back off and retry instead of
                 # aborting the whole poll sweep. (HTTPError is a URLError subclass but is
                 # caught above, so this only sees true network errors.)
+                if send:
+                    raise GHLSendUnknown(f"{type(e).__name__}: {e}") from e
                 if attempt < retries:
                     time.sleep(0.6 * (attempt + 1))
                     continue
