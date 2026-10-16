@@ -70,6 +70,7 @@ Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
    - **Exception — Solomon · Replies AUTO-SEND (operator opt-in, default OFF).** *(2026-09-30.)* `FORGE_DAYCARE_REPLY_AUTO=1` lets `daycare_replies.auto_send` text back an enrollment **lead** by itself — only a clean, flag-free draft in the safe categories (tour/subsidy/availability/enroll/pricing-deflect; never escalations, enrolled families, billing/safety/custody/medical, a $ figure, an unverified phone), through `approve()`'s live re-check (staff already replied / opt-out / DND / 8am–9pm ET), capped 30/day and 3 per contact, Telegram receipt + action-log row per send. Only the operator flips it (edit `/etc/default/forge-reios` + restart); kill: knob 0, `forge_ops` clock-out, or any staff reply in GHL. Test: `test_daycare_replies.py`.
    - **Exception — ACE (operator opt-in, default OFF).** *(Documented 2026-09-22 — was missing.)* `ace.py` + `conversation_engine.py` run a per-thread state machine after every Scout auto-screen. Modes `off` / `shadow` (drafts proposals only) / `supervised` / `full`. **In supervised AND full, `ace.apply` auto-sends qualifying-question and call-pivot texts** through `marcus.approve` → `sms_guard` (autonomous=True), capped 3/10 per day, with Telegram receipt + ⛔ stop / ↩ undo taps and a call-ready queue. One POST (`/api/ace/mode`) changes the mode — only the operator flips it; never an agent, never a deploy. Kill: mode `off`, `forge_ops` clock-out, per-thread hold.
    - **Exception — Solomon · Ads (operator opt-in; default SHADOW).** *(2026-09-30.)* `daycare_ads_autopilot.py` reads the daycare Meta account through Pipeboard once a day (complete days only), judges every delivering ad/budget against a target cost-per-lead (marketing-skills Meta decision system → `forge-daycare/skills/daycare-ad-optimizer.md`), then builds one new test ad (winners + competitor long-runners → Nova → Higgsfield → Pipeboard, PAUSED, inside the best delivering ad set). Modes `off` / `shadow` (DEFAULT: decides + Telegrams, writes **nothing**; each proposal is one tap, `POST /api/daycare/ads-auto/approve`) / `auto` (executes: pause losing ads, budget −25% on bleeders, +20% on winners — one step/5 days, never above `FORGE_DAYCARE_ADS_MAX_DAILY`, never pauses the last ad in an ad set, ≤4 actions/run, pause-only, every write dry-run first, verified after, logged, `undo`able). The rules engine decides; Claude may only VETO/annotate, and a dead Anthropic account degrades to rules-only. Only the operator flips the mode (`POST /api/daycare/ads-auto/mode` or Growth → Autopilot); never an agent, never a deploy. Kill: mode `off`, `forge_ops` clock-out, `hold` one entity. Test: `test_daycare_ads_auto.py`.
+   - **Exception — Solomon · Auto-enroll (ON by default, no click).** *(Owner decision 2026-10-07; documented 2026-10-16 — was missing.)* `daycare_auto_enroll.py` (thread `daycare_auto_enroll`, box only via `FORGE_MARCUS`, every 5 min, ≤5 per tick) turns every READY Family Contact Form card into a **real child row + parent login in production Supabase** at the family's center through the same enroll core as the Create-login click (`Handler._daycare_enroll_family`). Odd cards (missing email/birth date/parent/center, implausible birth date, test/junk names, non-US phone, possible duplicate, too-short parent name) are HELD with a reason in `GET /api/daycare/auto-enroll`, never guessed. The PIN/login text is held unless `FORGE_DAYCARE_AUTO_ENROLL_TEXT=1` (default 0); held logins go to `daycare_login_queue` when it flips. Kill: `FORGE_DAYCARE_AUTO_ENROLL=0` (+ restart) or `forge_ops` clock-out. Test: `test_daycare_auto_enroll.py`.
 3. **Marcus owns texting.** Scout ranks + tags + hands off; it never sends SMS. Same spirit for every agent: one agent per outward channel.
 4. **Reply to sellers only — never to our own messages.** Agents never draft a reply to OUR outreach/opener/blast (e.g. "we buy houses", "I was calling about…", "just following up"). Only genuine inbound seller messages get a draft. GHL sometimes mis-flags our own text as inbound; the `_is_our_message()` filter in `marcus_engine.py` (`_OUR_OUTREACH_PHRASES`) skips it. Edit that list to match your scripts.
 4. **Secrets stay private.** API keys live in `*.env` files OUTSIDE the web-served folder, git-ignored. Never served over HTTP (must 404). Never paste keys in chat. Don't rotate keys unless I say so.
@@ -265,7 +266,7 @@ and a new Claude call per cycle.
 | **Atlas** (`deal_prep.py`) | REI | **UNDERWRITES** every screened-interested seller: extracts facts from the thread, derives offer anchors (open/target/walkaway) from the SELLER'S stated ask, spells out the MAO math + what comps to pull, writes the negotiation call card. Auto-preps every 15 min. | Never contacts anyone. Prep numbers are INTERNAL — never sent to a seller. Reports to Marcus. |
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
-| **Solomon** (`daycare_director.py`) | Daycare | **The daycare's ONE agent — growth director (2026-09-30: enrollment only; paperwork/compliance/billing/staff admin are not his lane).** One ranked growth brief: families waiting on us → funnel leak → sellable seats → retention → demand → offer clock, plus campaign health + competitor read + creative. Plus two live lanes on his row: **Solomon · Replies** (`daycare_replies.py`, the Reply Desk — drafts every parent text-back) and **Solomon · Leads** (`daycare_leads.py`, the Lead Desk — GET-only enrollment-lead sweep). See §10. | Never texts/invoices/launches ads/writes the DB. Replies lane drafts only — the owner taps send. Proposes only. Self-improves. |
+| **Solomon** (`daycare_director.py`) | Daycare | **The daycare's ONE agent — growth director (2026-09-30: enrollment only; paperwork/compliance/billing/staff admin are not his lane).** One ranked growth brief: families waiting on us → funnel leak → sellable seats → retention → demand → offer clock, plus campaign health + competitor read + creative. Plus two live lanes on his row: **Solomon · Replies** (`daycare_replies.py`, the Reply Desk — drafts every parent text-back) and **Solomon · Leads** (`daycare_leads.py`, the Lead Desk — GET-only enrollment-lead sweep). See §10. | Never texts/invoices/launches ads. Never writes the DB **except the Auto-enroll lane** (`daycare_auto_enroll.py`, ON by default): READY form families become child rows + parent logins with no click (§2 exception). Replies lane drafts only — the owner taps send. Self-improves. |
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
@@ -711,23 +712,28 @@ key on the box. New migrations go in BOTH migration folders.
   NO text; that tap is the approval for ONE text: on the start day after 8am ET the lane mints a
   fresh PIN and sends the login + get-app guide (`daycare_ghl.start_day_text`, via
   `send_manual`'s gates). A date changed in the thread reopens it. Card: `agents/daycare/solomon.md` §12.
-- **Contact-Form intake is ONE-TAP, not auto-enroll** (changed — auto-enroll on inbox
-  load was removed; `FORGE_DAYCARE_AUTOENROLL` no longer exists). `GET
+- **Contact-Form intake is AUTO-ENROLL for READY cards (ON by default since 2026-10-07),
+  one tap for the rest.** `daycare_auto_enroll.py` (thread `daycare_auto_enroll`, every 5 min,
+  ≤5 per tick, `FORGE_DAYCARE_AUTO_ENROLL=0` = off) enrolls every unambiguous READY card with
+  **no click** and HOLDS anything odd with a reason (`GET /api/daycare/auto-enroll`); the PIN
+  text waits on `FORGE_DAYCARE_AUTO_ENROLL_TEXT=1` (default 0). See the §2 exception. (The
+  older inbox-load auto-enroll knob `FORGE_DAYCARE_AUTOENROLL` is gone.) `GET
   /api/daycare/ghl/pending-families` is strictly **read-only** — prefetching the Parent
-  Logins inbox must never write a child row or a ledger entry. Enrollment happens only
-  on the owner's explicit click: `POST /api/daycare/ghl/enroll` →
+  Logins inbox must never write a child row or a ledger entry. Held cards (and any card
+  before the loop's next tick) are enrolled on the owner's explicit click:
+  `POST /api/daycare/ghl/enroll` →
   `_daycare_family_child_body` → `daycare_supabase.save_child`, which in one shot creates
   the child, matches the classroom from the form's age-band tag, provisions the guardian
   login (Login ID + one-time PIN) when the family gave an email, mirrors the family back
-  into GHL, and dismisses the inbox card. `save_child` auto-switches the session to the
+  into GHL, and dismisses the inbox card. The auto-enroll lane calls the same core. `save_child` auto-switches the session to the
   family's own `location_id` and restores the active center afterward, so a family always
   lands at its own center regardless of which center the owner is standing in. Idempotent
   via the contact→child ledger `marcus_state/daycare_form_children.json`
   (`daycare_ghl.form_child_id`/`record_form_child`); name-based dedupe
   (`daycare_supabase.find_child_id`) adopts an already-enrolled kid instead of
   duplicating, first-name-only submissions fall back to the family surname.
-  **Consequence: submissions sit in the inbox until someone clicks Enroll** — check the
-  inbox against the roster before assuming a family is provisioned.
+  **Consequence: READY families are in the app within ~5 min with no click; HELD ones sit
+  in the inbox until someone clicks Enroll** — check the held list against the roster.
 - **Secrets + flags** all live in `forge-daycare/config/daycare.env` (git-ignored, 404 over
   HTTP, chmod 600, shipped by `push.sh`). Design spec:
   `docs/superpowers/specs/2026-07-13-daycare-os-design.md`.
@@ -747,8 +753,9 @@ key on the box. New migrations go in BOTH migration folders.
   shared agency/wholesale), mtime-cached brain skills, `learn()` self-improvement into
   `<vault>/Skills/solomon-playbook.md`, background loop gated by `FORGE_MARCUS` (box only,
   brief every `FORGE_SOLOMON_BRIEF_EVERY_H`h + auto self-improve). Read-only + propose/
-  delegate — he never texts, invoices, launches ads, or writes the DB; his only autonomous
-  writes are his playbook + bus notes. Console: the **Solomon · Director** tab (daycare
+  delegate — he never texts, invoices or launches ads, and his brief never writes the DB; his
+  only autonomous writes are his playbook + bus notes, **plus the Auto-enroll lane** (§2
+  exception: READY form families → child rows + parent logins, no click, ON by default). Console: the **Solomon · Director** tab (daycare
   workspace). Routes `/api/daycare/director/{status,overview,brief,run,learn,bus}`. His
   "access to the env files" = reading which systems are **wired** (presence only, never
   the secret value) via `connected_systems()`. He answers to every bus role he absorbed

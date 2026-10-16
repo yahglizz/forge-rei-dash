@@ -83,7 +83,8 @@ Lane routes: §10 (`/api/daycare/replies*`), §11 (`/api/daycare/leads*`). `repl
 
 ## 5. Autonomy & gates
 
-- Read-only, propose + delegate. Never texts a family, invoices, launches ads, or writes the DB. His Replies lane drafts family texts, but only the owner's tap sends one (§10).
+- Read-only, propose + delegate. Never texts a family, invoices or launches ads, and the brief never writes the DB. His Replies lane drafts family texts, but only the owner's tap sends one (§10).
+- **Exception — Auto-enroll lane (ON by default, owner decision 2026-10-07):** `daycare_auto_enroll.py` writes child rows + parent logins to production Supabase for every READY Family Contact Form card, no click; odd cards are held with a reason. PIN texts wait on `FORGE_DAYCARE_AUTO_ENROLL_TEXT=1`. Off: `FORGE_DAYCARE_AUTO_ENROLL=0` (CLAUDE.md §2).
 - Only autonomous writes: brief notes, playbook, bus notes (plus each lane's own state file).
 - Kill: `FORGE_MARCUS=0`, clock out, or no key. Key: `SOLOMON_ANTHROPIC_API_KEY` → `ANTHROPIC_API_KEY` → agency → wholesale (`_solomon_key`, also used by the Replies lane and his chat).
 - Knob `FORGE_SOLOMON_BRIEF_TOKENS` 5000.
