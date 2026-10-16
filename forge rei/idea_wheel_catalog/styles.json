@@ -1,0 +1,260 @@
+[
+ {
+  "id": "luxury_editorial",
+  "label": "Luxury editorial",
+  "palette": [
+   "#0E0E10",
+   "#F5F0E8",
+   "#C8A96A",
+   "#6B5B45",
+   "#FFFFFF"
+  ],
+  "typography": "High-contrast serif headlines (e.g. Playfair Display) over a clean grotesk body",
+  "layout": "Magazine grid, oversized imagery, generous whitespace",
+  "motion": "Slow fades and parallax-lite reveals (disabled under reduced motion)",
+  "audienceFit": "Premium services where trust and taste sell",
+  "avoid": [],
+  "broad": true
+ },
+ {
+  "id": "minimalist",
+  "label": "Minimalist",
+  "palette": [
+   "#FFFFFF",
+   "#111827",
+   "#E5E7EB",
+   "#6B7280",
+   "#2563EB"
+  ],
+  "typography": "One geometric sans (e.g. Inter) with tight hierarchy",
+  "layout": "Single column, lots of air, one accent color",
+  "motion": "Subtle 150ms hover and focus states only",
+  "audienceFit": "Professional services and anyone who wants calm clarity",
+  "avoid": [],
+  "broad": true
+ },
+ {
+  "id": "playful",
+  "label": "Playful",
+  "palette": [
+   "#FFF7ED",
+   "#FB7185",
+   "#FBBF24",
+   "#34D399",
+   "#1E293B"
+  ],
+  "typography": "Rounded display sans (e.g. Nunito) with chunky weights",
+  "layout": "Card stacks, blobs, sticker-like badges",
+  "motion": "Springy micro-interactions, bouncy buttons (reduced-motion safe)",
+  "audienceFit": "Family, kids, pets and food concepts",
+  "avoid": [
+   "legal",
+   "finance",
+   "medical"
+  ],
+  "broad": false
+ },
+ {
+  "id": "brutalist",
+  "label": "Brutalist",
+  "palette": [
+   "#FFFFFF",
+   "#000000",
+   "#FF3B30",
+   "#FFE600",
+   "#D4D4D4"
+  ],
+  "typography": "Monospace + heavy grotesk, raw sizes",
+  "layout": "Hard borders, visible grid, no rounding",
+  "motion": "Instant state changes, marquee accents",
+  "audienceFit": "Streetwear, creative studios, nightlife",
+  "avoid": [
+   "medical",
+   "minors",
+   "seniors",
+   "legal",
+   "finance"
+  ],
+  "broad": false
+ },
+ {
+  "id": "retro",
+  "label": "Retro",
+  "palette": [
+   "#F4E9D8",
+   "#D9653B",
+   "#2F5D62",
+   "#E8B04B",
+   "#3B2F2F"
+  ],
+  "typography": "70s-style rounded serif (e.g. Cooper-like) with condensed sans",
+  "layout": "Badges, stripes, warm textured sections",
+  "motion": "Gentle wobble on badges, grain overlay static",
+  "audienceFit": "Diners, barbers, bike shops, record and vintage shops",
+  "avoid": [
+   "medical",
+   "legal"
+  ],
+  "broad": false
+ },
+ {
+  "id": "dark_premium",
+  "label": "Dark premium",
+  "palette": [
+   "#0B0F17",
+   "#151C28",
+   "#E5E7EB",
+   "#D4AF37",
+   "#3B82F6"
+  ],
+  "typography": "Sharp modern sans (e.g. Satoshi/Geist) with wide tracking on labels",
+  "layout": "Dark canvas, glowing accent edges, product-shot hero",
+  "motion": "Smooth scroll reveals and glow on hover (reduced-motion safe)",
+  "audienceFit": "Auto, detailing, nightlife, high-ticket services",
+  "avoid": [],
+  "broad": true
+ },
+ {
+  "id": "bright_friendly",
+  "label": "Bright & friendly",
+  "palette": [
+   "#FFFFFF",
+   "#0EA5E9",
+   "#22C55E",
+   "#FDE68A",
+   "#0F172A"
+  ],
+  "typography": "Friendly humanist sans (e.g. Plus Jakarta Sans)",
+  "layout": "Bright hero, rounded cards, clear CTAs",
+  "motion": "Light fades and slide-ups",
+  "audienceFit": "Home services, childcare, community and local shops",
+  "avoid": [],
+  "broad": true
+ },
+ {
+  "id": "glass",
+  "label": "Glass-inspired",
+  "palette": [
+   "#0F172A",
+   "#1E293B",
+   "#A5B4FC",
+   "#F0ABFC",
+   "#FFFFFF"
+  ],
+  "typography": "Clean sans with semi-bold headings",
+  "layout": "Frosted panels over soft gradient blobs",
+  "motion": "Blur-in panels, slow gradient drift (static under reduced motion)",
+  "audienceFit": "Tech-forward services, studios, modern wellness",
+  "avoid": [
+   "seniors"
+  ],
+  "broad": true
+ },
+ {
+  "id": "earthy",
+  "label": "Earthy & natural",
+  "palette": [
+   "#F3EFE6",
+   "#6B7F5E",
+   "#A47551",
+   "#2F3B2F",
+   "#D9C8A9"
+  ],
+  "typography": "Soft serif headings with relaxed sans body",
+  "layout": "Organic shapes, natural textures, photo-led sections",
+  "motion": "Calm fades, no bounce",
+  "audienceFit": "Landscaping, wellness, plants, bakeries, community gardens",
+  "avoid": [],
+  "broad": false
+ },
+ {
+  "id": "industrial",
+  "label": "Industrial",
+  "palette": [
+   "#1F2937",
+   "#F59E0B",
+   "#E5E7EB",
+   "#374151",
+   "#111827"
+  ],
+  "typography": "Condensed bold sans (e.g. Barlow Condensed) with stencil accents",
+  "layout": "Heavy blocks, diagonal dividers, spec tables",
+  "motion": "Snappy slide-ins",
+  "audienceFit": "Trades, trucking, repair shops, contractors",
+  "avoid": [
+   "minors",
+   "seniors"
+  ],
+  "broad": false
+ },
+ {
+  "id": "bold_type",
+  "label": "Bold typography",
+  "palette": [
+   "#FAFAFA",
+   "#0A0A0A",
+   "#7C3AED",
+   "#F43F5E",
+   "#E5E5E5"
+  ],
+  "typography": "Huge variable-weight display type, tight leading",
+  "layout": "Type-as-hero, minimal imagery, split screens",
+  "motion": "Kinetic headline reveal (static under reduced motion)",
+  "audienceFit": "Studios, gyms, events, agencies",
+  "avoid": [
+   "seniors"
+  ],
+  "broad": true
+ },
+ {
+  "id": "high_contrast",
+  "label": "High-contrast accessible",
+  "palette": [
+   "#FFFFFF",
+   "#000000",
+   "#0047AB",
+   "#FFD700",
+   "#1A1A1A"
+  ],
+  "typography": "Large legible sans (18px+ body), strong weight contrast",
+  "layout": "Simple stacked layout, big tap targets, WCAG AAA-minded contrast",
+  "motion": "Minimal motion by default",
+  "audienceFit": "Seniors, care, healthcare, government-adjacent and community services",
+  "avoid": [],
+  "broad": true
+ },
+ {
+  "id": "warm_community",
+  "label": "Warm community",
+  "palette": [
+   "#FFF8F0",
+   "#C2410C",
+   "#0F766E",
+   "#FCD34D",
+   "#292524"
+  ],
+  "typography": "Warm rounded serif headings with friendly sans",
+  "layout": "Story-led sections, people-first layout (illustrations, not real photos of minors)",
+  "motion": "Gentle fades",
+  "audienceFit": "Nonprofits, churches, childcare, neighborhood businesses",
+  "avoid": [],
+  "broad": false
+ },
+ {
+  "id": "clinical_calm",
+  "label": "Clinical calm",
+  "palette": [
+   "#F8FAFC",
+   "#0F766E",
+   "#99F6E4",
+   "#334155",
+   "#E2E8F0"
+  ],
+  "typography": "Neutral sans with soft weights",
+  "layout": "Clean cards, plenty of whitespace, reassuring iconography",
+  "motion": "Soft, slow transitions only",
+  "audienceFit": "Dental, therapy, wellness and care providers",
+  "avoid": [],
+  "broad": false
+ }
+]

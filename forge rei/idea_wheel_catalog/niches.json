@@ -1,0 +1,5886 @@
+[
+ {
+  "id": "restaurant",
+  "sector": "food",
+  "label": "Neighborhood restaurant",
+  "short": "Restaurant",
+  "naics": "722511",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "families"
+  ],
+  "problems": [
+   "online_ordering",
+   "waitlist_capacity",
+   "loyalty_rewards",
+   "reviews_reputation",
+   "events_registration"
+  ],
+  "features": [
+   "Menu with dietary tags",
+   "Private-dining inquiry form"
+  ],
+  "pages": [
+   "Menu",
+   "Reservations"
+  ],
+  "customer": "Local diners choosing where to eat tonight",
+  "buyer": "Owner/chef-owner",
+  "styles": [
+   "luxury_editorial",
+   "warm_community",
+   "retro"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Browse menu → reserve or order pickup → dine → come back for specials",
+  "naicsTitle": "Full-Service Restaurants",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "pizzeria",
+  "sector": "food",
+  "label": "Pizza shop",
+  "short": "Pizza Shop",
+  "naics": "722513",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "families"
+  ],
+  "problems": [
+   "online_ordering",
+   "loyalty_rewards",
+   "reviews_reputation",
+   "referrals"
+  ],
+  "features": [
+   "Build-your-own pizza configurator",
+   "Party-tray preorder"
+  ],
+  "pages": [
+   "Menu",
+   "Build a pie"
+  ],
+  "customer": "Families and late-night customers ordering pickup",
+  "buyer": "Owner-operator",
+  "styles": [
+   "retro",
+   "bold_type",
+   "playful"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Order by phone → wait at counter → pickup; regulars reorder the same thing",
+  "naicsTitle": "Limited-Service Restaurants",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "cafe",
+  "sector": "food",
+  "label": "Coffee shop",
+  "short": "Coffee Shop",
+  "naics": "722515",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "online_ordering",
+   "loyalty_rewards",
+   "memberships",
+   "events_registration"
+  ],
+  "features": [
+   "Order-ahead with pickup shelf timer",
+   "Coffee subscription tiers"
+  ],
+  "pages": [
+   "Menu",
+   "Order ahead"
+  ],
+  "customer": "Commuters and remote workers",
+  "buyer": "Owner/barista-owner",
+  "styles": [
+   "earthy",
+   "minimalist",
+   "retro"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Walk in → order → wait in line; regulars want speed and perks",
+  "naicsTitle": "Snack and Nonalcoholic Beverage Bars",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "bakery",
+  "sector": "food",
+  "label": "Retail bakery",
+  "short": "Bakery",
+  "naics": "311811",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "families",
+   "event_hosts"
+  ],
+  "problems": [
+   "online_ordering",
+   "instant_quote",
+   "gallery_portfolio",
+   "loyalty_rewards"
+  ],
+  "features": [
+   "Custom cake builder with tier/flavor picker",
+   "Daily bake schedule board"
+  ],
+  "pages": [
+   "Cakes",
+   "Preorder"
+  ],
+  "customer": "Families planning birthdays and weekend treats",
+  "buyer": "Owner/baker",
+  "styles": [
+   "earthy",
+   "playful",
+   "luxury_editorial"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "DM a cake photo → back-and-forth on size/price → deposit → pickup",
+  "naicsTitle": "Retail Bakeries",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "food_truck",
+  "sector": "food",
+  "label": "Food truck",
+  "short": "Food Truck",
+  "naics": "722330",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "event_hosts"
+  ],
+  "problems": [
+   "online_ordering",
+   "lead_capture",
+   "instant_quote",
+   "loyalty_rewards"
+  ],
+  "features": [
+   "Weekly location schedule (demo data)",
+   "Private-event booking request"
+  ],
+  "pages": [
+   "Find the truck",
+   "Book for an event"
+  ],
+  "customer": "Lunch crowds and event planners",
+  "buyer": "Owner-operator",
+  "styles": [
+   "bold_type",
+   "retro",
+   "playful"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_FOODTRUCK",
+   "PHL_SIP"
+  ],
+  "workflow": "Check Instagram for location → line up → order; events book by DM",
+  "naicsTitle": "Mobile Food Services",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "caterer",
+  "sector": "food",
+  "label": "Catering company",
+  "short": "Catering",
+  "naics": "722320",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "business_owners"
+  ],
+  "problems": [
+   "instant_quote",
+   "lead_capture",
+   "client_portal",
+   "payments_deposits"
+  ],
+  "features": [
+   "Per-guest menu calculator",
+   "Tasting appointment request"
+  ],
+  "pages": [
+   "Menus",
+   "Event quote"
+  ],
+  "customer": "Event hosts and office managers",
+  "buyer": "Owner/chef",
+  "styles": [
+   "luxury_editorial",
+   "earthy",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_CATERER"
+  ],
+  "workflow": "Inquiry → menu back-and-forth → quote → deposit → final headcount → event",
+  "naicsTitle": "Caterers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "bar_lounge",
+  "sector": "food",
+  "label": "Bar & lounge",
+  "short": "Bar & Lounge",
+  "naics": "722410",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "event_hosts"
+  ],
+  "problems": [
+   "events_registration",
+   "waitlist_capacity",
+   "loyalty_rewards",
+   "reviews_reputation"
+  ],
+  "features": [
+   "Event nights calendar",
+   "Table/section reservation request",
+   "21+ age-gate screen"
+  ],
+  "pages": [
+   "Events",
+   "Reserve a table"
+  ],
+  "customer": "Adults 21+ planning a night out",
+  "buyer": "Owner/GM",
+  "styles": [
+   "dark_premium",
+   "brutalist",
+   "bold_type"
+  ],
+  "sensitive": [
+   "alcohol"
+  ],
+  "sources": [
+   "NAICS",
+   "PHL_COMMERCE"
+  ],
+  "workflow": "Follow on social → DM for a table → show up; events drive traffic",
+  "naicsTitle": "Drinking Places (Alcoholic Beverages)",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "juice_bar",
+  "sector": "food",
+  "label": "Juice & smoothie bar",
+  "short": "Juice Bar",
+  "naics": "722515",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes",
+   "foodies"
+  ],
+  "problems": [
+   "online_ordering",
+   "loyalty_rewards",
+   "memberships"
+  ],
+  "features": [
+   "Ingredient/benefit filter",
+   "Cleanse package builder"
+  ],
+  "pages": [
+   "Menu",
+   "Cleanses"
+  ],
+  "customer": "Health-focused locals and gym-goers",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "earthy",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Walk in → customize → wait; cleanse buyers want to preorder",
+  "naicsTitle": "Snack and Nonalcoholic Beverage Bars",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "meal_prep",
+  "sector": "food",
+  "label": "Meal prep service",
+  "short": "Meal Prep",
+  "naics": "311991",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes",
+   "professionals",
+   "families"
+  ],
+  "problems": [
+   "memberships",
+   "online_ordering",
+   "inventory"
+  ],
+  "features": [
+   "Weekly menu with macro badges",
+   "Order cutoff countdown"
+  ],
+  "pages": [
+   "This week's menu",
+   "Plans"
+  ],
+  "customer": "Busy professionals and fitness clients",
+  "buyer": "Owner/chef",
+  "styles": [
+   "minimalist",
+   "bold_type",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "See weekly menu → order before cutoff → pickup/delivery day",
+  "naicsTitle": "Perishable Prepared Food Manufacturing",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "ice_cream",
+  "sector": "food",
+  "label": "Ice cream & dessert shop",
+  "short": "Ice Cream",
+  "naics": "722515",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families",
+   "foodies"
+  ],
+  "problems": [
+   "online_ordering",
+   "loyalty_rewards",
+   "instant_quote"
+  ],
+  "features": [
+   "Flavor-of-the-day board",
+   "Party pack / catering cart request"
+  ],
+  "pages": [
+   "Flavors",
+   "Parties"
+  ],
+  "customer": "Families and summer walk-ins",
+  "buyer": "Owner",
+  "styles": [
+   "playful",
+   "retro",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Walk in → sample → order; parties book by phone",
+  "naicsTitle": "Snack and Nonalcoholic Beverage Bars",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "brewery",
+  "sector": "food",
+  "label": "Brewery taproom",
+  "short": "Brewery",
+  "naics": "312120",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "event_hosts"
+  ],
+  "problems": [
+   "events_registration",
+   "online_ordering",
+   "loyalty_rewards",
+   "memberships"
+  ],
+  "features": [
+   "Tap list with style filters",
+   "Mug club membership",
+   "21+ age-gate screen"
+  ],
+  "pages": [
+   "On tap",
+   "Events"
+  ],
+  "customer": "Adults 21+ looking for a local spot",
+  "buyer": "Owner/brewer",
+  "styles": [
+   "industrial",
+   "retro",
+   "earthy"
+  ],
+  "sensitive": [
+   "alcohol"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Check tap list → visit → join events; regulars want a club",
+  "naicsTitle": "Breweries",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "hvac",
+  "sector": "home",
+  "label": "HVAC contractor",
+  "short": "HVAC",
+  "naics": "238220",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "instant_quote",
+   "maintenance_plans",
+   "online_booking",
+   "dispatch_routing",
+   "reviews_reputation"
+  ],
+  "features": [
+   "System age/efficiency checker (illustrative)",
+   "Emergency vs. tune-up path"
+  ],
+  "pages": [
+   "Services",
+   "Maintenance plan"
+  ],
+  "customer": "Homeowners with a broken or aging system",
+  "buyer": "Owner/service manager",
+  "styles": [
+   "industrial",
+   "bright_friendly",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Call when it breaks → wait for a callback → tech visit → quote → install",
+  "naicsTitle": "Plumbing, Heating, and Air-Conditioning Contractors",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "plumber",
+  "sector": "home",
+  "label": "Plumbing company",
+  "short": "Plumber",
+  "naics": "238220",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "lead_capture",
+   "online_booking",
+   "instant_quote",
+   "job_tracking"
+  ],
+  "features": [
+   "Urgency triage (leak / clog / install)",
+   "Photo upload of the problem"
+  ],
+  "pages": [
+   "Services",
+   "Emergency request"
+  ],
+  "customer": "Homeowners with a leak or clog right now",
+  "buyer": "Owner-operator",
+  "styles": [
+   "industrial",
+   "bright_friendly",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Emergency call → triage → dispatch → fix → invoice",
+  "naicsTitle": "Plumbing, Heating, and Air-Conditioning Contractors",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "electrician",
+  "sector": "home",
+  "label": "Electrical contractor",
+  "short": "Electrician",
+  "naics": "238210",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "business_owners"
+  ],
+  "problems": [
+   "instant_quote",
+   "lead_capture",
+   "job_tracking",
+   "online_booking"
+  ],
+  "features": [
+   "EV-charger / panel-upgrade estimator (illustrative)",
+   "Permit-status step (demo)"
+  ],
+  "pages": [
+   "Services",
+   "Get an estimate"
+  ],
+  "customer": "Homeowners planning upgrades and small businesses",
+  "buyer": "Owner/master electrician",
+  "styles": [
+   "industrial",
+   "dark_premium",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Request → site visit → estimate → permit → install → inspection",
+  "naicsTitle": "Electrical Contractors and Other Wiring Installation Contractors",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "roofer",
+  "sector": "home",
+  "label": "Roofing contractor",
+  "short": "Roofing",
+  "naics": "238160",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "lead_capture",
+   "instant_quote",
+   "gallery_portfolio",
+   "client_portal"
+  ],
+  "features": [
+   "Roof-type and pitch picker",
+   "Storm-damage inspection request"
+  ],
+  "pages": [
+   "Roof types",
+   "Free inspection"
+  ],
+  "customer": "Homeowners after a storm or with an aging roof",
+  "buyer": "Owner/sales lead",
+  "styles": [
+   "industrial",
+   "bold_type",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER"
+  ],
+  "workflow": "Leak noticed → inspection → estimate → schedule → install",
+  "naicsTitle": "Roofing Contractors",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "landscaper",
+  "sector": "home",
+  "label": "Landscaping company",
+  "short": "Landscaping",
+  "naics": "561730",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "business_owners"
+  ],
+  "problems": [
+   "maintenance_plans",
+   "instant_quote",
+   "dispatch_routing",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Yard-size estimator",
+   "Seasonal service calendar"
+  ],
+  "pages": [
+   "Services",
+   "Seasonal plans"
+  ],
+  "customer": "Homeowners and HOAs wanting a kept yard",
+  "buyer": "Owner/crew lead",
+  "styles": [
+   "earthy",
+   "bright_friendly",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER"
+  ],
+  "workflow": "Request quote → walk-through → weekly/seasonal visits → invoice",
+  "naicsTitle": "Landscaping Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "house_cleaning",
+  "sector": "home",
+  "label": "House cleaning service",
+  "short": "House Cleaning",
+  "naics": "561720",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "professionals",
+   "renters"
+  ],
+  "problems": [
+   "online_booking",
+   "instant_quote",
+   "memberships",
+   "reviews_reputation"
+  ],
+  "features": [
+   "Bedrooms/bathrooms price builder",
+   "Recurring-clean frequency picker"
+  ],
+  "pages": [
+   "Pricing",
+   "Book a clean"
+  ],
+  "customer": "Busy households and move-out renters",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "minimalist",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Ask price → book a slot → clean → recurring schedule",
+  "naicsTitle": "Janitorial Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "painter",
+  "sector": "home",
+  "label": "Painting contractor",
+  "short": "Painting",
+  "naics": "238320",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "instant_quote",
+   "gallery_portfolio",
+   "lead_capture"
+  ],
+  "features": [
+   "Room-count painting estimator",
+   "Color-consult request"
+  ],
+  "pages": [
+   "Gallery",
+   "Estimate"
+  ],
+  "customer": "Homeowners refreshing rooms or exteriors",
+  "buyer": "Owner-operator",
+  "styles": [
+   "minimalist",
+   "bright_friendly",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER"
+  ],
+  "workflow": "Request → walkthrough → estimate → schedule → paint",
+  "naicsTitle": "Painting and Wall Covering Contractors",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "remodeler",
+  "sector": "home",
+  "label": "Kitchen & bath remodeler",
+  "short": "Remodeler",
+  "naics": "236118",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "client_portal",
+   "gallery_portfolio",
+   "lead_capture",
+   "instant_quote"
+  ],
+  "features": [
+   "Project phase timeline",
+   "Material selections board"
+  ],
+  "pages": [
+   "Projects",
+   "Start your project"
+  ],
+  "customer": "Homeowners planning a renovation",
+  "buyer": "Owner/project manager",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Consult → design → selections → build phases → walkthrough",
+  "naicsTitle": "Residential Remodelers",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "pest_control",
+  "sector": "home",
+  "label": "Pest control company",
+  "short": "Pest Control",
+  "naics": "561710",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "business_owners"
+  ],
+  "problems": [
+   "maintenance_plans",
+   "online_booking",
+   "dispatch_routing",
+   "lead_capture"
+  ],
+  "features": [
+   "Pest identifier picker",
+   "Quarterly protection plan"
+  ],
+  "pages": [
+   "Pests we treat",
+   "Plans"
+  ],
+  "customer": "Homeowners and restaurants with an infestation",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "industrial",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Spot pests → call → inspection → treatment → recurring plan",
+  "naicsTitle": "Exterminating and Pest Control Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "junk_removal",
+  "sector": "home",
+  "label": "Junk removal company",
+  "short": "Junk Removal",
+  "naics": "562119",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "renters"
+  ],
+  "problems": [
+   "instant_quote",
+   "online_booking",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Photo-based load estimate (truck-fill meter)",
+   "Same-day slot picker (demo)"
+  ],
+  "pages": [
+   "How it works",
+   "Get a price"
+  ],
+  "customer": "Movers, renovators and estate cleanouts",
+  "buyer": "Owner-operator",
+  "styles": [
+   "bold_type",
+   "bright_friendly",
+   "industrial"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER"
+  ],
+  "workflow": "Text photos → rough price → book window → haul away",
+  "naicsTitle": "Other Waste Collection",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "pressure_washing",
+  "sector": "home",
+  "label": "Pressure washing company",
+  "short": "Power Washing",
+  "naics": "561790",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "business_owners"
+  ],
+  "problems": [
+   "instant_quote",
+   "gallery_portfolio",
+   "online_booking"
+  ],
+  "features": [
+   "Surface + square-footage estimator",
+   "Before/after slider gallery"
+  ],
+  "pages": [
+   "Results",
+   "Quote"
+  ],
+  "customer": "Homeowners and storefronts",
+  "buyer": "Owner-operator",
+  "styles": [
+   "dark_premium",
+   "bold_type",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "See results online → request quote → schedule → wash",
+  "naicsTitle": "Other Services to Buildings and Dwellings",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "commercial_cleaning",
+  "sector": "home",
+  "label": "Commercial cleaning company",
+  "short": "Office Cleaning",
+  "naics": "561720",
+  "audience": "b2b",
+  "local": true,
+  "audiences": [
+   "business_owners"
+  ],
+  "problems": [
+   "instant_quote",
+   "maintenance_plans",
+   "client_portal",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Facility walkthrough request",
+   "Cleaning checklist with sign-off (demo)"
+  ],
+  "pages": [
+   "Industries",
+   "Request a walkthrough"
+  ],
+  "customer": "Office and facility managers",
+  "buyer": "Owner/ops manager",
+  "styles": [
+   "minimalist",
+   "industrial",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER"
+  ],
+  "workflow": "RFQ → walkthrough → proposal → recurring contract → inspections",
+  "naicsTitle": "Janitorial Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "locksmith",
+  "sector": "home",
+  "label": "Locksmith",
+  "short": "Locksmith",
+  "naics": "561622",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "drivers"
+  ],
+  "problems": [
+   "lead_capture",
+   "dispatch_routing",
+   "instant_quote"
+  ],
+  "features": [
+   "Lockout fast-path request",
+   "Service-area checker (static demo)"
+  ],
+  "pages": [
+   "Services",
+   "Get help now"
+  ],
+  "customer": "People locked out or rekeying after a move",
+  "buyer": "Owner-operator",
+  "styles": [
+   "high_contrast",
+   "industrial",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER"
+  ],
+  "workflow": "Locked out → search → call → dispatch → unlock",
+  "naicsTitle": "Locksmiths",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "pool_service",
+  "sector": "home",
+  "label": "Pool service",
+  "short": "Pool Service",
+  "naics": "561790",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "maintenance_plans",
+   "dispatch_routing",
+   "online_booking"
+  ],
+  "features": [
+   "Opening/closing season booking",
+   "Water-test log (demo)"
+  ],
+  "pages": [
+   "Services",
+   "Season plans"
+  ],
+  "customer": "Pool owners",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "glass",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "HOUSECALL",
+   "JOBBER"
+  ],
+  "workflow": "Open in spring → weekly service → close in fall",
+  "naicsTitle": "Other Services to Buildings and Dwellings",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "handyman",
+  "sector": "home",
+  "label": "Handyman service",
+  "short": "Handyman",
+  "naics": "238990",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "renters"
+  ],
+  "problems": [
+   "online_booking",
+   "instant_quote",
+   "lead_capture",
+   "reviews_reputation"
+  ],
+  "features": [
+   "Honey-do list builder",
+   "Hourly-block booking"
+  ],
+  "pages": [
+   "Services",
+   "Book a block"
+  ],
+  "customer": "Homeowners with a list of small fixes",
+  "buyer": "Owner-operator",
+  "styles": [
+   "bright_friendly",
+   "industrial",
+   "retro"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Build a list → get rough time → book → fix",
+  "naicsTitle": "All Other Specialty Trade Contractors",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "appliance_repair",
+  "sector": "home",
+  "label": "Appliance repair",
+  "short": "Appliance Repair",
+  "naics": "811412",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "renters"
+  ],
+  "problems": [
+   "online_booking",
+   "job_tracking",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Appliance + symptom picker",
+   "Parts-on-order status (demo)"
+  ],
+  "pages": [
+   "Appliances",
+   "Book repair"
+  ],
+  "customer": "Households with a broken washer/fridge",
+  "buyer": "Owner/tech",
+  "styles": [
+   "high_contrast",
+   "industrial",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "workflow": "Appliance breaks → book → diagnose → order parts → fix",
+  "naicsTitle": "Appliance Repair and Maintenance",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "barber",
+  "sector": "beauty",
+  "label": "Barbershop",
+  "short": "Barbershop",
+  "naics": "812111",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "online_booking",
+   "reminders",
+   "loyalty_rewards",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Barber picker with specialties",
+   "Cut-style lookbook"
+  ],
+  "pages": [
+   "Barbers",
+   "Book a cut"
+  ],
+  "customer": "Regulars who want their usual barber",
+  "buyer": "Owner/chair renter",
+  "styles": [
+   "retro",
+   "dark_premium",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT",
+   "MINDBODY",
+   "PHL_SIP"
+  ],
+  "workflow": "DM/text barber → wait for reply → walk in or book; regulars every 2-3 weeks",
+  "naicsTitle": "Barber Shops",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "hair_salon",
+  "sector": "beauty",
+  "label": "Hair salon",
+  "short": "Hair Salon",
+  "naics": "812112",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals"
+  ],
+  "problems": [
+   "online_booking",
+   "reminders",
+   "gallery_portfolio",
+   "memberships"
+  ],
+  "features": [
+   "Service + stylist-level picker",
+   "Color consult request with photo"
+  ],
+  "pages": [
+   "Services",
+   "Book"
+  ],
+  "customer": "Clients booking color and cuts",
+  "buyer": "Owner/stylist",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT",
+   "MINDBODY"
+  ],
+  "workflow": "Browse looks → book stylist → consult → appointment → rebook",
+  "naicsTitle": "Beauty Salons",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "nail_studio",
+  "sector": "beauty",
+  "label": "Nail studio",
+  "short": "Nail Studio",
+  "naics": "812113",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "online_booking",
+   "gallery_portfolio",
+   "loyalty_rewards",
+   "payments_deposits"
+  ],
+  "features": [
+   "Nail art gallery by style",
+   "Add-on menu (art, length, removal)"
+  ],
+  "pages": [
+   "Gallery",
+   "Book"
+  ],
+  "customer": "Clients picking a set from Instagram inspo",
+  "buyer": "Owner/tech",
+  "styles": [
+   "playful",
+   "glass",
+   "luxury_editorial"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT",
+   "MINDBODY"
+  ],
+  "workflow": "Find inspo → DM for price → book → appointment",
+  "naicsTitle": "Nail Salons",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "lash_brow",
+  "sector": "beauty",
+  "label": "Lash & brow studio",
+  "short": "Lash Studio",
+  "naics": "812199",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals"
+  ],
+  "problems": [
+   "online_booking",
+   "payments_deposits",
+   "reminders"
+  ],
+  "features": [
+   "Lash style comparison",
+   "Fill reminder schedule"
+  ],
+  "pages": [
+   "Styles",
+   "Book"
+  ],
+  "customer": "Clients booking full sets and fills",
+  "buyer": "Owner/artist",
+  "styles": [
+   "luxury_editorial",
+   "glass",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT",
+   "MINDBODY"
+  ],
+  "workflow": "Pick style → deposit → appointment → fill every 2-3 weeks",
+  "naicsTitle": "Other Personal Care Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "tattoo",
+  "sector": "beauty",
+  "label": "Tattoo studio",
+  "short": "Tattoo Studio",
+  "naics": "812199",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "client_onboarding",
+   "payments_deposits",
+   "gallery_portfolio",
+   "online_booking"
+  ],
+  "features": [
+   "Artist portfolio by style",
+   "Placement/size request with reference upload",
+   "Consent form (placeholder text)"
+  ],
+  "pages": [
+   "Artists",
+   "Request a tattoo"
+  ],
+  "customer": "Adults 18+ planning custom work",
+  "buyer": "Owner/artist",
+  "styles": [
+   "brutalist",
+   "dark_premium",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT",
+   "PHL_BODYART"
+  ],
+  "workflow": "DM idea → consult → deposit → session(s) → aftercare",
+  "naicsTitle": "Other Personal Care Services",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "day_spa",
+  "sector": "beauty",
+  "label": "Day spa",
+  "short": "Day Spa",
+  "naics": "812199",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals"
+  ],
+  "problems": [
+   "memberships",
+   "online_booking",
+   "loyalty_rewards"
+  ],
+  "features": [
+   "Treatment menu with durations",
+   "Gift card designer (mock checkout)"
+  ],
+  "pages": [
+   "Treatments",
+   "Gift cards"
+  ],
+  "customer": "Self-care seekers and gift buyers",
+  "buyer": "Owner/manager",
+  "styles": [
+   "luxury_editorial",
+   "earthy",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT",
+   "MINDBODY"
+  ],
+  "workflow": "Browse treatments → book → visit → membership/gift cards",
+  "naicsTitle": "Other Personal Care Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "braiding",
+  "sector": "beauty",
+  "label": "Hair braiding studio",
+  "short": "Braiding Studio",
+  "naics": "812112",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families",
+   "students"
+  ],
+  "problems": [
+   "online_booking",
+   "payments_deposits",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Style catalog with time estimates",
+   "Hair-length/size picker"
+  ],
+  "pages": [
+   "Styles",
+   "Book"
+  ],
+  "customer": "Clients booking long protective styles",
+  "buyer": "Owner/stylist",
+  "styles": [
+   "warm_community",
+   "bold_type",
+   "playful"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT"
+  ],
+  "workflow": "Pick style → confirm length/size → deposit → long appointment",
+  "naicsTitle": "Beauty Salons",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "makeup_artist",
+  "sector": "beauty",
+  "label": "Makeup artist",
+  "short": "Makeup Artist",
+  "naics": "812199",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts"
+  ],
+  "problems": [
+   "instant_quote",
+   "online_booking",
+   "gallery_portfolio",
+   "payments_deposits"
+  ],
+  "features": [
+   "Bridal party quote builder",
+   "Date availability check (demo)"
+  ],
+  "pages": [
+   "Portfolio",
+   "Bridal quote"
+  ],
+  "customer": "Brides, bridal parties and event clients",
+  "buyer": "Solo artist",
+  "styles": [
+   "luxury_editorial",
+   "glass",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Inquiry → date check → trial → deposit → event day",
+  "naicsTitle": "Other Personal Care Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "med_spa",
+  "sector": "beauty",
+  "label": "Med spa",
+  "short": "Med Spa",
+  "naics": "812199",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "patients"
+  ],
+  "problems": [
+   "online_booking",
+   "client_onboarding",
+   "memberships"
+  ],
+  "features": [
+   "Treatment explainer cards (no outcome claims)",
+   "Consult request"
+  ],
+  "pages": [
+   "Treatments",
+   "Book consult"
+  ],
+  "customer": "Adults researching aesthetic treatments",
+  "buyer": "Owner/medical director",
+  "styles": [
+   "luxury_editorial",
+   "clinical_calm",
+   "glass"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "SQUARE_APPT",
+   "MINDBODY",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Research → consult → treatment plan → appointments",
+  "naicsTitle": "Other Personal Care Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "dental",
+  "sector": "health",
+  "label": "Dental office",
+  "short": "Dental Office",
+  "naics": "621210",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "patients",
+   "families"
+  ],
+  "problems": [
+   "online_booking",
+   "client_onboarding",
+   "reminders",
+   "reviews_reputation"
+  ],
+  "features": [
+   "New-patient request flow",
+   "Insurance-accepted list (placeholder)"
+  ],
+  "pages": [
+   "Services",
+   "New patients"
+  ],
+  "customer": "Families looking for a new dentist",
+  "buyer": "Practice owner/office manager",
+  "styles": [
+   "clinical_calm",
+   "bright_friendly",
+   "minimalist"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Search → call to check insurance → book → paperwork → visit → recall",
+  "naicsTitle": "Offices of Dentists",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "chiropractor",
+  "sector": "health",
+  "label": "Chiropractic office",
+  "short": "Chiropractor",
+  "naics": "621310",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "patients",
+   "athletes"
+  ],
+  "problems": [
+   "online_booking",
+   "memberships",
+   "client_onboarding"
+  ],
+  "features": [
+   "Care-plan package explainer",
+   "First-visit expectations page"
+  ],
+  "pages": [
+   "Conditions",
+   "Book"
+  ],
+  "customer": "Adults with back/neck pain",
+  "buyer": "Owner/DC",
+  "styles": [
+   "clinical_calm",
+   "earthy",
+   "minimalist"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "MINDBODY",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Pain → search → book first visit → care plan → recurring visits",
+  "naicsTitle": "Offices of Chiropractors",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "physical_therapy",
+  "sector": "health",
+  "label": "Physical therapy clinic",
+  "short": "Physical Therapy",
+  "naics": "621340",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "patients",
+   "athletes"
+  ],
+  "problems": [
+   "online_booking",
+   "client_onboarding",
+   "client_portal"
+  ],
+  "features": [
+   "Home-exercise program viewer (demo content)",
+   "Visit tracker"
+  ],
+  "pages": [
+   "Services",
+   "Request a visit"
+  ],
+  "customer": "Patients recovering from injury or surgery",
+  "buyer": "Clinic owner",
+  "styles": [
+   "clinical_calm",
+   "bright_friendly",
+   "high_contrast"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "MINDBODY",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Referral/self-refer → eval → plan of care → visits + home exercises",
+  "naicsTitle": "Offices of Physical, Occupational and Speech Therapists, and Audiologists",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "optometrist",
+  "sector": "health",
+  "label": "Optometry practice",
+  "short": "Optometrist",
+  "naics": "621320",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "patients",
+   "families"
+  ],
+  "problems": [
+   "online_booking",
+   "reminders",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Frame gallery by face shape (placeholder images)",
+   "Annual exam reminder preview"
+  ],
+  "pages": [
+   "Eye exams",
+   "Frames"
+  ],
+  "customer": "Families due for eye exams",
+  "buyer": "Practice owner",
+  "styles": [
+   "minimalist",
+   "clinical_calm",
+   "bright_friendly"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Book exam → exam → frames → annual recall",
+  "naicsTitle": "Offices of Optometrists",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "massage",
+  "sector": "health",
+  "label": "Massage therapy studio",
+  "short": "Massage Studio",
+  "naics": "812199",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "athletes"
+  ],
+  "problems": [
+   "online_booking",
+   "memberships",
+   "reminders"
+  ],
+  "features": [
+   "Modality picker with durations",
+   "Monthly massage membership"
+  ],
+  "pages": [
+   "Massage",
+   "Memberships"
+  ],
+  "customer": "Stressed professionals and athletes",
+  "buyer": "Owner/LMT",
+  "styles": [
+   "earthy",
+   "luxury_editorial",
+   "clinical_calm"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "MINDBODY",
+   "SQUARE_APPT"
+  ],
+  "workflow": "Book → session → rebook/membership",
+  "naicsTitle": "Other Personal Care Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "acupuncture",
+  "sector": "health",
+  "label": "Acupuncture clinic",
+  "short": "Acupuncture",
+  "naics": "621399",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "patients"
+  ],
+  "problems": [
+   "online_booking",
+   "client_onboarding",
+   "memberships"
+  ],
+  "features": [
+   "First-visit explainer",
+   "Package of visits"
+  ],
+  "pages": [
+   "What to expect",
+   "Book"
+  ],
+  "customer": "Adults exploring complementary care",
+  "buyer": "Owner/practitioner",
+  "styles": [
+   "earthy",
+   "clinical_calm",
+   "minimalist"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Research → book → intake → treatment series",
+  "naicsTitle": "Offices of All Other Miscellaneous Health Practitioners",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "therapy_practice",
+  "sector": "health",
+  "label": "Counseling practice",
+  "short": "Counseling",
+  "naics": "621330",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "patients"
+  ],
+  "problems": [
+   "online_booking",
+   "lead_capture"
+  ],
+  "features": [
+   "Therapist directory with specialties",
+   "Fit-consult request (no clinical details collected)"
+  ],
+  "pages": [
+   "Our therapists",
+   "Request a consult"
+  ],
+  "customer": "Adults looking for a therapist who fits",
+  "buyer": "Practice owner",
+  "styles": [
+   "clinical_calm",
+   "earthy",
+   "minimalist"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Search → check fit/insurance → consult call → first session",
+  "naicsTitle": "Offices of Mental Health Practitioners (except Physicians)",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "nutritionist",
+  "sector": "health",
+  "label": "Nutrition coaching practice",
+  "short": "Nutritionist",
+  "naics": "621399",
+  "audience": "b2c",
+  "local": false,
+  "audiences": [
+   "patients",
+   "athletes"
+  ],
+  "problems": [
+   "memberships",
+   "client_portal",
+   "online_booking"
+  ],
+  "features": [
+   "Program comparison",
+   "Check-in log (demo data)"
+  ],
+  "pages": [
+   "Programs",
+   "Book a call"
+  ],
+  "customer": "Adults with nutrition goals",
+  "buyer": "Solo practitioner",
+  "styles": [
+   "earthy",
+   "bright_friendly",
+   "minimalist"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Discovery call → program → weekly check-ins",
+  "naicsTitle": "Offices of All Other Miscellaneous Health Practitioners",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "mobile_detailing",
+  "sector": "auto",
+  "label": "Mobile car detailing service",
+  "short": "Mobile Detailing",
+  "naics": "811192",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers",
+   "professionals"
+  ],
+  "problems": [
+   "online_booking",
+   "instant_quote",
+   "gallery_portfolio",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Package selector",
+   "Address capture with service-area check (static)"
+  ],
+  "pages": [
+   "Packages",
+   "Book a detail"
+  ],
+  "customer": "Car owners who want detailing at home or work",
+  "buyer": "Owner-operator",
+  "styles": [
+   "dark_premium",
+   "bold_type",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "PHL_SIP"
+  ],
+  "workflow": "See before/afters → pick package → book a slot → detail at their address",
+  "naicsTitle": "Car Washes",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "auto_repair",
+  "sector": "auto",
+  "label": "Auto repair shop",
+  "short": "Auto Repair",
+  "naics": "811111",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers"
+  ],
+  "problems": [
+   "job_tracking",
+   "online_booking",
+   "reminders",
+   "payments_deposits"
+  ],
+  "features": [
+   "Digital inspection report with photos (demo)",
+   "Approve/decline line items"
+  ],
+  "pages": [
+   "Services",
+   "Book service"
+  ],
+  "customer": "Drivers who need repairs they can trust",
+  "buyer": "Shop owner/service writer",
+  "styles": [
+   "industrial",
+   "dark_premium",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "TEKMETRIC",
+   "PHL_SIP"
+  ],
+  "workflow": "Drop off → inspection → estimate call → approve → repair → pickup",
+  "naicsTitle": "General Automotive Repair",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "body_shop",
+  "sector": "auto",
+  "label": "Collision & body shop",
+  "short": "Body Shop",
+  "naics": "811121",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers"
+  ],
+  "problems": [
+   "lead_capture",
+   "job_tracking",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Photo-based damage estimate request",
+   "Repair stage tracker"
+  ],
+  "pages": [
+   "Collision repair",
+   "Start an estimate"
+  ],
+  "customer": "Drivers after an accident",
+  "buyer": "Owner/estimator",
+  "styles": [
+   "industrial",
+   "dark_premium",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "TEKMETRIC"
+  ],
+  "workflow": "Accident → estimate → approval → repair stages → pickup",
+  "naicsTitle": "Automotive Body, Paint, and Interior Repair and Maintenance",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "tire_shop",
+  "sector": "auto",
+  "label": "Tire shop",
+  "short": "Tire Shop",
+  "naics": "441340",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers"
+  ],
+  "problems": [
+   "inventory",
+   "online_booking",
+   "instant_quote"
+  ],
+  "features": [
+   "Tire finder by vehicle/size (demo data)",
+   "Install appointment"
+  ],
+  "pages": [
+   "Find tires",
+   "Book install"
+  ],
+  "customer": "Drivers needing tires fast",
+  "buyer": "Owner",
+  "styles": [
+   "industrial",
+   "bold_type",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Search size → call for stock → book install",
+  "naicsTitle": "Tire Dealers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "car_rental",
+  "sector": "auto",
+  "label": "Local car rental",
+  "short": "Car Rental",
+  "naics": "532111",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers",
+   "professionals"
+  ],
+  "problems": [
+   "listings_search",
+   "online_booking",
+   "payments_deposits"
+  ],
+  "features": [
+   "Fleet browser with filters (demo data)",
+   "Pickup/return scheduler"
+  ],
+  "pages": [
+   "Fleet",
+   "Reserve"
+  ],
+  "customer": "Visitors and locals without a car",
+  "buyer": "Owner/fleet manager",
+  "styles": [
+   "dark_premium",
+   "minimalist",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Browse fleet → reserve dates → deposit → pickup → return",
+  "naicsTitle": "Passenger Car Rental",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "towing",
+  "sector": "auto",
+  "label": "Towing service",
+  "short": "Towing",
+  "naics": "488410",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "drivers",
+   "business_owners"
+  ],
+  "problems": [
+   "lead_capture",
+   "dispatch_routing"
+  ],
+  "features": [
+   "One-tap breakdown request",
+   "Driver-on-the-way status (static demo)"
+  ],
+  "pages": [
+   "Services",
+   "Request a tow"
+  ],
+  "customer": "Stranded drivers and repair shops",
+  "buyer": "Owner/dispatcher",
+  "styles": [
+   "high_contrast",
+   "industrial",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Breakdown → call → location share → dispatch → tow",
+  "naicsTitle": "Motor Vehicle Towing",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "auto_glass",
+  "sector": "auto",
+  "label": "Auto glass repair shop",
+  "short": "Auto Glass",
+  "naics": "811122",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers"
+  ],
+  "problems": [
+   "instant_quote",
+   "online_booking",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Chip vs. replace picker",
+   "Mobile service slot booking"
+  ],
+  "pages": [
+   "Repair or replace",
+   "Book"
+  ],
+  "customer": "Drivers with a cracked windshield",
+  "buyer": "Owner",
+  "styles": [
+   "minimalist",
+   "glass",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Crack → quote → mobile appointment",
+  "naicsTitle": "Automotive Glass Replacement Shops",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "car_wash",
+  "sector": "auto",
+  "label": "Express car wash",
+  "short": "Car Wash",
+  "naics": "811192",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers"
+  ],
+  "problems": [
+   "memberships",
+   "loyalty_rewards",
+   "owner_reporting"
+  ],
+  "features": [
+   "Unlimited wash club tiers",
+   "Wash package comparison"
+  ],
+  "pages": [
+   "Wash packages",
+   "Join the club"
+  ],
+  "customer": "Commuters who wash often",
+  "buyer": "Owner/operator",
+  "styles": [
+   "bold_type",
+   "bright_friendly",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Drive up → pick package → pay → drive through; members skip the decision",
+  "naicsTitle": "Car Washes",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "used_cars",
+  "sector": "auto",
+  "label": "Independent used-car dealer",
+  "short": "Used Cars",
+  "naics": "441120",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "drivers"
+  ],
+  "problems": [
+   "listings_search",
+   "lead_capture"
+  ],
+  "features": [
+   "Vehicle inventory filters (demo data)",
+   "Test-drive request"
+  ],
+  "pages": [
+   "Inventory",
+   "Test drive"
+  ],
+  "customer": "Shoppers comparing cars online",
+  "buyer": "Owner/sales manager",
+  "styles": [
+   "dark_premium",
+   "bold_type",
+   "minimalist"
+  ],
+  "sensitive": [
+   "finance"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Browse online → call about a car → test drive → paperwork",
+  "naicsTitle": "Used Car Dealers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "gym",
+  "sector": "fitness",
+  "label": "Neighborhood gym",
+  "short": "Gym",
+  "naics": "713940",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes"
+  ],
+  "problems": [
+   "memberships",
+   "events_registration",
+   "owner_reporting",
+   "client_onboarding"
+  ],
+  "features": [
+   "Membership tier comparison",
+   "Free-pass signup with waiver (placeholder text)"
+  ],
+  "pages": [
+   "Memberships",
+   "Free pass"
+  ],
+  "customer": "Locals looking for a gym close to home",
+  "buyer": "Owner/GM",
+  "styles": [
+   "bold_type",
+   "dark_premium",
+   "industrial"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "MINDBODY",
+   "PHL_SIP"
+  ],
+  "workflow": "Tour → join → check in → classes → renew",
+  "naicsTitle": "Fitness and Recreational Sports Centers",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "boutique_studio",
+  "sector": "fitness",
+  "label": "Boutique fitness studio",
+  "short": "Fitness Studio",
+  "naics": "713940",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes",
+   "professionals"
+  ],
+  "problems": [
+   "events_registration",
+   "memberships",
+   "waitlist_capacity"
+  ],
+  "features": [
+   "Class schedule with spot picker",
+   "Intro offer flow"
+  ],
+  "pages": [
+   "Schedule",
+   "Intro offer"
+  ],
+  "customer": "Class-goers who book by the week",
+  "buyer": "Owner/head coach",
+  "styles": [
+   "bold_type",
+   "glass",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "MINDBODY"
+  ],
+  "workflow": "Find studio → intro offer → book classes → membership",
+  "naicsTitle": "Fitness and Recreational Sports Centers",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "personal_trainer",
+  "sector": "fitness",
+  "label": "Personal trainer",
+  "short": "Personal Trainer",
+  "naics": "713940",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes",
+   "professionals"
+  ],
+  "problems": [
+   "client_portal",
+   "online_booking",
+   "payments_deposits",
+   "memberships"
+  ],
+  "features": [
+   "Workout plan viewer (demo content)",
+   "Session package tracker"
+  ],
+  "pages": [
+   "Programs",
+   "Book a session"
+  ],
+  "customer": "Clients wanting accountability",
+  "buyer": "Solo trainer",
+  "styles": [
+   "bold_type",
+   "dark_premium",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "MINDBODY"
+  ],
+  "workflow": "DM → consult → package → sessions + check-ins",
+  "naicsTitle": "Fitness and Recreational Sports Centers",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "yoga",
+  "sector": "fitness",
+  "label": "Yoga studio",
+  "short": "Yoga Studio",
+  "naics": "713940",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes",
+   "professionals"
+  ],
+  "problems": [
+   "events_registration",
+   "memberships",
+   "waitlist_capacity"
+  ],
+  "features": [
+   "Class-level filter",
+   "Workshop registration"
+  ],
+  "pages": [
+   "Schedule",
+   "Workshops"
+  ],
+  "customer": "Beginners and regular practitioners",
+  "buyer": "Owner/teacher",
+  "styles": [
+   "earthy",
+   "minimalist",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "MINDBODY"
+  ],
+  "workflow": "Find class → drop-in/intro → regular schedule → membership",
+  "naicsTitle": "Fitness and Recreational Sports Centers",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "martial_arts",
+  "sector": "fitness",
+  "label": "Martial arts school",
+  "short": "Martial Arts",
+  "naics": "611620",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families",
+   "athletes"
+  ],
+  "problems": [
+   "events_registration",
+   "memberships",
+   "family_updates"
+  ],
+  "features": [
+   "Trial-class booking",
+   "Belt progress tracker (fictional placeholder students)"
+  ],
+  "pages": [
+   "Programs",
+   "Free trial"
+  ],
+  "customer": "Parents enrolling kids and adult beginners",
+  "buyer": "Owner/head instructor",
+  "styles": [
+   "bold_type",
+   "dark_premium",
+   "bright_friendly"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "MINDBODY",
+   "FTC_COPPA"
+  ],
+  "workflow": "Trial class → enroll → classes → belt tests",
+  "naicsTitle": "Sports and Recreation Instruction",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "youth_sports",
+  "sector": "fitness",
+  "label": "Youth sports league",
+  "short": "Youth Sports",
+  "naics": "611620",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families"
+  ],
+  "problems": [
+   "events_registration",
+   "payments_deposits",
+   "family_updates"
+  ],
+  "features": [
+   "Season registration by age group",
+   "Game schedule board (demo data)"
+  ],
+  "pages": [
+   "Programs",
+   "Register"
+  ],
+  "customer": "Parents signing kids up for a season",
+  "buyer": "League director",
+  "styles": [
+   "bright_friendly",
+   "bold_type",
+   "playful"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "FTC_COPPA"
+  ],
+  "workflow": "Registration opens → sign up → team assignment → schedule → games",
+  "naicsTitle": "Sports and Recreation Instruction",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "dance_studio",
+  "sector": "fitness",
+  "label": "Dance studio",
+  "short": "Dance Studio",
+  "naics": "611610",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families",
+   "students"
+  ],
+  "problems": [
+   "events_registration",
+   "family_updates",
+   "payments_deposits"
+  ],
+  "features": [
+   "Class finder by age/style",
+   "Recital info hub"
+  ],
+  "pages": [
+   "Classes",
+   "Register"
+  ],
+  "customer": "Parents and adult dancers",
+  "buyer": "Owner/director",
+  "styles": [
+   "playful",
+   "bold_type",
+   "luxury_editorial"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "MINDBODY",
+   "FTC_COPPA"
+  ],
+  "workflow": "Find class → trial → enroll → recital season",
+  "naicsTitle": "Fine Arts Schools",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "swim_school",
+  "sector": "fitness",
+  "label": "Swim school",
+  "short": "Swim School",
+  "naics": "611620",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families"
+  ],
+  "problems": [
+   "events_registration",
+   "waitlist_capacity",
+   "family_updates"
+  ],
+  "features": [
+   "Level placement quiz",
+   "Session waitlist"
+  ],
+  "pages": [
+   "Levels",
+   "Enroll"
+  ],
+  "customer": "Parents of young swimmers",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "playful",
+   "glass"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "FTC_COPPA"
+  ],
+  "workflow": "Level check → enroll in session → lessons → level up",
+  "naicsTitle": "Sports and Recreation Instruction",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "climbing_gym",
+  "sector": "fitness",
+  "label": "Climbing gym",
+  "short": "Climbing Gym",
+  "naics": "713940",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes",
+   "students"
+  ],
+  "problems": [
+   "memberships",
+   "waitlist_capacity",
+   "client_onboarding"
+  ],
+  "features": [
+   "Waiver flow (placeholder text)",
+   "Live-capacity style meter (demo data)"
+  ],
+  "pages": [
+   "Plan a visit",
+   "Memberships"
+  ],
+  "customer": "Climbers and first-timers",
+  "buyer": "Owner/GM",
+  "styles": [
+   "industrial",
+   "bold_type",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Waiver → day pass → intro class → membership",
+  "naicsTitle": "Fitness and Recreational Sports Centers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "childcare_center",
+  "sector": "education",
+  "label": "Childcare center",
+  "short": "Childcare",
+  "naics": "624410",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families"
+  ],
+  "problems": [
+   "client_onboarding",
+   "family_updates",
+   "waitlist_capacity",
+   "online_booking",
+   "payments_deposits"
+  ],
+  "features": [
+   "Tour booking",
+   "Enrollment checklist",
+   "Classroom age-group explorer"
+  ],
+  "pages": [
+   "Programs",
+   "Book a tour"
+  ],
+  "customer": "Parents searching for care",
+  "buyer": "Owner/director",
+  "styles": [
+   "warm_community",
+   "bright_friendly",
+   "playful"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "PROCARE",
+   "PA_OCDEL",
+   "FTC_COPPA"
+  ],
+  "workflow": "Search → call → tour → waitlist/enroll → daily drop-off and updates",
+  "naicsTitle": "Child Care Services",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "family_daycare",
+  "sector": "education",
+  "label": "Home daycare (family child care)",
+  "short": "Home Daycare",
+  "naics": "624410",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families"
+  ],
+  "problems": [
+   "online_booking",
+   "waitlist_capacity",
+   "family_updates"
+  ],
+  "features": [
+   "Openings-by-age board (demo)",
+   "Meet-the-provider page"
+  ],
+  "pages": [
+   "About",
+   "Openings"
+  ],
+  "customer": "Parents wanting a small home setting",
+  "buyer": "Provider-owner",
+  "styles": [
+   "warm_community",
+   "bright_friendly",
+   "earthy"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "PA_OCDEL",
+   "PROCARE",
+   "FTC_COPPA"
+  ],
+  "workflow": "Referral → visit → enroll → daily updates",
+  "naicsTitle": "Child Care Services",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "tutoring",
+  "sector": "education",
+  "label": "Tutoring center",
+  "short": "Tutoring",
+  "naics": "611691",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families",
+   "students"
+  ],
+  "problems": [
+   "online_booking",
+   "client_portal",
+   "memberships"
+  ],
+  "features": [
+   "Subject + grade tutor matcher",
+   "Progress report view (fictional data)"
+  ],
+  "pages": [
+   "Subjects",
+   "Book a session"
+  ],
+  "customer": "Parents and students needing grade help",
+  "buyer": "Owner/director",
+  "styles": [
+   "bright_friendly",
+   "minimalist",
+   "playful"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "FTC_COPPA"
+  ],
+  "workflow": "Concern → assessment → package → weekly sessions → progress reports",
+  "naicsTitle": "Exam Preparation and Tutoring",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "music_lessons",
+  "sector": "education",
+  "label": "Music lesson studio",
+  "short": "Music Lessons",
+  "naics": "611610",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families",
+   "students"
+  ],
+  "problems": [
+   "online_booking",
+   "events_registration",
+   "memberships"
+  ],
+  "features": [
+   "Instrument + teacher picker",
+   "Recital signup"
+  ],
+  "pages": [
+   "Instruments",
+   "Book a trial"
+  ],
+  "customer": "Parents and adult learners",
+  "buyer": "Owner/teacher",
+  "styles": [
+   "retro",
+   "warm_community",
+   "bold_type"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "FTC_COPPA"
+  ],
+  "workflow": "Trial lesson → weekly slot → recitals",
+  "naicsTitle": "Fine Arts Schools",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "driving_school",
+  "sector": "education",
+  "label": "Driving school",
+  "short": "Driving School",
+  "naics": "611692",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students",
+   "families"
+  ],
+  "problems": [
+   "online_booking",
+   "payments_deposits",
+   "client_portal"
+  ],
+  "features": [
+   "Lesson package picker",
+   "Road-test prep checklist"
+  ],
+  "pages": [
+   "Packages",
+   "Book a lesson"
+  ],
+  "customer": "Teens and new drivers",
+  "buyer": "Owner/instructor",
+  "styles": [
+   "bright_friendly",
+   "bold_type",
+   "high_contrast"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Choose package → book lessons → road test",
+  "naicsTitle": "Automobile Driving Schools",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "test_prep",
+  "sector": "education",
+  "label": "Test prep academy",
+  "short": "Test Prep",
+  "naics": "611691",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students"
+  ],
+  "problems": [
+   "events_registration",
+   "client_portal",
+   "lead_capture"
+  ],
+  "features": [
+   "Course calendar by exam",
+   "Practice-score tracker (fictional data)"
+  ],
+  "pages": [
+   "Courses",
+   "Enroll"
+  ],
+  "customer": "High-school and grad applicants",
+  "buyer": "Owner/director",
+  "styles": [
+   "minimalist",
+   "bold_type",
+   "bright_friendly"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Diagnostic → course → practice tests → exam day",
+  "naicsTitle": "Exam Preparation and Tutoring",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "language_school",
+  "sector": "education",
+  "label": "Language school",
+  "short": "Language School",
+  "naics": "611630",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students",
+   "professionals"
+  ],
+  "problems": [
+   "events_registration",
+   "memberships",
+   "online_booking"
+  ],
+  "features": [
+   "Level placement quiz",
+   "Class schedule by level"
+  ],
+  "pages": [
+   "Levels",
+   "Enroll"
+  ],
+  "customer": "Adults and newcomers learning a language",
+  "buyer": "Owner/director",
+  "styles": [
+   "warm_community",
+   "minimalist",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Placement → class → next level",
+  "naicsTitle": "Language Schools",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "art_classes",
+  "sector": "education",
+  "label": "Art studio (classes)",
+  "short": "Art Classes",
+  "naics": "611610",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families",
+   "students"
+  ],
+  "problems": [
+   "events_registration",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Workshop calendar",
+   "Student gallery (placeholder art)"
+  ],
+  "pages": [
+   "Classes",
+   "Gallery"
+  ],
+  "customer": "Hobbyists, parents and date-night couples",
+  "buyer": "Owner/artist",
+  "styles": [
+   "playful",
+   "earthy",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Browse workshops → book → attend → come back",
+  "naicsTitle": "Fine Arts Schools",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "summer_camp",
+  "sector": "education",
+  "label": "Day camp",
+  "short": "Day Camp",
+  "naics": "721214",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "families"
+  ],
+  "problems": [
+   "events_registration",
+   "family_updates",
+   "payments_deposits"
+  ],
+  "features": [
+   "Week-by-week camp picker",
+   "What-to-pack checklist"
+  ],
+  "pages": [
+   "Weeks",
+   "Register"
+  ],
+  "customer": "Parents planning summer",
+  "buyer": "Camp director",
+  "styles": [
+   "playful",
+   "bright_friendly",
+   "warm_community"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "FTC_COPPA"
+  ],
+  "workflow": "Browse weeks → register → forms → daily drop-off",
+  "naicsTitle": "Recreational and Vacation Camps (except Campgrounds)",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "accounting",
+  "sector": "professional",
+  "label": "CPA firm",
+  "short": "CPA Firm",
+  "naics": "541211",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "business_owners",
+   "professionals"
+  ],
+  "problems": [
+   "client_portal",
+   "client_onboarding",
+   "reminders"
+  ],
+  "features": [
+   "Document request checklist",
+   "Engagement status tracker"
+  ],
+  "pages": [
+   "Services",
+   "Client portal"
+  ],
+  "customer": "Small business owners and households",
+  "buyer": "Partner/firm owner",
+  "styles": [
+   "minimalist",
+   "high_contrast",
+   "dark_premium"
+  ],
+  "sensitive": [
+   "finance"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Engage → send documents → questions → review → file",
+  "naicsTitle": "Offices of Certified Public Accountants",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "tax_prep",
+  "sector": "professional",
+  "label": "Tax preparation office",
+  "short": "Tax Prep",
+  "naics": "541213",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "families"
+  ],
+  "problems": [
+   "online_booking",
+   "client_portal",
+   "reminders"
+  ],
+  "features": [
+   "What-to-bring checklist",
+   "Return status tracker (demo)"
+  ],
+  "pages": [
+   "Book appointment",
+   "Checklist"
+  ],
+  "customer": "Individuals and families at tax time",
+  "buyer": "Owner/preparer",
+  "styles": [
+   "bright_friendly",
+   "minimalist",
+   "high_contrast"
+  ],
+  "sensitive": [
+   "finance"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Book → bring documents → prep → review → e-file",
+  "naicsTitle": "Tax Preparation Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "law_firm",
+  "sector": "professional",
+  "label": "Small law firm",
+  "short": "Law Firm",
+  "naics": "541110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "families"
+  ],
+  "problems": [
+   "lead_capture",
+   "online_booking",
+   "client_portal"
+  ],
+  "features": [
+   "Practice-area intake router",
+   "Consultation scheduler"
+  ],
+  "pages": [
+   "Practice areas",
+   "Request a consultation"
+  ],
+  "customer": "People facing a legal question",
+  "buyer": "Managing attorney",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "high_contrast"
+  ],
+  "sensitive": [
+   "legal"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Search → call → intake → consult → engagement",
+  "naicsTitle": "Offices of Lawyers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "notary",
+  "sector": "professional",
+  "label": "Mobile notary",
+  "short": "Mobile Notary",
+  "naics": "541120",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "homeowners"
+  ],
+  "problems": [
+   "online_booking",
+   "instant_quote"
+  ],
+  "features": [
+   "Document-type picker",
+   "Travel-fee estimator (sample rates)"
+  ],
+  "pages": [
+   "Services",
+   "Book"
+  ],
+  "customer": "People needing documents notarized fast",
+  "buyer": "Solo notary",
+  "styles": [
+   "minimalist",
+   "bright_friendly",
+   "high_contrast"
+  ],
+  "sensitive": [
+   "legal"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Search → call → book time/location → sign",
+  "naicsTitle": "Offices of Notaries",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "insurance_agency",
+  "sector": "professional",
+  "label": "Independent insurance agency",
+  "short": "Insurance Agency",
+  "naics": "524210",
+  "audience": "both",
+  "local": false,
+  "audiences": [
+   "homeowners",
+   "drivers",
+   "business_owners"
+  ],
+  "problems": [
+   "lead_capture",
+   "client_portal",
+   "reminders"
+  ],
+  "features": [
+   "Quote-request wizard (no real quotes)",
+   "Policy renewal reminder preview"
+  ],
+  "pages": [
+   "Coverage",
+   "Request a quote"
+  ],
+  "customer": "Households and small businesses shopping coverage",
+  "buyer": "Agency owner",
+  "styles": [
+   "minimalist",
+   "high_contrast",
+   "bright_friendly"
+  ],
+  "sensitive": [
+   "finance"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Request quote → agent call → compare → bind → renewals",
+  "naicsTitle": "Insurance Agencies and Brokerages",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "staffing",
+  "sector": "professional",
+  "label": "Staffing agency",
+  "short": "Staffing Agency",
+  "naics": "561320",
+  "audience": "b2b",
+  "local": false,
+  "audiences": [
+   "business_owners",
+   "professionals"
+  ],
+  "problems": [
+   "listings_search",
+   "lead_capture",
+   "client_onboarding"
+  ],
+  "features": [
+   "Job board with filters (demo data)",
+   "Employer staffing request"
+  ],
+  "pages": [
+   "Jobs",
+   "Hire talent"
+  ],
+  "customer": "Employers and job seekers",
+  "buyer": "Owner/recruiter",
+  "styles": [
+   "minimalist",
+   "bold_type",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Employer request → candidate match → interviews → placement",
+  "naicsTitle": "Temporary Help Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "interior_design",
+  "sector": "professional",
+  "label": "Interior designer",
+  "short": "Interior Design",
+  "naics": "541410",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "gallery_portfolio",
+   "lead_capture",
+   "client_portal"
+  ],
+  "features": [
+   "Mood board viewer",
+   "Design-package comparison"
+  ],
+  "pages": [
+   "Portfolio",
+   "Start a project"
+  ],
+  "customer": "Homeowners furnishing or renovating",
+  "buyer": "Principal designer",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Consult → concept → selections → install",
+  "naicsTitle": "Interior Design Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "managed_it",
+  "sector": "professional",
+  "label": "Managed IT provider",
+  "short": "IT Support",
+  "naics": "541512",
+  "audience": "b2b",
+  "local": false,
+  "audiences": [
+   "business_owners"
+  ],
+  "problems": [
+   "maintenance_plans",
+   "client_portal",
+   "lead_capture"
+  ],
+  "features": [
+   "Support ticket tracker (demo data)",
+   "Plan tiers per seat"
+  ],
+  "pages": [
+   "Plans",
+   "Get support"
+  ],
+  "customer": "Small offices without IT staff",
+  "buyer": "Owner/technician",
+  "styles": [
+   "dark_premium",
+   "minimalist",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Problem → ticket → fix → monthly plan",
+  "naicsTitle": "Computer Systems Design Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "print_shop",
+  "sector": "professional",
+  "label": "Print & sign shop",
+  "short": "Print Shop",
+  "naics": "323111",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "business_owners",
+   "event_hosts"
+  ],
+  "problems": [
+   "instant_quote",
+   "online_ordering",
+   "client_portal"
+  ],
+  "features": [
+   "Product + quantity quote builder",
+   "Proof approval step"
+  ],
+  "pages": [
+   "Products",
+   "Get a quote"
+  ],
+  "customer": "Small businesses and event hosts",
+  "buyer": "Owner",
+  "styles": [
+   "bold_type",
+   "industrial",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Request quote → upload art → proof → approve → print → pickup",
+  "naicsTitle": "Commercial Printing (except Screen and Books)",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "security_services",
+  "sector": "professional",
+  "label": "Security guard company",
+  "short": "Security Co.",
+  "naics": "561612",
+  "audience": "b2b",
+  "local": true,
+  "audiences": [
+   "business_owners"
+  ],
+  "problems": [
+   "lead_capture",
+   "dispatch_routing",
+   "owner_reporting"
+  ],
+  "features": [
+   "Site coverage request",
+   "Shift board (demo data)"
+  ],
+  "pages": [
+   "Services",
+   "Request coverage"
+  ],
+  "customer": "Property managers and event organizers",
+  "buyer": "Owner/ops director",
+  "styles": [
+   "dark_premium",
+   "industrial",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "RFQ → site assessment → contract → shifts → reports",
+  "naicsTitle": "Security Guards and Patrol Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "boutique",
+  "sector": "retail",
+  "label": "Clothing boutique",
+  "short": "Boutique",
+  "naics": "458110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "inventory",
+   "online_ordering",
+   "loyalty_rewards",
+   "events_registration"
+  ],
+  "features": [
+   "Lookbook with shop-the-look",
+   "Size-availability badges (demo data)"
+  ],
+  "pages": [
+   "Shop",
+   "Lookbook"
+  ],
+  "customer": "Local shoppers and online browsers",
+  "buyer": "Owner/buyer",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP",
+   "PHL_FED"
+  ],
+  "workflow": "See new drop on social → visit or DM → buy",
+  "naicsTitle": "Clothing and Clothing Accessories Retailers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "florist",
+  "sector": "retail",
+  "label": "Florist",
+  "short": "Florist",
+  "naics": "459310",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "families"
+  ],
+  "problems": [
+   "online_ordering",
+   "instant_quote",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Arrangement builder",
+   "Wedding florals inquiry"
+  ],
+  "pages": [
+   "Shop",
+   "Weddings & events"
+  ],
+  "customer": "Gift buyers and couples",
+  "buyer": "Owner/designer",
+  "styles": [
+   "earthy",
+   "luxury_editorial",
+   "playful"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Order by phone/online → delivery; events by consultation",
+  "naicsTitle": "Florists",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "bike_shop",
+  "sector": "retail",
+  "label": "Bike shop",
+  "short": "Bike Shop",
+  "naics": "459110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "athletes",
+   "students"
+  ],
+  "problems": [
+   "job_tracking",
+   "inventory",
+   "online_booking"
+  ],
+  "features": [
+   "Tune-up booking",
+   "Repair status tracker"
+  ],
+  "pages": [
+   "Service",
+   "Shop"
+  ],
+  "customer": "Commuters and weekend riders",
+  "buyer": "Owner/mechanic",
+  "styles": [
+   "retro",
+   "industrial",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Drop off bike → wait for call → pickup",
+  "naicsTitle": "Sporting Goods Retailers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "thrift",
+  "sector": "retail",
+  "label": "Thrift & vintage store",
+  "short": "Vintage Shop",
+  "naics": "459510",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students",
+   "foodies"
+  ],
+  "problems": [
+   "inventory",
+   "online_ordering",
+   "events_registration"
+  ],
+  "features": [
+   "New-arrivals feed",
+   "Hold-for-pickup request"
+  ],
+  "pages": [
+   "New in",
+   "Visit"
+  ],
+  "customer": "Thrifters and resellers",
+  "buyer": "Owner",
+  "styles": [
+   "retro",
+   "brutalist",
+   "playful"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP",
+   "PHL_FED"
+  ],
+  "workflow": "Follow drops → visit early → buy",
+  "naicsTitle": "Used Merchandise Retailers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "sneaker_shop",
+  "sector": "retail",
+  "label": "Sneaker shop",
+  "short": "Sneaker Shop",
+  "naics": "458210",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students"
+  ],
+  "problems": [
+   "online_ordering",
+   "events_registration",
+   "inventory"
+  ],
+  "features": [
+   "Release calendar with raffle entry (demo)",
+   "Size-run stock badges"
+  ],
+  "pages": [
+   "Releases",
+   "Shop"
+  ],
+  "customer": "Sneakerheads and collectors",
+  "buyer": "Owner",
+  "styles": [
+   "brutalist",
+   "bold_type",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Hear about drop → line up/raffle → buy",
+  "naicsTitle": "Shoe Retailers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "jewelry",
+  "sector": "retail",
+  "label": "Jewelry store",
+  "short": "Jewelry Store",
+  "naics": "458310",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "professionals"
+  ],
+  "problems": [
+   "gallery_portfolio",
+   "lead_capture",
+   "online_booking"
+  ],
+  "features": [
+   "Custom-design request",
+   "Ring-size guide"
+  ],
+  "pages": [
+   "Collections",
+   "Custom design"
+  ],
+  "customer": "Couples and gift buyers",
+  "buyer": "Owner/jeweler",
+  "styles": [
+   "luxury_editorial",
+   "dark_premium",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Browse → consult → custom design → pickup",
+  "naicsTitle": "Jewelry Retailers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "bookstore",
+  "sector": "retail",
+  "label": "Independent bookstore",
+  "short": "Bookstore",
+  "naics": "459210",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students",
+   "community"
+  ],
+  "problems": [
+   "events_registration",
+   "online_ordering",
+   "memberships"
+  ],
+  "features": [
+   "Author-event calendar",
+   "Staff picks shelf"
+  ],
+  "pages": [
+   "Events",
+   "Staff picks"
+  ],
+  "customer": "Readers and book clubs",
+  "buyer": "Owner",
+  "styles": [
+   "retro",
+   "warm_community",
+   "luxury_editorial"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_FED"
+  ],
+  "workflow": "Browse → events → book club → preorder",
+  "naicsTitle": "Book Retailers and News Dealers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "plant_shop",
+  "sector": "retail",
+  "label": "Plant shop",
+  "short": "Plant Shop",
+  "naics": "444240",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "renters",
+   "homeowners"
+  ],
+  "problems": [
+   "online_ordering",
+   "memberships",
+   "events_registration"
+  ],
+  "features": [
+   "Plant finder by light level",
+   "Repotting workshop signup"
+  ],
+  "pages": [
+   "Shop plants",
+   "Workshops"
+  ],
+  "customer": "Apartment dwellers and gift buyers",
+  "buyer": "Owner",
+  "styles": [
+   "earthy",
+   "minimalist",
+   "playful"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Browse → buy → care questions → workshops",
+  "naicsTitle": "Nursery, Garden Center, and Farm Supply Retailers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "beauty_supply",
+  "sector": "retail",
+  "label": "Beauty supply store",
+  "short": "Beauty Supply",
+  "naics": "456120",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "online_ordering",
+   "inventory",
+   "loyalty_rewards"
+  ],
+  "features": [
+   "Product finder by hair type",
+   "Reserve-for-pickup"
+  ],
+  "pages": [
+   "Shop",
+   "Rewards"
+  ],
+  "customer": "Shoppers and local stylists",
+  "buyer": "Owner",
+  "styles": [
+   "bold_type",
+   "glass",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Need product → call to check stock → visit",
+  "naicsTitle": "Cosmetics, Beauty Supplies, and Perfume Retailers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "furniture",
+  "sector": "retail",
+  "label": "Furniture store",
+  "short": "Furniture Store",
+  "naics": "449110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "renters"
+  ],
+  "problems": [
+   "online_ordering",
+   "gallery_portfolio",
+   "lead_capture"
+  ],
+  "features": [
+   "Room-style collections",
+   "Delivery-window request"
+  ],
+  "pages": [
+   "Collections",
+   "Plan delivery"
+  ],
+  "customer": "Movers and home refreshers",
+  "buyer": "Owner/manager",
+  "styles": [
+   "minimalist",
+   "luxury_editorial",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Browse → visit → buy → delivery",
+  "naicsTitle": "Furniture Retailers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "photographer",
+  "sector": "events",
+  "label": "Portrait photographer",
+  "short": "Photographer",
+  "naics": "541921",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "families"
+  ],
+  "problems": [
+   "gallery_portfolio",
+   "online_booking",
+   "client_portal",
+   "payments_deposits"
+  ],
+  "features": [
+   "Session-type picker",
+   "Proof gallery with favorites (placeholder images)"
+  ],
+  "pages": [
+   "Portfolio",
+   "Book a session"
+  ],
+  "customer": "Families, grads and couples",
+  "buyer": "Solo photographer",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Inquiry → date → deposit → shoot → proof gallery → order",
+  "naicsTitle": "Photography Studios, Portrait",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "wedding_planner",
+  "sector": "events",
+  "label": "Wedding planner",
+  "short": "Wedding Planner",
+  "naics": "812990",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts"
+  ],
+  "problems": [
+   "client_portal",
+   "lead_capture",
+   "instant_quote"
+  ],
+  "features": [
+   "Planning timeline",
+   "Vendor checklist board"
+  ],
+  "pages": [
+   "Packages",
+   "Inquire"
+  ],
+  "customer": "Engaged couples",
+  "buyer": "Owner/planner",
+  "styles": [
+   "luxury_editorial",
+   "earthy",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Inquiry → consult → package → planning timeline → wedding day",
+  "naicsTitle": "All Other Personal Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "dj",
+  "sector": "events",
+  "label": "Event DJ",
+  "short": "DJ Service",
+  "naics": "711510",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts"
+  ],
+  "problems": [
+   "instant_quote",
+   "online_booking",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Event-type package builder",
+   "Date availability check (demo)"
+  ],
+  "pages": [
+   "Packages",
+   "Check a date"
+  ],
+  "customer": "Party hosts and couples",
+  "buyer": "Solo DJ/owner",
+  "styles": [
+   "dark_premium",
+   "bold_type",
+   "brutalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Inquiry → date check → quote → deposit → event",
+  "naicsTitle": "Independent Artists, Writers, and Performers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "event_venue",
+  "sector": "events",
+  "label": "Event venue",
+  "short": "Event Venue",
+  "naics": "531120",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "business_owners"
+  ],
+  "problems": [
+   "online_booking",
+   "instant_quote",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Space explorer with capacity",
+   "Tour request"
+  ],
+  "pages": [
+   "Spaces",
+   "Book a tour"
+  ],
+  "customer": "Couples and party planners",
+  "buyer": "Owner/events manager",
+  "styles": [
+   "luxury_editorial",
+   "dark_premium",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_COMMERCE"
+  ],
+  "workflow": "Search → inquiry → tour → hold date → contract",
+  "naicsTitle": "Lessors of Nonresidential Buildings (except Miniwarehouses)",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "party_rentals",
+  "sector": "events",
+  "label": "Party rental company",
+  "short": "Party Rentals",
+  "naics": "532289",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "families"
+  ],
+  "problems": [
+   "online_ordering",
+   "instant_quote",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Rental catalog with date availability (demo)",
+   "Delivery/setup window picker"
+  ],
+  "pages": [
+   "Rentals",
+   "Build a package"
+  ],
+  "customer": "Families and event planners",
+  "buyer": "Owner",
+  "styles": [
+   "playful",
+   "bright_friendly",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Browse → check date → order → delivery → pickup",
+  "naicsTitle": "All Other Consumer Goods Rental",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "videographer",
+  "sector": "events",
+  "label": "Videographer",
+  "short": "Videographer",
+  "naics": "512110",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "business_owners"
+  ],
+  "problems": [
+   "gallery_portfolio",
+   "instant_quote",
+   "client_portal"
+  ],
+  "features": [
+   "Reel gallery by project type",
+   "Edit review/approval step"
+  ],
+  "pages": [
+   "Work",
+   "Get a quote"
+  ],
+  "customer": "Couples and local brands",
+  "buyer": "Solo creator/owner",
+  "styles": [
+   "dark_premium",
+   "bold_type",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_COMMERCE"
+  ],
+  "workflow": "Inquiry → quote → shoot → edit review → delivery",
+  "naicsTitle": "Motion Picture and Video Production",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "balloon_decor",
+  "sector": "events",
+  "label": "Balloon & event decor studio",
+  "short": "Balloon Decor",
+  "naics": "812990",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "families"
+  ],
+  "problems": [
+   "instant_quote",
+   "gallery_portfolio",
+   "online_ordering"
+  ],
+  "features": [
+   "Decor package builder",
+   "Color-palette picker"
+  ],
+  "pages": [
+   "Gallery",
+   "Get a quote"
+  ],
+  "customer": "Party hosts",
+  "buyer": "Owner/artist",
+  "styles": [
+   "playful",
+   "bright_friendly",
+   "glass"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "See work on social → DM → quote → deposit → install",
+  "naicsTitle": "All Other Personal Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "tour_operator",
+  "sector": "events",
+  "label": "Walking tour company",
+  "short": "City Tours",
+  "naics": "561520",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "foodies",
+   "students"
+  ],
+  "problems": [
+   "events_registration",
+   "payments_deposits",
+   "reviews_reputation"
+  ],
+  "features": [
+   "Tour calendar with spots left (demo data)",
+   "Group booking request"
+  ],
+  "pages": [
+   "Tours",
+   "Book"
+  ],
+  "customer": "Visitors and locals",
+  "buyer": "Owner/guide",
+  "styles": [
+   "retro",
+   "bold_type",
+   "warm_community"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Find tour → book → meet guide → review",
+  "naicsTitle": "Tour Operators",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "dog_grooming",
+  "sector": "pets",
+  "label": "Dog grooming salon",
+  "short": "Dog Grooming",
+  "naics": "812910",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners"
+  ],
+  "problems": [
+   "online_booking",
+   "reminders",
+   "client_onboarding",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Breed/size service picker",
+   "Vaccine record upload (mock)"
+  ],
+  "pages": [
+   "Services",
+   "Book a groom"
+  ],
+  "customer": "Dog owners",
+  "buyer": "Owner/groomer",
+  "styles": [
+   "playful",
+   "bright_friendly",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "GINGR",
+   "PHL_SIP"
+  ],
+  "workflow": "Book → drop off → groom → photo → pickup → rebook",
+  "naicsTitle": "Pet Care (except Veterinary) Services",
+  "workflowVerified": true,
+  "phillyNote": true
+ },
+ {
+  "id": "dog_daycare",
+  "sector": "pets",
+  "label": "Dog daycare",
+  "short": "Dog Daycare",
+  "naics": "812910",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners",
+   "professionals"
+  ],
+  "problems": [
+   "client_onboarding",
+   "family_updates",
+   "memberships",
+   "waitlist_capacity"
+  ],
+  "features": [
+   "Temperament-test booking",
+   "Daily report card (placeholder photos)"
+  ],
+  "pages": [
+   "Daycare",
+   "First day"
+  ],
+  "customer": "Working dog owners",
+  "buyer": "Owner",
+  "styles": [
+   "playful",
+   "bright_friendly",
+   "warm_community"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "GINGR"
+  ],
+  "workflow": "Eval day → package → daily drop-off → report card",
+  "naicsTitle": "Pet Care (except Veterinary) Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "boarding",
+  "sector": "pets",
+  "label": "Pet boarding kennel",
+  "short": "Pet Boarding",
+  "naics": "812910",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners"
+  ],
+  "problems": [
+   "online_booking",
+   "payments_deposits",
+   "family_updates"
+  ],
+  "features": [
+   "Stay calendar with suite picker",
+   "Belongings checklist"
+  ],
+  "pages": [
+   "Suites",
+   "Reserve"
+  ],
+  "customer": "Pet owners going on trips",
+  "buyer": "Owner",
+  "styles": [
+   "warm_community",
+   "earthy",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "GINGR"
+  ],
+  "workflow": "Reserve dates → deposit → drop off → updates → pickup",
+  "naicsTitle": "Pet Care (except Veterinary) Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "dog_walker",
+  "sector": "pets",
+  "label": "Dog walking service",
+  "short": "Dog Walker",
+  "naics": "812910",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners",
+   "professionals"
+  ],
+  "problems": [
+   "online_booking",
+   "dispatch_routing",
+   "family_updates"
+  ],
+  "features": [
+   "Walk schedule builder",
+   "Walk report card (demo)"
+  ],
+  "pages": [
+   "Services",
+   "Schedule walks"
+  ],
+  "customer": "Busy dog owners",
+  "buyer": "Owner-operator",
+  "styles": [
+   "playful",
+   "bright_friendly",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER",
+   "GINGR"
+  ],
+  "workflow": "Meet & greet → recurring walks → report after each walk",
+  "naicsTitle": "Pet Care (except Veterinary) Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "vet_clinic",
+  "sector": "pets",
+  "label": "Veterinary clinic",
+  "short": "Vet Clinic",
+  "naics": "541940",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners"
+  ],
+  "problems": [
+   "online_booking",
+   "reminders",
+   "client_onboarding"
+  ],
+  "features": [
+   "New-pet registration",
+   "Vaccine reminder preview"
+  ],
+  "pages": [
+   "Services",
+   "Book a visit"
+  ],
+  "customer": "Pet owners",
+  "buyer": "Practice owner/manager",
+  "styles": [
+   "clinical_calm",
+   "bright_friendly",
+   "warm_community"
+  ],
+  "sensitive": [
+   "animal_health"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Book → check-in → exam → reminders",
+  "naicsTitle": "Veterinary Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "dog_trainer",
+  "sector": "pets",
+  "label": "Dog trainer",
+  "short": "Dog Trainer",
+  "naics": "812910",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners"
+  ],
+  "problems": [
+   "events_registration",
+   "client_portal",
+   "online_booking"
+  ],
+  "features": [
+   "Class series signup",
+   "Homework tracker"
+  ],
+  "pages": [
+   "Classes",
+   "Book"
+  ],
+  "customer": "New puppy owners",
+  "buyer": "Solo trainer",
+  "styles": [
+   "bright_friendly",
+   "earthy",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "GINGR"
+  ],
+  "workflow": "Consult → class series → homework → graduation",
+  "naicsTitle": "Pet Care (except Veterinary) Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "pet_supply",
+  "sector": "pets",
+  "label": "Pet supply store",
+  "short": "Pet Supply",
+  "naics": "459910",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners"
+  ],
+  "problems": [
+   "online_ordering",
+   "memberships",
+   "loyalty_rewards"
+  ],
+  "features": [
+   "Autoship schedule (mock)",
+   "Food finder by pet"
+  ],
+  "pages": [
+   "Shop",
+   "Autoship"
+  ],
+  "customer": "Pet owners restocking food",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "playful",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Run low → visit/order → restock",
+  "naicsTitle": "Pet and Pet Supplies Retailers",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "pet_sitter",
+  "sector": "pets",
+  "label": "Pet sitter",
+  "short": "Pet Sitter",
+  "naics": "812910",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners"
+  ],
+  "problems": [
+   "online_booking",
+   "family_updates",
+   "client_onboarding"
+  ],
+  "features": [
+   "Home-visit scheduler",
+   "Care-instructions form"
+  ],
+  "pages": [
+   "Services",
+   "Book"
+  ],
+  "customer": "Owners traveling",
+  "buyer": "Solo sitter",
+  "styles": [
+   "warm_community",
+   "playful",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Meet & greet → book visits → updates",
+  "naicsTitle": "Pet Care (except Veterinary) Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "movers",
+  "sector": "transport",
+  "label": "Moving company",
+  "short": "Movers",
+  "naics": "484210",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "renters"
+  ],
+  "problems": [
+   "instant_quote",
+   "online_booking",
+   "job_tracking"
+  ],
+  "features": [
+   "Room-by-room inventory estimator",
+   "Move-day timeline"
+  ],
+  "pages": [
+   "Services",
+   "Get a quote"
+  ],
+  "customer": "Households moving locally",
+  "buyer": "Owner/dispatcher",
+  "styles": [
+   "bold_type",
+   "industrial",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Quote request → estimate → book date → move day",
+  "naicsTitle": "Used Household and Office Goods Moving",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "courier",
+  "sector": "transport",
+  "label": "Local courier",
+  "short": "Courier",
+  "naics": "492210",
+  "audience": "b2b",
+  "local": true,
+  "audiences": [
+   "business_owners"
+  ],
+  "problems": [
+   "instant_quote",
+   "job_tracking",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Pickup/drop-off quote by zone (sample rates)",
+   "Delivery status tracker (demo)"
+  ],
+  "pages": [
+   "Services",
+   "Send a package"
+  ],
+  "customer": "Law offices, labs, shops",
+  "buyer": "Owner/dispatcher",
+  "styles": [
+   "minimalist",
+   "industrial",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Request pickup → assign driver → deliver → proof of delivery",
+  "naicsTitle": "Local Messengers and Local Delivery",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "trucking",
+  "sector": "transport",
+  "label": "Box-truck freight carrier",
+  "short": "Box Truck Freight",
+  "naics": "484110",
+  "audience": "b2b",
+  "local": true,
+  "audiences": [
+   "business_owners"
+  ],
+  "problems": [
+   "lead_capture",
+   "dispatch_routing",
+   "client_portal"
+  ],
+  "features": [
+   "Load request form",
+   "Shipment status board (demo)"
+  ],
+  "pages": [
+   "Capabilities",
+   "Request a load"
+  ],
+  "customer": "Shippers and brokers",
+  "buyer": "Owner-operator",
+  "styles": [
+   "industrial",
+   "bold_type",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Load request → rate → dispatch → deliver → invoice",
+  "naicsTitle": "General Freight Trucking, Local",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "nemt",
+  "sector": "transport",
+  "label": "Non-emergency medical transport service",
+  "short": "NEMT Rides",
+  "naics": "485991",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "seniors",
+   "patients"
+  ],
+  "problems": [
+   "online_booking",
+   "dispatch_routing",
+   "reminders"
+  ],
+  "features": [
+   "Ride request with mobility needs",
+   "Ride status screen (static demo)"
+  ],
+  "pages": [
+   "How it works",
+   "Request a ride"
+  ],
+  "customer": "Seniors and patients without transport",
+  "buyer": "Owner/dispatcher",
+  "styles": [
+   "high_contrast",
+   "clinical_calm",
+   "bright_friendly"
+  ],
+  "sensitive": [
+   "medical"
+  ],
+  "sources": [
+   "NAICS",
+   "PHL_MATP",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Appointment set → ride request → pickup → return trip",
+  "naicsTitle": "Special Needs Transportation",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "limo",
+  "sector": "transport",
+  "label": "Limo & black car service",
+  "short": "Limo Service",
+  "naics": "485320",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "event_hosts",
+   "professionals"
+  ],
+  "problems": [
+   "online_booking",
+   "instant_quote"
+  ],
+  "features": [
+   "Vehicle class picker",
+   "Trip quote by hours/route (sample rates)"
+  ],
+  "pages": [
+   "Fleet",
+   "Book a ride"
+  ],
+  "customer": "Wedding parties and executives",
+  "buyer": "Owner",
+  "styles": [
+   "dark_premium",
+   "luxury_editorial",
+   "minimalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Request → quote → deposit → ride",
+  "naicsTitle": "Limousine Service",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "freight_broker",
+  "sector": "transport",
+  "label": "Freight brokerage",
+  "short": "Freight Broker",
+  "naics": "488510",
+  "audience": "b2b",
+  "local": false,
+  "audiences": [
+   "business_owners"
+  ],
+  "problems": [
+   "lead_capture",
+   "client_portal",
+   "owner_reporting"
+  ],
+  "features": [
+   "Quote request by lane",
+   "Shipment tracker (demo)"
+  ],
+  "pages": [
+   "Services",
+   "Get a rate"
+  ],
+  "customer": "Shippers needing capacity",
+  "buyer": "Owner/broker",
+  "styles": [
+   "minimalist",
+   "industrial",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Rate request → carrier match → tracking → POD",
+  "naicsTitle": "Freight Transportation Arrangement",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "airport_shuttle",
+  "sector": "transport",
+  "label": "Airport shuttle",
+  "short": "Airport Shuttle",
+  "naics": "485999",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "online_booking",
+   "reminders",
+   "payments_deposits"
+  ],
+  "features": [
+   "Flight-time based pickup picker",
+   "Shared vs. private ride choice"
+  ],
+  "pages": [
+   "Book",
+   "Fares"
+  ],
+  "customer": "Travelers",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "minimalist",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Book → reminder → pickup → drop-off",
+  "naicsTitle": "All Other Transit and Ground Passenger Transportation",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "realtor",
+  "sector": "property",
+  "label": "Real estate agent",
+  "short": "Realtor",
+  "naics": "531210",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners",
+   "renters"
+  ],
+  "problems": [
+   "listings_search",
+   "lead_capture",
+   "client_portal"
+  ],
+  "features": [
+   "Neighborhood guide pages",
+   "Home-valuation request (no automated value claims)"
+  ],
+  "pages": [
+   "Listings",
+   "Neighborhoods"
+  ],
+  "customer": "Buyers and sellers",
+  "buyer": "Agent/team lead",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Search homes → inquire → showings → offer → close",
+  "naicsTitle": "Offices of Real Estate Agents and Brokers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "property_manager",
+  "sector": "property",
+  "label": "Property management company",
+  "short": "Property Mgmt",
+  "naics": "531311",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "renters",
+   "business_owners"
+  ],
+  "problems": [
+   "client_portal",
+   "listings_search",
+   "payments_deposits"
+  ],
+  "features": [
+   "Maintenance request form with photo",
+   "Rent ledger view (demo data)"
+  ],
+  "pages": [
+   "Available units",
+   "Resident portal"
+  ],
+  "customer": "Renters and small landlords",
+  "buyer": "Owner/PM",
+  "styles": [
+   "minimalist",
+   "high_contrast",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "APPFOLIO"
+  ],
+  "workflow": "Apply → lease → pay rent → request maintenance → renew",
+  "naicsTitle": "Residential Property Managers",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "home_inspector",
+  "sector": "property",
+  "label": "Home inspector",
+  "short": "Home Inspector",
+  "naics": "541350",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "homeowners"
+  ],
+  "problems": [
+   "online_booking",
+   "instant_quote",
+   "client_portal"
+  ],
+  "features": [
+   "Inspection add-on picker",
+   "Report viewer (sample report)"
+  ],
+  "pages": [
+   "Services",
+   "Book inspection"
+  ],
+  "customer": "Homebuyers under contract",
+  "buyer": "Owner/inspector",
+  "styles": [
+   "minimalist",
+   "industrial",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Under contract → book → inspect → report → negotiate",
+  "naicsTitle": "Building Inspection Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "str_cleaning",
+  "sector": "property",
+  "label": "Short-term rental cleaning company",
+  "short": "STR Turnovers",
+  "naics": "561720",
+  "audience": "b2b",
+  "local": true,
+  "audiences": [
+   "business_owners"
+  ],
+  "problems": [
+   "dispatch_routing",
+   "online_booking",
+   "owner_reporting"
+  ],
+  "features": [
+   "Turnover calendar by property",
+   "Photo checklist sign-off (demo)"
+  ],
+  "pages": [
+   "Services",
+   "Get turnover pricing"
+  ],
+  "customer": "Short-term rental hosts",
+  "buyer": "Owner/ops manager",
+  "styles": [
+   "minimalist",
+   "glass",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "JOBBER"
+  ],
+  "workflow": "Guest checks out → clean → photo checklist → ready",
+  "naicsTitle": "Janitorial Services",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "self_storage",
+  "sector": "property",
+  "label": "Self-storage facility",
+  "short": "Self Storage",
+  "naics": "531130",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "renters",
+   "homeowners"
+  ],
+  "problems": [
+   "listings_search",
+   "online_booking",
+   "payments_deposits"
+  ],
+  "features": [
+   "Unit-size finder",
+   "Reserve-a-unit flow"
+  ],
+  "pages": [
+   "Unit sizes",
+   "Reserve"
+  ],
+  "customer": "Movers and declutterers",
+  "buyer": "Owner/manager",
+  "styles": [
+   "bold_type",
+   "bright_friendly",
+   "industrial"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Estimate size → reserve → move in → pay monthly",
+  "naicsTitle": "Lessors of Miniwarehouses and Self-Storage Units",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "coworking",
+  "sector": "property",
+  "label": "Coworking space",
+  "short": "Coworking",
+  "naics": "531120",
+  "audience": "both",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "business_owners"
+  ],
+  "problems": [
+   "memberships",
+   "online_booking",
+   "events_registration"
+  ],
+  "features": [
+   "Meeting-room booking",
+   "Member events board"
+  ],
+  "pages": [
+   "Memberships",
+   "Book a tour"
+  ],
+  "customer": "Freelancers and small teams",
+  "buyer": "Owner/community manager",
+  "styles": [
+   "glass",
+   "minimalist",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Tour → day pass → membership → book rooms",
+  "naicsTitle": "Lessors of Nonresidential Buildings (except Miniwarehouses)",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "small_landlord",
+  "sector": "property",
+  "label": "Small landlord (2-10 units)",
+  "short": "Small Landlord",
+  "naics": "531110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "renters"
+  ],
+  "problems": [
+   "listings_search",
+   "client_portal",
+   "payments_deposits"
+  ],
+  "features": [
+   "Vacancy page with showing request",
+   "Tenant request tracker (demo data)"
+  ],
+  "pages": [
+   "Vacancies",
+   "Tenant requests"
+  ],
+  "customer": "Renters in a few buildings",
+  "buyer": "Owner-landlord",
+  "styles": [
+   "minimalist",
+   "bright_friendly",
+   "high_contrast"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "APPFOLIO"
+  ],
+  "workflow": "Vacancy → showings → lease → rent → repairs",
+  "naicsTitle": "Lessors of Residential Buildings and Dwellings",
+  "workflowVerified": true,
+  "phillyNote": false
+ },
+ {
+  "id": "food_pantry",
+  "sector": "community",
+  "label": "Food pantry",
+  "short": "Food Pantry",
+  "naics": "624210",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "community",
+   "families"
+  ],
+  "problems": [
+   "donations_volunteers",
+   "events_registration"
+  ],
+  "features": [
+   "Distribution-day calendar",
+   "Volunteer shift signup"
+  ],
+  "pages": [
+   "Get food",
+   "Volunteer"
+  ],
+  "customer": "Neighbors in need and volunteers",
+  "buyer": "Executive director",
+  "styles": [
+   "warm_community",
+   "high_contrast",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Find hours → visit; volunteers sign up by email",
+  "naicsTitle": "Community Food Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "church",
+  "sector": "community",
+  "label": "Church / faith community",
+  "short": "Church",
+  "naics": "813110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "community",
+   "families"
+  ],
+  "problems": [
+   "events_registration",
+   "donations_volunteers"
+  ],
+  "features": [
+   "Service times + plan-your-visit",
+   "Ministry signup"
+  ],
+  "pages": [
+   "Plan a visit",
+   "Events"
+  ],
+  "customer": "Newcomers and members",
+  "buyer": "Pastor/admin",
+  "styles": [
+   "warm_community",
+   "minimalist",
+   "earthy"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Find service times → visit → connect → serve",
+  "naicsTitle": "Religious Organizations",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "youth_mentoring",
+  "sector": "community",
+  "label": "Youth mentoring nonprofit",
+  "short": "Youth Mentoring",
+  "naics": "624110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "community",
+   "families"
+  ],
+  "problems": [
+   "donations_volunteers",
+   "client_onboarding",
+   "events_registration"
+  ],
+  "features": [
+   "Mentor application flow",
+   "Program explainer"
+  ],
+  "pages": [
+   "Programs",
+   "Become a mentor"
+  ],
+  "customer": "Volunteers and families",
+  "buyer": "Program director",
+  "styles": [
+   "warm_community",
+   "bright_friendly",
+   "bold_type"
+  ],
+  "sensitive": [
+   "minors"
+  ],
+  "sources": [
+   "NAICS",
+   "FTC_COPPA"
+  ],
+  "workflow": "Interest → application → screening → match → meetups",
+  "naicsTitle": "Child and Youth Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "animal_rescue",
+  "sector": "community",
+  "label": "Animal rescue",
+  "short": "Animal Rescue",
+  "naics": "813312",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "pet_owners",
+   "community"
+  ],
+  "problems": [
+   "listings_search",
+   "donations_volunteers",
+   "client_onboarding"
+  ],
+  "features": [
+   "Adoptable-pets grid (placeholder pets)",
+   "Adoption application"
+  ],
+  "pages": [
+   "Adopt",
+   "Foster"
+  ],
+  "customer": "Adopters, fosters and donors",
+  "buyer": "Director/volunteer coordinator",
+  "styles": [
+   "playful",
+   "warm_community",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Browse pets → apply → meet → adopt",
+  "naicsTitle": "Environment, Conservation and Wildlife Organizations",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "arts_nonprofit",
+  "sector": "community",
+  "label": "Community theater",
+  "short": "Theater",
+  "naics": "711110",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "community"
+  ],
+  "problems": [
+   "events_registration",
+   "donations_volunteers"
+  ],
+  "features": [
+   "Season calendar with ticket mockup",
+   "Audition signup"
+  ],
+  "pages": [
+   "Shows",
+   "Support us"
+  ],
+  "customer": "Theatergoers and local performers",
+  "buyer": "Managing director",
+  "styles": [
+   "bold_type",
+   "luxury_editorial",
+   "retro"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_COMMERCE"
+  ],
+  "workflow": "See season → buy tickets → donate → volunteer",
+  "naicsTitle": "Theater Companies and Dinner Theaters",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "business_association",
+  "sector": "community",
+  "label": "Business improvement district / merchants association",
+  "short": "Merchants Assoc.",
+  "naics": "813910",
+  "audience": "b2b",
+  "local": true,
+  "audiences": [
+   "business_owners",
+   "community"
+  ],
+  "problems": [
+   "listings_search",
+   "events_registration"
+  ],
+  "features": [
+   "Member business directory (demo data)",
+   "Corridor events calendar"
+  ],
+  "pages": [
+   "Directory",
+   "Events"
+  ],
+  "customer": "Corridor shoppers and member businesses",
+  "buyer": "Executive director",
+  "styles": [
+   "warm_community",
+   "bright_friendly",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_FED",
+   "PHL_SIP"
+  ],
+  "workflow": "Shoppers discover businesses; members join events",
+  "naicsTitle": "Business Associations",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "home_care",
+  "sector": "care",
+  "label": "Non-medical home care agency",
+  "short": "Home Care",
+  "naics": "621610",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "seniors",
+   "families"
+  ],
+  "problems": [
+   "lead_capture",
+   "client_onboarding",
+   "family_updates"
+  ],
+  "features": [
+   "Care-needs questionnaire (no medical history)",
+   "Caregiver visit log (fictional data)"
+  ],
+  "pages": [
+   "Services",
+   "Free consultation"
+  ],
+  "customer": "Adult children arranging care for a parent",
+  "buyer": "Agency owner",
+  "styles": [
+   "high_contrast",
+   "warm_community",
+   "clinical_calm"
+  ],
+  "sensitive": [
+   "medical",
+   "seniors"
+  ],
+  "sources": [
+   "NAICS",
+   "HHS_HIPAA"
+  ],
+  "workflow": "Crisis/decision → call → assessment → care plan → visits",
+  "naicsTitle": "Home Health Care Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "senior_companion",
+  "sector": "care",
+  "label": "Senior companion service",
+  "short": "Companion Care",
+  "naics": "624120",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "seniors",
+   "families"
+  ],
+  "problems": [
+   "online_booking",
+   "family_updates",
+   "client_onboarding"
+  ],
+  "features": [
+   "Visit scheduler",
+   "Family update feed (fictional)"
+  ],
+  "pages": [
+   "How it works",
+   "Schedule visits"
+  ],
+  "customer": "Families of older adults living alone",
+  "buyer": "Owner",
+  "styles": [
+   "high_contrast",
+   "warm_community",
+   "earthy"
+  ],
+  "sensitive": [
+   "seniors"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Family call → meet → recurring visits → updates",
+  "naicsTitle": "Services for the Elderly and Persons with Disabilities",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "adult_day",
+  "sector": "care",
+  "label": "Adult day center",
+  "short": "Adult Day",
+  "naics": "624120",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "seniors",
+   "families"
+  ],
+  "problems": [
+   "events_registration",
+   "family_updates",
+   "online_booking"
+  ],
+  "features": [
+   "Activity calendar",
+   "Tour booking"
+  ],
+  "pages": [
+   "Daily life",
+   "Book a tour"
+  ],
+  "customer": "Families seeking daytime care",
+  "buyer": "Director",
+  "styles": [
+   "high_contrast",
+   "warm_community",
+   "bright_friendly"
+  ],
+  "sensitive": [
+   "seniors",
+   "medical"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Tour → enroll → daily attendance → family updates",
+  "naicsTitle": "Services for the Elderly and Persons with Disabilities",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "assisted_living",
+  "sector": "care",
+  "label": "Assisted living community",
+  "short": "Assisted Living",
+  "naics": "623312",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "seniors",
+   "families"
+  ],
+  "problems": [
+   "online_booking",
+   "listings_search",
+   "lead_capture"
+  ],
+  "features": [
+   "Floor-plan browser",
+   "Tour scheduler"
+  ],
+  "pages": [
+   "Floor plans",
+   "Schedule a tour"
+  ],
+  "customer": "Families researching senior living",
+  "buyer": "Executive director/sales",
+  "styles": [
+   "luxury_editorial",
+   "high_contrast",
+   "warm_community"
+  ],
+  "sensitive": [
+   "seniors",
+   "medical"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Research → tour → assessment → move-in",
+  "naicsTitle": "Assisted Living Facilities for the Elderly",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "aging_in_place",
+  "sector": "care",
+  "label": "Aging-in-place remodeler",
+  "short": "Home Mods",
+  "naics": "236118",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "seniors",
+   "homeowners"
+  ],
+  "problems": [
+   "instant_quote",
+   "lead_capture",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Safety checklist by room",
+   "Grab bar / ramp estimator (sample rates)"
+  ],
+  "pages": [
+   "Modifications",
+   "Free assessment"
+  ],
+  "customer": "Seniors and their families",
+  "buyer": "Owner/contractor",
+  "styles": [
+   "high_contrast",
+   "bright_friendly",
+   "minimalist"
+  ],
+  "sensitive": [
+   "seniors"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Fall or concern → assessment → quote → install",
+  "naicsTitle": "Residential Remodelers",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "caregiver_staffing",
+  "sector": "care",
+  "label": "Caregiver staffing agency",
+  "short": "Care Staffing",
+  "naics": "561320",
+  "audience": "b2b",
+  "local": true,
+  "audiences": [
+   "business_owners",
+   "seniors"
+  ],
+  "problems": [
+   "listings_search",
+   "client_onboarding",
+   "dispatch_routing"
+  ],
+  "features": [
+   "Open shifts board (demo data)",
+   "Caregiver application"
+  ],
+  "pages": [
+   "Open shifts",
+   "Apply"
+  ],
+  "customer": "Care facilities and caregivers",
+  "buyer": "Owner/scheduler",
+  "styles": [
+   "minimalist",
+   "high_contrast",
+   "bright_friendly"
+  ],
+  "sensitive": [
+   "seniors"
+  ],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Facility request → match caregiver → shift → timesheet",
+  "naicsTitle": "Temporary Help Services",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "laundromat",
+  "sector": "local",
+  "label": "Laundromat & wash-and-fold",
+  "short": "Laundromat",
+  "naics": "812310",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "renters",
+   "students",
+   "families"
+  ],
+  "problems": [
+   "online_ordering",
+   "loyalty_rewards",
+   "owner_reporting"
+  ],
+  "features": [
+   "Wash-and-fold pickup scheduler",
+   "Machine availability board (demo data)"
+  ],
+  "pages": [
+   "Wash & fold",
+   "Visit"
+  ],
+  "customer": "Renters without in-unit laundry",
+  "buyer": "Owner",
+  "styles": [
+   "bright_friendly",
+   "retro",
+   "bold_type"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS",
+   "PHL_SIP"
+  ],
+  "workflow": "Haul laundry → wait for machines → fold; or drop-off service",
+  "naicsTitle": "Coin-Operated Laundries and Drycleaners",
+  "workflowVerified": false,
+  "phillyNote": true
+ },
+ {
+  "id": "dry_cleaner",
+  "sector": "local",
+  "label": "Dry cleaner",
+  "short": "Dry Cleaner",
+  "naics": "812320",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals"
+  ],
+  "problems": [
+   "online_ordering",
+   "job_tracking",
+   "memberships"
+  ],
+  "features": [
+   "Pickup/delivery scheduler",
+   "Order-ready tracker"
+  ],
+  "pages": [
+   "Services",
+   "Schedule pickup"
+  ],
+  "customer": "Professionals with work clothes",
+  "buyer": "Owner",
+  "styles": [
+   "minimalist",
+   "luxury_editorial",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Drop off → ticket → ready → pickup",
+  "naicsTitle": "Drycleaning and Laundry Services (except Coin-Operated)",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "tailor",
+  "sector": "local",
+  "label": "Tailor & alterations shop",
+  "short": "Tailor",
+  "naics": "811490",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "event_hosts"
+  ],
+  "problems": [
+   "job_tracking",
+   "online_booking",
+   "instant_quote"
+  ],
+  "features": [
+   "Fitting appointment booking",
+   "Alteration status tracker"
+  ],
+  "pages": [
+   "Services",
+   "Book a fitting"
+  ],
+  "customer": "Wedding parties and professionals",
+  "buyer": "Owner/tailor",
+  "styles": [
+   "luxury_editorial",
+   "minimalist",
+   "retro"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Fitting → pin → alterations → pickup",
+  "naicsTitle": "Other Personal and Household Goods Repair and Maintenance",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "phone_repair",
+  "sector": "local",
+  "label": "Phone & electronics repair shop",
+  "short": "Phone Repair",
+  "naics": "811210",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students",
+   "professionals"
+  ],
+  "problems": [
+   "job_tracking",
+   "instant_quote",
+   "online_booking"
+  ],
+  "features": [
+   "Device + issue price finder (sample rates)",
+   "Repair status tracker"
+  ],
+  "pages": [
+   "Repairs",
+   "Get a price"
+  ],
+  "customer": "People with cracked screens",
+  "buyer": "Owner/tech",
+  "styles": [
+   "bold_type",
+   "glass",
+   "dark_premium"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Crack screen → search → walk in → repair → pickup",
+  "naicsTitle": "Electronic and Precision Equipment Repair and Maintenance",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "shoe_repair",
+  "sector": "local",
+  "label": "Shoe repair & sneaker care shop",
+  "short": "Shoe Repair",
+  "naics": "811430",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "professionals",
+   "students"
+  ],
+  "problems": [
+   "job_tracking",
+   "instant_quote",
+   "gallery_portfolio"
+  ],
+  "features": [
+   "Service picker by shoe type",
+   "Before/after restoration gallery"
+  ],
+  "pages": [
+   "Services",
+   "Start a repair"
+  ],
+  "customer": "Shoe lovers and sneaker collectors",
+  "buyer": "Owner/cobbler",
+  "styles": [
+   "retro",
+   "industrial",
+   "brutalist"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Drop off → quote → repair → pickup",
+  "naicsTitle": "Footwear and Leather Goods Repair",
+  "workflowVerified": false,
+  "phillyNote": false
+ },
+ {
+  "id": "barber_school",
+  "sector": "local",
+  "label": "Cosmetology & barber school",
+  "short": "Beauty School",
+  "naics": "611511",
+  "audience": "b2c",
+  "local": true,
+  "audiences": [
+   "students"
+  ],
+  "problems": [
+   "lead_capture",
+   "events_registration",
+   "online_booking"
+  ],
+  "features": [
+   "Program explorer",
+   "Student-clinic service booking"
+  ],
+  "pages": [
+   "Programs",
+   "Book a service"
+  ],
+  "customer": "Prospective students and discount-service clients",
+  "buyer": "School director",
+  "styles": [
+   "bold_type",
+   "glass",
+   "bright_friendly"
+  ],
+  "sensitive": [],
+  "sources": [
+   "NAICS"
+  ],
+  "workflow": "Interest → tour → enroll; public books student-clinic services",
+  "naicsTitle": "Cosmetology and Barber Schools",
+  "workflowVerified": false,
+  "phillyNote": false
+ }
+]

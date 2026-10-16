@@ -1,0 +1,1090 @@
+[
+ {
+  "outcome": "every inquiry arrives with the details the owner needs",
+  "id": "lead_capture",
+  "label": "Lead capture & qualification",
+  "problem": "Inquiries arrive as vague one-line messages, so the owner plays phone tag before knowing if the job fits.",
+  "summary": "A short, friendly request flow that asks the 3-5 questions the owner always asks, then shows a clean lead card.",
+  "steps": [
+   "Visitor picks a service",
+   "Answers 3-5 qualifying questions",
+   "Adds photos/notes",
+   "Sees a clear next step",
+   "Owner reviews a scored lead card"
+  ],
+  "features": [
+   "Multi-step request form with progress bar",
+   "Qualifying questions with smart defaults",
+   "Lead card with priority tag (demo data)",
+   "Thank-you screen with honest response-time expectation"
+  ],
+  "screens": [
+   "Home",
+   "Request flow",
+   "Lead inbox (owner view)"
+  ],
+  "demoScope": [
+   "3-step request form",
+   "Owner lead list with 6 synthetic leads",
+   "Lead detail card"
+  ],
+  "differentiators": [
+   "Guided intake wizard",
+   "Photo-first request",
+   "Priority scoring preview"
+  ],
+  "formats": [
+   "marketing_site",
+   "mini_crm",
+   "site_plus_portal",
+   "automation_flow",
+   "ai_assistant"
+  ],
+  "tech": 1,
+  "sources": [
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "customers book themselves instead of waiting on a reply",
+  "id": "online_booking",
+  "label": "Online booking & scheduling",
+  "problem": "Booking happens by DM and phone, so slots go unfilled and the owner answers the same availability question all day.",
+  "summary": "A booking flow with service picker, staff/time-slot selection and a confirmation screen, all on demo availability.",
+  "steps": [
+   "Choose service",
+   "Pick a provider or 'any'",
+   "Select an open slot",
+   "Enter contact details",
+   "See confirmation + add-to-calendar"
+  ],
+  "features": [
+   "Service menu with duration and price range",
+   "Available appointment slots (demo data)",
+   "Booking confirmation screen",
+   "Reschedule/cancel link (mock)"
+  ],
+  "screens": [
+   "Services",
+   "Book appointment",
+   "Confirmation",
+   "Owner day view"
+  ],
+  "demoScope": [
+   "Service picker",
+   "7-day slot grid from synthetic availability",
+   "Confirmation + owner day view"
+  ],
+  "differentiators": [
+   "Live availability preview (demo data)",
+   "Provider picker",
+   "One-tap rebook"
+  ],
+  "formats": [
+   "marketing_site",
+   "booking_app",
+   "mobile_concept",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [
+   "SQUARE_APPT",
+   "MINDBODY",
+   "HOUSECALL"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "customers see a ballpark before anyone drives out",
+  "id": "instant_quote",
+  "label": "Instant quote / estimate calculator",
+  "problem": "Customers want a ballpark price before they call; the owner wastes trips quoting jobs that never book.",
+  "summary": "An interactive estimator that turns a few inputs into a clearly-labeled price range using sample rates.",
+  "steps": [
+   "Pick job type",
+   "Enter size/quantity",
+   "Choose add-ons",
+   "See a ballpark range with assumptions",
+   "Request a firm quote"
+  ],
+  "features": [
+   "Interactive estimator with sliders",
+   "Price range built from labeled sample rates (not real pricing)",
+   "Add-on toggles",
+   "Request-firm-quote handoff"
+  ],
+  "screens": [
+   "Home",
+   "Estimator",
+   "Quote summary"
+  ],
+  "demoScope": [
+   "Estimator with 3-4 inputs",
+   "Range output with visible assumptions",
+   "Quote summary screen"
+  ],
+  "differentiators": [
+   "Instant quote",
+   "Package selector",
+   "Good-better-best tiers"
+  ],
+  "formats": [
+   "marketing_site",
+   "booking_app",
+   "mobile_concept",
+   "site_plus_portal",
+   "ai_assistant"
+  ],
+  "tech": 2,
+  "sources": [
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "guard": "Prices are illustrative sample rates; never present as the business's real pricing."
+ },
+ {
+  "outcome": "the cancellation policy is clear before the appointment",
+  "id": "payments_deposits",
+  "label": "Deposits & checkout flow",
+  "problem": "No-shows and last-minute cancellations cost real money because nothing is collected up front.",
+  "summary": "A checkout and deposit flow mockup that shows policy, amount and receipt, with no live payment processing.",
+  "steps": [
+   "Select service",
+   "Review cancellation policy",
+   "Enter card on a mock form",
+   "See receipt + policy recap"
+  ],
+  "features": [
+   "Deposit step with clear policy text (mock)",
+   "Mock checkout form (no real payments processed)",
+   "Receipt screen",
+   "Owner deposits ledger (demo data)"
+  ],
+  "screens": [
+   "Book",
+   "Deposit checkout",
+   "Receipt"
+  ],
+  "demoScope": [
+   "Mock checkout UI",
+   "Receipt",
+   "Owner ledger with synthetic rows"
+  ],
+  "differentiators": [
+   "Deposit-backed booking (mock)",
+   "Clear cancellation policy",
+   "Split payment preview"
+  ],
+  "formats": [
+   "booking_app",
+   "ecommerce_store",
+   "mobile_concept",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [
+   "SQUARE_APPT",
+   "GINGR"
+  ],
+  "guard": "Payment UI is a mockup; it must state that no real payment is processed."
+ },
+ {
+  "outcome": "new clients arrive with their details already in",
+  "id": "client_onboarding",
+  "label": "Onboarding & intake wizard",
+  "problem": "New clients fill out paper forms or long PDFs, and key details get lost before the first visit.",
+  "summary": "A step-by-step intake wizard that collects only demo fields and ends in a tidy profile summary.",
+  "steps": [
+   "Welcome + what to expect",
+   "Basic details",
+   "Preferences/needs checklist",
+   "Acknowledgements (sample text)",
+   "Profile summary"
+  ],
+  "features": [
+   "Step-by-step intake wizard",
+   "Save-and-resume indicator (demo)",
+   "Profile summary card",
+   "Sample acknowledgement screen (placeholder legal text)"
+  ],
+  "screens": [
+   "Welcome",
+   "Intake wizard",
+   "Profile summary"
+  ],
+  "demoScope": [
+   "4-step wizard",
+   "Validation states",
+   "Summary screen"
+  ],
+  "differentiators": [
+   "Intake wizard",
+   "Progress-saving form",
+   "Plain-language expectations"
+  ],
+  "formats": [
+   "customer_portal",
+   "booking_app",
+   "mobile_concept",
+   "site_plus_portal",
+   "automation_flow"
+  ],
+  "tech": 2,
+  "sources": [
+   "PROCARE",
+   "GINGR"
+  ],
+  "guard": "Intake collects synthetic fields only; no real personal, medical or financial data."
+ },
+ {
+  "outcome": "clients get a nudge and a one-tap way to reschedule",
+  "id": "reminders",
+  "label": "Reminders & no-show reduction",
+  "problem": "Clients forget appointments and renewals, so the schedule has holes that nobody notices until too late.",
+  "summary": "A reminder timeline that shows what message goes out when, with message previews and a confirm/reschedule flow.",
+  "steps": [
+   "Appointment booked",
+   "Reminder schedule shown",
+   "Client confirms or reschedules",
+   "Owner sees confirmed vs unconfirmed"
+  ],
+  "features": [
+   "Reminder timeline builder",
+   "Message previews (mock — no SMS or email is sent)",
+   "Confirm/reschedule screen",
+   "Unconfirmed list for the owner (demo data)"
+  ],
+  "screens": [
+   "Reminder settings",
+   "Client confirm screen",
+   "Owner schedule"
+  ],
+  "demoScope": [
+   "Timeline UI",
+   "2-3 message previews",
+   "Confirm screen"
+  ],
+  "differentiators": [
+   "Automated follow-up (mock)",
+   "Confirm-or-reschedule in one tap",
+   "Unconfirmed alert list"
+  ],
+  "formats": [
+   "automation_flow",
+   "booking_app",
+   "mini_crm",
+   "mobile_concept"
+  ],
+  "tech": 2,
+  "sources": [
+   "SQUARE_APPT",
+   "PROCARE"
+  ],
+  "guard": "Reminders are previews; never claim SMS/email is actually sent."
+ },
+ {
+  "outcome": "clients check status instead of calling",
+  "id": "client_portal",
+  "label": "Customer portal & status tracking",
+  "problem": "Clients call to ask 'where are we at?' because progress lives in the owner's head.",
+  "summary": "A logged-in-style portal mockup with project timeline, documents, messages and next steps on demo data.",
+  "steps": [
+   "Client opens portal",
+   "Sees status timeline",
+   "Downloads/uploads documents (mock)",
+   "Messages the team",
+   "Approves next step"
+  ],
+  "features": [
+   "Project/status timeline",
+   "Document list with mock upload",
+   "Message thread (demo data)",
+   "Approve-next-step button"
+  ],
+  "screens": [
+   "Portal home",
+   "Project timeline",
+   "Documents",
+   "Messages"
+  ],
+  "demoScope": [
+   "Portal dashboard",
+   "Timeline with 5 stages",
+   "Docs + messages panels"
+  ],
+  "differentiators": [
+   "Live status timeline (demo data)",
+   "Approval checkpoints",
+   "Single source of truth for the client"
+  ],
+  "formats": [
+   "customer_portal",
+   "site_plus_portal",
+   "mobile_concept",
+   "mini_crm"
+  ],
+  "tech": 3,
+  "sources": [
+   "APPFOLIO",
+   "TEKMETRIC"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "regulars have a reason to come back sooner",
+  "id": "loyalty_rewards",
+  "label": "Loyalty & rewards",
+  "problem": "Regulars get the same treatment as first-timers, so there is no reason to come back sooner.",
+  "summary": "A digital punch card / points wallet with a rewards catalog and a staff 'add visit' screen on demo data.",
+  "steps": [
+   "Customer joins",
+   "Earns points per visit",
+   "Sees progress to next reward",
+   "Redeems at checkout",
+   "Owner sees top regulars"
+  ],
+  "features": [
+   "Points wallet with progress ring",
+   "Rewards catalog",
+   "Staff 'add visit' screen",
+   "Top regulars list (demo data)"
+  ],
+  "screens": [
+   "Rewards wallet",
+   "Rewards catalog",
+   "Staff screen"
+  ],
+  "demoScope": [
+   "Wallet UI",
+   "Catalog",
+   "Staff add-visit flow"
+  ],
+  "differentiators": [
+   "Rewards wallet",
+   "Birthday perk (demo)",
+   "Visit streak badge"
+  ],
+  "formats": [
+   "mobile_concept",
+   "marketing_site",
+   "booking_app",
+   "site_plus_portal"
+  ],
+  "tech": 1,
+  "sources": [
+   "SQUARE_APPT"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "regulars can commit to a plan instead of one-off visits",
+  "id": "memberships",
+  "label": "Memberships, packages & subscriptions",
+  "problem": "Revenue is lumpy because every visit is a one-off sale.",
+  "summary": "A membership/package comparison page plus a member dashboard showing usage, renewal date and perks.",
+  "steps": [
+   "Compare plans",
+   "Choose a plan",
+   "Mock checkout",
+   "Member dashboard shows usage and renewal"
+  ],
+  "features": [
+   "Plan comparison table",
+   "Member dashboard with usage meter",
+   "Pause/upgrade flow (mock)",
+   "Renewal date + perks"
+  ],
+  "screens": [
+   "Plans",
+   "Join",
+   "Member dashboard"
+  ],
+  "demoScope": [
+   "Plan table",
+   "Join flow",
+   "Member dashboard"
+  ],
+  "differentiators": [
+   "Membership tiers",
+   "Usage meter",
+   "Pause instead of cancel"
+  ],
+  "formats": [
+   "marketing_site",
+   "customer_portal",
+   "mobile_concept",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [
+   "MINDBODY"
+  ],
+  "guard": "Membership checkout is a mockup; no recurring billing is set up."
+ },
+ {
+  "outcome": "shoppers see what's in stock before they visit",
+  "id": "inventory",
+  "label": "Inventory & stock visibility",
+  "problem": "Customers call to ask if something is in stock, and staff check the back room every time.",
+  "summary": "A product catalog with live-looking stock badges, low-stock alerts and a simple restock view on demo data.",
+  "steps": [
+   "Browse catalog",
+   "See stock badges",
+   "Reserve for pickup",
+   "Owner sees low-stock list"
+  ],
+  "features": [
+   "Catalog with stock badges (demo data)",
+   "Reserve-for-pickup flow",
+   "Low-stock alert list",
+   "Restock checklist"
+  ],
+  "screens": [
+   "Catalog",
+   "Product detail",
+   "Inventory (owner)"
+  ],
+  "demoScope": [
+   "Catalog grid",
+   "Product detail with stock",
+   "Owner low-stock view"
+  ],
+  "differentiators": [
+   "Reserve-for-pickup",
+   "Low-stock alerts",
+   "Back-in-stock signup (mock)"
+  ],
+  "formats": [
+   "ecommerce_store",
+   "ops_dashboard",
+   "mobile_concept",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [],
+  "guard": ""
+ },
+ {
+  "outcome": "the owner sees the week on one screen",
+  "id": "owner_reporting",
+  "label": "Owner dashboard & reporting",
+  "problem": "The owner runs the business from memory and a notes app, with no single view of the week.",
+  "summary": "A one-screen owner dashboard with clearly-labeled sample KPIs, a jobs/appointments table and filters.",
+  "steps": [
+   "Owner opens dashboard",
+   "Scans week at a glance",
+   "Filters by service/staff",
+   "Drills into a record"
+  ],
+  "features": [
+   "KPI tiles labeled 'sample data'",
+   "Week view chart (synthetic)",
+   "Filterable records table",
+   "Record detail drawer"
+  ],
+  "screens": [
+   "Dashboard",
+   "Records",
+   "Record detail"
+  ],
+  "demoScope": [
+   "KPI row",
+   "Chart",
+   "Table + drawer"
+  ],
+  "differentiators": [
+   "One-screen week view",
+   "Plain-language insights (sample)",
+   "Export-ready table"
+  ],
+  "formats": [
+   "ops_dashboard",
+   "mini_crm",
+   "mobile_concept"
+  ],
+  "tech": 2,
+  "sources": [],
+  "guard": "All numbers are synthetic sample data, labeled as such; never present as real business results."
+ },
+ {
+  "outcome": "crews get a clear day plan instead of a text thread",
+  "id": "dispatch_routing",
+  "label": "Scheduling, dispatch & routes",
+  "problem": "Crews zig-zag across town because jobs are assigned by text message.",
+  "summary": "A dispatch board with drag-to-assign jobs, crew lanes and a route-order preview on demo data.",
+  "steps": [
+   "Jobs come in",
+   "Dispatcher assigns to crew",
+   "Route order shown",
+   "Crew marks job done"
+  ],
+  "features": [
+   "Dispatch board with crew lanes",
+   "Route-order preview (static demo, no live maps)",
+   "Job status chips",
+   "Crew mobile job card"
+  ],
+  "screens": [
+   "Dispatch board",
+   "Route view",
+   "Crew job card"
+  ],
+  "demoScope": [
+   "Board with 3 crews",
+   "Static route list",
+   "Job card"
+  ],
+  "differentiators": [
+   "Route scheduling preview",
+   "Drag-to-assign",
+   "Crew day sheet"
+  ],
+  "formats": [
+   "ops_dashboard",
+   "mobile_concept",
+   "mini_crm"
+  ],
+  "tech": 3,
+  "sources": [
+   "JOBBER",
+   "HOUSECALL"
+  ],
+  "guard": "Route view is a static illustration; never claim live GPS or maps integration."
+ },
+ {
+  "outcome": "happy customers get an easy path to share feedback",
+  "id": "reviews_reputation",
+  "label": "Reviews & reputation requests",
+  "problem": "Happy customers never leave reviews, so the listing doesn't reflect the real work.",
+  "summary": "A post-visit feedback flow that routes happy customers to a review step and captures private feedback.",
+  "steps": [
+   "Visit completed",
+   "Customer rates the visit",
+   "Happy path: review prompt",
+   "Unhappy path: private feedback to owner"
+  ],
+  "features": [
+   "Post-visit rating screen",
+   "Review-request preview (mock — nothing is posted)",
+   "Private feedback inbox (demo data)",
+   "Response templates"
+  ],
+  "screens": [
+   "Rate your visit",
+   "Thank you",
+   "Feedback inbox"
+  ],
+  "demoScope": [
+   "Rating screen",
+   "Two branch screens",
+   "Owner inbox"
+  ],
+  "differentiators": [
+   "Feedback-first flow",
+   "Owner reply templates",
+   "Review QR card"
+  ],
+  "formats": [
+   "automation_flow",
+   "mini_crm",
+   "mobile_concept",
+   "marketing_site"
+  ],
+  "tech": 1,
+  "sources": [
+   "HOUSECALL",
+   "FTC_REVIEWS"
+  ],
+  "guard": "Never fabricate reviews or ratings; sample feedback is clearly labeled synthetic."
+ },
+ {
+  "outcome": "word of mouth gets tracked and thanked",
+  "id": "referrals",
+  "label": "Referral program",
+  "problem": "Word of mouth is the best channel but nobody tracks or thanks referrers.",
+  "summary": "A referral page with shareable code, referral tracker and a thank-you reward flow on demo data.",
+  "steps": [
+   "Customer gets a code",
+   "Shares it",
+   "Friend books with code",
+   "Referrer sees status + reward"
+  ],
+  "features": [
+   "Referral code card",
+   "Share sheet (mock)",
+   "Referral tracker (demo data)",
+   "Reward redemption"
+  ],
+  "screens": [
+   "Refer a friend",
+   "Referral tracker"
+  ],
+  "demoScope": [
+   "Code card",
+   "Tracker list",
+   "Reward state"
+  ],
+  "differentiators": [
+   "Give-get referral",
+   "Referral leaderboard (demo)",
+   "Thank-you automation (mock)"
+  ],
+  "formats": [
+   "marketing_site",
+   "mobile_concept",
+   "mini_crm"
+  ],
+  "tech": 1,
+  "sources": [],
+  "guard": ""
+ },
+ {
+  "outcome": "orders arrive complete instead of scribbled on a ticket",
+  "id": "online_ordering",
+  "label": "Online ordering & preorders",
+  "problem": "Orders come in by phone at peak time and get written on tickets, so mistakes and lost orders happen.",
+  "summary": "A menu/catalog ordering flow with modifiers, pickup time slots and an order-status screen on demo data.",
+  "steps": [
+   "Browse menu",
+   "Customize item",
+   "Choose pickup/delivery window",
+   "Mock checkout",
+   "Order status screen"
+  ],
+  "features": [
+   "Menu with modifiers and dietary tags",
+   "Pickup time-slot picker (demo data)",
+   "Mock checkout (no real payments)",
+   "Order status tracker"
+  ],
+  "screens": [
+   "Menu",
+   "Item detail",
+   "Cart",
+   "Order status"
+  ],
+  "demoScope": [
+   "Menu + item modal",
+   "Cart + pickup slot",
+   "Status screen"
+  ],
+  "differentiators": [
+   "Order-ahead pickup windows",
+   "Allergen filters",
+   "Reorder favorites"
+  ],
+  "formats": [
+   "ecommerce_store",
+   "mobile_concept",
+   "marketing_site",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [],
+  "guard": "Checkout is a mockup; no payment processing or POS integration."
+ },
+ {
+  "outcome": "people hold a spot instead of walking away",
+  "id": "waitlist_capacity",
+  "label": "Waitlist & capacity",
+  "problem": "When it's full, people walk away or call repeatedly instead of holding a spot.",
+  "summary": "A join-the-waitlist flow with live-looking position, estimated wait and owner capacity view on demo data.",
+  "steps": [
+   "Customer joins waitlist",
+   "Sees position and estimate",
+   "Gets 'you're up' state",
+   "Owner manages capacity"
+  ],
+  "features": [
+   "Join-waitlist form",
+   "Position + estimated wait (demo data)",
+   "'You're up' screen",
+   "Owner capacity board"
+  ],
+  "screens": [
+   "Join waitlist",
+   "Status",
+   "Capacity board"
+  ],
+  "demoScope": [
+   "Join flow",
+   "Status screen",
+   "Owner board"
+  ],
+  "differentiators": [
+   "Virtual line",
+   "Capacity board",
+   "Spot-opened alert (mock)"
+  ],
+  "formats": [
+   "booking_app",
+   "mobile_concept",
+   "ops_dashboard"
+  ],
+  "tech": 2,
+  "sources": [
+   "SQUARE_APPT",
+   "PROCARE"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "prospects can actually see the quality of the work",
+  "id": "gallery_portfolio",
+  "label": "Interactive gallery & before/after",
+  "problem": "The work is great but it's buried in a camera roll, so prospects can't see the quality.",
+  "summary": "A filterable portfolio with before/after sliders and a 'get this look' inquiry, using placeholder imagery.",
+  "steps": [
+   "Browse gallery",
+   "Filter by style/service",
+   "Drag before/after slider",
+   "Inquire about a similar job"
+  ],
+  "features": [
+   "Before/after comparison slider",
+   "Filterable gallery grid",
+   "Project detail with specs",
+   "'Get a quote like this' button"
+  ],
+  "screens": [
+   "Home",
+   "Gallery",
+   "Project detail"
+  ],
+  "demoScope": [
+   "Gallery grid",
+   "Before/after slider",
+   "Detail page"
+  ],
+  "differentiators": [
+   "Interactive before/after",
+   "Style filters",
+   "Project story cards"
+  ],
+  "formats": [
+   "marketing_site",
+   "mobile_concept",
+   "site_plus_portal"
+  ],
+  "tech": 1,
+  "sources": [],
+  "guard": "Use placeholder or licensed stock imagery; never present stock photos as the business's real work."
+ },
+ {
+  "outcome": "families see the day without texting staff",
+  "id": "family_updates",
+  "label": "Family & caregiver updates feed",
+  "problem": "Families text all day asking how things are going, and staff can't answer while working.",
+  "summary": "A daily updates feed with activity cards, simple icons and an end-of-day summary, using fictional placeholder profiles.",
+  "steps": [
+   "Staff logs activity",
+   "Family sees timeline",
+   "End-of-day summary",
+   "Family sends a note"
+  ],
+  "features": [
+   "Daily activity timeline",
+   "Icon-based quick logs",
+   "End-of-day summary card",
+   "Message the team (demo data)"
+  ],
+  "screens": [
+   "Family feed",
+   "Staff quick-log",
+   "Daily summary"
+  ],
+  "demoScope": [
+   "Feed with 6 cards",
+   "Quick-log screen",
+   "Summary"
+  ],
+  "differentiators": [
+   "Parent updates",
+   "Report card",
+   "Quiet-hours messaging"
+  ],
+  "formats": [
+   "mobile_concept",
+   "customer_portal",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [
+   "PROCARE",
+   "GINGR"
+  ],
+  "guard": "Fictional placeholder profiles only; no real names or photos of children, seniors or clients."
+ },
+ {
+  "outcome": "customers stay on a schedule instead of calling only in emergencies",
+  "id": "maintenance_plans",
+  "label": "Recurring service & maintenance plans",
+  "problem": "Customers only call when something breaks, so work is reactive and seasonal.",
+  "summary": "A maintenance-plan page with tiers, a service calendar and a member view of upcoming visits.",
+  "steps": [
+   "Compare plans",
+   "Enroll (mock)",
+   "See upcoming visits",
+   "Get pre-visit reminder (mock)"
+  ],
+  "features": [
+   "Plan tiers with included visits",
+   "Service calendar (demo data)",
+   "Member upcoming-visits view",
+   "Pre-visit checklist"
+  ],
+  "screens": [
+   "Plans",
+   "Enroll",
+   "My visits"
+  ],
+  "demoScope": [
+   "Plan tiers",
+   "Enroll flow",
+   "Upcoming visits"
+  ],
+  "differentiators": [
+   "Maintenance club",
+   "Seasonal checklist",
+   "Priority scheduling badge"
+  ],
+  "formats": [
+   "marketing_site",
+   "customer_portal",
+   "site_plus_portal",
+   "mobile_concept"
+  ],
+  "tech": 2,
+  "sources": [
+   "HOUSECALL"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "spots are tracked in one place instead of DMs",
+  "id": "events_registration",
+  "label": "Class & event registration",
+  "problem": "Spots for classes and events are tracked in DMs and spreadsheets, so overbooking and no-shows happen.",
+  "summary": "A schedule with class cards, capacity bars, registration and a check-in list on demo data.",
+  "steps": [
+   "Browse schedule",
+   "Pick a class/event",
+   "Register (mock)",
+   "Get confirmation",
+   "Staff checks in attendees"
+  ],
+  "features": [
+   "Weekly schedule with capacity bars",
+   "Registration flow",
+   "Confirmation + calendar add",
+   "Check-in list (demo data)"
+  ],
+  "screens": [
+   "Schedule",
+   "Class detail",
+   "Register",
+   "Check-in"
+  ],
+  "demoScope": [
+   "Schedule grid",
+   "Register flow",
+   "Check-in list"
+  ],
+  "differentiators": [
+   "Capacity bars",
+   "Spot-saver waitlist",
+   "Intro-offer badge"
+  ],
+  "formats": [
+   "booking_app",
+   "mobile_concept",
+   "marketing_site",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [
+   "MINDBODY"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "the same ten questions get answered without the owner",
+  "id": "ai_assistant_faq",
+  "label": "FAQ assistant concept (scripted)",
+  "problem": "The same ten questions eat the owner's evenings (hours, prices, availability, what to bring).",
+  "summary": "A chat-style assistant concept with scripted answers from a visible FAQ list and a human-handoff button.",
+  "steps": [
+   "Visitor asks a question",
+   "Assistant answers from the FAQ list",
+   "Unknown → hands off to a human form",
+   "Owner edits FAQ entries"
+  ],
+  "features": [
+   "Chat widget with scripted replies (concept — not a live AI)",
+   "Editable FAQ knowledge list",
+   "Human-handoff form",
+   "Conversation log (demo data)"
+  ],
+  "screens": [
+   "Chat widget",
+   "FAQ editor",
+   "Handoff form"
+  ],
+  "demoScope": [
+   "Widget with 6 scripted Q&As",
+   "FAQ list",
+   "Handoff"
+  ],
+  "differentiators": [
+   "Scripted FAQ assistant",
+   "Human handoff",
+   "Owner-editable answers"
+  ],
+  "formats": [
+   "ai_assistant",
+   "marketing_site",
+   "automation_flow"
+  ],
+  "tech": 2,
+  "sources": [],
+  "guard": "Scripted concept only; never claim a working AI receptionist or that it answers calls."
+ },
+ {
+  "outcome": "customers see progress and approve work in one tap",
+  "id": "job_tracking",
+  "label": "Job status & approvals",
+  "problem": "Customers drop something off and hear nothing until they call; approvals for extra work stall jobs.",
+  "summary": "A job tracker with stage timeline, photo-backed findings and an approve/decline step on demo data.",
+  "steps": [
+   "Drop-off logged",
+   "Status updates by stage",
+   "Findings with photos + estimate",
+   "Customer approves/declines",
+   "Ready for pickup"
+  ],
+  "features": [
+   "Stage timeline",
+   "Findings with placeholder photos",
+   "Approve/decline estimate step",
+   "Ready-for-pickup screen"
+  ],
+  "screens": [
+   "Track my job",
+   "Findings",
+   "Approval"
+  ],
+  "demoScope": [
+   "Timeline",
+   "Findings card",
+   "Approval flow"
+  ],
+  "differentiators": [
+   "Digital inspection report (demo)",
+   "One-tap approvals",
+   "Pickup-ready alert (mock)"
+  ],
+  "formats": [
+   "customer_portal",
+   "mobile_concept",
+   "ops_dashboard",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [
+   "TEKMETRIC"
+  ],
+  "guard": ""
+ },
+ {
+  "outcome": "supporters can give or sign up in a minute",
+  "id": "donations_volunteers",
+  "label": "Donations & volunteer signup",
+  "problem": "Supporters want to help but the 'how' is a PDF and an email address.",
+  "summary": "A give/volunteer hub with impact stories (placeholder), shift signup and a mock donation flow.",
+  "steps": [
+   "Visitor chooses give or volunteer",
+   "Picks amount or shift",
+   "Mock checkout or signup",
+   "Thank-you + share"
+  ],
+  "features": [
+   "Mock donation form (no real payments)",
+   "Volunteer shift calendar (demo data)",
+   "Placeholder impact stories",
+   "Thank-you page"
+  ],
+  "screens": [
+   "Home",
+   "Give",
+   "Volunteer",
+   "Thank you"
+  ],
+  "demoScope": [
+   "Give flow",
+   "Shift calendar",
+   "Thank-you"
+  ],
+  "differentiators": [
+   "Shift signup",
+   "Recurring-gift option (mock)",
+   "Supporter wall (opt-in, demo)"
+  ],
+  "formats": [
+   "marketing_site",
+   "mobile_concept",
+   "site_plus_portal"
+  ],
+  "tech": 1,
+  "sources": [],
+  "guard": "Impact numbers and stories are placeholders; never invent real outcomes."
+ },
+ {
+  "outcome": "people can browse and inquire without a phone call",
+  "id": "listings_search",
+  "label": "Listings search & inquiry",
+  "problem": "Inventory (units, homes, vehicles, roles) lives in a spreadsheet, so browsing and inquiring is painful.",
+  "summary": "A filterable listings grid with detail pages, saved favorites and an inquiry/tour request on demo data.",
+  "steps": [
+   "Browse listings",
+   "Filter",
+   "Open detail",
+   "Save favorite",
+   "Request info/tour"
+  ],
+  "features": [
+   "Filterable listings grid (demo data)",
+   "Listing detail with gallery",
+   "Saved favorites",
+   "Inquiry/tour request form"
+  ],
+  "screens": [
+   "Listings",
+   "Listing detail",
+   "Favorites",
+   "Inquiry"
+  ],
+  "demoScope": [
+   "Grid + filters",
+   "Detail page",
+   "Inquiry form"
+  ],
+  "differentiators": [
+   "Smart filters",
+   "Compare view",
+   "Tour request"
+  ],
+  "formats": [
+   "marketing_site",
+   "marketplace_concept",
+   "mobile_concept",
+   "site_plus_portal"
+  ],
+  "tech": 2,
+  "sources": [
+   "APPFOLIO"
+  ],
+  "guard": ""
+ }
+]

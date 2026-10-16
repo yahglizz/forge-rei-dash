@@ -1,0 +1,58 @@
+[
+ {
+  "id": "families",
+  "label": "Families & parents"
+ },
+ {
+  "id": "homeowners",
+  "label": "Homeowners"
+ },
+ {
+  "id": "renters",
+  "label": "Renters"
+ },
+ {
+  "id": "seniors",
+  "label": "Seniors & caregivers"
+ },
+ {
+  "id": "professionals",
+  "label": "Busy professionals"
+ },
+ {
+  "id": "business_owners",
+  "label": "Business owners (B2B)"
+ },
+ {
+  "id": "students",
+  "label": "Students & learners"
+ },
+ {
+  "id": "pet_owners",
+  "label": "Pet owners"
+ },
+ {
+  "id": "drivers",
+  "label": "Drivers & car owners"
+ },
+ {
+  "id": "patients",
+  "label": "Patients & clients"
+ },
+ {
+  "id": "event_hosts",
+  "label": "Event hosts & couples"
+ },
+ {
+  "id": "foodies",
+  "label": "Local diners & foodies"
+ },
+ {
+  "id": "athletes",
+  "label": "Active people & athletes"
+ },
+ {
+  "id": "community",
+  "label": "Community members & donors"
+ }
+]

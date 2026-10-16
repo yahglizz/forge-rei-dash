@@ -1,0 +1,117 @@
+[
+ {
+  "id": "marketing_site",
+  "label": "Marketing website",
+  "deliverable": "website",
+  "pages": [
+   "Home",
+   "Services",
+   "About",
+   "Contact"
+  ],
+  "hoursFactor": 1.0
+ },
+ {
+  "id": "ecommerce_store",
+  "label": "Ecommerce storefront",
+  "deliverable": "website",
+  "pages": [
+   "Home",
+   "Shop",
+   "Product",
+   "Cart"
+  ],
+  "hoursFactor": 1.2
+ },
+ {
+  "id": "booking_app",
+  "label": "Scheduling web app",
+  "deliverable": "web_app",
+  "pages": [
+   "Dashboard",
+   "Calendar"
+  ],
+  "hoursFactor": 1.2
+ },
+ {
+  "id": "customer_portal",
+  "label": "Customer portal",
+  "deliverable": "web_app",
+  "pages": [
+   "Portal home",
+   "Account"
+  ],
+  "hoursFactor": 1.3
+ },
+ {
+  "id": "ops_dashboard",
+  "label": "Internal operations dashboard",
+  "deliverable": "web_app",
+  "pages": [
+   "Dashboard",
+   "Settings"
+  ],
+  "hoursFactor": 1.2
+ },
+ {
+  "id": "mobile_concept",
+  "label": "Mobile app concept",
+  "deliverable": "mobile_concept",
+  "pages": [
+   "Onboarding",
+   "Home tab",
+   "Profile tab"
+  ],
+  "hoursFactor": 1.1
+ },
+ {
+  "id": "ai_assistant",
+  "label": "AI assistant concept (scripted demo)",
+  "deliverable": "automation",
+  "pages": [
+   "Chat widget",
+   "Admin"
+  ],
+  "hoursFactor": 1.0
+ },
+ {
+  "id": "automation_flow",
+  "label": "Workflow automation demo",
+  "deliverable": "automation",
+  "pages": [
+   "Flow map",
+   "Message previews"
+  ],
+  "hoursFactor": 1.0
+ },
+ {
+  "id": "mini_crm",
+  "label": "Mini CRM",
+  "deliverable": "crm",
+  "pages": [
+   "Pipeline board",
+   "Contact detail"
+  ],
+  "hoursFactor": 1.3
+ },
+ {
+  "id": "marketplace_concept",
+  "label": "Marketplace concept",
+  "deliverable": "hybrid",
+  "pages": [
+   "Browse",
+   "Provider profile"
+  ],
+  "hoursFactor": 1.4
+ },
+ {
+  "id": "site_plus_portal",
+  "label": "Website + client portal (hybrid)",
+  "deliverable": "hybrid",
+  "pages": [
+   "Home",
+   "Portal"
+  ],
+  "hoursFactor": 1.5
+ }
+]
