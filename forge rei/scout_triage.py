@@ -353,6 +353,10 @@ class ScoutEngine:
         self.dismissed = {}      # convId -> convKey it was dismissed at
         self.last_run = None
         self.last_error = None
+        # Last Claude scoring-batch failure (None once a batch succeeds). Separate from
+        # last_error, which the sweep resets and the heartbeat reads: rules still score,
+        # so the loop is degraded, not down — but the UI must not claim "Claude".
+        self.ai_error = None
         self.on_scored = None     # optional callback(rec) — fired for new call-worthy leads
                                   # (asap/warm) so Marcus auto-screens them. Set by connector.
         self.activity = []        # ring buffer of Scout actions (tag/pipeline/dismiss/learn)
@@ -517,7 +521,9 @@ class ScoutEngine:
                                        model=review_agent.HAIKU_MODEL)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"claude: {e}"
+            self.ai_error = str(e)[:200]
             return {}
+        self.ai_error = None
         parsed = _parse_json(raw)
         out = {}
         if isinstance(parsed, list):
@@ -943,6 +949,7 @@ class ScoutEngine:
         return {
             "connected": True,
             "aiScoring": bool(_scout_key()),
+            "aiError": self.ai_error,
             "model": review_agent.MODEL,
             "lastRun": self.last_run,
             "lastError": self.last_error,
@@ -984,6 +991,7 @@ class ScoutEngine:
         return {
             "connected": True,
             "aiScoring": s["aiScoring"],
+            "aiError": s["aiError"],
             "model": s["model"],
             "lastRun": self.last_run,
             "lastError": self.last_error,

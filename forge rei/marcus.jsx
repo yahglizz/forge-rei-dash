@@ -266,7 +266,7 @@ function ScoutConsole() {
           </div>
           <div className="faint" style={{ fontSize: 13, marginTop: 4 }}>Lead triage · ranks who to text back, queues tags + pipeline pushes for your review. Never texts sellers.</div>
           <div className="faint" style={{ fontSize: 11.5, marginTop: 4 }}>
-            Scoring: <b style={{ color: o.aiScoring ? "var(--green)" : "var(--orange)" }}>{o.aiScoring ? "Claude" : "rules"}</b>
+            Scoring: <b style={{ color: o.aiScoring && !o.aiError ? "var(--green)" : "var(--orange)" }} title={o.aiError || ""}>{o.aiScoring ? (o.aiError ? "rules (Claude failing)" : "Claude") : "rules"}</b>
             {" · "}playbook <b style={{ color: o.skillsLoaded ? "var(--green)" : "var(--orange)" }}>{o.skillsLoaded ? "loaded from brain" : "none"}</b>
             {" · "}self-improved <b>{learn.learnCount || 0}×</b>{learn.lastLearnedAt ? ` (last ${window.timeAgo(learn.lastLearnedAt)})` : ""}
             {" · "}last sweep {window.timeAgo(o.lastRun)}
