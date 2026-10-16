@@ -36,8 +36,9 @@ _CACHE = {}
 _TTL = 30
 
 
-def _key():
-    k = os.environ.get("RETELL_API_KEY", "").strip()
+def _conf(name):
+    """env var, else the first non-placeholder `name=` line in the shared ghl.env files."""
+    k = os.environ.get(name, "").strip()
     if k:
         return k
     for p in _ENV_FILES:
@@ -45,12 +46,31 @@ def _key():
             continue
         for line in p.read_text().splitlines():
             line = line.strip()
-            if line.startswith("RETELL_API_KEY") and "=" in line:
+            if line.startswith(name + "=") or line.startswith(name + " ="):
                 v = line.partition("=")[2].strip().strip('"').strip("'")
                 # ignore an unfilled placeholder like RETELL_API_KEY=key_xxx
                 if v and not v.lower().startswith("key_xxx") and v.lower() != "key_here":
                     return v
     return ""
+
+
+def _key():
+    return _conf("RETELL_API_KEY")
+
+
+# The Retell account is SHARED (roofing receptionist, daycare line, barbershop...). The
+# Outbound page may only ever read/write the wholesale agent: RETELL_WHOLESALE_AGENT_ID,
+# else the one agent create_starter_agent() made (by its exact name). Never "the first".
+STARTER_NAME = "Ava — Outbound Acquisitions"
+
+
+def wholesale_agent_id():
+    aid = _conf("RETELL_WHOLESALE_AGENT_ID")
+    if aid:
+        return aid
+    ids = {a["id"] for a in (status().get("agents") or [])
+           if a.get("id") and a.get("name") == STARTER_NAME}
+    return ids.pop() if len(ids) == 1 else None
 
 
 def has_key():
@@ -178,9 +198,15 @@ def status():
         try:
             raw = _req("GET", "/list-agents")
             arr = raw if isinstance(raw, list) else raw.get("agents", [])
-            agents = [{"id": a.get("agent_id"), "name": a.get("agent_name") or "(unnamed)",
-                       "voice": a.get("voice_id", ""), "language": a.get("language", "")}
-                      for a in arr]
+            seen = set()   # list-agents returns one row per VERSION of an agent
+            for a in arr:
+                if a.get("agent_id") in seen:
+                    continue
+                seen.add(a.get("agent_id"))
+                agents.append({"id": a.get("agent_id"),
+                               "name": a.get("agent_name") or "(unnamed)",
+                               "voice": a.get("voice_id", ""),
+                               "language": a.get("language", "")})
         except Exception as e:  # noqa: BLE001
             agents = []
             _agents_err = str(e)
@@ -240,15 +266,18 @@ def list_voices():
 
 
 def get_agent(agent_id=None):
-    """Full editable view of an agent + its LLM. If no agent_id, use the first agent."""
+    """Full editable view of the WHOLESALE outbound agent + its LLM (see
+    wholesale_agent_id). Any other agent id is refused, never shown for editing."""
     if not has_key():
         return {"hasKey": False, "found": False}
-    if not agent_id:
-        s = status()
-        ags = s.get("agents") or []
-        if not ags:
-            return {"hasKey": True, "found": False}
-        agent_id = ags[0]["id"]
+    wid = wholesale_agent_id()
+    if not wid:
+        return {"hasKey": True, "found": False,
+                "note": "no wholesale outbound agent (set RETELL_WHOLESALE_AGENT_ID or create one)"}
+    if agent_id and agent_id != wid:
+        return {"hasKey": True, "found": False,
+                "error": "not the wholesale outbound agent; refusing to open it"}
+    agent_id = wid
     agent = _req("GET", f"/get-agent/{agent_id}")
     eng = agent.get("response_engine") or {}
     etype = eng.get("type", "")
@@ -278,10 +307,14 @@ def update_agent(body):
     if not has_key():
         return {"ok": False, "error": "no RETELL_API_KEY"}
     aid = body.get("agentId")
-    lid = body.get("llmId")
     if not aid:
         return {"ok": False, "error": "agentId required"}
+    if aid != wholesale_agent_id():
+        return {"ok": False, "error": "not the wholesale outbound agent; refusing to edit it"}
     try:
+        # The LLM to patch is the one THIS agent uses — never a client-supplied llmId.
+        eng = _req("GET", f"/get-agent/{aid}").get("response_engine") or {}
+        lid = eng.get("llm_id") if eng.get("type") == "retell-llm" else None
         agent_patch = {}
         if body.get("agentName") is not None:
             agent_patch["agent_name"] = body["agentName"]
@@ -337,6 +370,8 @@ def create_starter_agent(seed_voice_guide=True):
     from the dashboard. Seeds the prompt with Yahjair's learned voice if available."""
     if not has_key():
         return {"ok": False, "error": "no RETELL_API_KEY"}
+    if wholesale_agent_id():
+        return {"ok": False, "error": "the wholesale outbound agent already exists"}
     prompt = _DEFAULT_PROMPT
     if seed_voice_guide:
         try:
@@ -359,7 +394,7 @@ def create_starter_agent(seed_voice_guide=True):
         })
         lid = llm.get("llm_id")
         agent = _req("POST", "/create-agent", {
-            "agent_name": "Ava — Outbound Acquisitions",
+            "agent_name": STARTER_NAME,
             "voice_id": voice_id,
             "language": "en-US",
             "response_engine": {"type": "retell-llm", "llm_id": lid},
