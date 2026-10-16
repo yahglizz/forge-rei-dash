@@ -41,6 +41,7 @@ from pathlib import Path
 import daycare_ghl
 import daycare_family_confirm
 import daycare_leads
+import daycare_tours          # tour booking hooks — inert unless FORGE_GOOGLE_CALENDAR=1
 import forge_atomic
 import forge_heartbeat
 import forge_ops
@@ -336,25 +337,29 @@ def _prompt(contact, ev, now):
             + "\n\nReturn the JSON object from section 4 of the rubric. Nothing else.")
 
 
-def draft_reply(contact, ev, now, key=None):
-    """One Claude call -> {action, category, draft, why, unknowns, flags, model}."""
+def draft_reply(contact, ev, now, key=None, tour=None):
+    """One Claude call -> {action, category, draft, why, unknowns, flags, model}.
+    `tour` (daycare_tours.offer, flag on only): live tour times appended to the SAME prompt."""
     import review_agent
     if key is None:
         import daycare_director
         key = daycare_director._solomon_key()
     if not key:
         raise RuntimeError("no Anthropic key for Solomon (SOLOMON_ANTHROPIC_API_KEY / ANTHROPIC_API_KEY)")
-    raw = review_agent._claude(key, _system(), _prompt(contact, ev, now),
+    raw = review_agent._claude(key, _system(), _prompt(contact, ev, now) + (tour["prompt"] if tour else ""),
                                max_tokens=700, model=MODEL)
     out = _parse(raw)
     action = out.get("action") if out.get("action") in ("draft", "escalate", "no_reply") else "escalate"
     text = str(out.get("draft") or "").strip()
     if action == "draft" and not text:
         action = "escalate"
-    return {"action": action, "category": str(out.get("category") or "other")[:30],
-            "draft": text, "why": str(out.get("why") or "")[:300],
-            "unknowns": [str(u)[:160] for u in (out.get("unknowns") or [])][:6],
-            "flags": flags(text), "model": MODEL}
+    res = {"action": action, "category": str(out.get("category") or "other")[:30],
+           "draft": text, "why": str(out.get("why") or "")[:300],
+           "unknowns": [str(u)[:160] for u in (out.get("unknowns") or [])][:6],
+           "flags": flags(text), "model": MODEL}
+    if tour:
+        res["tourPick"] = str(out.get("tour_slot") or "")[:20]
+    return res
 
 
 # ── state ─────────────────────────────────────────────────────────────────────
@@ -459,7 +464,8 @@ def run_once(client, now=None, drafter=None):
             if cur and not cur.get("revive") and cur.get("inboundId") == last_in["id"]:
                 held["already_drafted"] = held.get("already_drafted", 0) + 1
                 continue
-            res = drafter(contact, ev, now)
+            tour = daycare_tours.offer(contact, drafts.get(cid), now) if daycare_tours.ON else None
+            res = drafter(contact, ev, now, tour=tour) if tour else drafter(contact, ev, now)
             drafted += 1
             label, brand = _center({str(t).strip().lower() for t in contact.get("tags") or []})
             fam = daycare_ghl._family_from_contact(contact)
@@ -474,6 +480,8 @@ def run_once(client, now=None, drafter=None):
                 "status": "pending" if res["action"] != "no_reply" else "no_reply",
                 "createdAt": int(now * 1000), **res,
             }
+            if tour:
+                daycare_tours.attach(drafts[cid], tour, res, contact)
             notify_owner(drafts[cid])
         except Exception as e:  # noqa: BLE001 — one bad thread never kills the sweep...
             errors += 1
@@ -544,7 +552,17 @@ def approve(client, contact_id, text=None, now=None, auto=False):
     if any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in ev):
         _close(cid, "opted_out")
         return {"ok": False, "error": "parent opted out — not sent"}
-    res = daycare_ghl.send_sms(client, contact_id=cid, message=body)
+    booked = None
+    if d.get("tourSlot"):              # tour confirmation: book first; a taken slot sends nothing
+        booked = daycare_tours.book(cid, auto=auto)
+        if not booked.get("ok"):
+            return booked
+    res = None
+    try:
+        res = daycare_ghl.send_sms(client, contact_id=cid, message=body)
+    finally:
+        if booked:
+            daycare_tours.after_send(client, cid, booked, res)
     try:
         import action_log
         action_log.record("solomon", "daycare_reply_send", business="daycare",
