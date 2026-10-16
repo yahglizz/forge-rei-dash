@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-STATE = HERE / "marcus_state" / "agent_bus.json"
+STATE = forge_atomic.guard_state_path(HERE / "marcus_state" / "agent_bus.json")  # temp dir under tests
 _LOCK = threading.Lock()
 
 KINDS = ["handoff", "note", "alert", "status", "task", "coach"]

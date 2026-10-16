@@ -29,7 +29,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 # FORGE_ACTION_LOG overrides the path (tests, or /dev/null to silence it).
-STATE = Path(os.environ.get("FORGE_ACTION_LOG") or HERE / "marcus_state" / "agent_actions.jsonl")
+# Under a test run the live path is redirected to a temp dir (forge_atomic.guard_state_path).
+from forge_atomic import guard_state_path as _guard_state_path  # noqa: E402
+STATE = _guard_state_path(os.environ.get("FORGE_ACTION_LOG") or HERE / "marcus_state" / "agent_actions.jsonl")
 # ponytail: one rotated file (.1) at 5 MB = ~15k lines of history; add .2 or ship to
 # the brain if the audit horizon ever needs to be longer than that.
 MAX_BYTES = 5 * 1024 * 1024

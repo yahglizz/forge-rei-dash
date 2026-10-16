@@ -17,7 +17,7 @@ from pathlib import Path
 
 import forge_atomic
 
-STATE = Path(__file__).resolve().parent / "marcus_state" / "agents_chat_history.json"
+STATE = forge_atomic.guard_state_path(Path(__file__).resolve().parent / "marcus_state" / "agents_chat_history.json")  # temp dir under tests
 _LOCK = threading.RLock()
 MAX_PER_AGENT = 200
 
