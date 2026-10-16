@@ -1096,6 +1096,7 @@ import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses 
 import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
+import google_io  # noqa: E402 — Google Calendar for tour booking (/api/google/*; FORGE_GOOGLE_CALENDAR)
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
 import daycare_auto_enroll  # noqa: E402 — Family Contact Form -> child + parent login, hands-free (2026-10-07)
@@ -3518,6 +3519,77 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raise
 
+    def _handle_google_get(self, path, q):
+        """Google Calendar connect for tour booking. Same private-network + Host rules as every
+        /api route (do_GET checks them first). start -> 302 to Google consent with a random
+        single-use state (10 min, also pinned to this browser by a cookie); callback -> state
+        checked, code exchanged, refresh token stored 0600, tiny HTML page. No token is ever
+        returned or logged (log_message is silent; Referrer-Policy no-referrer hides the code)."""
+        import hmac
+        import html
+        from http.cookies import SimpleCookie
+        if path == "/api/google/status":
+            return self._send_json(google_io.status())
+        cookie = "forge_goauth"
+        if path == "/api/google/oauth/start":
+            proxied = daycare_supabase.is_loopback(self.client_address[0]) and self.headers.get("X-Forwarded-Host")
+            uri = google_io.redirect_uri_for(proxied or self.headers.get("Host"))
+            if not uri:
+                return self._send_json({"ok": False, "error": "open this from a registered callback host "
+                                        "(http://localhost:7799 over the tunnel, or the tailnet URL)"}, 400)
+            state = google_io.new_state(uri)
+            res = google_io.auth_url(state, uri)
+            if not res.get("ok"):
+                return self._send_json(res, 503)
+            self.send_response(302)
+            self.send_header("Location", res["data"])
+            self.send_header("Set-Cookie", f"{cookie}={state}; Path=/api/google/oauth; Max-Age=600; HttpOnly; SameSite=Lax")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        if path != "/api/google/oauth/callback":
+            return self._send_json({"error": "unknown endpoint"}, 404)
+        arg = lambda k: (q.get(k) or [""])[0]
+        jar = SimpleCookie()
+        try:
+            jar.load(self.headers.get("Cookie") or "")
+        except Exception:  # noqa: BLE001 — a bad cookie header just means "not pinned"
+            pass
+        pinned = jar[cookie].value if cookie in jar else ""
+        uri = google_io.take_state(arg("state"))          # single-use, even when it fails below
+        account = None
+        if arg("error"):
+            msg = f"Google said: {arg('error')[:80]}"
+        elif not uri or not hmac.compare_digest(pinned.encode(), arg("state").encode()):
+            msg = "this link expired or was not started from this browser — open /api/google/oauth/start again"
+        elif not arg("code"):
+            msg = "Google sent no code"
+        else:
+            res = google_io.exchange_code(arg("code"), uri)
+            msg = None if res.get("ok") else res.get("error")
+            account = (res.get("data") or {}).get("account")
+        text = (f"Google Calendar connected for tour booking{f' ({account})' if account else ''}. "
+                "You can close this tab." if msg is None else f"Not connected: {msg}")
+        data = ("<!doctype html><meta charset='utf-8'><title>Google Calendar</title>"
+                "<body style='font-family:system-ui,sans-serif;padding:2rem;max-width:36rem'>"
+                f"<h2>{'Connected' if msg is None else 'Not connected'}</h2><p>{html.escape(text)}</p>").encode()
+        self.send_response(200 if msg is None else 400)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+        self.send_header("Set-Cookie", f"{cookie}=; Path=/api/google/oauth; Max-Age=0; HttpOnly; SameSite=Lax")
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except Exception as exc:  # noqa: BLE001
+            if not self._client_disconnected(exc):
+                raise
+        return None
+
     def do_POST(self):
         if not self._dashboard_client_allowed():
             return self._send_json({"error": "private dashboard access required"}, 403)
@@ -5440,6 +5512,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/dropship/"):
             return self._handle_dropship_get(path, urllib.parse.parse_qs(parsed.query))
+
+        if path.startswith("/api/google/"):
+            return self._handle_google_get(path, urllib.parse.parse_qs(parsed.query))
 
         if path.startswith("/api/"):
             if path == "/api/portal/bootstrap":
