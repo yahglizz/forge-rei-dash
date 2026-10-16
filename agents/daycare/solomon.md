@@ -180,6 +180,14 @@ curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="daycare_r
 curl -s localhost:7799/api/daycare/replies | jq '{lastRunAt,lastSweep,error,pending:[.pending[]|{center,category,action,flags,draft}]}'
 ```
 
+**Tour booking (added 2026-10-16; OFF unless `FORGE_GOOGLE_CALENDAR=1`).** Code: `forge rei/google_io.py` (OAuth + Calendar, stdlib; no email or Gmail function exists) + `forge rei/daycare_tours.py` (the Replies hooks). Policy: `forge-daycare/config/tours.json` — PLACEHOLDER until the owner replaces it; the box reads `/opt/forge/forge-daycare/config/tours.json` and deploys never ship `config/`, so copy it there by hand.
+- **Offer:** a lead (not an enrolled family) with a known center gets up to 3 open slots (one per day first) from the "ATOB Tours" calendar — policy hours minus freeBusy, 15-min buffer — appended to the SAME draft prompt. Zero extra Claude calls. Skipped (drafts exactly as before) while the policy says PLACEHOLDER, Google is disconnected, or the read fails.
+- **Pick → proposal:** when the parent picks one of the offered times, the draft carries `tourSlot` and its `why` starts "Approve = books …". Tour drafts never auto-send.
+- **Tap → execute** (`/replies/approve`, after the usual window / live-thread / opt-out gates): claim the draft → re-check free/busy under a lock → create the event (no attendees, `sendUpdates=none`) → send the confirmation → GHL tag `tour-booked` (Lead Desk → TOUR_BOOKED) + a GHL note. Slot taken → nothing sent, the next sweep redrafts with fresh times. Not sent → event cancelled, draft back to pending. Send raised → event kept, row `send_error`.
+- **Connect once:** `GET /api/google/oauth/start` (open it from `http://localhost:7799` over the tunnel or the tailnet URL) → consent → `/api/google/oauth/callback`. Check: `GET /api/google/status` → `{configured, connected, account, calendarFound, toursConfig, placeholderPolicy}`. Env: `FORGE_GOOGLE_CALENDAR`, `FORGE_GOOGLE_CLIENT_FILE`, `FORGE_GOOGLE_TOKEN_FILE` (token default `marcus_state/google_token.json`, chmod 600, git-ignored).
+- **Rollback:** `FORGE_GOOGLE_CALENDAR=0` + restart (a pending tour draft then refuses to send — type your own text in Messages), or revert the merge. Events already on the calendar stay.
+- **Verify:** `cd "forge rei" && python3 test_google_io.py && python3 test_daycare_tours.py`.
+
 ## 11. Lane: Solomon · Leads — the Lead Desk (enrollment-lead sweep)
 
 Every 15 min reads the daycare GHL (GET only), derives each enrollment lead's stage + response time, lists who needs a human, and pings the owner. Zero Claude.

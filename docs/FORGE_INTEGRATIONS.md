@@ -20,6 +20,7 @@ Status = what was observed on the box on 2026-09-22, not what the code claims.
 | **Retell (voice)** | Wholesale | `retell_io.py`, Outbound page | `RETELL_API_KEY` | key set; usage unverified | route-driven |
 | Twilio | Wholesale (legacy) | legacy scripts | `TWILIO_*` | key set; not on the live send path (GHL sends SMS) | — |
 | **Stripe** | Daycare | `stripe_io.py` | `STRIPE_SECRET_KEY` | key set; owner-initiated invoices only | "add key" hint when blank |
+| **google** (Calendar — tour booking) | Daycare | `google_io.py`, `daycare_tours.py`, `/api/google/*` | `FORGE_GOOGLE_CALENDAR`, `FORGE_GOOGLE_CLIENT_FILE`, `FORGE_GOOGLE_TOKEN_FILE` | built 2026-10-16, flag default 0, not connected; no Gmail/email code | not connected / PLACEHOLDER policy → Replies drafts as before |
 | **DocuSign** | Wholesale | `docusign_io.py`, contract poller | `forge-docusign/config/docusign.env` | 🟢 poller running (600 s) | terminal-error pause |
 | Metricool | Agency / Daycare social | `agency_social.py` | `METRICOOL_USER_TOKEN` | daycare blank → mock | labeled |
 | Higgsfield | Daycare ads studio / agency | `higgsfield_io.py` | `HIGGSFIELD_API_KEY`, `_SECRET` | key set | — |
