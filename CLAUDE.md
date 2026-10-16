@@ -319,8 +319,13 @@ state in `marcus_state/`).
    GitHub every 60s (`forge-autopull.timer` → `autopull.sh` → `deploy-pull.sh`) and
    self-deploys any new commit: `git reset --hard origin/main`, validate (py ast + jsx),
    rsync CODE into the live tree, restart, health-check. **Restart is skipped when the diff since
-   `.deployed_sha` is only jsx/css/html/images/.md/ios/docs** (served per request / mtime-reloaded);
-   `FORGE_FORCE_RESTART=1` forces it. **Client needs only git** — no SSH
+   `.deployed_sha` is only jsx/css/html/images/.md/ios/docs or tool churn (`.swarm/`,
+   `output/agent-audit/`, `.playwright-mcp/`)** (served per request / mtime-reloaded / never loaded);
+   `FORGE_FORCE_RESTART=1` forces it. **Health gate:** service active, `/api/health` 200 and
+   `/api/system/health` `ok: true` (waits ≤60 s, `FORGE_DEPLOY_HEALTH_WAIT`) — unless it was already
+   not-ok before the deploy (AI down, red loop), which is logged as a WARN, not blamed on the commit.
+   **On failure it auto-rolls back** to `.deployed_sha` (reset, rsync, restart, re-check), sends a
+   Telegram alert to HQ, marks that commit's tries used up, and exits 1. **Client needs only git** — no SSH
    key, no secrets, no rsync. This is what makes Mac + PC co-equal workspaces (repo is public
    `yahglizz/forge-rei-dash`). A commit that fails validation aborts the deploy (set -e) and
    the live version keeps running; the next good push recovers. autopull compares
