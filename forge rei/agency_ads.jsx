@@ -1,7 +1,8 @@
 // agency_ads.jsx — Meta Ads Analytics tab (Forge AI Agency).
 // Spend / performance per client ad account, top vs underperforming ads.
 // Static-React: hooks aliased (…Ad), top-level names prefixed Ad, shipped on window.
-// Reads the live mock backend (agency_ads.py) via /api/agency/ads + accounts.
+// Reads agency_ads.py via /api/agency/ads + accounts. Only dataSource "live" numbers are
+// shown; the backend's demo fallback (Bloom Dental / Peak Fitness) never renders.
 const { useState: useStateAd, useEffect: useEffectAd } = React;
 
 // ---- small formatting helpers ----------------------------------------------
@@ -67,7 +68,7 @@ function AdConnectionCard({ connection }) {
           Connect via env
         </button>
         <span className="faint" style={{ fontSize: 11.5 }}>
-          Showing mock Meta data. Set META_ACCESS_TOKEN in agency.env to go live.
+          No ad numbers are shown until Meta is connected.
         </span>
       </div>
     </div>
@@ -177,7 +178,9 @@ function AgencyAds() {
 
   // accounts + connection state
   const acctRes = window.useApi("/api/agency/ads/accounts");
-  const accounts = (acctRes.data && acctRes.data.accounts) || [];
+  // demo-* accounts are the backend's mock fallback — never offer them as real accounts
+  const accounts = ((acctRes.data && acctRes.data.accounts) || [])
+    .filter((a) => !String(a.clientId || "").startsWith("demo-"));
   const connection = (acctRes.data && acctRes.data.connection) || {};
 
   // selected ad account — defaults to the first account once they load
@@ -190,8 +193,9 @@ function AgencyAds() {
   const analyticsPath = selectedAcct ? `/api/agency/ads?account=${selectedAcct}` : `/api/agency/ads`;
   const { data, loading, error, refresh } = window.useApi(analyticsPath, { interval: 30000 });
 
-  const totals = (data && data.totals) || {};
-  const acctName = (data && data.account && data.account.name) || "";
+  const live = !!(data && data.dataSource === "live");
+  const totals = (live && data.totals) || {};
+  const acctName = (live && data.account && data.account.name) || "";
 
   // 10-metric grid built from totals
   const cards = [
@@ -240,7 +244,22 @@ function AgencyAds() {
       {error && <window.ErrorRow error={error} onRetry={refresh} />}
       {loading && !data && <window.LoadingRow label="Loading Meta Ads analytics…" />}
 
-      {data && (
+      {data && !live && (
+        <div className="card empty" style={{ minHeight: "30vh" }}>
+          <div className="empty-ico" style={{ width: 72, height: 72 }}><Icons.Ads size={30} /></div>
+          <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 16 }}>
+            {data.dataSource === "token_rejected" ? "Meta token rejected"
+              : connection.connected ? "Meta data unavailable" : "Meta not connected"}
+          </div>
+          <div style={{ fontSize: 13, maxWidth: 380, textAlign: "center" }}>
+            {connection.todo || (connection.connected
+              ? "Meta did not return data for this account. Check the account map and try again."
+              : "Set PIPEBOARD_API_TOKEN, or META_ACCESS_TOKEN + META_AD_ACCOUNT_MAP, in agency.env to see real spend.")}
+          </div>
+        </div>
+      )}
+
+      {live && (
         <React.Fragment>
           {/* totals — 10 analytics cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14 }}>
