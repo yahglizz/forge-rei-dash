@@ -1,0 +1,26 @@
+{
+  "_note": "PLACEHOLDER tour policy - owner must replace. Every value below is a guess, not the centers' real tour hours. While this note says PLACEHOLDER, Solomon will NOT offer tour times to parents (daycare_tours.offer refuses). Replace the values, delete the word PLACEHOLDER from this note, then copy the file to the box at /opt/forge/forge-daycare/config/tours.json (deploys never ship config/).",
+  "calendarName": "ATOB Tours",
+  "timezone": "America/New_York",
+  "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  "start": "10:00",
+  "end": "16:00",
+  "slotMinutes": 30,
+  "bufferMinutes": 15,
+  "minNoticeHours": 2,
+  "closedDates": [],
+  "locations": {
+    "loc-921-n-18th": {
+      "label": "921 N 18th St",
+      "address": "921 N 18th St, Philadelphia, PA 19130"
+    },
+    "loc-2318-cecil-b-moore": {
+      "label": "2318 Cecil B. Moore",
+      "address": "2318 Cecil B. Moore Ave, Philadelphia, PA 19121"
+    },
+    "loc-1923-cecil-b-moore": {
+      "label": "1923 Cecil B. Moore (A Mother's Touch)",
+      "address": "1923 Cecil B. Moore Ave, Philadelphia, PA 19121"
+    }
+  }
+}

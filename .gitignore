@@ -10,6 +10,13 @@ forge_droplet*
 deploy/keys/
 keys for daycare/
 **/keys for *//
+# Google OAuth (tour booking): client JSON + refresh token. The token's default home is
+# marcus_state/ (ignored below); these catch a copy saved anywhere else in the tree.
+google-oauth-client*.json
+client_secret*.json
+google_token*.json
+.forge-secrets/
+**/keys/*.json
 
 # ── Runtime state / data (business data stays off GitHub) ───
 marcus_state/
