@@ -49,7 +49,9 @@ DEFAULTS = {
 NEEDS = ("website", "ads", "booking", "other")
 RATE_MAX, RATE_WINDOW = 5, 3600          # create attempts per IP per hour
 # Global ceiling across ALL visitors — even a rate-limit bypass can't flood the calendar.
-GLOBAL_HOUR, GLOBAL_DAY = 20, 40         # successful bookings per rolling hour / 24 h
+GLOBAL_HOUR, GLOBAL_DAY = 20, 40         # live (not cancelled) bookings made per rolling hour / 24 h
+NET_HOUR = 3                             # bookings per IPv4 /24 per hour (rotating IPs in one block)
+CAP_ALERT_EVERY = 3600                   # at most one "cap hit" Telegram alert per this many seconds
 CAPS = {"name": 80, "business": 120, "email": 254, "phone": 32, "website": 200,
         "notes": 1000, "ref": 40, "tz": 64}
 # Call Sheet rows a booking may move to demo_booked — never regress proposal/won/lost/dnc.
@@ -63,6 +65,8 @@ _CTRL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 _LOCK = threading.Lock()                 # state file + the check-then-book critical section
 _HITS = {}                               # ip -> [attempt ts]  (in memory; resets on restart)
+_NETS = {}                               # IPv4 /24 -> [booking ts] (in memory; resets on restart)
+_CAP_ALERT = {"at": 0.0}
 _BUSY_CACHE = {"at": 0.0, "key": None, "busy": []}
 
 
@@ -307,8 +311,35 @@ def _suggest_lead(phone):
     return "", ""
 
 
+def _net(ip):
+    """IPv4 -> its /24 ('a.b.c'), else None (IPv6/unknown rely on the per-IP limit)."""
+    parts = str(ip or "").split(".")
+    return ".".join(parts[:3]) if len(parts) == 4 and all(p.isdigit() for p in parts) else None
+
+
+def _net_ok(net, now):
+    """Lock held. Bookings from one /24 in the last hour under NET_HOUR."""
+    if not net:
+        return True
+    _NETS[net] = [t for t in _NETS.get(net, []) if t > now - 3600]
+    return len(_NETS[net]) < NET_HOUR
+
+
+def _cap_alert(now, why):
+    """ONE guarded owner ping per CAP_ALERT_EVERY while a cap is refusing — not silent, not spam."""
+    if now - _CAP_ALERT["at"] < CAP_ALERT_EVERY:
+        return
+    _CAP_ALERT["at"] = now
+    try:
+        import telegram_io
+        telegram_io.send_biz("agency", f"⚠️ Booking cap hit ({why}) — check Bookings for spam.",
+                             dedupe_key=f"booking-cap:{int(now // CAP_ALERT_EVERY)}")
+    except Exception as e:  # noqa: BLE001
+        _log(f"cap alert skipped: {e}")
+
+
 def _global_ok(d, now):
-    made = [b.get("createdAt", 0) for b in d["bookings"]]
+    made = [b.get("createdAt", 0) for b in d["bookings"] if b.get("status") == "booked"]
     return (sum(1 for t in made if t > now - 3600) < GLOBAL_HOUR
             and sum(1 for t in made if t > now - 86400) < GLOBAL_DAY)
 
@@ -367,8 +398,12 @@ def create(payload, ip, now=None):
         # a second writer process would need a calendar-side guard.
         with _LOCK:
             d = _load()
-            if not _global_ok(d, now):
-                _log("global booking cap hit — refusing")
+            net = _net(ip)
+            cap = ("global" if not _global_ok(d, now) else
+                   f"{net}.0/24" if not _net_ok(net, now) else None)
+            if cap:
+                _log(f"booking cap hit ({cap}) — refusing")
+                _cap_alert(now, cap)     # ponytail: ≤1 Telegram call/hour, inside the lock (10 s cap)
                 return _err("rate_limited", "Booking is busy right now. Please try again later.")
             lead_id = (d.get("refs") or {}).get(f["ref"], "") if f["ref"] else ""
             if any(b.get("email") == f["email"] for b in _live(d, now)):
@@ -394,6 +429,8 @@ def create(payload, ip, now=None):
                         google_io._RECENT.append((b["start"], end, b["eventId"], time.time() + 900))
             d["bookings"].append(b)
             _save(d)
+            if net:
+                _NETS.setdefault(net, []).append(now)
             _BUSY_CACHE["key"] = None
         demo = _mark_demo_booked(lead_id) if lead_id else False
         _ping(cfg, b)

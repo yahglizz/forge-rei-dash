@@ -64,3 +64,14 @@ page, not a booking widget — the screenshot is the real reference.
 - Hours: Mon–Fri 10–5 ET. Edit in `booking.json`.
 - Going public later = point the existing Funnel at the portal port (already set up);
   separate approval, not part of this build.
+
+## Hardening as built (2026-10-17) + go-public follow-ups
+- Per-IP 5 create attempts/hr (behind Funnel/Serve only the RIGHTMOST X-Forwarded-For entry is
+  trusted), 3 bookings/hr per IPv4 /24, global 20/hr + 40/day live bookings (cancelled spam frees
+  capacity), one Telegram "booking cap hit" alert per hour.
+- `?ref=` is an unguessable per-lead token minted in the Bookings tab
+  (`POST /api/agency/bookings/link`); raw Call Sheet ids are ignored. A phone match only
+  suggests — the owner confirms (`POST /api/agency/bookings/confirm-lead`).
+- **Before going public (separate approval):** add CAPTCHA (e.g. Turnstile) and/or email
+  verification on create; confirm Funnel actually appends X-Forwarded-For (unverified locally);
+  decide whether the booking link base is the Funnel host (`FORGE_BOOK_BASE`).

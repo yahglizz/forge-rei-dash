@@ -59,6 +59,8 @@ def google_off():
 def reset():
     ab.STATE.write_text(json.dumps({"bookings": []}))
     ab._HITS.clear()
+    ab._NETS.clear()
+    ab._CAP_ALERT["at"] = 0.0
     ab._BUSY_CACHE.update(at=0.0, key=None, busy=[])
     PINGS.clear()
     google_off()
@@ -179,16 +181,16 @@ def test_callsheet_hook():
     assert ab.ref_link(joe)["token"] == link["token"]                        # minted once, reused
     won_tok = ab.ref_link(won)["token"]
     # A raw (guessable) lead id in ?ref= is ignored: books, but never touches the CRM.
-    r = ab.create(person(5, et(2026, 10, 22, 11), ref=acme), "7.7.7.5", now=NOW)
+    r = ab.create(person(5, et(2026, 10, 22, 11), ref=acme), "7.7.5.1", now=NOW)
     assert r["ok"], r
     assert {l["id"]: l["status"] for l in cs.list_leads()["leads"]}[acme] == "new"
-    r = ab.create(person(1, et(2026, 10, 20, 10), ref=link["token"]), "7.7.7.1", now=NOW)
+    r = ab.create(person(1, et(2026, 10, 20, 10), ref=link["token"]), "7.7.1.1", now=NOW)
     assert r["ok"], r                                                        # token -> demo_booked
-    r = ab.create(person(2, et(2026, 10, 20, 14), phone="+1 215.555.9999"), "7.7.7.2", now=NOW)
+    r = ab.create(person(2, et(2026, 10, 20, 14), phone="+1 215.555.9999"), "7.7.2.1", now=NOW)
     assert r["ok"], r                                                        # phone -> suggestion only
-    r = ab.create(person(3, et(2026, 10, 20, 16), ref=won_tok), "7.7.7.3", now=NOW)
+    r = ab.create(person(3, et(2026, 10, 20, 16), ref=won_tok), "7.7.3.1", now=NOW)
     assert r["ok"], r
-    r = ab.create(person(4, et(2026, 10, 22, 16), ref="L999<script>"), "7.7.7.4", now=NOW)
+    r = ab.create(person(4, et(2026, 10, 22, 16), ref="L999<script>"), "7.7.4.1", now=NOW)
     assert r["ok"], r                                                        # bad ref still books
     st = {l["id"]: l["status"] for l in cs.list_leads()["leads"]}
     assert st[joe] == "demo_booked", st
@@ -218,14 +220,36 @@ def test_global_cap():
             assert ab.create(person(i, day + i * 3600), f"10.0.0.{i}", now=NOW)["ok"]
         r = ab.create(person(9, day + 4 * 3600), "10.0.1.9", now=NOW)
         assert r["error"] == "rate_limited", r                               # hour cap, fresh IP
+        assert ab.create(person(9, day + 4 * 3600), "10.0.2.9", now=NOW + 60)["error"] == "rate_limited"
         later = NOW + 3601
         for i in range(3, 5):
             assert ab.create(person(i, day + 86400 + (i - 3) * 3600), f"10.0.0.{i}", now=later)["ok"]
         r = ab.create(person(8, day + 86400 + 5 * 3600), "10.0.1.8", now=later)
         assert r["error"] == "rate_limited", r                               # day cap
         assert ab.create(person(8, day + 86400 + 5 * 3600), "10.0.1.8", now=NOW + 86401)["ok"]
+        caps = [t for _, t in PINGS if "cap hit" in t]
+        assert len(caps) == 2 and "check Bookings for spam" in caps[0], caps   # one alert per hour (2 hours)
+        # Cancelled bookings don't count: cancelling spam restores capacity.
+        reset()
+        for i in range(3):
+            assert ab.create(person(i, day + i * 3600), f"12.{i}.0.1", now=NOW)["ok"]
+        assert ab.create(person(7, day + 5 * 3600), "12.7.0.1", now=NOW)["error"] == "rate_limited"
+        ab.cancel(ab.upcoming(now=NOW)["bookings"][0]["id"], now=NOW)
+        assert ab.create(person(7, day + 5 * 3600), "12.7.0.1", now=NOW)["ok"]
     finally:
         ab.GLOBAL_HOUR, ab.GLOBAL_DAY = old
+
+
+def test_net_cap():
+    reset()
+    day = et(2026, 10, 29, 10)
+    for i in range(ab.NET_HOUR):
+        assert ab.create(person(i, day + i * 3600), f"11.0.0.{i + 1}", now=NOW)["ok"]
+    r = ab.create(person(5, day + 5 * 3600), "11.0.0.99", now=NOW)
+    assert r["error"] == "rate_limited" and "busy" in r["message"], r     # 4th from one /24
+    assert ab.create(person(5, day + 5 * 3600), "11.0.1.1", now=NOW)["ok"]  # next /24 is fine
+    assert ab.create(person(6, day + 6 * 3600), "11.0.0.99", now=NOW + 3601)["ok"]  # window rolls
+    assert ab._net("2001:db8::1") is None and ab._net("11.0.0.7") == "11.0.0"
 
 
 def test_cancel_frees_slot_and_owner_actions():
@@ -342,7 +366,7 @@ def test_public_surface():
 
 if __name__ == "__main__":
     tests = [test_slot_math, test_book_buffer_double_book_and_email, test_concurrent_double_book,
-             test_validation_honeypot_rate_limit, test_callsheet_hook, test_global_cap,
+             test_validation_honeypot_rate_limit, test_callsheet_hook, test_global_cap, test_net_cap,
              test_cancel_frees_slot_and_owner_actions, test_google_connected, test_public_surface]
     for t in tests:
         t()
