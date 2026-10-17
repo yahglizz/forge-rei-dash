@@ -31,6 +31,7 @@ const AGENCY_NAV = [
   // login gate still applies exactly as it does in the daycare workspace).
   ["MyBiz", "My Businesses", "p"], ["MyAds", "Daycare · Ads", "p"],
   ["MySocial", "Daycare · Social", "p"], ["MyStudio", "Daycare · Ad Studio", "p"],
+  ["IdeaWheel", "Idea Wheel", "p"],
   ["Agents", "Agents"], ["Office", "Agent Office"],
   ["Build", "Blueprint Studio", "b"], ["Clients", "Clients", "b"], ["Messages", "Client Chat", "b"], ["ClientView", "Client View", "b"],
   ["Requests", "Edit Requests", "b"],

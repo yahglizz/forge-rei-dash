@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 80" aria-hidden="true">
+  <defs><linearGradient id="pin" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8B5CF6"/><stop offset=".55" stop-color="#c34bd1"/><stop offset="1" stop-color="#EC4899"/></linearGradient><filter id="pin-shadow"><feDropShadow dy="3" stdDeviation="2.4" flood-color="#000" flood-opacity=".7"/></filter></defs>
+  <path d="M30 15c-9.4 0-15 6.2-15 14.5C15 40 23 52.7 30 78c7-25.3 15-38 15-48.5C45 21.2 39.4 15 30 15Z" fill="url(#pin)" stroke="#fff" stroke-width="1" stroke-opacity=".86" filter="url(#pin-shadow)"/>
+  <circle cx="30" cy="15" r="5.2" fill="#111e2b" stroke="#fff" stroke-width="1" stroke-opacity=".9"/><circle cx="28.4" cy="13.4" r="1.5" fill="#fff" opacity=".8"/>
+</svg>

@@ -1091,6 +1091,7 @@ import agency_build_studio  # noqa: E402 — Blueprint Studio: idea -> build-rea
 import agency_calls  # noqa: E402
 import agency_callsheet  # noqa: E402
 import agency_offers  # noqa: E402
+import idea_wheel  # noqa: E402 — Idea Wheel (Agency · Personal lens): deterministic portfolio-idea generator
 import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare management API
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
@@ -3107,6 +3108,13 @@ ROUTES["/api/businesses"] = api_businesses
 NO_CACHE.add("/api/businesses")
 # --- /WP-B ---
 
+# --- Idea Wheel --- GET /api/ideawheel/{state,ideas,idea,brief}; POSTs live in do_POST
+# (allowlist below + one elif → idea_wheel.handle_post). Local JSON store, no outward action.
+for _iw_path, _iw_fn in idea_wheel.GET_ROUTES.items():
+    ROUTES[_iw_path] = _iw_fn
+    NO_CACHE.add(_iw_path)
+# --- /Idea Wheel ---
+
 
 # --- WP-C ---
 # Owner Actions (spec §15): ONE read-only list of what needs the owner right now across
@@ -3727,6 +3735,11 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/notify/settings",
                                    "/api/notify/test",
                                    "/api/ops/set",
+                                   "/api/ideawheel/spin", "/api/ideawheel/restyle",
+                                   "/api/ideawheel/save", "/api/ideawheel/status",
+                                   "/api/ideawheel/tags", "/api/ideawheel/kit",
+                                   "/api/ideawheel/plan", "/api/ideawheel/metric",
+                                   "/api/ideawheel/prefs",
                                    "/api/businesses/set",  # WP-B
                                    "/api/brief/send",
                                    "/api/brief/config",
@@ -4232,6 +4245,8 @@ class Handler(BaseHTTPRequestHandler):
                                                 hour=body.get("hour"))
             elif parsed.path == "/api/test-mode":
                 result = test_mode.update(body)
+            elif parsed.path in idea_wheel.POST_PATHS:
+                result = idea_wheel.handle_post(parsed.path, body)
             else:
                 result = handle_marcus_post(parsed.path, body)
             if result is None:

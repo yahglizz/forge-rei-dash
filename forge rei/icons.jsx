@@ -102,5 +102,7 @@ const Icons = {
 Icons.MyAds = Icons.Growth;
 Icons.MySocial = Icons.Social;
 Icons.MyStudio = Icons.Spark;
+// Idea Wheel (Personal lens) — lightbulb with sparkles.
+Icons.IdeaWheel = (p) => <I {...p}><path d="M9 18h6M10 21h4M8.5 14.5A5.5 5.5 0 1 1 15.5 14.5c-.9.8-1.5 1.8-1.5 3H10c0-1.2-.6-2.2-1.5-3z"/><path d="M19 2.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6zM4.5 3l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z"/></I>;
 
 window.Icons = Icons;

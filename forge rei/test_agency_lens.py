@@ -46,7 +46,7 @@ def test_lenses_do_not_leak():
         assert client_tab not in personal, f"{client_tab} leaked into Personal"
 
     # My own businesses must never show up under Business.
-    for mine in ("MyBiz", "MyAds", "MySocial", "MyStudio"):
+    for mine in ("MyBiz", "MyAds", "MySocial", "MyStudio", "IdeaWheel"):
         assert mine in personal, f"{mine} vanished from Personal"
         assert mine not in business, f"{mine} leaked into Business"
 
