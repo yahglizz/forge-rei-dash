@@ -37,6 +37,9 @@ const AGENCY_PAGES = {
   MyAds:      () => <window.DaycareWorkspace><window.DaycareAds /></window.DaycareWorkspace>,
   MySocial:   () => <window.DaycareWorkspace><window.DaycareSocial /></window.DaycareWorkspace>,
   MyStudio:   () => <window.DaycareWorkspace><window.DaycareNova /></window.DaycareWorkspace>,
+  // Idea Wheel: deterministic portfolio-idea generator (idea_wheel.py). Not a daycare surface,
+  // so no DaycareWorkspace gate — it reads/writes only marcus_state/idea_wheel.json.
+  IdeaWheel:  () => <window.AgencyIdeaWheel />,
   // --- Business lens (client work) -------------------------------------------
   Clients:    () => <window.AgencyClients />,
   Messages:   () => <window.AgencyMessages />,

@@ -461,10 +461,10 @@ def spin(filters, seed, recent_niches=(), recent_combos=()):
     idx = c["idx"]
     candidates = pool(filters, recent_niches)
     if not candidates:
+        only_recent = bool(pool(dict(filters, allowRepeats=True), recent_niches))
         return {"ok": False, "exhausted": True,
-                "message": ("No fresh niches match these filters. Relax one of them, or allow repeats.")
-                if (filters["excludeRecent"] and not filters["allowRepeats"])
-                else "No niches match this combination of filters. Relax one of them.",
+                "message": ("You've already seen every niche that matches these filters. Allow repeats, or relax a filter.")
+                if only_recent else "No niche in the catalog matches this combination of filters. Relax one of them.",
                 "relax": relax_suggestions(filters, recent_niches), "filters": filters}
     rng = _rng("spin", seed, json.dumps(filters, sort_keys=True), ",".join(sorted(recent_niches)))
     segs = _segments(rng, candidates, filters["localOnly"])
