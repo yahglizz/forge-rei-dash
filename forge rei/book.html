@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="referrer" content="no-referrer" />
+<title>Book a call — ClientForge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#050B18; --card:#101827; --card-2:#162034; --line:#22304A; --line-2:#2C3B58;
+    --text:#F1F5FB; --text-2:#9FB0C7; --text-3:#6F819C;
+    --blue:#4F7CFF; --blue-2:#3D68F0; --blue-soft:#4F7CFF24; --blue-soft-2:#4F7CFF3D;
+    --green:#22C55E; --red:#F87171; --radius:18px;
+    --font:'Geist', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--text); font-family:var(--font); -webkit-font-smoothing:antialiased;
+        line-height:1.45; min-height:100vh;
+        background-image:radial-gradient(1200px 600px at 50% -200px, #4F7CFF1a, transparent 70%); }
+  button,input,select,textarea{ font-family:inherit; font-size:inherit; color:inherit; }
+  button{ cursor:pointer; }
+  :focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+  .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+  .page{ max-width:1080px; margin:0 auto; padding:48px 20px 64px; }
+  .shell{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+          box-shadow:0 30px 80px -30px #000c; overflow:hidden; }
+  .grid3{ display:grid; grid-template-columns:300px minmax(0,1fr) 270px; min-height:560px; }
+  .grid2{ display:grid; grid-template-columns:300px minmax(0,1fr); min-height:560px; }
+  .pane{ padding:28px 26px; min-width:0; }
+  .pane + .pane{ border-left:1px solid var(--line); }
+
+  /* left: event card */
+  .mark{ display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .mark-badge{ width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-weight:700;
+               font-size:14px; letter-spacing:-.3px; color:#fff;
+               background:linear-gradient(135deg, var(--blue), #7C5CFF); box-shadow:0 6px 18px -6px #4F7CFF99; }
+  .mark-name{ font-weight:700; font-size:15px; letter-spacing:-.2px; }
+  .host{ color:var(--text-2); font-weight:500; font-size:14.5px; margin:0 0 4px; }
+  .title{ font-size:26px; line-height:1.15; font-weight:700; letter-spacing:-.6px; margin:0 0 18px; }
+  .meta{ display:flex; align-items:center; gap:9px; color:var(--text-2); font-weight:600; font-size:14.5px; margin:0 0 10px; }
+  .meta svg{ flex:none; color:var(--text-2); }
+  .meta.when{ color:var(--text); }
+  .desc{ color:var(--text-2); font-size:14px; margin:16px 0 0; }
+  .back{ display:inline-grid; place-items:center; width:38px; height:38px; border-radius:50%; margin:-6px 0 14px -4px;
+         background:transparent; border:1px solid var(--line-2); color:var(--blue); }
+  .back:hover{ background:var(--blue-soft); }
+
+  /* middle: calendar */
+  h2{ font-size:19px; font-weight:700; letter-spacing:-.3px; margin:0 0 22px; }
+  h2:focus{ outline:none; }
+  .month{ display:flex; align-items:center; justify-content:center; gap:22px; margin:0 0 16px; }
+  .month-label{ font-weight:500; font-size:15px; min-width:150px; text-align:center; }
+  .nav{ width:38px; height:38px; border-radius:50%; border:none; display:grid; place-items:center;
+        background:var(--blue-soft); color:var(--blue); transition:background .15s; }
+  .nav:hover:not(:disabled){ background:var(--blue-soft-2); }
+  .nav:disabled{ background:transparent; color:var(--text-3); cursor:default; }
+  .dow, .days{ display:grid; grid-template-columns:repeat(7, 1fr); justify-items:center; }
+  .dow{ margin-bottom:8px; }
+  .dow span{ font-size:11.5px; font-weight:600; letter-spacing:.6px; color:var(--text-2); padding:6px 0; }
+  .days{ row-gap:6px; }
+  .day{ position:relative; width:46px; height:46px; border-radius:50%; border:none; background:transparent;
+        color:var(--text-3); font-size:15px; font-weight:500; transition:background .15s, color .15s; }
+  .day.open{ background:var(--blue-soft); color:var(--blue); font-weight:700; }
+  .day.open:hover{ background:var(--blue-soft-2); }
+  .day.sel{ background:var(--blue); color:#fff; }
+  .day[aria-disabled="true"]{ cursor:default; }
+  .day.today::after{ content:""; position:absolute; left:50%; bottom:6px; width:4px; height:4px; margin-left:-2px;
+                     border-radius:50%; background:currentColor; }
+  .tz{ margin-top:26px; }
+  .tz label{ display:block; font-weight:700; font-size:14px; margin-bottom:6px; }
+  .tz-row{ display:flex; align-items:center; gap:8px; color:var(--text-2); font-size:14px; }
+  .tz select{ appearance:none; -webkit-appearance:none; background:transparent; border:1px solid transparent;
+              border-radius:10px; padding:6px 26px 6px 8px; margin-left:-8px; max-width:100%; color:var(--text);
+              background-image:linear-gradient(45deg,transparent 50%,var(--text-2) 50%),linear-gradient(135deg,var(--text-2) 50%,transparent 50%);
+              background-position:calc(100% - 13px) 55%, calc(100% - 8px) 55%; background-size:5px 5px; background-repeat:no-repeat; }
+  .tz select:hover{ border-color:var(--line-2); }
+  .tz select option{ background:var(--card); color:var(--text); }
+
+  /* right: times */
+  .times-head{ font-weight:600; font-size:15.5px; margin:52px 0 6px; }
+  .avail{ display:flex; align-items:center; gap:7px; color:var(--text-2); font-size:13px; margin:0 0 16px; }
+  .avail i{ width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px #22C55E26; }
+  .slots{ display:flex; flex-direction:column; gap:10px; max-height:420px; overflow-y:auto; padding:2px 6px 2px 2px;
+          scrollbar-width:thin; scrollbar-color:var(--line-2) transparent; }
+  .slot-row{ display:flex; gap:8px; }
+  .slot{ flex:1 1 auto; height:52px; border-radius:10px; border:1px solid var(--blue-soft-2); background:transparent;
+         color:var(--blue); font-weight:700; font-size:15px; transition:flex-basis .2s, background .15s, border-color .15s; }
+  .slot:hover{ border-color:var(--blue); }
+  .slot-row.pick .slot{ flex:0 0 calc(50% - 4px); background:#6F819C; border-color:#6F819C; color:#fff; }
+  .next{ flex:0 0 calc(50% - 4px); height:52px; border-radius:10px; border:none; background:var(--blue); color:#fff;
+         font-weight:700; font-size:15px; }
+  .next:hover{ background:var(--blue-2); }
+  .empty{ color:var(--text-2); font-size:14px; }
+
+  /* step 2: form */
+  form{ max-width:520px; }
+  .field{ margin-bottom:16px; }
+  .field label, .legend{ display:block; font-weight:600; font-size:14px; margin-bottom:7px; }
+  .req{ color:var(--text-2); font-weight:500; }
+  input[type=text], input[type=email], input[type=tel], input[type=url], textarea{
+    width:100%; background:var(--card-2); border:1px solid var(--line-2); border-radius:10px; padding:11px 12px;
+    font-size:15px; outline:none; transition:border-color .15s, box-shadow .15s; }
+  input:focus, textarea:focus{ border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft); }
+  input[aria-invalid="true"]{ border-color:var(--red); }
+  textarea{ min-height:96px; resize:vertical; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{ padding:9px 14px; border-radius:999px; border:1px solid var(--line-2); background:transparent; color:var(--text-2);
+         font-weight:600; font-size:14px; transition:all .15s; }
+  .chip[aria-pressed="true"]{ background:var(--blue-soft); border-color:var(--blue); color:var(--text); }
+  .hp{ position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden; }
+  .primary{ border:none; border-radius:999px; background:var(--blue); color:#fff; font-weight:700; font-size:15px;
+            padding:13px 24px; transition:background .15s; }
+  .primary:hover{ background:var(--blue-2); }
+  .primary:disabled{ opacity:.6; cursor:default; }
+  .msg{ margin:0 0 14px; padding:10px 12px; border-radius:10px; font-size:14px; background:#F871711f; color:var(--red); }
+  .msg:empty{ display:none; }
+  .fine{ color:var(--text-3); font-size:12.5px; margin-top:14px; }
+
+  /* step 3: confirmed */
+  .done{ max-width:560px; margin:0 auto; padding:44px 26px 40px; text-align:center; }
+  .done-ico{ width:56px; height:56px; border-radius:50%; margin:0 auto 16px; display:grid; place-items:center;
+             background:#22C55E24; color:var(--green); }
+  .done h2{ margin-bottom:6px; font-size:22px; }
+  .done .lead{ color:var(--text-2); margin:0 0 24px; font-size:14.5px; }
+  .summary{ text-align:left; border:1px solid var(--line); border-radius:14px; padding:18px 20px; background:var(--card-2); }
+  .summary .meta{ margin-bottom:8px; }
+  .summary .meta:last-child{ margin-bottom:0; }
+  .actions{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+  .ghost{ border:1px solid var(--line-2); border-radius:999px; background:transparent; color:var(--text); font-weight:600;
+          font-size:14.5px; padding:12px 20px; text-decoration:none; display:inline-flex; align-items:center; gap:8px; }
+  .ghost:hover{ border-color:var(--blue); }
+
+  .loading{ color:var(--text-2); font-size:14px; padding:6px 0; }
+  .foot{ text-align:center; color:var(--text-3); font-size:12px; margin-top:18px; }
+
+  @media (max-width:760px){
+    .page{ padding:16px 12px 40px; }
+    .grid3, .grid2{ grid-template-columns:1fr; min-height:0; }
+    .pane{ padding:22px 18px; }
+    .pane + .pane{ border-left:none; border-top:1px solid var(--line); }
+    .title{ font-size:22px; }
+    .day{ width:40px; height:40px; font-size:14px; }
+    .times-head{ margin-top:0; }
+    .slots{ max-height:none; }
+    .row2{ grid-template-columns:1fr; }
+  }
+  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; scroll-behavior:auto !important; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="shell" id="app" aria-live="polite">
+    <div class="pane loading" role="status">Loading available times…</div>
+  </div>
+  <p class="foot">ClientForge · scheduling by FORGE</p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+  var NEEDS = [["website", "Website"], ["ads", "Ads"], ["booking", "Booking / CRM"], ["other", "Other"]];
+  var app = document.getElementById("app");
+  var params = new URLSearchParams(location.search);
+  var ref = (params.get("ref") || "").trim();
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(ref)) ref = "";
+
+  var S = { event: null, slots: [], byDay: {}, tz: detectTz(), month: null, day: null, pick: null,
+            form: { name: "", business: "", email: "", phone: "", website: "", notes: "", need: [] },
+            notice: "", booked: null };
+
+  // ── tiny DOM helper: text only, never innerHTML with data ──────────────────
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    for (var k in attrs || {}) {
+      var v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k === "text") el.textContent = v;
+      else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c == null || c === false) continue;
+      (Array.isArray(c) ? c : [c]).forEach(function (x) {
+        if (x != null && x !== false) el.appendChild(typeof x === "string" ? document.createTextNode(x) : x);
+      });
+    }
+    return el;
+  }
+  function svg(path, size) {
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("width", size || 18); s.setAttribute("height", size || 18); s.setAttribute("viewBox", "0 0 24 24");
+    s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2");
+    s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+    path.split("|").forEach(function (d) {
+      var p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("d", d); s.appendChild(p);
+    });
+    return s;
+  }
+  var ICON = { clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M12 6v6l4 2",
+               cal: "M8 2v4|M16 2v4|M3 10h18|M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
+               globe: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z|M2 12h20|M12 2a15 15 0 0 1 0 20|M12 2a15 15 0 0 0 0 20",
+               left: "M15 18l-6-6 6-6", right: "M9 18l6-6-6-6", check: "M20 6L9 17l-5-5", user: "M20 21a8 8 0 0 0-16 0|M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+               down: "M12 3v12|M7 10l5 5 5-5|M5 21h14" };
+
+  // ── time zone + formatting (everything shown in the visitor's chosen zone) ──
+  function detectTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York"; } catch (e) { return "America/New_York"; } }
+  function zones() {
+    var list = [];
+    try { if (Intl.supportedValuesOf) list = Intl.supportedValuesOf("timeZone"); } catch (e) { list = []; }
+    if (!list.length) list = ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix",
+                              "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu", "America/Toronto",
+                              "America/Puerto_Rico", "Europe/London", "Europe/Paris", "Asia/Kolkata", "Asia/Tokyo",
+                              "Australia/Sydney", "UTC"];
+    if (list.indexOf(S.tz) < 0) list = [S.tz].concat(list);
+    return list;
+  }
+  function fmt(ts, opts) { return new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: S.tz }, opts)).format(new Date(ts * 1000)); }
+  function dayKey(ts) {
+    var p = {}; new Intl.DateTimeFormat("en-US", { timeZone: S.tz, year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(new Date(ts * 1000)).forEach(function (x) { p[x.type] = x.value; });
+    return p.year + "-" + p.month + "-" + p.day;
+  }
+  function clock(ts) { return fmt(ts, { hour: "numeric", minute: "2-digit" }).replace(" AM", "am").replace(" PM", "pm"); }
+  function longDay(ts) { return fmt(ts, { weekday: "long", month: "long", day: "numeric" }); }
+  function fullWhen(s, e) { return clock(s) + " – " + clock(e) + ", " + fmt(s, { weekday: "long", month: "long", day: "numeric", year: "numeric" }); }
+  function tzLabel(z) {
+    var now = Math.floor(Date.now() / 1000), t = "";
+    try { t = new Intl.DateTimeFormat("en-US", { timeZone: z, hour: "numeric", minute: "2-digit" }).format(new Date(now * 1000)).replace(" AM", "am").replace(" PM", "pm"); } catch (e) { t = ""; }
+    return z.replace(/_/g, " ").replace(/\//g, " / ") + (t ? "  (" + t + ")" : "");
+  }
+  function ymd(y, m, d) { return y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0"); }
+
+  function regroup() {
+    S.byDay = {};
+    S.slots.forEach(function (s) { var k = dayKey(s.start); (S.byDay[k] = S.byDay[k] || []).push(s); });
+    var days = Object.keys(S.byDay).sort();
+    if (!S.day || !S.byDay[S.day]) S.day = days[0] || null;
+    var anchor = S.day || dayKey(Date.now() / 1000);
+    S.month = { y: +anchor.slice(0, 4), m: +anchor.slice(5, 7) - 1 };
+  }
+
+  // ── API ────────────────────────────────────────────────────────────────────
+  function post(path, body) {
+    return fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+      .then(function (r) { return r.json().catch(function () { return { ok: false, message: "Something went wrong." }; }); });
+  }
+  function load(keepNotice) {
+    return post("/api/book/slots", {}).then(function (d) {
+      if (!d || !d.ok) throw new Error((d && d.message) || "unavailable");
+      S.event = d.event; S.slots = d.slots || []; S.pick = null;
+      if (!keepNotice) S.notice = "";
+      regroup(); render("cal");
+    }).catch(function () {
+      app.textContent = "";
+      app.appendChild(h("div", { class: "pane" }, h("h2", { text: "Booking is unavailable right now." }),
+        h("p", { class: "empty", text: "Please try again in a few minutes." })));
+    });
+  }
+
+  // ── panes ──────────────────────────────────────────────────────────────────
+  function eventPane(withWhen, onBack) {
+    var e = S.event;
+    return h("aside", { class: "pane", "aria-label": "Event details" },
+      onBack ? h("button", { class: "back", type: "button", "aria-label": "Back to date and time", onclick: onBack }, svg(ICON.left, 20)) : null,
+      h("div", { class: "mark" }, h("div", { class: "mark-badge", "aria-hidden": "true", text: "CF" }), h("div", { class: "mark-name", text: "ClientForge" })),
+      h("p", { class: "host", text: e.host }),
+      h("h1", { class: "title", text: e.title }),
+      h("p", { class: "meta" }, svg(ICON.clock), e.durationMin + " min"),
+      withWhen ? h("p", { class: "meta when" }, svg(ICON.cal), fullWhen(S.pick.start, S.pick.end)) : null,
+      withWhen ? h("p", { class: "meta" }, svg(ICON.globe), S.tz.replace(/_/g, " ")) : null,
+      h("p", { class: "desc", text: e.description }));
+  }
+
+  function calPane() {
+    var y = S.month.y, m = S.month.m;
+    var first = new Date(Date.UTC(y, m, 1)), dim = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    var lead = (first.getUTCDay() + 6) % 7;                         // Monday-first
+    var today = dayKey(Date.now() / 1000), keys = Object.keys(S.byDay).sort();
+    var lastKey = keys[keys.length - 1] || today;
+    var curMonth = today.slice(0, 7), thisMonth = ymd(y, m, 1).slice(0, 7);
+    var monthName = new Date(Date.UTC(y, m, 15)).toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+    var cells = [];
+    for (var i = 0; i < lead; i++) cells.push(h("span", { "aria-hidden": "true" }));
+    for (var d = 1; d <= dim; d++) {
+      (function (key, d) {
+        var open = !!S.byDay[key], sel = open && key === S.day;
+        var label = new Date(Date.UTC(y, m, d, 12)).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })
+          + (open ? ", " + S.byDay[key].length + " times available" : ", unavailable");
+        cells.push(h("button", { type: "button", class: "day" + (open ? " open" : "") + (sel ? " sel" : "") + (key === today ? " today" : ""),
+          "data-key": key, "aria-label": label, "aria-pressed": sel ? "true" : "false", "aria-disabled": open ? null : "true",
+          tabindex: sel ? "0" : "-1", text: String(d),
+          onclick: function () { if (open) { S.day = key; S.pick = null; render("cal", "day:" + key); } },
+          onkeydown: gridKeys }));
+      })(ymd(y, m, d), d);
+    }
+    var tzSel = h("select", { id: "tz", onchange: function (ev) { S.tz = ev.target.value; S.day = null; S.pick = null; regroup(); render("cal", "tz"); } },
+      zones().map(function (z) { return h("option", { value: z, selected: z === S.tz ? true : null, text: tzLabel(z) }); }));
+    return h("section", { class: "pane", "aria-labelledby": "h-cal" },
+      h("h2", { id: "h-cal", tabindex: "-1", text: "Select a Date & Time" }),
+      S.notice ? h("p", { class: "msg", role: "alert", text: S.notice }) : null,
+      h("div", { class: "month" },
+        h("button", { class: "nav", type: "button", "aria-label": "Previous month", disabled: thisMonth <= curMonth ? true : null,
+          onclick: function () { shift(-1); } }, svg(ICON.left, 20)),
+        h("div", { class: "month-label", "aria-live": "polite", text: monthName }),
+        h("button", { class: "nav", type: "button", "aria-label": "Next month", disabled: thisMonth >= lastKey.slice(0, 7) ? true : null,
+          onclick: function () { shift(1); } }, svg(ICON.right, 20))),
+      h("div", { class: "dow", "aria-hidden": "true" }, DOW.map(function (x) { return h("span", { text: x }); })),
+      h("div", { class: "days", role: "group", "aria-label": monthName }, cells),
+      keys.length ? null : h("p", { class: "empty", text: "No open times in the next " + (S.event.daysAhead || 21) + " days. Please check back soon." }),
+      h("div", { class: "tz" }, h("label", { for: "tz", text: "Time zone" }),
+        h("div", { class: "tz-row" }, svg(ICON.globe), tzSel)));
+  }
+
+  function shift(n) {
+    var m = S.month.m + n, y = S.month.y + Math.floor(m / 12);
+    S.month = { y: y, m: ((m % 12) + 12) % 12 };
+    var pre = ymd(S.month.y, S.month.m, 1).slice(0, 7);
+    var firstOpen = Object.keys(S.byDay).sort().filter(function (k) { return k.slice(0, 7) === pre; })[0];
+    if (firstOpen) { S.day = firstOpen; S.pick = null; }
+    render("cal", "nav");
+  }
+
+  function gridKeys(ev) {
+    var step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[ev.key];
+    if (!step && ev.key !== "Home" && ev.key !== "End") return;
+    ev.preventDefault();
+    var btns = Array.prototype.slice.call(app.querySelectorAll(".day"));
+    var i = btns.indexOf(ev.currentTarget), j = ev.key === "Home" ? 0 : ev.key === "End" ? btns.length - 1 : i + step;
+    if (j < 0 || j >= btns.length) return;
+    btns[i].setAttribute("tabindex", "-1"); btns[j].setAttribute("tabindex", "0"); btns[j].focus();
+  }
+
+  function timesPane() {
+    var list = S.day ? S.byDay[S.day] || [] : [];
+    return h("section", { class: "pane", "aria-labelledby": "h-times" },
+      h("div", { class: "times-head", id: "h-times", text: list.length ? longDay(list[0].start) : "Pick a day" }),
+      h("p", { class: "avail" }, h("i", { "aria-hidden": "true" }), "times you're available"),
+      h("div", { class: "slots", role: "list" }, list.map(function (s) {
+        var picked = S.pick && S.pick.start === s.start;
+        return h("div", { class: "slot-row" + (picked ? " pick" : ""), role: "listitem" },
+          h("button", { type: "button", class: "slot", "aria-pressed": picked ? "true" : "false",
+            "aria-label": clock(s.start) + (picked ? ", selected" : ""), text: clock(s.start),
+            onclick: function () { S.pick = picked ? null : s; render("cal", picked ? "slot:" + s.start : "next"); } }),
+          picked ? h("button", { type: "button", class: "next", id: "next", "aria-label": "Next: confirm " + clock(s.start),
+            text: "Next", onclick: function () { render("form", "form"); } }) : null);
+      })));
+  }
+
+  function formPane() {
+    var f = S.form;
+    function input(id, label, type, required, extra) {
+      return h("div", { class: "field" }, h("label", { for: id }, label, required ? h("span", { class: "req", text: " *" }) : null),
+        h("input", Object.assign({ id: id, name: id, type: type, value: f[id], required: required ? true : null,
+          oninput: function (ev) { f[id] = ev.target.value; ev.target.removeAttribute("aria-invalid"); } }, extra || {})));
+    }
+    var err = h("p", { class: "msg", id: "form-err", role: "alert" });
+    var submit = h("button", { class: "primary", type: "submit", text: "Schedule Event" });
+    var form = h("form", { novalidate: true, "aria-describedby": "form-err", onsubmit: function (ev) { ev.preventDefault(); book(form, err, submit); } },
+      err,
+      h("div", { class: "row2" }, input("name", "Your name", "text", true, { autocomplete: "name", maxlength: "80" }),
+        input("business", "Business name", "text", true, { autocomplete: "organization", maxlength: "120" })),
+      input("email", "Email", "email", true, { autocomplete: "email", maxlength: "254" }),
+      h("div", { class: "row2" }, input("phone", "Phone", "tel", false, { autocomplete: "tel", maxlength: "32" }),
+        input("website", "Website", "text", false, { autocomplete: "url", maxlength: "200", placeholder: "yourbusiness.com" })),
+      h("div", { class: "field", role: "group", "aria-labelledby": "need-l" }, h("span", { class: "legend", id: "need-l", text: "What do you want help with?" }),
+        h("div", { class: "chips" }, NEEDS.map(function (n) {
+          var on = f.need.indexOf(n[0]) >= 0;
+          return h("button", { type: "button", class: "chip", "aria-pressed": on ? "true" : "false", text: n[1],
+            onclick: function (ev) {
+              var i = f.need.indexOf(n[0]); if (i >= 0) f.need.splice(i, 1); else f.need.push(n[0]);
+              ev.currentTarget.setAttribute("aria-pressed", f.need.indexOf(n[0]) >= 0 ? "true" : "false");
+            } });
+        }))),
+      h("div", { class: "field" }, h("label", { for: "notes", text: "Anything we should know before the call?" }),
+        h("textarea", { id: "notes", name: "notes", maxlength: "1000", oninput: function (ev) { f.notes = ev.target.value; } }, f.notes)),
+      h("div", { class: "hp", "aria-hidden": "true" }, h("label", { for: "fax", text: "Fax (leave empty)" }),
+        h("input", { id: "fax", name: "fax", type: "text", tabindex: "-1", autocomplete: "off" })),
+      submit,
+      h("p", { class: "fine", text: "We only use these details to prepare for the call. Nothing is charged and no account is created." }));
+    return h("section", { class: "pane", "aria-labelledby": "h-form" }, h("h2", { id: "h-form", tabindex: "-1", text: "Enter Details" }), form);
+  }
+
+  function check(form) {
+    var f = S.form, bad = null;
+    function flag(id, msg) { if (!bad) { bad = msg; var el = form.querySelector("#" + id); el.setAttribute("aria-invalid", "true"); el.focus(); } }
+    if (!f.name.trim()) flag("name", "Please enter your name.");
+    if (!f.business.trim()) flag("business", "Please enter your business name.");
+    if (!/^[^@\s<>"]{1,64}@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(f.email.trim())) flag("email", "Please enter a valid email address.");
+    var digits = f.phone.replace(/\D/g, "");
+    if (f.phone.trim() && (digits.length < 10 || digits.length > 15 || /[^\d\s()+.-]/.test(f.phone))) flag("phone", "Please enter a valid phone number, or leave it blank.");
+    if (f.website.trim() && !/^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(f.website.trim())) flag("website", "Please enter a valid website, or leave it blank.");
+    return bad;
+  }
+
+  function book(form, err, submit) {
+    var bad = check(form);
+    if (bad) { err.textContent = bad; return; }
+    err.textContent = ""; submit.disabled = true; submit.textContent = "Scheduling…";
+    var f = S.form;
+    post("/api/book/create", { name: f.name, business: f.business, email: f.email, phone: f.phone, website: f.website,
+      notes: f.notes, need: f.need, start: S.pick.start, tz: S.tz, ref: ref, fax: form.querySelector("#fax").value })
+      .then(function (d) {
+        if (d && d.ok) { S.booked = d.booking; render("done", "done"); return; }
+        if (d && (d.error === "slot_taken" || d.error === "not_bookable")) {
+          S.notice = d.message || "That time was just taken. Please pick another."; S.pick = null; load(true);
+          return;
+        }
+        err.textContent = (d && d.message) || "Booking failed. Please try again.";
+        submit.disabled = false; submit.textContent = "Schedule Event";
+      }).catch(function () {
+        err.textContent = "Network error. Please try again."; submit.disabled = false; submit.textContent = "Schedule Event";
+      });
+  }
+
+  // ── step 3: confirmation + client-side calendar files ─────────────────────
+  function stamp(ts) { return new Date(ts * 1000).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); }
+  function icsEsc(s) { return String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n"); }
+  function details() { return S.event.title + " with " + S.event.host + ". " + S.event.description; }
+  function ics(b) {
+    var uid = "cf-" + b.start + "-" + Math.random().toString(36).slice(2, 10) + "@clientforge";
+    var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ClientForge//Book a call//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stamp(Date.now() / 1000), "DTSTART:" + stamp(b.start), "DTEND:" + stamp(b.end),
+      "SUMMARY:" + icsEsc(b.title + " — ClientForge"), "DESCRIPTION:" + icsEsc(details()), "END:VEVENT", "END:VCALENDAR"];
+    return lines.join("\r\n") + "\r\n";
+  }
+  function downloadIcs() {
+    var blob = new Blob([ics(S.booked)], { type: "text/calendar;charset=utf-8" });
+    var a = h("a", { href: URL.createObjectURL(blob), download: "clientforge-call.ics" });
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function gcalUrl(b) {
+    return "https://calendar.google.com/calendar/render?" + new URLSearchParams({ action: "TEMPLATE",
+      text: b.title + " — ClientForge", dates: stamp(b.start) + "/" + stamp(b.end), details: details() }).toString();
+  }
+  function donePane() {
+    var b = S.booked;
+    return h("section", { class: "done", "aria-labelledby": "h-done" },
+      h("div", { class: "done-ico" }, svg(ICON.check, 28)),
+      h("h2", { id: "h-done", tabindex: "-1", text: "You are scheduled" }),
+      h("p", { class: "lead", text: "This page is your confirmation. Add the call to your calendar so it doesn't slip." }),
+      h("div", { class: "summary" },
+        h("p", { class: "meta when" }, h("b", { text: b.title })),
+        h("p", { class: "meta" }, svg(ICON.user), b.host),
+        h("p", { class: "meta" }, svg(ICON.cal), fullWhen(b.start, b.end)),
+        h("p", { class: "meta" }, svg(ICON.globe), S.tz.replace(/_/g, " ")),
+        h("p", { class: "meta" }, svg(ICON.clock), b.durationMin + " min")),
+      h("div", { class: "actions" },
+        h("button", { type: "button", class: "primary", onclick: downloadIcs }, "Add to calendar (.ics)"),
+        h("a", { class: "ghost", href: gcalUrl(b), target: "_blank", rel: "noopener noreferrer" }, "Google Calendar")));
+  }
+
+  // ── render ────────────────────────────────────────────────────────────────
+  function render(view, focus) {
+    app.textContent = "";
+    if (view === "cal") {
+      app.appendChild(h("div", { class: "grid3" }, eventPane(false), calPane(), timesPane()));
+    } else if (view === "form") {
+      app.appendChild(h("div", { class: "grid2" }, eventPane(true, function () { render("cal", "next"); }), formPane()));
+    } else {
+      app.appendChild(donePane());
+    }
+    var target = null;
+    if (focus === "form") target = app.querySelector("#name");
+    else if (focus === "done") target = app.querySelector("#h-done");
+    else if (focus === "next") target = app.querySelector("#next") || app.querySelector(".slot");
+    else if (focus && focus.indexOf("day:") === 0) target = app.querySelector('.day[data-key="' + focus.slice(4) + '"]');
+    else if (focus && focus.indexOf("slot:") === 0) target = app.querySelector(".slot-row .slot[aria-label^='" + clock(+focus.slice(5)) + "']");
+    else if (focus === "tz") target = app.querySelector("#tz");
+    else if (focus === "nav") target = app.querySelector(".nav:not(:disabled)");
+    if (target) target.focus({ preventScroll: focus === "day" });
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
