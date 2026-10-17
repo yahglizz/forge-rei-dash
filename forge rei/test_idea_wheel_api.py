@@ -266,6 +266,90 @@ def _():
     assert code == 200 and "error" in obj
 
 
+# --------------------------------------------------------------------------- Claude + Codex agent prompt (P6)
+def _get(path):
+    """Real connector.do_GET round-trip → (status code, json body)."""
+    import connector
+    h = object.__new__(connector.Handler)
+    h.path = path
+    h.headers = {"Host": "localhost:7799"}
+    h._dashboard_client_allowed = lambda: True
+    out = []
+    h._send_json = lambda obj, code=200, headers=None: out.append((code, obj))
+    connector.Handler.do_GET(h)
+    return out[0]
+
+
+@check("agentprompt route: 200 + Markdown for the current (unsaved) idea and for a saved one")
+def _():
+    cur = post("/api/ideawheel/spin", {"filters": {"industry": "home"}, "seed": "ap-cur"})["idea"]
+    assert cur["status"] == "new"
+    code, r = _get("/api/ideawheel/agentprompt?id=%s" % cur["id"])
+    assert code == 200 and r["ok"] and r["remix"] == 0, (code, r.get("error"))
+    assert r["markdown"].startswith("# Claude + Codex build prompt — " + cur["subindustry"])
+    assert r["chars"] == len(r["markdown"]) and 1800 <= r["words"] <= 3500
+    assert not w.agent_prompt_violations(r["markdown"]), w.agent_prompt_violations(r["markdown"])
+    sv = post("/api/ideawheel/spin", {"filters": {"industry": "food"}, "seed": "ap-saved"})["idea"]
+    post("/api/ideawheel/save", {"id": sv["id"], "force": True})
+    code, r2 = _get("/api/ideawheel/agentprompt?id=%s&remix=2" % sv["id"])
+    assert code == 200 and r2["remix"] == 2 and sv["subindustry"] in r2["markdown"]
+
+
+@check("agentprompt route: 400 for a bad id or remix, 404 for an unknown id")
+def _():
+    assert _get("/api/ideawheel/agentprompt?id=nope")[0] == 400
+    assert _get("/api/ideawheel/agentprompt")[0] == 400
+    ok_id = w.list_ideas()["ideas"][0]["id"]
+    for bad in ("-1", "abc", "1000", "1.5"):
+        code, body = _get("/api/ideawheel/agentprompt?id=%s&remix=%s" % (ok_id, bad))
+        assert code == 400 and "remix" in body["error"], (bad, code, body)
+    code, body = _get("/api/ideawheel/agentprompt?id=iw_000000000000")
+    assert code == 404 and body["error"] == "idea not found"
+    assert "httpStatus" not in body
+    code, body = _get("/api/ideawheel/brief?id=bad")  # older routes keep their 200 + {"error"} shape
+    assert code == 200 and "error" in body
+
+
+@check("agentprompt: a recorded remix replays identically even after other prompts were generated")
+def _():
+    a = post("/api/ideawheel/spin", {"filters": {"industry": "beauty"}, "seed": "ap-replay"})["idea"]
+    first = w.agent_prompt(a["id"], 1)
+    for k in range(4):
+        b = post("/api/ideawheel/spin", {"filters": {}, "seed": "ap-noise%d" % k})["idea"]
+        w.agent_prompt(b["id"], 0)
+    again = w.agent_prompt(a["id"], 1)
+    assert again["markdown"] == first["markdown"] and again["dna"] == first["dna"]
+    assert raw()["dnaPicks"]["%s:1" % a["id"]]["mechanic"] == first["dna"]["mechanic"]
+
+
+@check("anti-sameness (store): no mechanic or archetype from the last 5 prompts repeats unless flagged")
+def _():
+    d = raw()
+    d["dnaRecent"], d["dnaPicks"] = [], {}
+    json.dump(d, open(os.environ["FORGE_IDEAWHEEL_STATE"], "w"))
+    for k in range(14):
+        i = post("/api/ideawheel/spin", {"filters": {}, "seed": "ap-var%d" % k})["idea"]
+        r = w.agent_prompt(i["id"], 0)
+        rec = raw()["dnaRecent"]
+        window = rec[-1 - w.DNA_RECENT:-1]
+        if not r["dna"]["repeated"]["mechanic"]:
+            assert r["dna"]["mechanic"] not in [x["mechanic"] for x in window], (k, r["dna"], window)
+        if not r["dna"]["repeated"]["archetype"]:
+            assert r["dna"]["archetype"] not in [x["archetype"] for x in window], (k, r["dna"], window)
+        assert "fresh against the last 5 agent prompts" in r["markdown"] or "repeats one" in r["markdown"]
+
+
+@check("agentprompt: remixes of one idea differ; old store files without DNA keys still work")
+def _():
+    i = post("/api/ideawheel/spin", {"filters": {"industry": "fitness"}, "seed": "ap-remix"})["idea"]
+    mechs = [w.agent_prompt(i["id"], rx)["dna"]["mechanic"] for rx in range(4)]
+    assert all(mechs[k] != mechs[k + 1] for k in range(3)), mechs
+    d = raw()
+    d.pop("dnaRecent"), d.pop("dnaPicks")
+    json.dump(d, open(os.environ["FORGE_IDEAWHEEL_STATE"], "w"))
+    assert w.agent_prompt(i["id"], 0)["ok"] and "dnaRecent" in raw()
+
+
 if __name__ == "__main__":
     print("\nstate file:", os.environ["FORGE_IDEAWHEEL_STATE"])
     if FAILS:

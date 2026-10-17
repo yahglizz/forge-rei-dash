@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "verifiedOn": "2026-10-17",
+  "note": "Only skills verified installed on the operator's Mac (ls ~/.claude/skills ~/.codex/skills + the enabled nateherk-design plugin). test_idea_wheel.py re-checks every name against disk. Skills that call paid generation APIs (Higgsfield, kie.ai) are flagged 'paid' and need the operator's go before any generation.",
+  "claude": {
+    "root": "~/.claude/skills",
+    "invoke": "Claude Code: invoke with the Skill tool by name (plugin skills as plugin:name).",
+    "core": [
+      {"name": "impeccable", "when": "Before building any page: shape the layout, then audit and polish the finished UI (critique, harden, adapt for mobile).", "notFor": "Writing data models, logic or tests."},
+      {"name": "taste-skill", "when": "While writing page composition and components: enforces spacing, type scale and component discipline so the result does not look like a default AI page.", "notFor": "Visual asset production (that is Codex's lane) or copywriting."},
+      {"name": "high-end-visual-design", "when": "Setting the type, spacing and card system in CONTRACT.md tokens so the concept reads premium.", "notFor": "Calm or accessibility-first concepts where restraint matters more than polish tricks; never as a reason to add decoration."},
+      {"name": "scroll-craft", "plugin": "nateherk-design", "invoke": "nateherk-design:scroll-craft", "paid": true, "when": "Planning the visitor journey, the emotional peak and the one signature scroll move, plus its desktop / mobile / reduced-motion verification.", "notFor": "Generating photoreal assets through kie.ai without the operator's go; use supplied or placeholder imagery by default."},
+      {"name": "scroll-world", "paid": true, "skipWhen": ["calm", "transactional", "tool"], "when": "Only for a showcase concept that wants a full scroll-scrubbed 'fly through the world' hero.", "notFor": "Booking, quote or calm concepts, app-like tools, and any run where Higgsfield generation is not approved by the operator."}
+    ],
+    "style": {
+      "map": {
+        "luxury_editorial": "soft-skill", "minimalist": "minimalist-ui", "playful": "design-taste-frontend",
+        "brutalist": "brutalist-skill", "retro": "design-taste-frontend", "dark_premium": "soft-skill",
+        "bright_friendly": "design-taste-frontend", "glass": "soft-skill", "earthy": "minimalist-ui",
+        "industrial": "industrial-brutalist-ui", "bold_type": "brutalist-skill", "high_contrast": "minimalist-ui",
+        "warm_community": "design-taste-frontend", "clinical_calm": "minimalist-ui"
+      },
+      "skills": [
+        {"name": "soft-skill", "when": "Premium soft aesthetics: refined type pairing, soft shadows, generous whitespace.", "notFor": "Raw / brutalist directions."},
+        {"name": "minimalist-ui", "when": "Clean editorial interfaces: warm monochrome, typographic contrast, flat bento grids.", "notFor": "Loud, playful or maximalist directions."},
+        {"name": "design-taste-frontend", "when": "Friendly or playful directions that still need metric-based discipline.", "notFor": "Strict editorial minimalism."},
+        {"name": "brutalist-skill", "when": "Raw Swiss-print / terminal aesthetics with extreme type contrast.", "notFor": "Care, health, legal or finance concepts."},
+        {"name": "industrial-brutalist-ui", "when": "Utilitarian industrial interfaces: rigid grids, mechanical labels.", "notFor": "Soft consumer brands."}
+      ]
+    },
+    "app": [
+      {"name": "expo-router", "when": "Setting up the companion app's file-based routes, tabs and stacks.", "notFor": "Styling screens."},
+      {"name": "expo-native-ui", "when": "Making the companion app's screens feel native (HIG spacing, semantic colours, native controls).", "notFor": "Navigation structure."},
+      {"name": "expo-animation", "when": "Building the app's signature gesture and its spring / timing decisions.", "notFor": "Web scroll effects."},
+      {"name": "expo-ui", "when": "Native sheets, pickers, toggles and menus via @expo/ui.", "notFor": "Custom-drawn components."}
+    ],
+    "reel": [
+      {"name": "hyperframes", "when": "Rendering the portfolio demo reel from the content kit storyboard (HTML-to-video).", "notFor": "Recording the iOS simulator."},
+      {"name": "app-showcase-video", "when": "After the companion app runs in the iOS simulator: a vertical promo with the real recording inside a phone frame.", "notFor": "The website walkthrough (use hyperframes)."}
+    ]
+  },
+  "codex": {
+    "root": "~/.codex/skills",
+    "invoke": "Codex: name the skill in the task (skills live in ~/.codex/skills).",
+    "core": [
+      {"name": "frontend-design", "when": "Building the ui/components set against CONTRACT.md with a distinctive, production-grade look.", "notFor": "Changing copy, data shapes or page logic."},
+      {"name": "ui-ux-pro-max", "when": "Picking concrete type pairings, spacing scales and component states that match the contract's aesthetic.", "notFor": "Overriding the palette or tokens Claude fixed in CONTRACT.md."},
+      {"name": "scroll-craft", "paid": true, "when": "Implementing the Design DNA mechanic in ui/motion/ with its reduced-motion and mobile variants, then checking all three visually.", "notFor": "kie.ai asset generation without the operator's go."},
+      {"name": "impeccable", "when": "Final polish pass on ui/: focus states, contrast, responsive breakpoints, motion audit.", "notFor": "Files outside ui/."}
+    ],
+    "app": [
+      {"name": "expo-native-ui", "when": "Styling the companion app screens once Claude has the routes and data in place.", "notFor": "Routes or state."},
+      {"name": "expo-animation", "when": "Polishing the app's signature gesture animation.", "notFor": "Gesture logic or data."}
+    ]
+  }
+}

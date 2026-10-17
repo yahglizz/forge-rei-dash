@@ -175,6 +175,7 @@ function IwResult({ idea, kitReady, busy, onAction, exhausted, onRelax, fromHist
         <button className="btn" onClick={act("building")} aria-disabled={busyAny} disabled={idea.status === "building"}>Mark Building</button>
         <button className="btn" onClick={act("posted")} aria-disabled={busyAny} disabled={idea.status === "posted"}>Mark Posted</button>
         <button className="btn" onClick={act("brief")} aria-disabled={busyAny}>Copy Build Brief</button>
+        <button className="btn" onClick={act("agent")} aria-disabled={busyAny} aria-haspopup="dialog" data-iw-agent-trigger="">Claude + Codex Prompt</button>
         <button className="btn" onClick={act("today")} aria-disabled={busyAny}>Plan for Today</button>
       </div>
     </section>
@@ -425,6 +426,65 @@ function IwKitPanel({ idea, kit, brief, onKit, busy }) {
   );
 }
 
+// Claude + Codex Prompt modal. Reuses the shared .dc-modal-* shell from styles.css.
+function IwAgentModal({ data, busy, msg, onClose, onCopy, onRemix }) {
+  const layerRef = useRefIw(null);
+  useEffectIw(() => {
+    const layer = layerRef.current;
+    const first = layer && layer.querySelector("[data-iw-autofocus]");
+    if (first) first.focus();
+    function onKey(e) {
+      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
+      if (e.key !== "Tab" || !layer) return;
+      const f = Array.from(layer.querySelectorAll("button:not([tabindex='-1']), [tabindex='0']"));
+      if (!f.length) return;
+      const a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+      else if (!layer.contains(document.activeElement)) { e.preventDefault(); a.focus(); }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+  const off = busy || !data;
+  const dna = (data && data.dna) || null;
+  return (
+    <div className="dc-modal-layer iw-agent-layer" role="dialog" aria-modal="true" aria-labelledby="iw-agent-title" ref={layerRef}>
+      <button className="dc-modal-backdrop" onClick={onClose} aria-label="Close dialog" tabIndex={-1} />
+      <div className="card dc-modal iw-agent-modal">
+        <div className="dc-modal-head">
+          <div>
+            <div className="card-title" id="iw-agent-title">Claude + Codex Prompt</div>
+            <div className="faint">Claude Code = main builder · Codex = UI person. Paste the same prompt into both.</div>
+          </div>
+          <button onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        {dna && (
+          <div className="iw-meta" aria-label="Design DNA">
+            <span className="iw-chip iw-chip--accent">Remix {data.remix}</span>
+            <span className="iw-chip">Scroll: {dna.mechanicLabel}</span>
+            <span className="iw-chip">Layout: {dna.archetypeLabel}</span>
+            <span className="iw-chip">Interaction: {dna.interactionLabel}</span>
+            <span className="iw-chip">Rule-breaker: {dna.ruleBreakerLabel}</span>
+            {(dna.repeated.mechanic || dna.repeated.archetype) && <span className="iw-chip">repeats a recent pick (pool exhausted)</span>}
+          </div>
+        )}
+        <pre className="iw-agent-pre" tabIndex={0} aria-label="Prompt text" aria-busy={busy}>
+          {data ? data.markdown : (busy ? "Building the prompt…" : msg)}
+        </pre>
+        <div className="iw-agent-foot">
+          <span className="faint mono" data-iw-chars="">{data ? data.chars.toLocaleString() + " characters · " + data.words.toLocaleString() + " words" : ""}</span>
+          <span className="iw-agent-msg" role="status">{busy && data ? "Remixing…" : msg}</span>
+          <div className="iw-agent-actions">
+            <button className="btn" onClick={() => !off && onRemix()} aria-disabled={off}>Remix Design DNA</button>
+            <button className="btn btn-primary" data-iw-autofocus="" onClick={() => !off && onCopy()} aria-disabled={off}>Copy prompt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------- page
 function AgencyIdeaWheel() {
   const st = window.useApi("/api/ideawheel/state");
@@ -445,6 +505,10 @@ function AgencyIdeaWheel() {
   const [toast, setToast] = useStateIw("");
   const [announce, setAnnounce] = useStateIw("");
   const [histKey, setHistKey] = useStateIw(0);
+  const [agent, setAgent] = useStateIw(null);
+  const [agentOpen, setAgentOpen] = useStateIw(false);
+  const [agentBusy, setAgentBusy] = useStateIw(false);
+  const [agentMsg, setAgentMsg] = useStateIw("");
   const rotRef = useRefIw(0);
   const pending = useRefIw(null);
   const toastTimer = useRefIw(null);
@@ -513,9 +577,39 @@ function AgencyIdeaWheel() {
     else setTimeout(() => finishSpin(res), IW_DURATION + 250); // transitionend can be skipped in background tabs
   }
 
+  // Claude + Codex Prompt: GET /api/ideawheel/agentprompt (deterministic; remix rerolls only the Design DNA).
+  async function loadAgent(remix) {
+    if (!idea) return;
+    setAgentBusy(true); setAgentMsg("");
+    try {
+      const r = await window.apiGet("/api/ideawheel/agentprompt?id=" + idea.id + "&remix=" + remix);
+      setAgent(r);
+      setAnnounce("Claude + Codex prompt ready: remix " + r.remix + ", " + r.dna.mechanicLabel + ".");
+    } catch (e) { setAgentMsg("Couldn't build the prompt: " + e.message); }
+    setAgentBusy(false);
+  }
+  function openAgent() {
+    setAgentOpen(true); setAgentMsg("");
+    if (!agent || agent.ideaId !== idea.id) { setAgent(null); loadAgent(0); }
+  }
+  function closeAgent() {
+    setAgentOpen(false); setAgentMsg("");
+    setTimeout(() => { const t = document.querySelector("[data-iw-agent-trigger]"); if (t) t.focus(); }, 0);
+  }
+  function remixAgent() {
+    const next = ((agent && agent.remix) || 0) + 1;
+    loadAgent(next > 999 ? 0 : next);
+  }
+  async function copyAgent() {
+    if (!agent) return;
+    const ok = await iwCopy(agent.markdown);
+    setAgentMsg(ok ? "Copied to clipboard." : "Clipboard blocked — select the text and copy it manually.");
+  }
+
   async function act(kind) {
     if (!idea || busy || spinning) return;
     if (kind === "spin") return spin(false);
+    if (kind === "agent") return openAgent();
     setBusy(true);
     try {
       if (kind === "save") {
@@ -665,6 +759,8 @@ function AgencyIdeaWheel() {
 
       <div className="iw-sr" aria-live="polite">{announce}</div>
       {toast && <div className="iw-toast" role="status">{toast}</div>}
+      {agentOpen && <IwAgentModal data={agent && idea && agent.ideaId === idea.id ? agent : null} busy={agentBusy}
+        msg={agentMsg} onClose={closeAgent} onCopy={copyAgent} onRemix={remixAgent} />}
     </div>
   );
 }

@@ -48,3 +48,7 @@ This file only records how the spec maps onto the real FORGE REI OS stack and th
 3. `python3 test_agency_lens.py` + existing nav self-checks still pass (regression).
 4. Browser smoke: Personal lens → Idea Wheel loads, spin lands on displayed segment, reduced-motion path, keyboard, mobile width, all 7 buttons work, existing tabs unaffected.
 5. Read connector log for errors after the run; fix what it finds before reporting done.
+
+## P6 — Claude + Codex Prompt (2026-10-17)
+- New pieces: `idea_wheel_catalog/experience_dna.json` (16 scroll mechanics, 11 layouts, 10 interactions, 10 rule-breakers, 6 app gestures, fit blocks), `idea_wheel_catalog/agent_skills.json` (installed skills only), `idea_wheel.build_agent_prompt` + `agent_prompt` (DNA seeded by idea + remix, anti-sameness vs last 5 prompts in store keys `dnaRecent`/`dnaPicks`), `GET /api/ideawheel/agentprompt?id=&remix=N`, `IwAgentModal` (Copy, char count, Remix Design DNA) next to Copy Build Brief.
+- Only connector change: a 4-line `httpStatus` shim in `do_GET` scoped to `/api/ideawheel/` so the route returns real 400/404; tests in `test_idea_wheel.py` (+11) and `test_idea_wheel_api.py` (+5); no network or model calls in the engine.
