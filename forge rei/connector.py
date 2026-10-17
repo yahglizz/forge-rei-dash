@@ -1097,6 +1097,7 @@ import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad 
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import google_io  # noqa: E402 — Google Calendar for tour booking (/api/google/*; FORGE_GOOGLE_CALENDAR)
+import agency_booking  # noqa: E402 — ClientForge "Book a call" (/book on the portal; /api/agency/bookings)
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
 import daycare_auto_enroll  # noqa: E402 — Family Contact Form -> child + parent login, hands-free (2026-10-07)
@@ -3127,6 +3128,21 @@ def api_owner_actions(_q):
 
 ROUTES["/api/owner-actions"] = api_owner_actions
 NO_CACHE.add("/api/owner-actions")
+
+
+# --- ClientForge "Book a call" (agency_booking.py; public page = PortalHandler /book) ---
+def _book_link():
+    """The shareable booking link. FORGE_BOOK_BASE wins; a local portal port next; else the
+    tailnet PORTAL_BASE (not public until the Funnel points at the portal — owner decision)."""
+    base = os.environ.get("FORGE_BOOK_BASE", "").strip().rstrip("/")
+    port = (os.environ.get("FORGE_PORTAL_PORT") or "").strip()
+    if not base:
+        base = f"http://localhost:{port}" if port.isdigit() else PORTAL_BASE
+    return base + "/book"
+
+
+ROUTES["/api/agency/bookings"] = lambda _q: agency_booking.upcoming(link=_book_link())
+NO_CACHE.add("/api/agency/bookings")
 # --- /WP-C ---
 
 
@@ -3669,6 +3685,9 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/callsheet/note",
                                    "/api/agency/callsheet/delete",
                                    "/api/agency/callsheet/clear-dead",
+                                   "/api/agency/bookings/cancel",
+                                   "/api/book/slots",
+                                   "/api/book/create",
                                    "/api/agency/agents/chat",
                                    "/api/agency/agents/task",
                                    "/api/agency/agents/task/update",
@@ -4017,6 +4036,12 @@ class Handler(BaseHTTPRequestHandler):
                 result = agency_callsheet.delete_lead(body.get("id"))
             elif parsed.path == "/api/agency/callsheet/clear-dead":
                 result = agency_callsheet.clear_dead()
+            elif parsed.path == "/api/agency/bookings/cancel":
+                result = agency_booking.cancel(body.get("id"), link=_book_link())
+            elif parsed.path == "/api/book/slots":     # same as the portal's — local testing
+                result = agency_booking.slots()
+            elif parsed.path == "/api/book/create":
+                result = agency_booking.create(body, self.client_address[0])
             elif parsed.path == "/api/agency/agents/chat":
                 result = agency_agents.chat(
                     body.get("agentId"), body.get("message"), body.get("history"))
@@ -5554,6 +5579,8 @@ class Handler(BaseHTTPRequestHandler):
             path = "/mobile/index.html"
         elif path in ("/portal", "/portal/"):
             path = "/portal.html"
+        elif path in ("/book", "/book/"):
+            path = "/book.html"
         rel = urllib.parse.unquote(path.lstrip("/"))
         # Deny dotfiles + sensitive dirs (secrets, source, state, SSH keys).
         parts = Path(rel).parts
@@ -5588,11 +5615,14 @@ class Handler(BaseHTTPRequestHandler):
 # ── Client portal — a SEPARATE, public-safe listener ──────────────────────────
 # The main dashboard (Handler above) stays on the private tailnet. This second
 # handler is the ONLY surface intended to face the public internet (via Tailscale
-# Funnel on FORGE_PORTAL_PORT). It answers exactly three things:
+# Funnel on FORGE_PORTAL_PORT). It answers exactly these:
 #   GET  /            + /portal        → the client portal page (portal.html)
 #   POST /api/portal/bootstrap         → that client's own name + requests (token)
 #   POST /api/portal/submit            → file a new edit request (token)
 #   POST /api/portal/message           → post a message to the operator (token)
+#   GET  /book                         → ClientForge "Book a call" page (book.html)
+#   POST /api/book/slots               → open call times (agency_booking.slots)
+#   POST /api/book/create              → book one (validated, rate-limited, honeypot)
 # EVERYTHING else 404s. There is deliberately NO path from this handler to the
 # CRM, the dashboard APIs, secrets, or any other client — a client's token only
 # ever unlocks their own record (agency_portal_io + agency_io.verify_portal).
@@ -5628,8 +5658,8 @@ class PortalHandler(BaseHTTPRequestHandler):
         except Exception:  # noqa: BLE001
             pass
 
-    def _page(self):
-        target = (HERE / "portal.html").resolve()
+    def _page(self, name="portal.html"):
+        target = (HERE / name).resolve()
         if not (str(target).startswith(str(HERE) + os.sep) and target.is_file()):
             return self.send_error(404, "Not found")
         data = target.read_bytes()
@@ -5649,12 +5679,22 @@ class PortalHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if path in ("/", "/portal", "/portal/", "/portal.html"):
             return self._page()
+        if path in ("/book", "/book/"):
+            return self._page("book.html")
         return self.send_error(404, "Not found")
+
+    def _peer_ip(self):
+        """The visitor's IP for the booking rate limit. Behind Funnel/Serve the TCP peer is
+        loopback (tailscaled), so only then is X-Forwarded-For trusted — a direct client
+        can't spoof its way past the limit."""
+        peer = self.client_address[0]
+        fwd = (self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+        return fwd[:64] if fwd and peer in ("127.0.0.1", "::1") else peer
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path not in ("/api/portal/bootstrap", "/api/portal/submit",
-                               "/api/portal/message"):
+                               "/api/portal/message", "/api/book/slots", "/api/book/create"):
             return self.send_error(404, "Not found")
         if not self._same_origin_post():
             return self._json({"error": "same-origin request required"}, 403)
@@ -5666,6 +5706,10 @@ class PortalHandler(BaseHTTPRequestHandler):
             body = json.loads(raw or b"{}")
             if not isinstance(body, dict):
                 return self._json({"error": "bad request"}, 400)
+            if parsed.path == "/api/book/slots":
+                return self._json(agency_booking.slots())
+            if parsed.path == "/api/book/create":
+                return self._json(agency_booking.create(body, self._peer_ip()))
             if parsed.path == "/api/portal/bootstrap":
                 return self._json(agency_portal_io.bootstrap(body.get("c"), body.get("k")))
             if parsed.path == "/api/portal/message":

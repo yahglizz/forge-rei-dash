@@ -1,0 +1,16 @@
+{
+  "_note": "ClientForge public booking page policy (book.html). Edit freely; agency_booking.py falls back to the same built-in defaults when this file is missing or invalid. Deploys never ship config/, so the box copy is owner-managed.",
+  "title": "Free 30-min growth call",
+  "host": "Yahjair · ClientForge",
+  "description": "A quick call about your business: what is working, what is not, and whether a new website, ads, or a booking system would help. No pitch deck, no obligation.",
+  "calendarName": "ClientForge Calls",
+  "timezone": "America/New_York",
+  "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  "start": "10:00",
+  "end": "17:00",
+  "slotMinutes": 30,
+  "bufferMinutes": 15,
+  "minNoticeHours": 4,
+  "daysAhead": 21,
+  "closedDates": []
+}

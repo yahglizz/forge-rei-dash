@@ -290,6 +290,22 @@ def _src_agency_callsheet(ctx):
     return out
 
 
+def _src_agency_bookings(ctx):
+    """ClientForge "Book a call": one CALL row per upcoming booked call (agency_booking.upcoming
+    — read-only). Age stays 0 until the call starts; ended calls drop off."""
+    import agency_booking
+    out = []
+    for b in (agency_booking.upcoming() or {}).get("bookings") or []:
+        need = ", ".join(b.get("need") or [])
+        why = " · ".join(x for x in (need and f"wants {need}", b.get("notes") or "",
+                                       b.get("leadId") and f"Call Sheet {b['leadId']}") if x)
+        out.append(_item(f"booking:{b.get('id')}", "CALL", "agency", "revenue",
+                         f"Booked call — {b.get('name')} · {b.get('business')} — {b.get('when')}",
+                         why, int(b.get("start") or 0) * 1000,
+                         {"ws": "agency", "page": "Bookings"}, "agency_bookings"))
+    return out
+
+
 def _src_agency_approvals(ctx):
     """Agency Approval Center — pending only. The in-memory mock seed (no state file yet,
     or refId seed-*) is NOT an owner action."""
@@ -500,6 +516,7 @@ SOURCES = [
     ("ace_callready", "wholesale", _src_ace_callready),
     ("screenings", "wholesale", _src_screenings),
     ("agency_callsheet", "agency", _src_agency_callsheet),
+    ("agency_bookings", "agency", _src_agency_bookings),
     ("agency_approvals", "agency", _src_agency_approvals),
     ("agency_requests", "agency", _src_agency_requests),
     ("daycare_starts", "daycare", _src_daycare_starts),     # a family about to start wins its row
