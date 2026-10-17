@@ -35,7 +35,7 @@ const AGENCY_NAV = [
   ["Build", "Blueprint Studio", "b"], ["Clients", "Clients", "b"], ["Messages", "Client Chat", "b"], ["ClientView", "Client View", "b"],
   ["Requests", "Edit Requests", "b"],
   ["Workflows", "Workflows", "b"], ["Ads", "Meta Ads", "b"], ["Social", "Social", "b"], ["Approvals", "Approvals", "b"],
-  ["CallCenter", "Call Center", "b"],
+  ["CallCenter", "Call Center", "b"], ["Bookings", "Bookings", "b"],
   ["Pipeline", "Pipeline", "b"], ["Projects", "Projects", "b"], ["Revenue", "Revenue", "b"],
   ["Brain", "Brain"], ["Settings", "Settings"],
 ];

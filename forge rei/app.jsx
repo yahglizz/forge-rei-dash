@@ -52,6 +52,7 @@ const AGENCY_PAGES = {
   Eco:        () => <window.AgencyEco />,
   Approvals:  () => <window.AgencyApprovals />,
   CallCenter: () => <window.AgencyCallCenter />,
+  Bookings:   () => <window.AgencyBookings />,
   Brain:      () => <window.BrainPage />,
   Pipeline:   () => <window.AgencyPipeline />,
   Projects:   () => <window.AgencyProjects />,

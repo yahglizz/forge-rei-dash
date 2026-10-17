@@ -298,7 +298,8 @@ def _src_agency_bookings(ctx):
     for b in (agency_booking.upcoming() or {}).get("bookings") or []:
         need = ", ".join(b.get("need") or [])
         why = " · ".join(x for x in (need and f"wants {need}", b.get("notes") or "",
-                                       b.get("leadId") and f"Call Sheet {b['leadId']}") if x)
+                                       b.get("leadId") and f"Call Sheet {b['leadId']}",
+                                       b.get("suggestedLead") and f"possible match {b.get('suggestedName')}") if x)
         out.append(_item(f"booking:{b.get('id')}", "CALL", "agency", "revenue",
                          f"Booked call — {b.get('name')} · {b.get('business')} — {b.get('when')}",
                          why, int(b.get("start") or 0) * 1000,

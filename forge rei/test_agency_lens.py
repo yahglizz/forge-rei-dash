@@ -41,7 +41,7 @@ def test_lenses_do_not_leak():
     assert business[0] == "Dashboard", f"Business lands on {business[0]}"
 
     # Client work must never show up under Personal.
-    for client_tab in ("Clients", "Messages", "ClientView", "Requests", "Revenue"):
+    for client_tab in ("Clients", "Messages", "ClientView", "Requests", "Revenue", "Bookings"):
         assert client_tab in business, f"{client_tab} vanished from Business"
         assert client_tab not in personal, f"{client_tab} leaked into Personal"
 
