@@ -1,7 +1,8 @@
 """Self-check for ClientForge "Book a call" (agency_booking + its routes on PortalHandler).
 
 Slot math (DST, notice, buffer, closed dates, window), double-book refusal, one future call
-per email, honeypot, rate limit, validation, ref/phone -> Call Sheet demo_booked, cancel frees
+per email, honeypot, per-IP (rightmost XFF) + global caps, validation, ref TOKEN -> Call Sheet
+demo_booked (raw lead ids ignored; phone = suggestion the owner confirms), cancel frees
 the slot, Google on (fake) inserts with sendUpdates=none and Google failure falls back to local,
 Owner Actions row, and the public portal listener 404s on every non-booking path.
 Temp state only, fake Google, Telegram stubbed — no network, no Claude.
@@ -167,27 +168,64 @@ def test_callsheet_hook():
     cs.STATE.unlink(missing_ok=True)
     cs.import_text("Joe's Pizza (215) 555-1234 joe@pizza.com\nAcme Plumbing 215-555-9999 www.acme.com\n"
                    "Won Co 267-555-0000", use_ai=False)
-    leads = {l["company"] or l["name"]: l for l in cs.list_leads()["leads"]}
-    ids_ = {k: v["id"] for k, v in leads.items()}
+    ids_ = {(l["company"] or l["name"]): l["id"] for l in cs.list_leads()["leads"]}
     joe = next(v for k, v in ids_.items() if "Joe" in k)
     acme = next(v for k, v in ids_.items() if "Acme" in k)
     won = next(v for k, v in ids_.items() if "Won" in k)
     cs.set_status(won, "won")
-    r = ab.create(person(1, et(2026, 10, 20, 10), ref=joe), "7.7.7.1", now=NOW)
+    assert ab.ref_link("L999")["error"] == "not_found"
+    link = ab.ref_link(joe, base="http://x/book")
+    assert link["ok"] and len(link["token"]) >= 16 and link["url"] == "http://x/book?ref=" + link["token"], link
+    assert ab.ref_link(joe)["token"] == link["token"]                        # minted once, reused
+    won_tok = ab.ref_link(won)["token"]
+    # A raw (guessable) lead id in ?ref= is ignored: books, but never touches the CRM.
+    r = ab.create(person(5, et(2026, 10, 22, 11), ref=acme), "7.7.7.5", now=NOW)
     assert r["ok"], r
+    assert {l["id"]: l["status"] for l in cs.list_leads()["leads"]}[acme] == "new"
+    r = ab.create(person(1, et(2026, 10, 20, 10), ref=link["token"]), "7.7.7.1", now=NOW)
+    assert r["ok"], r                                                        # token -> demo_booked
     r = ab.create(person(2, et(2026, 10, 20, 14), phone="+1 215.555.9999"), "7.7.7.2", now=NOW)
-    assert r["ok"], r
-    r = ab.create(person(3, et(2026, 10, 20, 16), ref=won), "7.7.7.3", now=NOW)
+    assert r["ok"], r                                                        # phone -> suggestion only
+    r = ab.create(person(3, et(2026, 10, 20, 16), ref=won_tok), "7.7.7.3", now=NOW)
     assert r["ok"], r
     r = ab.create(person(4, et(2026, 10, 22, 16), ref="L999<script>"), "7.7.7.4", now=NOW)
     assert r["ok"], r                                                        # bad ref still books
     st = {l["id"]: l["status"] for l in cs.list_leads()["leads"]}
-    assert st[joe] == "demo_booked" and st[acme] == "demo_booked", st
+    assert st[joe] == "demo_booked", st
+    assert st[acme] == "new", st                                             # phone match wrote nothing
     assert st[won] == "won", st                                              # never regressed
     rows = {b["email"]: b for b in ab.upcoming(now=NOW)["bookings"]}
-    assert rows["pat1@example.com"]["leadMatch"] == "ref" and rows["pat2@example.com"]["leadMatch"] == "phone"
+    assert rows["pat1@example.com"]["leadId"] == joe and rows["pat1@example.com"]["leadMatch"] == "ref"
+    assert rows["pat5@example.com"]["leadId"] == "" and rows["pat5@example.com"]["suggestedLead"] == ""
+    p2 = rows["pat2@example.com"]
+    assert p2["leadId"] == "" and p2["suggestedLead"] == acme and "Acme" in p2["suggestedName"], p2
     assert rows["pat4@example.com"]["ref"] == "" and rows["pat4@example.com"]["leadId"] == ""
-    assert f"Call Sheet: {joe}" in PINGS[0][1]
+    assert any(f"Call Sheet: {joe}" in t for _, t in PINGS)
+    assert any("Possible Call Sheet match" in t for _, t in PINGS)
+    out = ab.confirm_lead(p2["id"], now=NOW)                                 # the owner's tap
+    assert out["ok"] and out["confirmed"] == acme and out["demoBooked"], out
+    assert {l["id"]: l["status"] for l in cs.list_leads()["leads"]}[acme] == "demo_booked"
+    assert ab.confirm_lead(p2["id"], now=NOW)["error"] == "not_found"
+
+
+def test_global_cap():
+    reset()
+    old = ab.GLOBAL_HOUR, ab.GLOBAL_DAY
+    ab.GLOBAL_HOUR, ab.GLOBAL_DAY = 3, 5
+    try:
+        day = et(2026, 10, 26, 10)
+        for i in range(3):
+            assert ab.create(person(i, day + i * 3600), f"10.0.0.{i}", now=NOW)["ok"]
+        r = ab.create(person(9, day + 4 * 3600), "10.0.1.9", now=NOW)
+        assert r["error"] == "rate_limited", r                               # hour cap, fresh IP
+        later = NOW + 3601
+        for i in range(3, 5):
+            assert ab.create(person(i, day + 86400 + (i - 3) * 3600), f"10.0.0.{i}", now=later)["ok"]
+        r = ab.create(person(8, day + 86400 + 5 * 3600), "10.0.1.8", now=later)
+        assert r["error"] == "rate_limited", r                               # day cap
+        assert ab.create(person(8, day + 86400 + 5 * 3600), "10.0.1.8", now=NOW + 86401)["ok"]
+    finally:
+        ab.GLOBAL_HOUR, ab.GLOBAL_DAY = old
 
 
 def test_cancel_frees_slot_and_owner_actions():
@@ -290,13 +328,21 @@ def test_public_surface():
             assert call(path, {})[0] == 404, path
         st, _ = call("/api/book/create", {}, {"Origin": "https://evil.example"})
         assert st == 403
+        # Spoofed LEFTMOST X-Forwarded-For values all count against the rightmost (proxy) IP.
+        ab._HITS.clear()
+        for i in range(ab.RATE_MAX):
+            st, raw = call("/api/book/create", {"name": ""}, {"X-Forwarded-For": f"6.6.6.{i}, 203.0.113.7"})
+            assert json.loads(raw)["error"] == "invalid", raw
+        st, raw = call("/api/book/create", {"name": ""}, {"X-Forwarded-For": "6.6.6.99, 203.0.113.7"})
+        assert json.loads(raw)["error"] == "rate_limited", raw
+        assert "203.0.113.7" in ab._HITS and not any(k.startswith("6.6.6.") for k in ab._HITS)
     finally:
         srv.shutdown()
 
 
 if __name__ == "__main__":
     tests = [test_slot_math, test_book_buffer_double_book_and_email, test_concurrent_double_book,
-             test_validation_honeypot_rate_limit, test_callsheet_hook,
+             test_validation_honeypot_rate_limit, test_callsheet_hook, test_global_cap,
              test_cancel_frees_slot_and_owner_actions, test_google_connected, test_public_surface]
     for t in tests:
         t()

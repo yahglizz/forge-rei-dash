@@ -48,6 +48,8 @@ DEFAULTS = {
 }
 NEEDS = ("website", "ads", "booking", "other")
 RATE_MAX, RATE_WINDOW = 5, 3600          # create attempts per IP per hour
+# Global ceiling across ALL visitors — even a rate-limit bypass can't flood the calendar.
+GLOBAL_HOUR, GLOBAL_DAY = 20, 40         # successful bookings per rolling hour / 24 h
 CAPS = {"name": 80, "business": 120, "email": 254, "phone": 32, "website": 200,
         "notes": 1000, "ref": 40, "tz": 64}
 # Call Sheet rows a booking may move to demo_booked — never regress proposal/won/lost/dnc.
@@ -264,23 +266,51 @@ def _on_policy(cfg, start, now):
     return next((e for s, e in google_io._day_slots(cfg, day) if s == start), None)
 
 
-def _match_lead(ref, phone):
-    """-> (lead id, 'ref'|'phone') or ('', ''). Read-only on the Call Sheet."""
+def _leads():
+    import agency_callsheet as cs
+    return (cs.list_leads() or {}).get("leads") or []
+
+
+def ref_link(lead_id, base=""):
+    """Private (owner, Bookings tab): the per-prospect link token for one Call Sheet lead.
+    Unguessable (token_urlsafe), minted once and reused; the public page only ever matches
+    this token — a raw lead id in ?ref= is ignored, so nobody can write the CRM by guessing."""
+    lead = next((l for l in _leads() if l.get("id") == lead_id), None) if lead_id else None
+    if not lead:
+        return _err("not_found", "Call Sheet lead not found.")
+    with _LOCK:
+        d = _load()
+        refs = d.setdefault("refs", {})
+        tok = next((t for t, lid in refs.items() if lid == lead_id), None)
+        if not tok:
+            tok = secrets.token_urlsafe(12)
+            refs[tok] = lead_id
+            _save(d)
+    sep = "&" if "?" in base else "?"
+    return {"ok": True, "leadId": lead_id, "token": tok,
+            "url": f"{base}{sep}ref={tok}" if base else f"?ref={tok}",
+            "lead": lead.get("company") or lead.get("name") or lead_id}
+
+
+def _suggest_lead(phone):
+    """-> (lead id, label) of a Call Sheet row with the same phone, or ('', ''). Read-only:
+    a phone typed on a public form is not proof of identity, so it only SUGGESTS."""
     try:
         import agency_callsheet as cs
-        leads = (cs.list_leads() or {}).get("leads") or []
-        if ref:
-            for l in leads:
-                if l.get("id") == ref:
-                    return l["id"], "ref"
         want = cs._norm_phone(phone)[-10:]
         if len(want) == 10:
-            for l in leads:
+            for l in _leads():
                 if cs._norm_phone(l.get("phone"))[-10:] == want:
-                    return l["id"], "phone"
+                    return l["id"], l.get("company") or l.get("name") or l["id"]
     except Exception as e:  # noqa: BLE001
         _log(f"call sheet match skipped: {e}")
     return "", ""
+
+
+def _global_ok(d, now):
+    made = [b.get("createdAt", 0) for b in d["bookings"]]
+    return (sum(1 for t in made if t > now - 3600) < GLOBAL_HOUR
+            and sum(1 for t in made if t > now - 86400) < GLOBAL_DAY)
 
 
 def _mark_demo_booked(lead_id):
@@ -307,7 +337,9 @@ def _ping(cfg, b):
         telegram_io.send_biz("agency",
                              f"📅 <b>Call booked</b> — {e(b['name'])} · {e(b['business'])}\n"
                              f"{e(when_label(cfg, b['start'], b['end']))}\nWants: {e(need)}"
-                             + (f"\nCall Sheet: {e(b['leadId'])}" if b["leadId"] else ""),
+                             + (f"\nCall Sheet: {e(b['leadId'])}" if b["leadId"] else "")
+                             + (f"\nPossible Call Sheet match: {e(b['suggestedName'])} (confirm in Bookings)"
+                                if b.get("suggestedLead") else ""),
                              dedupe_key=f"booking:{b['id']}")
     except Exception as e:  # noqa: BLE001 — unconfigured/failed Telegram never blocks a booking
         _log(f"telegram ping skipped: {e}")
@@ -330,11 +362,15 @@ def create(payload, ip, now=None):
         if end is None:
             return _err("not_bookable", "That time is not available. Please pick another.")
         buf = int(cfg["bufferMinutes"]) * 60
-        lead_id, lead_src = _match_lead(f["ref"], f["phone"])
+        sug_id, sug_name = _suggest_lead(f["phone"])
         # ponytail: one process-wide lock held across the Google calls (one connector runs);
         # a second writer process would need a calendar-side guard.
         with _LOCK:
             d = _load()
+            if not _global_ok(d, now):
+                _log("global booking cap hit — refusing")
+                return _err("rate_limited", "Booking is busy right now. Please try again later.")
+            lead_id = (d.get("refs") or {}).get(f["ref"], "") if f["ref"] else ""
             if any(b.get("email") == f["email"] for b in _live(d, now)):
                 return _err("already_booked", "You already have a call booked. Reply to the "
                                               "calendar invite or email us to change it.")
@@ -345,7 +381,9 @@ def create(payload, ip, now=None):
                  "slotId": google_io._slot(google_io._tz(cfg), f["start"], end)["id"],
                  **{k: f[k] for k in ("name", "business", "email", "phone", "website", "need", "notes",
                                       "ref", "tz")},
-                 "leadId": lead_id, "leadMatch": lead_src, "createdAt": int(now),
+                 "leadId": lead_id, "leadMatch": "ref" if lead_id else "",
+                 "suggestedLead": "" if lead_id else sug_id, "suggestedName": "" if lead_id else sug_name,
+                 "createdAt": int(now),
                  "eventId": None, "googleError": None}
             if _google_on():
                 b["eventId"], b["googleError"] = _google_insert(cfg, b)
@@ -371,7 +409,8 @@ def create(payload, ip, now=None):
 # ── dashboard (private Handler only) ─────────────────────────────────────────
 def _view(cfg, b):
     keys = ("id", "start", "end", "slotId", "name", "business", "email", "phone", "website", "need",
-            "notes", "ref", "leadId", "leadMatch", "tz", "createdAt", "eventId", "googleError")
+            "notes", "ref", "leadId", "leadMatch", "suggestedLead", "suggestedName", "tz", "createdAt",
+            "eventId", "googleError")
     return {**{k: b.get(k) for k in keys}, "when": when_label(cfg, b["start"], b["end"])}
 
 
@@ -403,6 +442,23 @@ def cancel(booking_id, now=None, link=""):
     _log(f"cancelled {booking_id}")
     out = upcoming(now, link)
     out["cancelled"] = booking_id
+    return out
+
+
+def confirm_lead(booking_id, now=None, link=""):
+    """POST /api/agency/bookings/confirm-lead — the owner's tap on a phone-match suggestion:
+    links the booking to that Call Sheet row and marks it demo_booked (never regresses)."""
+    with _LOCK:
+        d = _load()
+        b = next((x for x in d["bookings"] if x.get("id") == booking_id), None)
+        if not b or not b.get("suggestedLead"):
+            return _err("not_found", "No suggested Call Sheet match on that booking.")
+        b["leadId"], b["leadMatch"] = b["suggestedLead"], "phone_confirmed"
+        b["suggestedLead"], b["suggestedName"] = "", ""
+        _save(d)
+    demo = _mark_demo_booked(b["leadId"])
+    out = upcoming(now, link)
+    out["confirmed"], out["demoBooked"] = b["leadId"], demo
     return out
 
 

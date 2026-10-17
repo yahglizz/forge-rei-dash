@@ -3686,6 +3686,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/callsheet/delete",
                                    "/api/agency/callsheet/clear-dead",
                                    "/api/agency/bookings/cancel",
+                                   "/api/agency/bookings/link",
+                                   "/api/agency/bookings/confirm-lead",
                                    "/api/book/slots",
                                    "/api/book/create",
                                    "/api/agency/agents/chat",
@@ -4038,6 +4040,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = agency_callsheet.clear_dead()
             elif parsed.path == "/api/agency/bookings/cancel":
                 result = agency_booking.cancel(body.get("id"), link=_book_link())
+            elif parsed.path == "/api/agency/bookings/link":
+                result = agency_booking.ref_link(body.get("leadId"), base=_book_link())
+            elif parsed.path == "/api/agency/bookings/confirm-lead":
+                result = agency_booking.confirm_lead(body.get("id"), link=_book_link())
             elif parsed.path == "/api/book/slots":     # same as the portal's — local testing
                 result = agency_booking.slots()
             elif parsed.path == "/api/book/create":
@@ -5685,10 +5691,11 @@ class PortalHandler(BaseHTTPRequestHandler):
 
     def _peer_ip(self):
         """The visitor's IP for the booking rate limit. Behind Funnel/Serve the TCP peer is
-        loopback (tailscaled), so only then is X-Forwarded-For trusted — a direct client
-        can't spoof its way past the limit."""
+        loopback (tailscaled), so only then is X-Forwarded-For read — and only its RIGHTMOST
+        entry, the one the local proxy appended. Anything to its left came from the visitor
+        and is spoofable, so rotating it never resets the limit. A direct client = its peer."""
         peer = self.client_address[0]
-        fwd = (self.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+        fwd = (self.headers.get("X-Forwarded-For") or "").split(",")[-1].strip()
         return fwd[:64] if fwd and peer in ("127.0.0.1", "::1") else peer
 
     def do_POST(self):
