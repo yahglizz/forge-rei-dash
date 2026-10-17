@@ -268,6 +268,181 @@ def _():
     assert len(parts) == 4 and parts[3].endswith("reel") and "-second" in parts[3], t
 
 
+# --------------------------------------------------------------------------- Claude + Codex agent prompt (P6)
+IDEAS = [r["idea"] for _, r in OK]
+for _k, _f in enumerate([{"industry": "care"}, {"industry": "health"}, {"industry": "education"}] * 6):
+    _r = w.spin(_f, "calm%d" % _k)
+    if _r["ok"]:
+        IDEAS.append(_r["idea"])
+
+
+def _sections(md):
+    parts = md.split("\n## ")
+    return {p.split("\n", 1)[0][:13]: p for p in parts}
+
+
+def _bad_fit(idea, dna):
+    ctx, m = set(dna["context"]), dna["mechanic"]
+    if ctx & {"transactional", "calm", "b2b_quote"} and m["hijack"]:
+        return "scroll takeover %s on %s" % (m["id"], sorted(ctx & {"transactional", "calm", "b2b_quote"}))
+    if "calm" in ctx and m["heavy"]:
+        return "heavy %s on calm" % m["id"]
+    if "b2b_quote" in ctx and not m["subtle"]:
+        return "loud %s on B2B quote tool" % m["id"]
+    return None
+
+
+@check("dna catalog: ≥12 mechanics, ≥8 archetypes / interactions / rule-breakers, integrity + block rules clean")
+def _():
+    dna = w.dna_catalog()
+    assert not w.check_dna_catalog(), w.check_dna_catalog()
+    assert len(dna["mechanics"]) >= 12 and len(dna["archetypes"]) >= 8
+    assert len(dna["interactions"]) >= 8 and len(dna["ruleBreakers"]) >= 8
+
+
+@check("every mechanic: how, implementation, reduced-motion fallback, perf budget, mobile behaviour")
+def _():
+    for m in w.dna_catalog()["mechanics"]:
+        for f in ("how", "implementation", "reducedMotion", "perf", "mobile"):
+            assert len(m[f].strip()) > 20, (m["id"], f)
+        assert isinstance(m["hijack"], bool) and isinstance(m["heavy"], bool) and isinstance(m["subtle"], bool), m["id"]
+
+
+@check("agent prompt deterministic: same idea + remix → same DNA + identical markdown")
+def _():
+    for i in IDEAS[:40]:
+        for rx in (0, 3):
+            a, b = w.pick_dna(i, rx), w.pick_dna(i, rx)
+            assert w._dna_ids(a) == w._dna_ids(b)
+            assert w.build_agent_prompt(i, rx) == w.build_agent_prompt(i, rx)
+
+
+@check("remix changes the DNA and only section 3 of the prompt")
+def _():
+    for i in IDEAS[:60]:
+        a, b = w.pick_dna(i, 0), w.pick_dna(i, 1)
+        assert a["mechanic"]["id"] != b["mechanic"]["id"], i["id"]
+        sa, sb = _sections(w.build_agent_prompt(i, 0, a)), _sections(w.build_agent_prompt(i, 1, b))
+        assert sa.keys() == sb.keys()
+        changed = [k for k in sa if sa[k] != sb[k]]
+        assert changed == ["3. Design DNA"], changed
+
+
+@check("variety: 100+ ideas → ≥12 distinct mechanics, ≥8 archetypes, no mechanic > 25%")
+def _():
+    from collections import Counter
+    picks = [w.pick_dna(i, 0) for i in IDEAS]
+    assert len(picks) >= 100, len(picks)
+    mc = Counter(p["mechanic"]["id"] for p in picks)
+    ac = Counter(p["archetype"]["id"] for p in picks)
+    assert len(mc) >= 12 and len(ac) >= 8, (len(mc), len(ac))
+    assert mc.most_common(1)[0][1] / len(picks) <= 0.25, mc.most_common(3)
+    assert ac.most_common(1)[0][1] / len(picks) <= 0.25, ac.most_common(3)
+
+
+@check("fit rules: no scroll takeover on booking/quote/medical/childcare, no heavy 3D on calm, B2B quote = subtle")
+def _():
+    seen = {"calm": 0, "transactional": 0, "minors": 0, "medical": 0}
+    niches = w.catalog()["idx"]["niches"]
+    for i in IDEAS:
+        for rx in range(6):
+            dna = w.pick_dna(i, rx)
+            assert not _bad_fit(i, dna), _bad_fit(i, dna)
+            for k in ("calm", "transactional"):
+                seen[k] += k in dna["context"]
+        for t in ("minors", "medical"):
+            if t in niches[i["nicheId"]]["sensitive"]:
+                seen[t] += 1
+                assert "calm" in w.dna_context(i), i["subindustry"]
+    assert all(v > 0 for v in seen.values()), seen  # the sample really covers the guarded cases
+
+
+@check("anti-sameness (pure): recent picks are skipped; exhausted pool repeats and says so")
+def _():
+    i = IDEAS[0]
+    first = w.pick_dna(i, 0, recent=[])
+    again = w.pick_dna(i, 0, recent=[(first["mechanic"]["id"], first["archetype"]["id"])])
+    assert again["mechanic"]["id"] != first["mechanic"]["id"] and again["archetype"]["id"] != first["archetype"]["id"]
+    every = [(m["id"], a["id"]) for m, a in zip(w.dna_catalog()["mechanics"], w.dna_catalog()["archetypes"] * 2)]
+    ex = w.pick_dna(i, 0, recent=every, prev={"mechanic": first["mechanic"]["id"]})
+    assert ex["repeated"]["mechanic"] and ex["mechanic"]["id"] != first["mechanic"]["id"]
+    assert "so this pick repeats one" in w.build_agent_prompt(i, 0, ex)
+    assert "Not checked against recent prompts" in w.build_agent_prompt(i, 0)
+
+
+@check("agent prompt honesty + structure: disclosure, synthetic data, roles, contract-first, ownership, 1800–3500 words")
+def _():
+    sample = IDEAS[:90] + [x for x in IDEAS if x["complexity"] == "ambitious"][:30]
+    for i in sample:
+        md = w.build_agent_prompt(i, 2)
+        assert not w.agent_prompt_violations(md), (i["subindustry"], w.agent_prompt_violations(md))
+        assert "**Claude Code must not:**" in md and "**Codex must not:**" in md
+        assert "Reduced motion (mandatory)" in md and "Which scroll effect and why" in md
+
+
+@check("skills data: every listed skill is installed on disk; style map covers every style")
+def _():
+    home = os.path.expanduser("~")
+    sk = w.agent_skills()
+    styles = {s["id"] for s in w.catalog()["raw"]["styles"]}
+    assert styles <= set(sk["claude"]["style"]["map"]), styles - set(sk["claude"]["style"]["map"])
+    assert set(sk["claude"]["style"]["map"].values()) <= {s["name"] for s in sk["claude"]["style"]["skills"]}
+    if not os.path.isdir(os.path.join(home, ".claude", "skills")):
+        print("      (skip disk check: no ~/.claude/skills on this machine)")
+        return
+    import glob
+    c = sk["claude"]
+    for s in c["core"] + c["style"]["skills"] + c["app"] + c["reel"]:
+        if s.get("plugin"):
+            hits = glob.glob(os.path.join(home, ".claude", "plugins", "cache", "*", s["plugin"], "*", "skills", s["name"], "SKILL.md"))
+            assert hits, "plugin skill missing: %s:%s" % (s["plugin"], s["name"])
+        else:
+            assert os.path.isfile(os.path.join(home, ".claude", "skills", s["name"], "SKILL.md")), s["name"]
+    for s in sk["codex"]["core"] + sk["codex"]["app"]:
+        assert os.path.isfile(os.path.join(home, ".codex", "skills", s["name"], "SKILL.md")), "codex " + s["name"]
+
+
+@check("no network or model calls: idea_wheel.py imports stdlib + forge_atomic only")
+def _():
+    import ast
+    allowed = {"hashlib", "json", "os", "random", "re", "secrets", "threading", "time", "datetime", "pathlib",
+               "forge_atomic", "tempfile"}
+    for fn in ("idea_wheel.py", "forge_atomic.py"):
+        src = open(os.path.join(HERE, fn), encoding="utf-8").read()
+        mods = set()
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, ast.Import):
+                mods |= {a.name.split(".")[0] for a in node.names}
+            elif isinstance(node, ast.ImportFrom):
+                mods.add((node.module or "").split(".")[0])
+        assert mods <= allowed, (fn, mods - allowed)
+        import re as _re
+        hits = [x for x in (r"urlopen", r"\burllib\b", r"http\.client", r"\bsocket\b", r"\bimport requests\b",
+                            r"\brequests\.(get|post|Session)", r"\banthropic\b", r"\bopenai\b", r"\bsubprocess\b",
+                            r"review_agent", r"_claude\(", r"\bfetch\(") if _re.search(x, src)]
+        assert not hits, (fn, hits)
+
+
+@check("mutation: unblocking a scroll-takeover mechanic for booking tools is caught")
+def _():
+    import copy
+    real = w._JSON["experience_dna"]
+    bad = copy.deepcopy(real[1])
+    rail = next(m for m in bad["mechanics"] if m["id"] == "horizontal_rail")
+    rail["blocks"] = []
+    bad["mechanics"][0]["reducedMotion"] = ""
+    w._JSON["experience_dna"] = (real[0], bad)  # same mtime → served from cache
+    try:
+        probs = w.check_dna_catalog()
+        assert any("horizontal_rail" in p for p in probs) and any("reducedMotion" in p for p in probs), probs
+        caught = [i["id"] for i in IDEAS if "transactional" in w.dna_context(i)
+                  for rx in range(16) if _bad_fit(i, w.pick_dna(i, rx))]
+        assert caught, "fit-rule check must fail once the block is removed"
+    finally:
+        w._JSON["experience_dna"] = real
+    assert not w.check_dna_catalog()
+
+
 if __name__ == "__main__":
     print("\n%d spins in sweep (%d ok, %d exhausted)" % (len(SWEEP), len(OK), len(SWEEP) - len(OK)))
     if FAILS:

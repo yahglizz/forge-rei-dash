@@ -5546,6 +5546,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send_json(hit[1])
             try:
                 result = handler(q)
+                # Idea Wheel handlers may ask for a status code (400 bad input / 404 unknown id).
+                if path.startswith("/api/ideawheel/") and isinstance(result, dict) and "httpStatus" in result:
+                    result = dict(result)
+                    return self._send_json(result, int(result.pop("httpStatus")))
                 if path not in NO_CACHE:
                     with _CACHE_LOCK:
                         if len(_CACHE) >= _CACHE_MAX:

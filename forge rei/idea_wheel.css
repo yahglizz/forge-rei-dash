@@ -69,3 +69,12 @@
 @media (max-width:1100px){.iw-grid{grid-template-columns:1fr}}
 @media (max-width:680px){.iw-hub small{display:none}.iw-row{grid-template-columns:minmax(0,1fr)}.iw-page{gap:14px}.iw-head{display:block}.iw-head .iw-meta{justify-content:flex-start;margin-top:12px}.iw-stage{padding:14px}.iw-hub{font-size:12px}.iw-fields{grid-template-columns:1fr}.iw-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.iw-actions>*{width:100%}.iw-cal{gap:3px}.iw-cal-day{min-height:54px;padding:4px;font-size:10px}}
 @media (prefers-reduced-motion:reduce){.iw-page *,.iw-page *::before,.iw-page *::after{animation:none!important;transition:none!important}.iw-wheel{transition:none}.iw-hub:hover{transform:translate(-50%,-50%)}}
+/* Claude + Codex Prompt modal (shell = .dc-modal-* in styles.css) */
+.iw-agent-modal { width:min(880px,100%); max-height:calc(100vh - 40px); display:flex; flex-direction:column; gap:12px; }
+.iw-agent-modal .dc-modal-head { margin-bottom:0; gap:12px; }
+.iw-agent-pre { flex:1 1 auto; min-height:180px; margin:0; overflow:auto; padding:12px 14px; border:1px solid var(--border); border-radius:10px; background:#0b1520; color:var(--text-2); font:12px/1.55 var(--mono,monospace); white-space:pre-wrap; overflow-wrap:anywhere; }
+.iw-agent-pre:focus-visible { outline:3px solid color-mix(in srgb,var(--workspace-accent,#8B5CF6) 45%,transparent); outline-offset:2px; }
+.iw-agent-foot { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; }
+.iw-agent-msg { color:var(--text-2); font-size:12px; }
+.iw-agent-actions { display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; }
+@media (max-width:680px){.iw-agent-layer{padding:8px}.iw-agent-modal{padding:14px;max-height:calc(100dvh - 16px)}.iw-agent-actions{width:100%}.iw-agent-actions .btn{flex:1}}

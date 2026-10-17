@@ -789,10 +789,437 @@ def build_brief(idea, kit=None):
     return "\n".join(lines)
 
 
+# --------------------------------------------------------------------------- Claude + Codex agent prompt
+# Design DNA (idea_wheel_catalog/experience_dna.json) + installed skills (agent_skills.json) → one
+# Markdown prompt for two agents. Pure + deterministic: same idea + remix (+ same recent DNA) → same
+# prompt. Reuses build_brief's sections verbatim so the two documents never drift.
+DNA_RECENT = 5           # anti-sameness window: mechanic + archetype of the last N agent prompts
+DNA_PICKS_KEPT = 600
+MAX_REMIX = 999
+CALM_TAGS = {"medical", "minors", "seniors"}
+CALM_SECTORS = {"care", "health"}
+TRANSACTIONAL = {"online_booking", "instant_quote", "payments_deposits", "online_ordering",
+                 "events_registration", "client_onboarding", "memberships", "waitlist_capacity"}
+_DNA_KINDS = ("mechanics", "archetypes", "interactions", "ruleBreakers")
+_JSON = {}
+
+
+def _cat_json(name):
+    p = CATALOG_DIR / (name + ".json")
+    m = p.stat().st_mtime
+    hit = _JSON.get(name)
+    if not hit or hit[0] != m:
+        hit = _JSON[name] = (m, json.loads(p.read_text(encoding="utf-8")))
+    return hit[1]
+
+
+def dna_catalog():
+    return _cat_json("experience_dna")
+
+
+def agent_skills():
+    return _cat_json("agent_skills")
+
+
+def check_dna_catalog():
+    """Integrity of experience_dna.json → list of problems (empty = OK)."""
+    dna, problems = dna_catalog(), []
+    need = {"mechanics": (12, ("how", "implementation", "reducedMotion", "perf", "mobile", "use", "why")),
+            "archetypes": (8, ("structure", "why")), "interactions": (8, ("how", "reducedMotion")),
+            "ruleBreakers": (8, ("guard",)), "appGestures": (4, ("how",))}
+    for kind, (n, fields) in need.items():
+        items = dna.get(kind) or []
+        if len(items) < n:
+            problems.append("%s: %d < %d" % (kind, len(items), n))
+        ids = [x.get("id") for x in items]
+        if len(set(ids)) != len(ids):
+            problems.append("%s: duplicate ids" % kind)
+        for x in items:
+            for f in ("id", "label") + fields:
+                if not str(x.get(f) or "").strip():
+                    problems.append("%s.%s missing %s" % (kind, x.get("id"), f))
+    for m in dna.get("mechanics") or []:
+        b = set(m.get("blocks") or [])
+        if m.get("hijack") and not {"transactional", "calm", "b2b_quote"} <= b:
+            problems.append("mechanic %s takes over scroll but is not blocked for booking/quote/calm" % m["id"])
+        if m.get("heavy") and "calm" not in b:
+            problems.append("mechanic %s is heavy but not blocked for calm" % m["id"])
+        if not m.get("subtle") and "b2b_quote" not in b:
+            problems.append("mechanic %s is loud but allowed on B2B quote tools" % m["id"])
+    return problems
+
+
+def dna_context(idea):
+    """Context tags that decide which Design DNA may be used for this idea."""
+    n = catalog()["idx"]["niches"].get(idea["nicheId"]) or {}
+    sens = set(n.get("sensitive") or [])
+    ctx = {"p:" + idea["patternId"], "s:" + idea["sectorId"], "st:" + idea["styleId"]}
+    if sens & CALM_TAGS or idea["sectorId"] in CALM_SECTORS:
+        ctx.add("calm")
+    if sens:
+        ctx.add("sensitive")
+    if idea["patternId"] in TRANSACTIONAL:
+        ctx.add("transactional")
+    if idea.get("market") in ("b2b", "both"):
+        ctx.add("b2b")
+    if idea.get("market") in ("b2c", "both"):
+        ctx.add("b2c")
+    if "transactional" in ctx and idea.get("market") == "b2b":
+        ctx.add("b2b_quote")
+    ctx.add("tool" if idea["deliverable"] in ("web_app", "crm", "automation", "mobile_concept") else "showcase")
+    return ctx
+
+
+def _dna_fits(item, ctx):
+    if set(item.get("blocks") or []) & ctx:
+        return False
+    only = item.get("only")
+    return not only or bool(set(only) & ctx)
+
+
+def _dna_pick(items, key, remix, avoid=(), prev=None):
+    """Seeded permutation rotated by remix (so consecutive remixes differ), skipping `avoid`.
+    Returns (item, repeated) — repeated=True when every candidate was in `avoid`."""
+    perm = sorted(items, key=lambda x: x["id"])
+    _rng(*key).shuffle(perm)
+    k = remix % len(perm)
+    order = perm[k:] + perm[:k]
+    fresh = [x for x in order if x["id"] not in avoid]
+    if fresh:
+        return fresh[0], False
+    rest = [x for x in order if x["id"] != prev] or order
+    return rest[0], True
+
+
+def pick_dna(idea, remix=0, recent=None, prev=None):
+    """Pure: idea + remix + recent [(mechanicId, archetypeId)] → Design DNA.
+    `recent=None` means anti-sameness was not checked (called outside the store)."""
+    dna, ctx = dna_catalog(), dna_context(idea)
+    pool = {k: [x for x in dna[k] if _dna_fits(x, ctx)] for k in _DNA_KINDS}
+    rec = list(recent or [])
+    prev = prev or {}
+    mech, mrep = _dna_pick(pool["mechanics"], ("dna-m", idea["id"]), remix, {m for m, _ in rec}, prev.get("mechanic"))
+    arch, arep = _dna_pick(pool["archetypes"], ("dna-a", idea["id"]), remix, {a for _, a in rec}, prev.get("archetype"))
+    inter, _ = _dna_pick(pool["interactions"], ("dna-i", idea["id"]), remix)
+    rule, _ = _dna_pick(pool["ruleBreakers"], ("dna-r", idea["id"]), remix)
+    return {"remix": remix, "mechanic": mech, "archetype": arch, "interaction": inter, "ruleBreaker": rule,
+            "context": sorted(ctx), "checked": recent is not None,
+            "repeated": {"mechanic": mrep, "archetype": arep},
+            "excluded": [x["label"] for x in dna["mechanics"] if not _dna_fits(x, ctx)]}
+
+
+def _dna_ids(dna):
+    return {"mechanic": dna["mechanic"]["id"], "archetype": dna["archetype"]["id"],
+            "interaction": dna["interaction"]["id"], "ruleBreaker": dna["ruleBreaker"]["id"]}
+
+
+def _dna_from_ids(idea, remix, entry):
+    """Rebuild a stored pick (keeps a remix stable for the user); None if the catalog changed."""
+    cat, ctx = dna_catalog(), dna_context(idea)
+    out = {}
+    for field, kind in (("mechanic", "mechanics"), ("archetype", "archetypes"),
+                        ("interaction", "interactions"), ("ruleBreaker", "ruleBreakers")):
+        hit = next((x for x in cat[kind] if x["id"] == entry.get(field)), None)
+        if not hit or not _dna_fits(hit, ctx):
+            return None
+        out[field] = hit
+    out.update({"remix": remix, "context": sorted(ctx), "checked": True,
+                "repeated": dict(entry.get("repeated") or {"mechanic": False, "archetype": False}),
+                "excluded": [x["label"] for x in cat["mechanics"] if not _dna_fits(x, ctx)]})
+    return out
+
+
+def _md_sections(md):
+    out, cur = {}, None
+    for line in md.split("\n"):
+        if line.startswith("## "):
+            cur = line[3:].strip()
+            out[cur] = []
+        elif cur:
+            out[cur].append(line)
+    return {k: "\n".join(v).strip() for k, v in out.items()}
+
+
+def _strip_code(md):
+    """Markdown minus code spans/blocks (CSS like `inset(0 12%)` is not a claim)."""
+    return re.sub(r"`[^`\n]*`", "", re.sub(r"```.*?```", "", md, flags=re.S))
+
+
+def _dna_why(idea, dna):
+    c, idx, ctx = dna_catalog()["contexts"], catalog()["idx"], set(dna["context"])
+    out = ["it respects " + c[t] for t in ("calm", "transactional", "b2b_quote") if t in ctx]
+    for item in (dna["mechanic"], dna["archetype"]):
+        for t in item.get("fits") or []:
+            if t not in ctx or t in ("calm", "transactional", "b2b_quote"):
+                continue
+            if t in c:
+                out.append("it suits " + c[t])
+            elif t.startswith("p:"):
+                out.append("it matches the %s flow" % _lc(idea["patternLabel"]))
+            elif t.startswith("s:") and t[2:] in idx["sectors"]:
+                out.append("it suits %s businesses" % _lc(idx["sectors"][t[2:]]["label"]))
+            elif t.startswith("st:"):
+                out.append("it suits the %s aesthetic" % _lc(idea["design"]["aesthetic"]))
+    return _dedupe(out)
+
+
+def _skill_lines(entries, ctx, label_extra=None):
+    lines = []
+    for s in entries:
+        name = s.get("invoke") or s["name"]
+        line = "- `%s`%s — **When:** %s **Not for:** %s" % (name, label_extra or "", s["when"], s["notFor"])
+        skip = [t for t in s.get("skipWhen") or [] if t in ctx]
+        if skip:
+            line += " **Skip for this concept** (%s)." % ", ".join(skip)
+        if s.get("paid"):
+            line += " Can call a paid generation API: operator's go first."
+        lines.append(line)
+    return lines
+
+
+def build_agent_prompt(idea, remix=0, dna=None, kit=None):
+    """Claude + Codex Prompt: one Markdown brief for two agents (Claude Code = main builder,
+    Codex = UI person). Everything that depends on the remix lives in section 3."""
+    dna = dna or pick_dna(idea, remix)
+    idx = catalog()["idx"]
+    n, p = idx["niches"][idea["nicheId"]], idx["workflows"][idea["patternId"]]
+    fmt, st = idx["formats"][idea["formatId"]], idx["styles"][idea["styleId"]]
+    ctx = set(dna["context"])
+    sc = story_ctx(n, p, fmt, st)
+    steps = p["steps"]
+    sc.update({"feature1": _low(idea["features"][0]), "signature": _low(_spoken(idea["differentiator"])),
+               "step1": _low(steps[0]), "step2": _low(steps[1 % len(steps)]), "step3": _low(steps[2 % len(steps)])})
+    brief = _md_sections(build_brief(idea, kit))
+    d, pl = idea["design"], _lc(idea["patternLabel"])
+    m, a, it, rb = dna["mechanic"], dna["archetype"], dna["interaction"], dna["ruleBreaker"]
+    skills = agent_skills()
+    owner_first = idea["deliverable"] in ("crm", "automation") or idea["formatId"] == "ops_dashboard" or idea.get("market") == "b2b"
+    persona = idea["buyer"] if owner_first else idea["targetCustomer"]
+    gesture = _rng("app", idea["id"]).choice(dna_catalog()["appGestures"])
+    feats = "; ".join(_low(f) for f in idea["features"])
+    L = [
+        "# Claude + Codex build prompt — %s" % idea["subindustry"], "",
+        "> **%s**" % DISCLOSURE, "",
+        "You are two agents building one portfolio concept together: **Claude Code is the MAIN BUILDER** and "
+        "**Codex is the UI PERSON**. Read the whole prompt before touching a file. Everything here is specific to "
+        "this idea; where it conflicts with your defaults, this prompt wins. Anything it does not state goes into "
+        "`HANDOFF.md` as **Unknown** — never a plausible guess.", "",
+        "**Concept:** %s" % idea["title"], "", idea["conceptSummary"], "",
+        "## 1. Mission and ground rules",
+        "Build a working, local-only portfolio demo for %s: %s, styled %s. It exists to show an owner what is "
+        "possible and to film a %d-second reel. It is not a client project and not production software." % (
+            sc["a_niche"], _a(sc["format_lower"]), _lc(d["aesthetic"]), idea["videoSeconds"]), "",
+        "### Concept vs production", brief.get("Concept/demo vs production", ""), "",
+        "### Synthetic data only",
+        "- Every person, record and business in the demo is fictional; nothing is fetched from a real system.",
+        "- Claude creates `data/sample.json` from this shape before any UI work starts:", "",
+        brief.get("Synthetic sample data", ""), "",
+        "### Guardrails (non-negotiable)", brief.get("Guardrails", ""),
+        "- No HIPAA or other compliance claims, no real children's data, and no working payments, SMS, email, "
+        "calendar sync or AI receptionist — each of those is a visibly labeled mock.",
+        "- Footer on every page and screen: \"%s\"" % DISCLOSURE, "",
+        "### Evidence discipline",
+        "- No testimonials, no star ratings, no client logos, no invented metrics or percentages, no \"trusted by\" "
+        "lines. Copy describes what the demo does, never results it produced.",
+        "- Every claim in the final report is backed by something you ran: a test output, a screenshot path, a "
+        "command. If you did not run it, write \"not verified\".", "",
+        "## 2. Role split and handoff contract",
+        "### Claude Code — MAIN BUILDER owns",
+        "- Architecture and setup (static front end, no backend, no external APIs), routing and page composition.",
+        "- All content and copy (section 4), the data model and `data/sample.json`.",
+        "- Interactions and logic: state, the %s flow, validation, empty / loading / error states." % pl,
+        "- Tests, the local run, integrating Codex's UI, final verification and the report.", "",
+        "### Codex — UI PERSON owns",
+        "- The visual system: `ui/tokens.css`, built only from the contract values.",
+        "- Components in `ui/components/` (markup + styles, props exactly as the contract names them).",
+        "- Scroll and motion CSS in `ui/motion/`, including every reduced-motion fallback.",
+        "- SVG, icons and image assets in `ui/assets/`; responsive and accessibility polish across `ui/`.", "",
+        "### Contract first",
+        "Claude writes `CONTRACT.md` and `data/sample.json` before Codex starts, commits locally, then hands off. "
+        "CONTRACT.md holds:",
+        "1. **Design tokens:** `--palette-1` … `--palette-%d` = %s. Assign roles (`--color-bg`, `--color-surface`, "
+        "`--color-ink`, `--color-accent`, `--color-muted`) after a WCAG AA contrast check and record the checked "
+        "pairs. Type: %s. Add a spacing scale, radii, shadows and motion durations (motion: %s)." % (
+            len(d["palette"]), ", ".join("`%s`" % h for h in d["palette"]), d["typography"], _low(d["motion"])),
+        "2. **Components and props** (each with default, hover, focus, disabled, loading, empty and error states): "
+        "`AppShell({ nav, children })` with the disclosure footer; `FlowStep({ index, title, body, state })` for the "
+        "%s steps; `RecordCard({ record })` and `StatusPill({ status })` for sample records; "
+        "`SignatureMoment({ records })` for %s; `FeatureTile({ title, body })`; `MockBadge({ label })` on every "
+        "mocked integration." % (pl, sc["signature"]),
+        "3. **File ownership map:**", "",
+        "| Path | Owner | The other agent |", "|---|---|---|",
+        "| `CONTRACT.md` | Claude Code | Codex: read-only |",
+        "| `data/`, `src/logic/` | Claude Code | Codex: never edits |",
+        "| `src/pages/` (composition + copy) | Claude Code | Codex: requests changes in HANDOFF.md |",
+        "| `tests/` | Claude Code | Codex: never edits |",
+        "| `ui/tokens.css`, `ui/components/`, `ui/motion/`, `ui/assets/` | Codex | Claude: read-only while Codex works |",
+        "| `HANDOFF.md` | both, append-only | — |", "",
+        "4. **The Design DNA from section 3**, copied verbatim, with the component names it defines.", "",
+        "### Handoff sequence",
+        "1. Claude: CONTRACT.md, data/sample.json and page skeletons with placeholder components; local commit; hand off.",
+        "2. Codex: builds only inside `ui/` against the contract and logs progress plus contract questions in "
+        "HANDOFF.md. Codex never edits the contract; questions wait for Claude.",
+        "3. Claude: wires the components into the pages, answers questions by editing CONTRACT.md between rounds "
+        "(never mid-flight), runs the tests.",
+        "4. Both: screenshots at 1440 px and 375 px, reduced motion on and off, plus a keyboard-only pass (section 7).",
+        "5. Claude: writes the final report.", "",
+        "**Claude Code must not:** edit `ui/` while Codex is working (ask in HANDOFF.md); invent quotes, reviews, "
+        "logos, metrics or results; wire any real API, payment, SMS, email, map, calendar or AI call; deploy, push "
+        "or publish without the operator's explicit go.", "",
+        "**Codex must not:** edit `data/`, `src/logic/`, `src/pages/`, `tests/` or CONTRACT.md, or change any copy "
+        "or claim; add a dependency without listing it in HANDOFF.md for Claude to approve; add network calls, "
+        "trackers or analytics; push, deploy or publish anything.", "",
+    ]
+    why = _dna_why(idea, dna)
+    ctx_txt = [dna_catalog()["contexts"][t] for t in ("calm", "sensitive", "transactional", "b2b_quote", "tool", "showcase")
+               if t in ctx]
+    guard_txt = []
+    if ctx & {"transactional", "calm", "b2b_quote"}:
+        guard_txt.append("scroll-jacking (pinned scrubs, horizontal rails, mandatory snap) stays out")
+    if "calm" in ctx:
+        guard_txt.append("heavy 3D, parallax and loud motion stay out and accessibility comes first")
+    if "b2b_quote" in ctx:
+        guard_txt.append("the page scrolls normally with exactly one tasteful moment")
+    if dna["checked"]:
+        rep = [k for k, v in dna["repeated"].items() if v]
+        same = ("Every %s that fits this idea was used in the last %d agent prompts, so this pick repeats one; "
+                "remix again or accept it." % (" and ".join(rep), DNA_RECENT) if rep else
+                "Mechanic and archetype are both fresh against the last %d agent prompts." % DNA_RECENT)
+    else:
+        same = "Not checked against recent prompts (generated outside the Idea Wheel store)."
+    L += [
+        "## 3. Design DNA — remix %d · `%s` + `%s`" % (dna["remix"], m["id"], a["id"]),
+        "Seeded from this idea and remix %d: the same idea and remix always give the same DNA, and **Remix Design "
+        "DNA** rerolls only this section." % dna["remix"], "",
+        "**This idea's context:** %s." % "; ".join(ctx_txt), "",
+        "### Scroll mechanic: %s" % m["label"],
+        "- **What the visitor sees:** %s" % m["how"],
+        "- **For this concept:** %s" % _fill(m["use"], sc),
+        "- **Implementation:** %s" % m["implementation"],
+        "- **Reduced motion (mandatory):** %s" % m["reducedMotion"],
+        "- **Performance budget:** %s No layout shift caused by the effect." % m["perf"],
+        "- **Mobile:** %s" % m["mobile"],
+        "- **Libraries:** native CSS scroll-driven animations first, IntersectionObserver as the fallback; GSAP "
+        "ScrollTrigger or Lenis only if CONTRACT.md records why native cannot do it.", "",
+        "### Layout archetype: %s" % a["label"], "%s %s" % (a["structure"], a["why"]), "",
+        "### Signature interaction: %s" % it["label"],
+        "%s Reduced motion: %s Keyboard and screen-reader equivalent required." % (it["how"], it["reducedMotion"]), "",
+        "### Rule-breaker: %s" % rb["label"],
+        "Break exactly this one convention and no other. Guard: %s" % rb["guard"], "",
+        "### Why this DNA fits",
+        "%s%s" % (m["why"], (" It also fits because " + "; ".join(why) + ".") if why else ""),
+    ]
+    if dna["excluded"] and guard_txt:
+        L.append("Ruled out for this idea: %s — %s." % (", ".join(dna["excluded"]), "; ".join(guard_txt)))
+    L += [
+        "", "### Which scroll effect and why",
+        "Use the %s and nothing heavier: %s %s Do not add a second scroll effect; the %s layout, the %s and the "
+        "rule-breaker carry the rest of the personality." % (
+            _lc(m["label"]), _cap(_fill(m["use"], sc)), m["why"], _lc(a["label"]), _lc(it["label"])), "",
+        "**Anti-sameness:** %s" % same, "",
+        "**Contract addendum:** the mechanic ships as `ui/motion/%s.css` (plus a small `.js` only for the "
+        "IntersectionObserver fallback) wrapped by `%s`; the signature interaction is `%s`." % (
+            m["id"], _camel(m["id"]), _camel(it["id"])), "",
+    ]
+    L += ["## 4. Website spec", "### Pages", brief.get("Pages / screens", ""), "",
+          "### Landing page sections (in order)",
+          "1. **Hero:** the hook \"%s\" plus one live UI element on sample data." % idea["content"]["hook"],
+          "2. **Problem:** %s" % idea["problem"],
+          "3. **How it works:** %s." % " → ".join(steps),
+          "4. **Signature moment:** %s." % _cap(sc["signature"]),
+          "5. **Features:** %s." % feats,
+          "6. **Owner view:** what the %s sees, on sample data." % _low(idea["buyer"]),
+          "7. **CTA:** \"%s\" followed by the disclosure footer." % idea["content"]["cta"], "",
+          "### Copy direction",
+          "- Plain and specific, %s in tone, written to %s; short sentences, no jargon." % (_lc(d["aesthetic"]), _low(idea["targetCustomer"])),
+          "- Say what the demo does, never what it achieved; no superlatives that would need evidence.",
+          "- Label every mocked integration in the UI itself (\"Demo — nothing is sent\").",
+          "- Keep the hook and CTA above verbatim unless they break a guardrail.", "",
+          "### Visual design", brief.get("Visual design", ""), "",
+          "### Scope (in)", brief.get("Scope (in)", ""), "",
+          "### Acceptance criteria", brief.get("Acceptance criteria", ""),
+          "- [ ] The section 3 mechanic works, has its reduced-motion fallback and meets its performance budget",
+          "- [ ] The signature interaction and the rule-breaker are visible; anything interactive works by keyboard", "",
+          "## 5. Companion app concept (separate from the site)",
+          "The site sells and demos the concept; the app is what %s would use day to day. Concept only: Expo / "
+          "React Native in the iOS simulator or Expo Go, synthetic data, nothing submitted to a store." % _low(persona), "",
+          "- **Screens (6):** Home (today at a glance) · %s · Status and history (sample records) · Settings and "
+          "about (demo-data notice + disclosure)." % " · ".join(steps[:3]),
+          "- **Signature gesture:** %s. %s It is deliberately different from the website's interaction." % (gesture["label"], gesture["how"]),
+          "- **Stack assumptions:** Expo (current SDK), Expo Router (tabs + native stack), Reanimated + Gesture "
+          "Handler for the gesture, `app/data/sample.json` with the same shape as the site's data; no backend, no "
+          "auth, no push notifications.",
+          "- **Ownership:** Claude owns routes, state, data and tests; Codex owns screen styling, the gesture's "
+          "animation polish and icons. Add an \"App\" section to CONTRACT.md before Codex starts.",
+          "- **Guardrails:** every rule in section 1 applies to the app too.", "",
+          "| In the concept | A real app would need (out of scope) |", "|---|---|",
+          "| Local synthetic JSON | Backend, accounts, sync, backups |",
+          "| In-app banners standing in for notifications | Push service, consent, delivery |",
+          "| Simulator / Expo Go | Store review, privacy labels, support |", "",
+          "## 6. Skills per agent (verified installed on the operator's Mac)",
+          "### Claude Code", skills["claude"]["invoke"]]
+    c = skills["claude"]
+    style_name = c["style"]["map"].get(idea["styleId"])
+    style = next((s for s in c["style"]["skills"] if s["name"] == style_name), None)
+    L += _skill_lines(c["core"], ctx)
+    if style:
+        L += _skill_lines([style], ctx, " (style pick for the %s aesthetic)" % _lc(d["aesthetic"]))
+    L += _skill_lines(c["app"], ctx, " (companion app)")
+    reel = c["reel"]
+    if kit:
+        L.append("- Reel source: the saved content kit (%d s, %d beats)." % (kit["durationSeconds"], len(kit["storyboard"])))
+    L += _skill_lines(reel, ctx, " (demo reel)")
+    L += ["", "### Codex", skills["codex"]["invoke"]]
+    L += _skill_lines(skills["codex"]["core"], ctx)
+    L += _skill_lines(skills["codex"]["app"], ctx, " (companion app)")
+    L += ["", "## 7. Verify and done",
+          "### Verification",
+          "1. Run locally only: `python3 -m http.server 8080` in the project root, then open `http://localhost:8080`. Nothing is deployed.",
+          "2. Screenshot every page at 1440x900 and 375x812, plus the section 3 mechanic mid-scroll, into `screenshots/`.",
+          "3. Emulate reduced motion (DevTools Rendering panel or Playwright `reducedMotion: 'reduce'`) and screenshot the mechanic's section: it must show the fallback.",
+          "4. Keyboard only: tab through the whole %s flow; focus always visible; Escape closes overlays; no traps." % pl,
+          "5. Lighthouse on mobile if available: aim for Performance 85+, Accessibility 95+, Best Practices 95+; report the real numbers or \"not run\".",
+          "6. Honesty greps: `grep -rniE \"testimonial|five.star|guarantee|trusted by|hipaa\" src ui` (review every hit) and `grep -rnE \"fetch\\(|XMLHttpRequest|sendBeacon\" src ui` (local JSON only).",
+          "7. Companion app, if built: run it in the iOS simulator, screenshot each screen, exercise the gesture.", "",
+          "### Definition of done",
+          "- [ ] Every section 4 acceptance criterion is checked with evidence",
+          "- [ ] CONTRACT.md, HANDOFF.md and data/sample.json committed locally",
+          "- [ ] Screenshots: desktop and mobile, reduced motion on and off",
+          "- [ ] Tests pass, with counts reported",
+          "- [ ] Disclosure in every footer", "",
+          "### Out of scope", brief.get("Out of scope", ""),
+          "- Deploys, custom domains, analytics, SEO setup, app-store submission", "",
+          "**No deploy, push or publish without the operator's explicit go.**", "",
+          "### Final report (Claude writes it, under 400 words)",
+          "1. What was built: files and pages.",
+          "2. Tests run, with counts.",
+          "3. Screenshot paths (desktop, mobile, reduced motion).",
+          "4. Lighthouse / accessibility numbers, or \"not run\".",
+          "5. What is mocked, and every Unknown or unverified item.",
+          "6. One proposed next step.", ""]
+    return "\n".join(L)
+
+
+def agent_prompt_violations(md):
+    """Honesty + structure checks for a built agent prompt → list of problems."""
+    errs = ["claim: " + v for v in claim_violations(_strip_code(md))]
+    for h in ("## 1. Mission", "## 2. Role split", "## 3. Design DNA", "## 4. Website spec",
+              "## 5. Companion app", "## 6. Skills per agent", "## 7. Verify and done", DISCLOSURE,
+              "MAIN BUILDER", "UI PERSON", "Contract first", "File ownership map", "Reduced motion (mandatory)",
+              "Synthetic data only", "No deploy, push or publish without the operator's explicit go."):
+        if h not in md:
+            errs.append("missing: " + h)
+    words = len(re.findall(r"\S+", md))
+    if not 1800 <= words <= 3500:
+        errs.append("length %d words outside 1800–3500" % words)
+    return errs
+
+
 # --------------------------------------------------------------------------- store
 def _empty():
     return {"version": 1, "ideas": {}, "events": [], "kits": {}, "prefs": dict(DEFAULT_FILTERS),
-            "recent": [], "plan": {}, "metrics": {m: 0 for m in METRICS}, "metricLog": [], "spins": 0}
+            "recent": [], "plan": {}, "metrics": {m: 0 for m in METRICS}, "metricLog": [], "spins": 0,
+            "dnaRecent": [], "dnaPicks": {}}
 
 
 def _load():
@@ -1161,6 +1588,41 @@ def get_brief(idea_id):
     return {"ok": True, "markdown": build_brief(r["idea"], r.get("kit")), "ideaId": idea_id}
 
 
+def agent_prompt(idea_id, remix=0):
+    """Claude + Codex Prompt for a stored idea (every spin is stored, so the current idea works too).
+    First request for (idea, remix) picks DNA avoiding the last DNA_RECENT prompts and records it;
+    later requests replay the recorded pick, so a remix never changes under the user."""
+    _check_id(idea_id)
+    if isinstance(remix, bool) or not isinstance(remix, int) or not 0 <= remix <= MAX_REMIX:
+        raise ValueError("remix must be 0–%d" % MAX_REMIX)
+    with _LOCK:
+        d = _load()
+        idea = d["ideas"].get(idea_id)
+        if not idea:
+            return {"error": "idea not found"}
+        key = "%s:%d" % (idea_id, remix)
+        dna = _dna_from_ids(idea, remix, d["dnaPicks"][key]) if key in d["dnaPicks"] else None
+        if dna is None:
+            recent = [(r["mechanic"], r["archetype"]) for r in d["dnaRecent"][-DNA_RECENT:]]
+            prev = next((r for r in reversed(d["dnaRecent"]) if r["ideaId"] == idea_id), None)
+            dna = pick_dna(idea, remix, recent, prev)
+            ids = _dna_ids(dna)
+            d["dnaPicks"][key] = dict(ids, repeated=dna["repeated"])
+            for k in list(d["dnaPicks"])[:-DNA_PICKS_KEPT]:
+                d["dnaPicks"].pop(k, None)
+            d["dnaRecent"].append({"ideaId": idea_id, "remix": remix, "mechanic": ids["mechanic"],
+                                   "archetype": ids["archetype"], "at": _now_iso()})
+            d["dnaRecent"] = d["dnaRecent"][-50:]
+            _save(d)
+        kit = d["kits"].get(idea_id)
+    md = build_agent_prompt(idea, remix, dna, kit)
+    return {"ok": True, "ideaId": idea_id, "remix": remix, "markdown": md, "chars": len(md),
+            "words": len(re.findall(r"\S+", md)),
+            "dna": dict(_dna_ids(dna), mechanicLabel=dna["mechanic"]["label"], archetypeLabel=dna["archetype"]["label"],
+                        interactionLabel=dna["interaction"]["label"], ruleBreakerLabel=dna["ruleBreaker"]["label"],
+                        repeated=dna["repeated"])}
+
+
 # --------------------------------------------------------------------------- HTTP glue
 def _q(q, k):
     v = (q or {}).get(k) or [""]
@@ -1193,8 +1655,21 @@ def api_brief(q):
         return {"error": str(e)}
 
 
+def api_agentprompt(q):
+    """GET ?id=&remix=N. `httpStatus` is turned into the response code by connector.do_GET."""
+    try:
+        rs = _q(q, "remix") or "0"
+        if not re.fullmatch(r"\d{1,3}", rs):
+            raise ValueError("remix must be 0–%d" % MAX_REMIX)
+        r = agent_prompt(_q(q, "id"), int(rs))
+    except ValueError as e:
+        return {"error": str(e), "httpStatus": 400}
+    return r if r.get("ok") else dict(r, httpStatus=404)
+
+
 GET_ROUTES = {"/api/ideawheel/state": api_state, "/api/ideawheel/ideas": api_ideas,
-              "/api/ideawheel/idea": api_idea, "/api/ideawheel/brief": api_brief}
+              "/api/ideawheel/idea": api_idea, "/api/ideawheel/brief": api_brief,
+              "/api/ideawheel/agentprompt": api_agentprompt}
 POST_PATHS = ("/api/ideawheel/spin", "/api/ideawheel/restyle", "/api/ideawheel/save",
               "/api/ideawheel/status", "/api/ideawheel/tags", "/api/ideawheel/kit",
               "/api/ideawheel/plan", "/api/ideawheel/metric", "/api/ideawheel/prefs")
