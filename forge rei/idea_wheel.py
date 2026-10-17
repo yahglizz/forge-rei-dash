@@ -808,6 +808,11 @@ def _load():
                 return base
         except Exception:
             pass
+        # Unreadable store: keep a copy before the next save overwrites it (recoverable, not lost).
+        try:
+            p.replace(p.with_name(p.name + ".corrupt-%d" % int(time.time())))
+        except OSError:
+            pass
     return _empty()
 
 
