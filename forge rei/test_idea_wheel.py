@@ -406,7 +406,7 @@ def _():
 def _():
     import ast
     allowed = {"hashlib", "json", "os", "random", "re", "secrets", "threading", "time", "datetime", "pathlib",
-               "forge_atomic", "tempfile"}
+               "forge_atomic", "tempfile", "sys"}  # sys: forge_atomic's test-isolation guard (main, 2026-10)
     for fn in ("idea_wheel.py", "forge_atomic.py"):
         src = open(os.path.join(HERE, fn), encoding="utf-8").read()
         mods = set()
