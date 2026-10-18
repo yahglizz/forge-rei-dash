@@ -36,9 +36,9 @@ def check():
               "mission_control_agent", "dropship_director", "agency_agents"):
         assert "self_improve_on()" in (HERE / (f + ".py")).read_text(), f
 
-    # Automatic re-engage bumps are cheap; the money moment is not.
-    assert "model=review_agent.FAST_MODEL" in (HERE / "reengage_draft.py").read_text()
-    assert "model=review_agent.FAST_MODEL" in (HERE / "reengage_copy.py").read_text()
+    # Re-engage bumps run on the smart tier since 2026-10-17 (owner: every agent brain on SMART).
+    assert "model=review_agent.SMART_MODEL" in (HERE / "reengage_draft.py").read_text()
+    assert "model=review_agent.SMART_MODEL" in (HERE / "reengage_copy.py").read_text()
     assert "import review_agent" in (HERE / "daycare_replies.py").read_text()
     import daycare_replies
     assert daycare_replies.MODEL == ra.SMART_MODEL
@@ -49,5 +49,29 @@ def check():
     print("model policy OK")
 
 
+# Agent brains moved to SMART 2026-10-17. Every _claude() call in these files must name
+# both a model and an effort, so nothing silently falls back to FAST or to Sonnet "high".
+AGENT_BRAIN_FILES = (
+    "review_agent", "legit_check", "marcus_lead", "daycare_ads_autopilot", "mission_control_agent",
+    "daycare_director", "dropship_director", "style_agent", "skill_forge", "scout_triage",
+    "deal_prep", "marcus_screening", "agency_agents", "agents_chat", "agent_collab",
+)
+
+
+def check_agent_calls_named():
+    import ast
+    bad = []
+    for f in AGENT_BRAIN_FILES:
+        for n in ast.walk(ast.parse((HERE / (f + ".py")).read_text())):
+            fn = getattr(n, "func", None)
+            if isinstance(n, ast.Call) and getattr(fn, "attr", getattr(fn, "id", None)) == "_claude":
+                kw = {k.arg for k in n.keywords}
+                if not {"model", "effort"} <= kw:
+                    bad.append(f"{f}.py:{n.lineno}")
+    assert not bad, "_claude() without model= and effort=: " + ", ".join(bad)
+    print("agent calls named OK")
+
+
 if __name__ == "__main__":
     check()
+    check_agent_calls_named()

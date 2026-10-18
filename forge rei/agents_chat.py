@@ -212,7 +212,8 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
                 "Write the operator's rundown now."
             )
             try:
-                reply = review_agent._claude(key, system, user, max_tokens=700)
+                reply = review_agent._claude(key, system, user, max_tokens=700,
+                                             model=review_agent.SMART_MODEL, effort="low")
             except Exception:  # noqa: BLE001
                 reply = _format_audit_rundown(report)
             return {"reply": reply or _format_audit_rundown(report),
@@ -245,7 +246,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
             reply = review_agent._claude(key, system + _tasks(agent_id) + caveman.block(),
-                                         user, max_tokens=600, model=review_agent.SMART_MODEL)
+                                         user, max_tokens=600, model=review_agent.SMART_MODEL, effort="low")
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "reply": f"Hit an error reaching my brain: {e}"}
         # One consult round: Scout may [ASK MARCUS] mid-answer (agent_collab logs
@@ -286,7 +287,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
         user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
         try:
             reply = review_agent._claude(key, system + _tasks(agent_id) + caveman.block(),
-                                         user, max_tokens=600, model=review_agent.SMART_MODEL)
+                                         user, max_tokens=600, model=review_agent.SMART_MODEL, effort="low")
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e), "reply": f"Hit an error reaching my brain: {e}"}
         try:
@@ -319,7 +320,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
         reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=500,
-                                     model=review_agent.SMART_MODEL)
+                                     model=review_agent.SMART_MODEL, effort="low")
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e), "reply": f"Hit an error reaching my brain: {e}"}
     return {"reply": reply or "On it.", "agent": name}

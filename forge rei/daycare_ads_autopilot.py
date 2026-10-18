@@ -779,7 +779,8 @@ def judge(result: dict, c: dict, mkt: dict | None) -> dict:
             for i, d in enumerate(result["decisions"])],
             "entities": result["entities"][:25], "refresh": result["refresh"][:6],
             "marketWinnersSummary": (mkt or {}).get("summary", "not available")}, default=str)[:9000]
-        raw = review_agent._claude(key, system, user, max_tokens=900, model=review_agent.FAST_MODEL)
+        raw = review_agent._claude(key, system, user, max_tokens=900, model=review_agent.SMART_MODEL,
+                                   effort="low")
         j = _json(raw)
         vetoes = {int(v["i"]): str(v.get("reason") or "vetoed")[:200] for v in j.get("vetoes") or []
                   if isinstance(v, dict) and str(v.get("i", "")).isdigit()

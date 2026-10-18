@@ -373,7 +373,7 @@ def draft_warm():
                 hint = HINTS[seg].format(age=_age_phrase(row["last_message_date_iso"]))
                 import review_agent
                 text, source = engine._ai_draft(first, cls, body, history, hint=hint,
-                                                model=review_agent.FAST_MODEL)
+                                                model=review_agent.SMART_MODEL)   # effort "low" fixed in _ai_draft
                 status = "blocked" if source == "blocked" else "ok"
                 if status == "blocked":
                     text = f"[BLOCKED: {engine.last_error}]"

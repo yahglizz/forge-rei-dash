@@ -658,7 +658,8 @@ class MidasEngine:
         except Exception:
             pass
         try:
-            new_md = review_agent._claude(key, system, user, max_tokens=2400, effort="medium")
+            new_md = review_agent._claude(key, system, user, max_tokens=2400, effort="medium",
+                                          model=review_agent.SMART_MODEL)
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 200:

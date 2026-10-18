@@ -183,7 +183,7 @@ def draft_for_row(engine, row):
                     f"{row['last_message_date_iso'][:10]}. Reopen naturally, not like a robo-blast.")
         import review_agent
         text, source = engine._ai_draft(first, cls, body, history, hint=hint,
-                                        model=review_agent.FAST_MODEL)
+                                        model=review_agent.SMART_MODEL)   # effort "low" is fixed inside _ai_draft
         hint_used = hint or ""
         draft_source = source
         if source == "blocked":

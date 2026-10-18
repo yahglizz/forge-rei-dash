@@ -918,8 +918,8 @@ class MarcusEngine:
                 [{"type": "text", "text": sys_prompt, "cache_control": {"type": "ephemeral"}}]
                 if len(sys_prompt) >= 1200 else sys_prompt)
             import review_agent   # shared model/thinking + transient retry (<=2, 429/5xx/529/network only)
-            # Inbound seller replies run on DRAFT_MODEL (SMART); automatic re-engage bumps
-            # pass model=FAST_MODEL (reengage_draft / reengage_copy) — low stakes, price-guarded.
+            # Inbound seller replies run on DRAFT_MODEL (SMART); re-engage bumps
+            # (reengage_draft / reengage_copy) pass model=SMART_MODEL since 2026-10-17.
             draft_model = model or review_agent.DRAFT_MODEL
             payload = {
                 "model": draft_model,

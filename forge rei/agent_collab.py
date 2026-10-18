@@ -80,7 +80,8 @@ def ask(asker, target, question, ghl_get=None, location_id=None, scout=None, dep
                     + "\n\n=== YOUR LEARNED PLAYBOOK (from the brain) ===\n"
                     + (scout_triage.playbook_text(1500) or "(none yet)")
                 )
-                answer = (review_agent._claude(key, system, question, max_tokens=500)
+                answer = (review_agent._claude(key, system, question, max_tokens=500,
+                                               model=review_agent.SMART_MODEL, effort="low")
                           or "").strip() or "(scout had no answer)"
         elif target == "marcus":
             import marcus_chat
@@ -116,7 +117,8 @@ def consult_round(asker, system, user, reply, key, max_tokens=600,
                      location_id=location_id, scout=scout)
         user2 = (user + f"\n\n[{target.upper()} ANSWERED]: {answer}\n\n"
                  "Now give your final answer to the operator (do not consult again):")
-        final = (review_agent._claude(key, system, user2, max_tokens=max_tokens)
+        final = (review_agent._claude(key, system, user2, max_tokens=max_tokens,
+                                      model=review_agent.SMART_MODEL, effort="low")
                  or "").strip()
         if final:
             return final + f"\n\n🤝 consulted {target.title()}"

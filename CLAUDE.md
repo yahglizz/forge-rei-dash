@@ -228,6 +228,15 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 > Switches (all default OFF): `FORGE_BRIEFS`, `FORGE_SOLOMON_BRIEF`, `FORGE_SELF_IMPROVE`,
 > `FORGE_SKILL_FORGE`. Model knobs: `FORGE_FAST_MODEL`, `FORGE_SMART_MODEL`, `FORGE_DRAFT_MODEL`.
 > Guard: `test_model_policy.py`. Expected spend: ~$90–150/mo typical (was $150–300).
+> **2026-10-17 (owner): every agent brain now runs SMART (Sonnet 5.5) at an explicit effort** — Scout
+> scoring + missed-leads audit, Marcus screening + directives, Atlas, legit-check, re-engage bumps,
+> style_agent, skill_forge, every `learn()`, the daycare ads judge, the weekly review, agent consults.
+> `"low"` by default, `"medium"` where the call already said so. FAST (Haiku) remains only the default
+> for a call site that names no model. Extra spend is expected to be small — an **estimate, not
+> measured**: per-token price doubles on those calls (Haiku $1/$5 → Sonnet 5.5 $2/$10 per M) plus
+> low-effort thinking output; Scout scoring is the volume line to watch on Costs → Spend by agent.
+> Guard: `test_model_policy.py` `check_agent_calls_named` (every `_claude()` in those files names
+> `model=` and `effort=`).
 
 **CURRENT STATE (verified 2026-09-30 against `/api/businesses` + `/api/agents/registry`):**
 ONE agent per business, plus the CEO. **Active businesses: Wholesale (REI), Agency, Daycare.
@@ -270,7 +279,7 @@ and a new Claude call per cycle.
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
-Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls — **default FAST = Haiku 4.5; SMART = Sonnet 5.5 (adaptive thinking) only where a site opts in with `model=review_agent.SMART_MODEL`** — see the 2026-09-30 consolidation note above; older note: Sonnet 5, adaptive thinking, explicit effort: `effort="low"` default for chat/drafts/extraction, `"medium"` for briefs, `learn()` rewrites, Atlas, screening; Scout scoring stays Haiku; never call Sonnet 5 without an effort — it defaults to `high`. New judgment-heavy call site → pass `effort="medium"`), `brain_io`
+Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls — **default FAST = Haiku 4.5; SMART = Sonnet 5.5 (adaptive thinking) only where a site opts in with `model=review_agent.SMART_MODEL`** — see the 2026-09-30 consolidation note above; **since 2026-10-17 every agent brain call opts in (SMART + explicit effort), so FAST is only the fallback for unnamed call sites**; older note: Sonnet 5, adaptive thinking, explicit effort: `effort="low"` default for chat/drafts/extraction, `"medium"` for briefs, `learn()` rewrites, Atlas, screening; Scout scoring stays Haiku [superseded 2026-10-17: Sonnet 5.5, low]; never call Sonnet 5 without an effort — it defaults to `high`. New judgment-heavy call site → pass `effort="medium"`), `brain_io`
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back
 (agent's own key → wholesale `ghl.env` / agency `agency.env`).
 
@@ -574,7 +583,7 @@ update that skill if you improved the pattern.
 | `FORGE_SKILL_FORGE` | **0 (off)** | skill_forge's Claude-drafted skill proposals. |
   | `FORGE_AI_PROBE_SEC` | 900 | **AI circuit breaker** (2026-09-30, `review_agent.claude_urlopen`): while a key is hard-down (credits/auth), every Claude call fails fast with no network and ONE probe goes through per this many seconds; a good probe closes it. `0` disables. Solomon · Replies skips its whole sweep while open. Test: `test_ai_breaker.py`. |
   | `FORGE_DAYCARE_REPLIES` | 1 (on) | Solomon · Replies — the Daycare Reply Desk: parent-reply drafts every 60 s (answer lands ~90 s–5 min after the parent texts), ≤8 Sonnet calls/sweep, only when a parent is owed a reply. Bills to `solomon`. `0` stops it and retires its heartbeat. |
-  | `FORGE_DAYCARE_ADS` | 1 (on) | Solomon · Ads — the daily ad optimizer + creative loop (thread `daycare_ads`, bills to `solomon`; one FAST-tier Claude call + Nova on a test day). Starts in **shadow** (writes nothing) — see §2 exception. `0` retires the loop. Tune without a deploy: `FORGE_DAYCARE_ADS_MODE` (initial; the persisted mode wins), `_TCPL` (target CPL $, default 40), `_MAX_DAILY` (total daily-budget ceiling $, default 100), `_HOUR` (local hour it may run, default 8), `_MAX_ACTIONS` (4), `_CREATIVE=0` (no test ads), `_KEYWORDS` (`a|b|c` Ad Library searches). |
+  | `FORGE_DAYCARE_ADS` | 1 (on) | Solomon · Ads — the daily ad optimizer + creative loop (thread `daycare_ads`, bills to `solomon`; one SMART-tier (Sonnet 5.5, low effort, since 2026-10-17) Claude call + Nova on a test day). Starts in **shadow** (writes nothing) — see §2 exception. `0` retires the loop. Tune without a deploy: `FORGE_DAYCARE_ADS_MODE` (initial; the persisted mode wins), `_TCPL` (target CPL $, default 40), `_MAX_DAILY` (total daily-budget ceiling $, default 100), `_HOUR` (local hour it may run, default 8), `_MAX_ACTIONS` (4), `_CREATIVE=0` (no test ads), `_KEYWORDS` (`a|b|c` Ad Library searches). |
   | `FORGE_SCOUT_LEARN_EVERY` / `FORGE_ATLAS_LEARN_EVERY` | 25 / 12 | Self-improve cadence — the other real Claude cost. |
 
   **Switching a loop OFF must call `forge_heartbeat.retire("<loop>")`** in the else branch,

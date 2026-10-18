@@ -105,7 +105,8 @@ def directives(scout, screener, marcus, do_today_engine, trigger="manual"):
     snap = _snapshot(scout, screener, marcus, do_today_engine)
     try:
         raw = review_agent._claude(key, _SYS, f"OPS SNAPSHOT ({trigger}):\n{snap}\n\n"
-                                   "Issue your directives now.", max_tokens=700)
+                                   "Issue your directives now.", max_tokens=700,
+                                   model=review_agent.SMART_MODEL, effort="low")
         m = re.search(r"\{.*\}", raw, re.S)
         d = json.loads(m.group(0)) if m else {"operator": raw}
     except Exception as e:  # noqa: BLE001

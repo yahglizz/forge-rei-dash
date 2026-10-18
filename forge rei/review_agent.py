@@ -34,6 +34,10 @@ LATEST_FILE = STATE_DIR / "review_latest.json"
 # replies to a seller/parent, and the owner's chats with the main agents — run on SMART
 # (Sonnet 5.5, $2/$10, adaptive thinking at low effort). Opus/Fable are never used.
 # Anything that doesn't name a model gets FAST, so a forgotten call site is cheap by default.
+# 2026-10-17 (owner): every AGENT brain call (scoring, screening, underwriting, legit
+# check, bumps, directives, learn(), ads judge, weekly review) now passes
+# model=SMART_MODEL with an explicit effort= ("low", or "medium" where it already was).
+# FAST stays only as the default for call sites that name no model (test_model_policy).
 FAST_MODEL = os.environ.get("FORGE_FAST_MODEL", "claude-haiku-4-5-20251001")
 SMART_MODEL = os.environ.get("FORGE_SMART_MODEL", "claude-sonnet-5-5")
 MODEL = os.environ.get("FORGE_REVIEW_MODEL", FAST_MODEL)
@@ -319,7 +323,7 @@ def _analyst(key, lens_key, lens_desc, metrics):
     )
     user = f"METRICS:\n{json.dumps(metrics, indent=2)}\n\nReturn the JSON now."
     try:
-        txt = _claude(key, system, user, max_tokens=900)
+        txt = _claude(key, system, user, max_tokens=900, model=SMART_MODEL, effort="low")
         s, e = txt.find("{"), txt.rfind("}")
         if s < 0 or e <= s:
             raise ValueError("no JSON object in analyst response")
@@ -346,7 +350,7 @@ def _synthesize(key, metrics, analysts):
         user += agent_coach.insights_block("marcus", "wholesale")
     except Exception:
         pass
-    return _claude(key, system, user, max_tokens=2000, effort="medium")
+    return _claude(key, system, user, max_tokens=2000, effort="medium", model=SMART_MODEL)
 
 
 def _extract_playbook(report_md):

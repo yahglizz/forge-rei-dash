@@ -514,11 +514,11 @@ class ScoutEngine:
                        + skills[:3500])
         user = "Seller messages:\n" + "\n".join(lines)
         try:
-            # Structured intent/motivation/price extraction — a classification task,
-            # not a judgment call. Highest-volume Claude call in the system, so the
-            # cheap tier here is where model tiering actually moves the bill.
+            # Structured intent/motivation/price extraction. Highest-volume Claude call
+            # in the system — owner moved it to SMART at low effort 2026-10-17; watch
+            # /api/cost/status byAgent "scout" if the bill moves.
             raw = review_agent._claude(key, system, user, max_tokens=1500,
-                                       model=review_agent.HAIKU_MODEL)
+                                       model=review_agent.SMART_MODEL, effort="low")
         except Exception as e:  # noqa: BLE001
             self.last_error = f"claude: {e}"
             self.ai_error = str(e)[:200]
@@ -950,7 +950,7 @@ class ScoutEngine:
             "connected": True,
             "aiScoring": bool(_scout_key()),
             "aiError": self.ai_error,
-            "model": review_agent.MODEL,
+            "model": review_agent.SMART_MODEL,
             "lastRun": self.last_run,
             "lastError": self.last_error,
             "total": len(self._active()),
@@ -1049,7 +1049,8 @@ class ScoutEngine:
         except Exception:
             pass
         try:
-            new_md = review_agent._claude(key, system, user, max_tokens=2200, effort="medium")
+            new_md = review_agent._claude(key, system, user, max_tokens=2200, effort="medium",
+                                          model=review_agent.SMART_MODEL)
         except Exception as e:  # noqa: BLE001
             return {"error": f"claude: {e}"}
         if not new_md or len(new_md) < 200:
@@ -1292,7 +1293,8 @@ class ScoutEngine:
                                       + (e["transcript"] or "(no transcript)"))
                     user = "Threads to judge:\n\n" + "\n\n".join(blocks)
                     try:
-                        raw = review_agent._claude(key, base_system, user, max_tokens=1500)
+                        raw = review_agent._claude(key, base_system, user, max_tokens=1500,
+                                                   model=review_agent.SMART_MODEL, effort="low")
                     except Exception as ex:  # noqa: BLE001
                         self.last_error = f"claude: {ex}"
                         continue

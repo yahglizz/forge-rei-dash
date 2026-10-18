@@ -192,7 +192,7 @@ def _draft_md(topic, row, stats):
             "evidence given — do not invent tools or APIs. Keep it under 60 lines." + feedback,
             f"Recurring pattern detected across agents ({agents}): \"{topic}\".\n"
             f"Evidence from the agent bus:\n{samples}\n\nWrite the skill file:",
-            max_tokens=1200, effort="medium")
+            max_tokens=1200, effort="medium", model=review_agent.SMART_MODEL)
         return out if len(out or "") > 100 else fallback
     except Exception:
         return fallback

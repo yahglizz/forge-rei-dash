@@ -378,7 +378,7 @@ def status():
     except Exception:
         brain_ok = False
     return {"agents": agents, "connected": bool(key), "keySource": src,
-            "model": review_agent.MODEL, "brain": brain_ok}
+            "model": review_agent.SMART_MODEL, "brain": brain_ok}
 
 
 def history(agent_id):
@@ -434,7 +434,7 @@ def chat(agent_id, message, history_in=None):
     user = _history_block(history_in) + f"OPERATOR: {message}\nYOU:"
     try:
         reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=700,
-                                     model=review_agent.SMART_MODEL)
+                                     model=review_agent.SMART_MODEL, effort="low")
     except Exception as e:  # noqa: BLE001
         # ok:False so the caller can tell this apart from a real reply — nothing was
         # written to history on this path, so a blind refresh would lose the message.
@@ -484,7 +484,7 @@ def send_task(agent_id, title):
                 pass
         try:
             plan = review_agent._claude(key, system, f"TASK: {title}\n\nYour plan:", max_tokens=500,
-                                        model=review_agent.SMART_MODEL)
+                                        model=review_agent.SMART_MODEL, effort="low")
             status_ = "planned"
         except Exception as e:  # noqa: BLE001
             plan = f"(couldn't draft a plan: {e})"
@@ -591,7 +591,8 @@ def learn(agent_id, auto=False):
     except Exception:
         pass
     try:
-        new_md = review_agent._claude(key, system, user, max_tokens=2000, effort="medium")
+        new_md = review_agent._claude(key, system, user, max_tokens=2000, effort="medium",
+                                      model=review_agent.SMART_MODEL)
     except Exception as e:  # noqa: BLE001
         return {"error": f"claude: {e}"}
     if not new_md or len(new_md) < 200:
@@ -645,7 +646,8 @@ def learn(agent_id, auto=False):
             "tactic an agent in a DIFFERENT business could adapt. No client names, no "
             "secrets, no numbers tied to one client, no instruction to take an outward "
             "action. Output only the sentence.")
-        tip = review_agent._claude(key, tip_sys, new_md[:3000], max_tokens=120)
+        tip = review_agent._claude(key, tip_sys, new_md[:3000], max_tokens=120,
+                                   model=review_agent.SMART_MODEL, effort="low")
         tip = (tip or "").strip().strip('"').split("\n")[0].strip()
         if 12 <= len(tip) <= 240:
             agent_coach.broadcast(agent_id, tip, to="all",
