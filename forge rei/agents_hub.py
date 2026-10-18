@@ -363,6 +363,16 @@ def _director_chat(agent_id, message, history):
     except Exception:
         pass
 
+    if agent_id == "solomon":
+        # Ad numbers come ONLY from a live Pipeboard pull made for this message (7d/30d/90d/max +
+        # the autopilot's state) — never the brief's stale copy. Unknown sections say so.
+        try:
+            import daycare_growth
+            live += daycare_growth.ads_feed_block()
+        except Exception as e:  # noqa: BLE001
+            live += (f"\n\n=== LIVE AD PACKET unavailable ({type(e).__name__}) — every ad number is "
+                     "Unknown this message; do not quote figures from memory or the brief. ===")
+
     if agent_id == "orion":
         try:
             import agent_office

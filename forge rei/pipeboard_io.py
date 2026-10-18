@@ -155,18 +155,77 @@ def ad_accounts() -> list[dict]:
             for a in d.get("data") or []]
 
 
-def campaigns(account_id: str, limit: int = 50) -> list[dict]:
-    d = _cached(("camps", account_id), lambda: call(
-        "get_campaigns", {"account_id": account_id, "limit": limit}))
+def campaigns(account_id: str, limit: int = 50, fresh: bool = False) -> list[dict]:
+    fn = lambda: call("get_campaigns", {"account_id": account_id, "limit": limit})  # noqa: E731
+    d = fn() if fresh else _cached(("camps", account_id), fn)
     return d.get("data") or []
 
 
-def insights(account_id: str, since: str, until: str, level: str = "ad") -> list[dict]:
-    """Raw Meta insight rows for [since, until] (YYYY-MM-DD) at account|campaign|adset|ad."""
-    d = _cached(("ins", account_id, since, until, level), lambda: call("get_insights", {
-        "object_id": account_id, "level": level, "limit": 100,
-        "time_range": {"since": since, "until": until}}))
-    return d.get("data") or []
+MAX_PAGES = 20                 # 20 × 100 rows; past that we say truncated, never under-report silently
+
+
+def insights_paged(account_id: str, since: str, until: str, level: str = "ad",
+                   fields: tuple | list | None = None, fresh: bool = False,
+                   page_size: int = 100) -> tuple[list[dict], bool]:
+    """(rows, truncated) for [since, until] — follows Meta's paging.next cursor (Pipeboard passes
+    `after` through). truncated=True when the page cap is hit with pages pending, or Pipeboard
+    warns a full page came back without a cursor. fresh=True skips the 60 s cache (agents)."""
+    def fetch():
+        rows, after = [], ""
+        for _ in range(MAX_PAGES):
+            args = {"object_id": account_id, "level": level, "limit": page_size,
+                    "time_range": {"since": since, "until": until}}
+            if fields:
+                args["fields"] = list(fields)
+            if after:
+                args["after"] = after
+            d = call("get_insights", args)
+            page = d.get("data") or []
+            rows += page
+            if d.get("warnings"):
+                return rows, True
+            paging = d.get("paging") or {}
+            after = (paging.get("cursors") or {}).get("after")
+            if not paging.get("next") or not after or not page:
+                return rows, False
+        return rows, True
+    if fresh:
+        return fetch()
+    return _cached(("insp", account_id, since, until, level, tuple(fields or ()), page_size), fetch)
+
+
+def insights(account_id: str, since: str, until: str, level: str = "ad", fresh: bool = False) -> list[dict]:
+    """Raw Meta insight rows for [since, until] (YYYY-MM-DD) at account|campaign|adset|ad.
+    Paged (was limit 100, no paging — a long range with many ads silently lost rows)."""
+    return insights_paged(account_id, since, until, level, fresh=fresh)[0]
+
+
+def daily_account_rows(account_id: str, since: str, until: str, granularity: str = "day",
+                       fresh: bool = False) -> list[dict]:
+    """Account-level rows per day|week|month, each tagged `day` (period start). Meta returns only
+    periods WITH data — the caller zero-fills. ≤90 periods per call (Pipeboard cap)."""
+    def fetch():
+        d = call("get_insights", {"object_id": account_id, "level": "account",
+                                  "time_breakdown": granularity,
+                                  "time_range": {"since": since, "until": until}})
+        return [dict(seg["metrics"], day=seg.get("period_start") or seg.get("period"))
+                for seg in d.get("segmented_metrics") or [] if isinstance(seg.get("metrics"), dict)]
+    return fetch() if fresh else _cached(("daily", account_id, since, until, granularity), fetch)
+
+
+def result_leads(row: dict):
+    """Meta's own "Results" count when the row's result indicator is a lead event
+    (actions:lead / offsite_conversion.fb_pixel_lead / onsite_conversion.lead_grouped …);
+    None when Meta reports no lead result for the row (needs fields=["results"])."""
+    total, hit = 0, False
+    for r in row.get("results") or []:
+        if "lead" not in str(r.get("indicator") or ""):
+            continue
+        hit = True                                  # lead indicator with no values = 0 results
+        for v in r.get("values") or []:
+            if "default" in (v.get("attribution_windows") or ["default"]):
+                total += int(_num(v.get("value")))
+    return total if hit else None
 
 
 def _num(v) -> float:

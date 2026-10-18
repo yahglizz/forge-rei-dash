@@ -4974,7 +4974,12 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/rewards": lambda session: daycare_supabase.get_rewards(session),
             "/api/daycare/pass": lambda session: daycare_supabase.get_pass(session),
             "/api/daycare/ads": lambda session: daycare_growth.ads_overview(
-                q.get("account", [None])[0], q.get("days", ["7"])[0]),
+                q.get("account", [None])[0], q.get("days", ["7"])[0],
+                preset=q.get("preset", [None])[0], since=q.get("since", [None])[0],
+                until=q.get("until", [None])[0], compare=q.get("compare", ["0"])[0] in ("1", "true"),
+                fresh=q.get("fresh", ["0"])[0] in ("1", "true")),
+            # Agent evidence packet (read-only): fresh Pipeboard pull, 7d/30d/90d/maximum + autopilot.
+            "/api/daycare/ads/feed": lambda session: daycare_growth.ads_feed(q.get("preset", [None])[0], q.get("since", [None])[0], q.get("until", [None])[0], compare=q.get("compare", ["0"])[0] in ("1", "true"), fresh=q.get("fresh", ["1"])[0] not in ("0", "false")),
             "/api/daycare/social": lambda session: daycare_growth.social_overview(
                 q.get("network", [None])[0]),
             "/api/daycare/eco": lambda session: daycare_growth.eco_overview(

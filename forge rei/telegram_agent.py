@@ -467,6 +467,10 @@ def system_prompt(agent_id, business):
     parts.append("\n\n=== YOUR ROUTES (GET = api_get, POST = api_post card) ===\nGET: "
                  + " ".join(_scoped(business, "GET")) + "\nPOST: "
                  + " ".join(_scoped(business, "POST")))
+    if business == "daycare":
+        parts.append("\n\nAD NUMBERS: before quoting any Meta ad figure, api_get /api/daycare/ads/feed "
+                     "(a fresh Pipeboard pull: 7d/30d/90d/maximum + autopilot; preset/since/until/compare "
+                     "accepted) and cite the window + 'Meta via Pipeboard'. unknown:true = Unknown, never 0.")
     try:
         import caveman
         parts.append(caveman.block())

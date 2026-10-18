@@ -660,6 +660,17 @@ key on the box. New migrations go in BOTH migration folders.
   current status, brand voice, standing job) BEFORE reasoning, via `daycare_context.py`
   (mtime hot-reload; `context_block()` injected into the Eco prompt ahead of the playbook).
 - **Enrollment Ad Agent spec.** `forge-daycare/skills/enrollment-ad-agent.md` is the ad-ops
+  **Meta-exact reads + live agent packet (2026-10-17).** `ads_range.py` is the ONE range resolver (Meta picker
+  presets: today … last_30d … this/last week (Sun–Sat), this/last month, maximum; "last N days" = N complete days
+  ending yesterday; "today" = the ad ACCOUNT's day via `get_account_info.timezone_name`, cached 1 h, fallback
+  `FORGE_TZ_OFFSET` labeled). `pipeboard_io.insights_paged` follows Meta's paging cursor (`truncated:true` past
+  20 pages). With the daycare's own Pipeboard keyed, `GET /api/daycare/ads` (`preset`, `since`, `until`,
+  `compare=1`, `fresh=1`, legacy `days`) returns Meta's account-level totals + `reconciled` flags + day series +
+  `dateRange{since,until,label,tz,preset}` + `fetchedAt`. `GET /api/daycare/ads/feed` = Solomon's evidence
+  packet (7d/30d/90d/maximum + autopilot state), always fresh; his brief, every chat message, the idea generator
+  and the Eco share read it — never a cached number. Dashboard **Enrollment ads** card + Growth → Ads use a
+  Meta-style date picker (presets, two-month calendar, compare, account-tz footnote) and a read-only autopilot
+  strip. Read-only throughout: no Pipeboard write is reachable from these paths. Test: `test_daycare_ads_feed.py`.
   runbook — the daycare's REAL Meta account (`act_1175564690150627`, page/lead-form IDs),
   the 3 live PAUSED angles (Urgency/Trust/Offer) with campaign+creative+image IDs, ad copy,
   Higgsfield image prompts + model table, targeting, and the Higgsfield→Pipeboard workflow.

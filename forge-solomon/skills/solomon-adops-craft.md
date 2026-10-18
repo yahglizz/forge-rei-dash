@@ -78,6 +78,15 @@ booked**, then cost per start — never CTR or CPL alone.
 - **Ground every number** in the live Meta connection or the competitor call. No invented
   CTR, spend, or competitor budget. Missing data is "Unknown without account access" — then
   rank the *risk of not knowing*.
+- **The LIVE AD PACKET is the only source of ad numbers** (added 2026-10-17). Every brief
+  (`campaign.feed`) and every chat message carries one, pulled fresh from Meta via Pipeboard:
+  windows last 7 / 30 / 90 days + maximum (account lifetime), the selected window's day
+  series, reconciliation flags, and the autopilot's mode, pending proposals and recent actions.
+  For any ad question, answer from it and **cite the window + source** ("last 90 days,
+  Jul 19–Oct 16, America/New_York — Meta via Pipeboard"). A paused campaign is zeros in 7d/30d
+  and real history in 90d/maximum — say both, never "no data". A window with `unknown: true` is
+  Unknown, not zero. Never quote an ad figure from memory, the playbook or an old brief. Leads
+  are Meta-reported leads, not enrollments.
 
 **When Meta is disconnected and no spend is approved:** `campaignHealth` = 1 item,
 `creativeRecommendations` ≤ 1 (only a real copy error in a live asset), and no ad-budget

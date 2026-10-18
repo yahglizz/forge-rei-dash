@@ -665,7 +665,25 @@ class SolomonEngine:
         return summarized, optouts
 
     def _gather_campaign(self):
-        """Meta campaign health for the ad-ops lane. Returns (data, err)."""
+        """Meta campaign health for the ad-ops lane. Returns (data, err).
+
+        With the daycare's own Pipeboard keyed, this is the LIVE agent packet
+        (daycare_growth.ads_feed): pulled fresh every brief, windows 7d/30d/90d/maximum + the
+        autopilot's mode/proposals — never the old 7-day cached totals that read as zeros the
+        moment a campaign paused. Without Pipeboard the legacy path below runs unchanged."""
+        try:
+            import daycare_growth
+            feed = daycare_growth.ads_feed()
+        except Exception as e:  # noqa: BLE001 — fall through to the legacy read
+            feed = {"configured": False, "error": str(e)}
+        if feed.get("configured"):
+            unknown = bool(feed.get("unknown"))
+            data = {"connected": not unknown,
+                    "source": ("auth_error" if feed.get("authError") else
+                               "unknown" if unknown else "live"),
+                    "via": "pipeboard", "feed": feed}
+            return data, ((feed.get("error") or "Meta ad read failed — numbers Unknown")
+                          if unknown else None)
         try:
             import daycare_growth
             ads = daycare_growth.ads_overview()
