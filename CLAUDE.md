@@ -694,6 +694,17 @@ key on the box. New migrations go in BOTH migration folders.
   never a copy of the Mac's). Env: `HIGGSFIELD_CLI_BIN=/opt/forge/bin/hf`, `HIGGSFIELD_HOME=/root` (the unit has
   no `$HOME`). The cap day is the ET day (`FORGE_TZ_OFFSET`), not the box's UTC day. A lapsed CLI login sends ONE
   HQ alert per day. Test: `test_daycare_ads_tg.py`.
+  **Build = Pipeboard, inside the best existing ad set (2026-10-18).** `daycare_ads_studio.build()` (Telegram ✅
+  Build + the Ad Studio button) → `build_paused`: target = the ad set with the most lifetime leads (then lowest CPL)
+  in an OUTCOME_LEADS campaign (`daycare_growth.ads_report("maximum")` + `pb.structure`; none → refused, never a
+  guess); the creative copies that ad set's best ad's page / Instagram id / link / instant-form id / url tags
+  (read-only `get_creative_details`), with the concept's copy + image; `upload_ad_image → create_ad_creative →
+  create_ad` (PAUSED, hard-coded) → verify in the ad set and PAUSED (else re-PAUSE + error; never deletes). The
+  Graph `create_ad` (needs `META_ACCESS_TOKEN`, new campaign) runs only when Pipeboard isn't configured. `launch()`
+  also refuses when another ad in that ad set is switched on, or turning the campaign on would start another ad
+  set; CBO / lifetime / other-live-ads blockers are shown on the concept + Built cards up front ("launch it in Meta
+  yourself") and the Launch buttons are withheld. Live 2026-10-18: both campaigns are CBO, so launches go through
+  Meta until that changes. Test: `test_daycare_ads_build.py`.
 - **Daycare agent context brief — READ FIRST.** Every daycare AI task loads
   `forge-daycare/skills/daycare-context.md` (business facts, mission = grow enrollment,
   current status, brand voice, standing job) BEFORE reasoning, via `daycare_context.py`

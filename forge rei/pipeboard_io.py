@@ -322,6 +322,11 @@ def window_ad_rows(account_id: str, since: str, until: str) -> list[dict]:
     return d.get("data") or []
 
 
+def creative_details(creative_id: str) -> dict:
+    """One ad creative, read-only (object_story_spec, asset_feed_spec, url_tags, …)."""
+    return call("get_creative_details", {"creative_id": str(creative_id)})
+
+
 def structure(account_id: str) -> dict:
     """Live campaigns/adsets/ads with status + budgets (budget strings are minor units)."""
     out = {}

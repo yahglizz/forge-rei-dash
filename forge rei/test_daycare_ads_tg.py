@@ -417,6 +417,8 @@ class ConceptCards(TgBase):
 # ── build → launch card ────────────────────────────────────────────────────────────────────
 class BuildLaunchFlow(TgBase):
     def test_build_then_launch_then_undo(self):
+        """Graph fallback (no Pipeboard at build time) still feeds the same launch card + guards.
+        The Pipeboard build is covered in test_daycare_ads_build.py."""
         self.cli_on()
         with self.fake_ideas():
             tg.send_concept_cards(1, "chat")
@@ -425,6 +427,7 @@ class BuildLaunchFlow(TgBase):
                  "campaignId": "C9", "adsetId": "S9", "adId": "A9"}
         self.meta.add_built()
         with mock.patch.object(studio, "meta_ready", return_value=True), \
+                mock.patch.object(ap, "configured", return_value=False), \
                 mock.patch("daycare_growth._daycare_creds", return_value={}), \
                 mock.patch.object(studio, "AD_ACCOUNT", "act_1"), \
                 mock.patch("agency_ads.create_ad", return_value=built) as ca:

@@ -256,10 +256,10 @@ def _auto_today() -> int:
                and c.get("source") == "auto" and c.get("day") == day)
 
 
-def concept_caption(idea: dict, credits=None, why: str = "", next_step: str = "") -> str:
+def concept_caption(idea: dict, credits=None, why: str = "", next_step: str = "", body_max: int = 380) -> str:
     lines = [f"🎨 <b>New ad concept</b> — {_esc((idea.get('title') or 'Concept')[:80])}",
              f"<b>{_esc((idea.get('headline') or '')[:60])}</b>",
-             _esc((idea.get("primaryText") or "")[:380]),
+             _esc((idea.get("primaryText") or "")[:body_max]),
              f"CTA {_esc(idea.get('cta') or '—')} · {_esc(idea.get('format') or '1:1')}",
              f"📊 {_esc((idea.get('evidence') or 'Unknown — no evidence cited')[:180])}"]
     if credits is not None:
@@ -295,7 +295,11 @@ def _concept_card(idea: dict, source: str) -> dict:
     drop = [_btn("🔁 Another angle", f"adsalt:{card['id']}"), _btn("❌ Discard", f"adsdrop:{card['id']}")]
     if out.get("ok") and out.get("imageUrl"):
         _set(card["id"], imageUrl=out["imageUrl"], credits=out.get("credits"))
-        r = _send_photo(out["imageUrl"], concept_caption(idea, out.get("credits")),
+        tl = _target_line()
+        cap = concept_caption(idea, out.get("credits")) + tl
+        if len(cap) > tg_caption_room():                  # shrink the body, never cut HTML mid-tag
+            cap = concept_caption(idea, out.get("credits"), body_max=max(60, 380 - (len(cap) - tg_caption_room()))) + tl
+        r = _send_photo(out["imageUrl"], cap,
                         [[_btn("✅ Build PAUSED ad", f"adsbuild:{card['id']}")], drop],
                         dedupe=f"adscard-{idea['id']}")
     else:
@@ -303,6 +307,31 @@ def _concept_card(idea: dict, source: str) -> dict:
         r = _send(concept_caption(idea, None, why, nxt), [drop], dedupe=f"adscard-{idea['id']}")
     _mark_sent(card, r)
     return _get(card["id"])
+
+
+def tg_caption_room() -> int:
+    return 1000                                           # Telegram allows 1024; leave room for the tap footer
+
+
+def _target_line() -> str:
+    """Up front, on the concept card: which ad set ✅ Build would join, and whether the launch tap
+    could be used for it (CBO / lifetime / other live ads → "launch it in Meta yourself")."""
+    try:
+        import daycare_ads_autopilot as ap
+        import daycare_ads_studio as studio
+        if not ap.configured():
+            return ""
+        t = studio.build_target()
+        if not t.get("ok"):
+            return f"\n🎯 Build target Unknown: {_esc(str(t.get('error') or '')[:140])}"
+        ev = t.get("evidence") or {}
+        line = (f"\n🎯 Builds into “{_esc((t.get('adset') or {}).get('name'))[:60]}” — {ev.get('leads', 0)} leads, "
+                f"CPL {_usd(ev.get('cpl'))} ({_esc(ev.get('window') or 'Maximum')}, Meta via Pipeboard)")
+        if t.get("blockers"):
+            line += f"\n⚠ Launch it in Meta yourself: {_esc('; '.join(t['blockers'])[:180])}"
+        return line
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def send_concept_cards(n: int = 3, source: str = "auto") -> dict:
@@ -376,19 +405,37 @@ def _send_launch_card(idea: dict) -> dict:
     meta = idea.get("meta") or {}
     card = _new("launch", idea["id"], title=(idea.get("title") or "")[:80])
     amts = ap.launch_budgets()[:3]
-    text = (f"🚀 <b>Built PAUSED</b> — {_esc(idea.get('title') or 'Ad')}\n"
-            f"Campaign {_esc(meta.get('campaignId'))} · ad set {_esc(meta.get('adsetId'))} · ad {_esc(meta.get('adId'))}\n"
-            "Nothing is serving or spending. Launch turns ON the campaign, ad set and ad at the budget "
-            "you tap (≈30× that per month if it runs all month). Daily ceiling "
-            f"{_usd(ap.cfg()['maxDaily'])} across every active ad set; one launch per 24 h.\n"
-            + (f"<a href=\"{_esc(meta['url'])}\">Open in Ads Manager</a>" if meta.get("url") else ""))
-    rows = [[_btn(f"🚀 Launch at ${a}/day", f"adslaunch:{card['id']}:{a}") for a in amts],
-            [_btn("Keep paused", f"adskeep:{card['id']}")]]
+    blockers = meta.get("blockers") or []
+    head = (f"🚀 <b>Built PAUSED</b> — {_esc(idea.get('title') or 'Ad')}\n"
+            + (_joined_line(meta) + "\n" if meta.get("adsetName") else "")
+            + f"Campaign {_esc(meta.get('campaignId'))} · ad set {_esc(meta.get('adsetId'))} · ad {_esc(meta.get('adId'))}\n"
+            "Nothing is serving or spending.\n")
+    if blockers:
+        text = head + ("⚠ Launch this one in Meta yourself — from here it would be refused: "
+                       + _esc("; ".join(blockers)) + ".\n")
+    else:
+        text = head + ("Launch turns ON the campaign, ad set and ad at the budget you tap (≈30× that per month "
+                       f"if it runs all month). Daily ceiling {_usd(ap.cfg()['maxDaily'])} across every active ad "
+                       "set; one launch per 24 h.\n")
+    text += f"<a href=\"{_esc(meta['url'])}\">Open in Ads Manager</a>" if meta.get("url") else ""
+    rows = ([] if blockers else [[_btn(f"🚀 Launch at ${a}/day", f"adslaunch:{card['id']}:{a}") for a in amts]]) \
+        + [[_btn("Keep paused", f"adskeep:{card['id']}")]]
     img = meta.get("imageUrl") or idea.get("imageUrl")
     r = _send_photo(img, text, rows, dedupe=f"adslaunch-{idea['id']}") if img else \
         _send(text, rows, dedupe=f"adslaunch-{idea['id']}")
     _mark_sent(card, r)
     return _get(card["id"])
+
+
+def _joined_line(meta: dict) -> str:
+    """Which ad set the build joined and why — with window + source (never a bare number)."""
+    ev = meta.get("evidence") or {}
+    win = f"{ev.get('window') or 'Maximum'} {ev.get('since') or '?'}→{ev.get('until') or '?'}"
+    return (f"Joined ad set “{_esc(meta.get('adsetName') or meta.get('adsetId'))}” (campaign "
+            f"“{_esc(meta.get('campaignName') or meta.get('campaignId'))}”) — the account's best: "
+            f"{ev.get('leads', 0)} leads, CPL {_usd(ev.get('cpl'))} on {_usd(ev.get('spend'))} "
+            f"({_esc(win)}{', ' + _esc(ev['tz']) if ev.get('tz') else ''}; {_esc(ev.get('source') or 'Meta via Pipeboard')}). "
+            "It inherits that ad set's targeting, optimization and destination.")
 
 
 def _send_undo_receipt(text: str, aid: str) -> dict:
@@ -460,21 +507,25 @@ def h_build(cid: str) -> dict:
     c0 = _get(cid)
     if c0 and c0.get("kind") == "concept" and not c0.get("imageUrl"):
         return {"error": "no real preview image on this card — build it from the Ad Studio"}
-    if not studio.meta_ready():
-        return {"error": "Build needs META_ACCESS_TOKEN in daycare.env — nothing was sent to Meta"}
+    if not studio.build_ready():
+        return {"error": "Build needs PIPEBOARD_API_TOKEN in daycare.env — nothing was sent to Meta"}
     card, err = _claim(cid, ("concept",))
     if err:
         return {"error": err}
 
     def work():
-        r = studio.create_ad(card["ref"])
+        try:
+            r = studio.build(card["ref"])           # Pipeboard, inside the best ad set (Graph only without it)
+        except Exception as e:  # noqa: BLE001 — a plain-words card, never a stack trace
+            r = {"ok": False, "error": f"build stopped ({type(e).__name__})"}
         idea = studio._find(card["ref"]) or {}
         if r.get("ok") and (idea.get("meta") or {}).get("adId"):
             _set(card["id"], state="built")
             _send_launch_card(idea)
         else:
-            _set(card["id"], state="failed", error=str(r.get("detail") or r.get("error") or "")[:160])
-            _send(f"⚠ Build failed — {_esc(str(r.get('detail') or r.get('error') or 'no ids returned')[:220])}")
+            why = str(r.get("error") or r.get("detail") or "no ad id came back")[:240]
+            _set(card["id"], state="failed", error=why[:160])
+            _send(f"⚠ Build failed — {_esc(why)}\nNothing was switched on.")
     _bg(work)
     return {"message": "Building it PAUSED on Meta — the launch card follows"}
 

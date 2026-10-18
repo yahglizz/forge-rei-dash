@@ -4854,7 +4854,8 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/daycare/nova/create-ad":
                 # Builds the campaign PAUSED. Nothing serves, nothing spends — going
                 # ACTIVE / changing budget stays the owner's call (CLAUDE.md rule 2).
-                result = daycare_ads_studio.create_ad(body.get("id"))
+                # 2026-10-18: Pipeboard build inside the best existing ad set (Graph only without it).
+                result = daycare_ads_studio.build(body.get("id"))
             elif path == "/api/daycare/nova/discard":
                 result = daycare_ads_studio.discard(body.get("id"))
             # --- Solomon · Ads (rule-2 exception, operator opt-in: shadow default, auto = one POST) ---

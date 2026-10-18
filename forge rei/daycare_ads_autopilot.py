@@ -636,6 +636,22 @@ def launch(idea_id: str, daily_usd, second_ok: bool = False) -> dict:
                 return {"ok": True, "noop": True, "message": f"already live at ${usd}/day — nothing changed"}
             return {"ok": False, "code": "live",
                     "error": f"already live at ${_n(aset.get('daily_budget')) / 100:.0f}/day — changing a live budget is a different action"}
+        # 2026-10-18: builds now join an EXISTING ad set. Switching it (and its campaign) on must not
+        # start anything else, and its budget must not move spend that belongs to other ads.
+        others = [x for x in s.get("ads") or [] if str(x.get("adset_id")) == ids["adsetId"]
+                  and str(x.get("id")) != ids["adId"] and x.get("status") == "ACTIVE"]
+        if others:
+            return {"ok": False, "code": "others",
+                    "error": (f"{len(others)} other ad(s) in this ad set are switched on "
+                              f"({', '.join(str(x.get('name') or x.get('id'))[:40] for x in others[:3])}) — "
+                              "launching would start or re-budget them too; pause them in Meta first or launch there")}
+        if camp.get("status") != "ACTIVE":
+            sibs = [x for x in s.get("adsets") or [] if str(x.get("campaign_id")) == ids["campaignId"]
+                    and str(x.get("id")) != ids["adsetId"] and x.get("status") == "ACTIVE"]
+            if sibs:
+                return {"ok": False, "code": "others",
+                        "error": (f"turning the campaign on would also start {len(sibs)} other ad set(s) "
+                                  f"({', '.join(str(x.get('name') or x.get('id'))[:40] for x in sibs[:3])}) — launch it in Meta yourself")}
         st = _load()
         last = float(st.get("lastLaunchAt") or 0)
         if not second_ok and time.time() - last < LAUNCH_EVERY_S:

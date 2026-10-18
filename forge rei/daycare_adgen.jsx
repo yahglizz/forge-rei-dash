@@ -87,10 +87,10 @@ function DcgConceptCard({ idea, eng, metaReady, onChanged }) {
     setUrl(""); onChanged();
   });
   const doBuild = () => {
-    if (!window.confirm("Build this as a PAUSED campaign on Meta? Nothing serves and nothing spends until you turn it on in Meta.")) return;
+    if (!window.confirm("Build this as a PAUSED ad on Meta, inside your best-performing ad set? Nothing serves and nothing spends until it is turned on.")) return;
     run("build", async () => {
       const out = await window.DcxRequest("/nova/create-ad", { body: { id: idea.id } });
-      if (out && out.ok === false) throw new Error(out.detail || out.error || "Build failed.");
+      if (out && out.ok === false) throw new Error(out.error || out.detail || "Build failed.");
       onChanged();
     });
   };
@@ -135,12 +135,12 @@ function DcgConceptCard({ idea, eng, metaReady, onChanged }) {
         <button className="dc-outline" disabled={!url.trim() || !!busy} onClick={doAttach}>Attach</button>
       </div>
       <div className="dcg-actions" style={{ marginTop: 10 }}>
-        <button className="dc-primary" disabled={!!busy || !metaReady} onClick={doBuild} title={metaReady ? "Creates the real Meta campaign, PAUSED" : "Needs META_ACCESS_TOKEN in daycare.env"}>{busy === "build" ? "Building…" : "Build PAUSED ad"}</button>
+        <button className="dc-primary" disabled={!!busy || !metaReady} onClick={doBuild} title={metaReady ? "Creates a real Meta ad, PAUSED, inside the best existing ad set" : "Needs PIPEBOARD_API_TOKEN in daycare.env"}>{busy === "build" ? "Building…" : "Build PAUSED ad"}</button>
         <button className="dc-outline" disabled={!!busy} onClick={doDiscard}>Discard</button>
       </div>
-      {!metaReady && <div className="faint dcg-note" style={{ marginTop: 6 }}>Build needs META_ACCESS_TOKEN in daycare.env.</div>}
+      {!metaReady && <div className="faint dcg-note" style={{ marginTop: 6 }}>Build needs PIPEBOARD_API_TOKEN in daycare.env.</div>}
     </>}
-    {built && <div className="dc-form-hint" style={{ marginTop: 10 }}><window.Icons.Shield size={14} /> Built and <b>PAUSED</b> on Meta — nothing serving, nothing spending.{idea.meta && idea.meta.url ? <> · <a href={idea.meta.url} target="_blank" rel="noreferrer">Open in Meta</a></> : null}</div>}
+    {built && <div className="dc-form-hint" style={{ marginTop: 10 }}><window.Icons.Shield size={14} /> Built and <b>PAUSED</b> on Meta — nothing serving, nothing spending.{idea.meta && idea.meta.adsetName ? <> Joined “{idea.meta.adsetName}”.</> : null}{idea.meta && idea.meta.url ? <> · <a href={idea.meta.url} target="_blank" rel="noreferrer">Open in Meta</a></> : null}</div>}
     {msg && <div className="dcg-note" style={{ marginTop: 8, color: msg.ok ? "#22C55E" : "#EF4444" }} role="status">{msg.text}</div>}
   </div>;
 }
@@ -213,7 +213,7 @@ function DcgAdStudio() {
     </div>
     {msg && <div className="dc-form-hint" style={{ color: msg.ok ? undefined : "#EF4444" }} role="status">{msg.text}</div>}
     {!ideas.length && busy !== "concepts" && <div className="dc-all-clear"><window.Icons.Bot size={22} /><div><b>No ad concepts yet</b><span>Tap “Generate ad concepts”. They stay here until you build or discard them.</span></div></div>}
-    {ideas.map((idea) => <DcgConceptCard key={idea.id} idea={idea} eng={eng} metaReady={!!(st && st.metaReady)} onChanged={changed} />)}
+    {ideas.map((idea) => <DcgConceptCard key={idea.id} idea={idea} eng={eng} metaReady={!!(st && (st.buildReady != null ? st.buildReady : st.metaReady))} onChanged={changed} />)}
   </div>;
 }
 
