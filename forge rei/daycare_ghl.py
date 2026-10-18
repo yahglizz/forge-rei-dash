@@ -478,6 +478,31 @@ SYSTEM_TAG_PREFIXES = ("loc-", LOCATION_PREFIX)
 SYSTEM_TAGS = {FAMILY_TAG, FORM_TAG, LEAD_TAG, *ENROLLED_TAGS}
 
 
+def tag_needs_tap(add=None, remove=None) -> bool:
+    """True when a tag edit touches anything that routes intake, logins or centers — the
+    dashboard chat sends those to the owner's tap (security review 2026-10-18): the
+    form/lead/family tags feed the Parent Logins inbox + auto-enroll, `loc-`/`location:`
+    keep the centers apart, the confirm/review tags drive the confirmation flow. The ONLY
+    AUTO edit is ADDING an enrolled tag (it marks a family the daycare has; nothing reads it as intake)."""
+    guarded = {t.lower() for t in (FAMILY_TAG, FORM_TAG, LEAD_TAG, CONFIRM_PENDING_TAG, CONFIRMED_TAG,
+                                   *REVIEW_TAGS)}
+    try:
+        import daycare_leads
+        guarded |= {str(t).lower() for t in (*daycare_leads.FAMILY_TAGS, *daycare_leads.LEAD_TAGS)}
+    except Exception:  # noqa: BLE001
+        pass
+    guarded -= {t.lower() for t in ENROLLED_TAGS}   # the Lead Desk lists them as family tags; adding one is the point
+    for t in _tag_list(add) or []:
+        tl = t.lower()
+        if tl.startswith(SYSTEM_TAG_PREFIXES) or tl in guarded:
+            return True
+    for t in _tag_list(remove) or []:
+        tl = t.lower()
+        if tl.startswith(SYSTEM_TAG_PREFIXES) or tl in guarded or tl in ENROLLED_TAGS:
+            return True
+    return False
+
+
 def _tag_list(v):
     """A clean, de-duplicated tag list; None when the input is not a valid list."""
     if v is None:
@@ -555,6 +580,67 @@ def contacts_by_tag(client, tag, limit=100) -> dict:
         return {"ok": False, "error": f"GHL read failed ({getattr(e, 'code', None) or type(e).__name__})",
                 "contacts": rows}
     return {"ok": True, "tag": tag.strip(), "count": len(rows), "truncated": truncated, "contacts": rows}
+
+
+def _last10(phone) -> str:
+    d = re.sub(r"\D", "", str(phone or ""))
+    return d[-10:] if len(d) >= 10 else ""
+
+
+def enrolled_audit(client, groups, tag="enrolled", limit=40) -> dict:
+    """Which ACTIVE enrolled families carry `tag` in GHL? groups = [{center, children:[…]}] (the
+    Supabase roster per center, guardian phone merged). Matched by guardian phone (last 10
+    digits) against every daycare GHL contact. Read-only, compact (per-center counts + the
+    contacts missing the tag), so an agent can audit then ONE batch-tag the missing ones.
+    1923 A Mother's Touch stays its own center row — never merged.
+    ponytail: GHL contact scan capped at 1000; per-center rows capped by `limit`."""
+    want = (tag or "enrolled").strip().lower()
+    if client is None or not client.configured:
+        return {"ok": False, "error": "GHL not connected"}
+    by_phone, scanned = {}, 0
+    try:
+        for c in iter_contacts(client, max_pages=10):
+            scanned += 1
+            k = _last10(c.get("phone"))
+            if k:
+                by_phone.setdefault(k, []).append(c)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"GHL read failed ({getattr(e, 'code', None) or type(e).__name__})"}
+    centers, missing, nocontact = [], [], []
+    for g in groups or []:
+        kids = [k for k in (g.get("children") or []) if k.get("active") is not False]
+        row = {"center": g.get("center") or "", "activeChildren": len(kids), "tagged": 0,
+               "missingTag": 0, "noGhlContact": 0, "noGuardianPhone": 0}
+        seen = set()
+        for k in kids:
+            gd = k.get("guardian") or {}
+            key = _last10(gd.get("phone"))
+            who = f"{k.get('first_name') or ''} {k.get('last_name') or ''}".strip()
+            if not key:
+                row["noGuardianPhone"] += 1
+                continue
+            cs = by_phone.get(key)
+            if not cs:
+                row["noGhlContact"] += 1
+                nocontact.append({"child": who, "parent": gd.get("display_name") or "",
+                                  "phoneLast4": key[-4:], "center": row["center"]})
+                continue
+            c = cs[0]
+            cid = c.get("id")
+            tags = [str(t) for t in (c.get("tags") or [])]
+            if want in {t.lower() for t in tags}:
+                row["tagged"] += 1
+            elif cid not in seen:
+                seen.add(cid)
+                row["missingTag"] += 1
+                missing.append({"contactId": cid, "parent": gd.get("display_name") or "", "child": who,
+                                "phone": c.get("phone") or "", "center": row["center"],
+                                "ghlCenterTag": next((t for t in tags if t.lower().startswith(LOCATION_PREFIX)), ""),
+                                "ghlTags": tags[:12]})
+        centers.append(row)
+    return {"ok": True, "tag": tag, "ghlContactsScanned": scanned, "scanCapped": scanned >= 1000,
+            "centers": centers, "missingCount": len(missing), "missing": missing[:limit * 3],
+            "missingTruncated": len(missing) > limit * 3, "noGhlContact": nocontact[:limit]}
 
 
 # --- Family-form confirmation + multi-child (spec 2026-10-05-family-form-automation) ---

@@ -3411,6 +3411,17 @@ def handle_move_opportunity(body):
     return {"ok": True, "id": opp_id, "stageId": stage_id, "result": res}
 
 
+def _daycare_enrolled_audit(session, tag):
+    """Active roster of EVERY center (guardian phones merged) vs the daycare GHL contacts that
+    carry `tag` — daycare_ghl.enrolled_audit. Read-only; reads each center via at_location."""
+    groups = []
+    for loc in (daycare_supabase.list_locations(session) or {}).get("locations") or []:
+        with daycare_supabase.at_location(session, daycare_supabase.require_uuid(loc.get("id"), "location_id")):
+            kids = (daycare_supabase.get_children(session) or {}).get("children") or []
+        groups.append({"center": loc.get("name") or "", "children": kids})
+    return daycare_ghl.enrolled_audit(DAYCARE_GHL, groups, tag)
+
+
 def _daycare_at(session, q, fn):
     """Optional ?location_id= on a daycare roster read: read another center without the
     caller switching (at_location restores the active center). Used by the Telegram
@@ -5108,6 +5119,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/ghl/thread": lambda session: daycare_replies.thread(
                 DAYCARE_GHL, q.get("contact_id", [None])[0]),
             # Contacts carrying a tag (id, name, parent, phone, center, locTag) — read-only.
+            # Roster vs GHL tag audit (read-only): per-center counts + who is missing the tag.
+            "/api/daycare/ghl/enrolled-audit": lambda session: _daycare_enrolled_audit(
+                session, q.get("tag", ["enrolled"])[0]),
             "/api/daycare/ghl/contacts": lambda session: daycare_ghl.contacts_by_tag(
                 DAYCARE_GHL, q.get("tag", [""])[0], q.get("limit", ["100"])[0]),
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(

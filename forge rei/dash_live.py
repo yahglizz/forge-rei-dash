@@ -188,6 +188,14 @@ def _cap_key(agent_id):
         return str(agent_id)
 
 
+def _arg_needs_tap(path, body):
+    """An AUTO route whose ARGUMENTS can reach an important effect goes to the tap instead."""
+    if path == "/api/daycare/ghl/tag":
+        import daycare_ghl
+        return daycare_ghl.tag_needs_tap(body.get("add"), body.get("remove"))
+    return False
+
+
 def _write(name, inp, agent_id, col):
     """api_post / api_post_batch: validate every call, then AUTO-run or queue ONE card."""
     biz = write_business(agent_id)
@@ -224,6 +232,8 @@ def _write(name, inp, agent_id, col):
     summary = str(inp.get("summary") or "").strip()[:200] or (calls[0]["path"] if n == 1 else f"{n} writes")
     paths = [c["path"] for c in calls]
     tap, why_tap = not auto_enabled() or any(p not in AUTO_PATHS for p in paths), ""
+    if not tap and any(_arg_needs_tap(c["path"], c["body"]) for c in calls):
+        tap, why_tap = True, "that tag edit touches intake / login / center tags"
     if not tap and col["auto"] + n > MAX_AUTO_TURN:
         tap, why_tap = True, f"over the {MAX_AUTO_TURN}-per-message auto cap"
     if not tap and not _reserve_day(_cap_key(agent_id), n):
@@ -358,7 +368,8 @@ ALL = ("hq", "wholesale", "agency", "daycare", "dropship")
 _HINT = {
     "daycare": "- AD NUMBERS: before quoting any Meta ad figure, api_get /api/daycare/ads/feed and cite "
                "the window + 'Meta via Pipeboard'. unknown:true = Unknown, never 0.\n",
-    "daycare_w": "- TAGGING FAMILIES: api_get /api/daycare/ghl/contacts?tag=<tag> (rows: id, name, parent, "
+    "daycare_w": "- ENROLLED-TAG AUDIT: api_get /api/daycare/ghl/enrolled-audit?tag=enrolled gives per-center counts + the contacts missing the tag in ONE call (compact, server-side match by guardian phone) — use it instead of pulling children lists. Adding `enrolled` is AUTO; touching form/lead/family/location tags is a tap card.\n"
+                 "- TAGGING FAMILIES: api_get /api/daycare/ghl/contacts?tag=<tag> (rows: id, name, parent, "
                  "phone, center, locTag) to find them, then ONE api_post_batch of /api/daycare/ghl/tag "
                  "{contact_id, add:[…], remove:[…]}. 1923 A Mother's Touch is a SEPARATE business — check "
                  "each row's center/locTag and never mix it with the Blessings centers.\n",
@@ -581,16 +592,23 @@ def ask(key, system, user, agent_id, max_tokens=700, model=None, effort="low", h
     payload_system = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
     msgs = ta._messages(history_msgs, user) if history_msgs else [{"role": "user", "content": user}]
     tl = tools(agent_id)
-    for turn in range(MAX_TOOL_TURNS + 1):
+    turns = MAX_TOOL_TURNS * 2 if writes_on(agent_id) else MAX_TOOL_TURNS   # an audit reads a lot
+    for turn in range(turns + 1):
         payload = {"model": model, "system": payload_system, "messages": msgs, "tools": tl,
                    **review_agent.thinking_params(model, max_tokens, effort)}
-        if turn == MAX_TOOL_TURNS:          # cap: answer from what was read, no more tools
+        if turn == turns:                   # cap: answer from what was read, no more tools
             payload["tool_choice"] = {"type": "none"}
         data = review_agent.post_messages(key, payload)
         content = data.get("content") or []
         said = "".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
         uses = [b for b in content if b.get("type") == "tool_use"]
-        if not uses or turn == MAX_TOOL_TURNS or data.get("stop_reason") in ("max_tokens", "refusal"):
+        if not uses or turn == turns or data.get("stop_reason") in ("max_tokens", "refusal"):
+            if not said and msgs[-1]["role"] == "user" and turn:     # read it all, said nothing: ask once more
+                msgs.append({"role": "assistant", "content": [{"type": "text", "text": "…"}]})
+                msgs.append({"role": "user", "content": "Answer now in plain text from what you read."})
+                said = "".join(b.get("text", "") for b in (review_agent.post_messages(key, {
+                    **payload, "messages": msgs, "tool_choice": {"type": "none"}}).get("content") or [])
+                    if b.get("type") == "text").strip()
             return said or "No answer came back on that one. Ask again, narrower."
         msgs.append({"role": "assistant", "content": content})
         msgs.append({"role": "user", "content": [

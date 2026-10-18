@@ -518,6 +518,51 @@ class _GHL:
         return {"contacts": self.contacts, "meta": {}}
 
 
+def test_system_tags_go_to_tap():
+    """Security review 2026-10-18: intake / login / center tags can't be edited on the AUTO tier."""
+    for add, rem in ((["family-contact-form"], None), (["website-lead"], None), (["daycare family"], None),
+                     (["loc-921-n-18th"], None), (["location: a mother's touch"], None),
+                     (["family-confirmed"], None), (["child-age-review"], None), (None, ["enrolled"]),
+                     (None, ["loc-x"]), (["enrolled", "family-contact-form"], None)):
+        reset()
+        body = {"contact_id": "c1", **({"add": add} if add else {}), **({"remove": rem} if rem else {})}
+        _, acts = turn("solomon", post("/api/daycare/ghl/tag", body, "t"), text("queued"))
+        assert posts() == [] and len(acts["actions"]) == 1 and acts["done"] == [], (add, rem, HTTP, acts)
+    reset()                                   # the ONE AUTO edit: adding an enrolled tag
+    _, acts = turn("solomon", post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t"),
+                   text("ok"))
+    assert len(posts()) == 1 and acts["actions"] == [], (HTTP, acts)
+    reset()                                   # a batch with one guarded member = ONE card, nothing run
+    _, acts = turn("solomon", batch([tag("c1", "enrolled"), tag("c2", "family-contact-form")]), text("q"))
+    assert posts() == [] and len(acts["actions"]) == 1 and acts["actions"][0]["count"] == 2, (HTTP, acts)
+
+
+def test_enrolled_audit():
+    contacts = [
+        {"id": "g1", "phone": "+12155550101", "tags": ["Enrolled", "location: a touch of blessings"]},
+        {"id": "g2", "phone": "(215) 555-0102", "tags": ["daycare family", "location: a touch of blessings"]},
+        {"id": "g3", "phone": "2675550103", "tags": ["location: a mother's touch"]},
+        {"id": "g9", "phone": "", "tags": []}]
+    kid = lambda f, ph, **k: {"first_name": f, "last_name": "X", "active": True,
+                              "guardian": {"display_name": f + "'s mom", "phone": ph}, **k}
+    groups = [{"center": "A Touch of Blessings", "children": [
+                  kid("Mia", "+1 215 555 0101"), kid("Zed", "+12155550102"), kid("Old", "+12155550199"),
+                  kid("Nophone", ""), kid("Gone", "+12155550102", active=False)]},
+              {"center": "A Mother's Touch", "children": [kid("Ivy", "267-555-0103")]}]
+    with mock.patch.object(daycare_ghl, "iter_contacts", lambda c, **k: iter(contacts)):
+        r = daycare_ghl.enrolled_audit(_GHL(), groups, "enrolled")
+    a, b = r["centers"]
+    assert (a["center"], a["activeChildren"], a["tagged"], a["missingTag"], a["noGhlContact"],
+            a["noGuardianPhone"]) == ("A Touch of Blessings", 4, 1, 1, 1, 1), a
+    assert (b["center"], b["tagged"], b["missingTag"]) == ("A Mother's Touch", 0, 1), b
+    assert r["missingCount"] == 2 and {m["contactId"] for m in r["missing"]} == {"g2", "g3"}, r
+    assert {m["center"] for m in r["missing"]} == {"A Touch of Blessings", "A Mother's Touch"}
+    assert r["noGhlContact"][0]["phoneLast4"] == "0199" and "email" not in json.dumps(r), r
+    off = _GHL()
+    off.configured = False
+    assert daycare_ghl.enrolled_audit(off, groups)["ok"] is False
+
+
 def test_ghl_tag_helper():
     g = _GHL()
     with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
