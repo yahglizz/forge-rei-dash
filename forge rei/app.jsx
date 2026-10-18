@@ -21,7 +21,7 @@ const REI_PAGES = {
   Blast:         () => <window.BlastPage />,
   Outbound:      () => <window.OutboundPage />,
   Analytics:     () => <window.AnalyticsPage />,
-  Brain:         () => <window.BrainPage />,
+  Brain:         () => <window.BrainPage ws="rei" />,
   SystemHealth:  () => <window.SystemHealthPage />,
   Costs:         () => <window.CostPage />,
 };
@@ -55,7 +55,7 @@ const AGENCY_PAGES = {
   Eco:        () => <window.AgencyEco />,
   Approvals:  () => <window.AgencyApprovals />,
   CallCenter: () => <window.AgencyCallCenter />,
-  Brain:      () => <window.BrainPage />,
+  Brain:      () => <window.BrainPage ws="agency" />,
   Pipeline:   () => <window.AgencyPipeline />,
   Projects:   () => <window.AgencyProjects />,
   Revenue:    () => <window.AgencyRevenue />,
@@ -87,7 +87,7 @@ const DAYCARE_PAGES = {
   Payroll:    () => <window.DaycarePayroll />,
   Growth:     () => <window.DaycareGrowth />,
   Reports:    () => <window.DaycareReports />,
-  Brain:      () => <window.BrainPage />,
+  Brain:      () => <window.BrainPage ws="daycare" />,
   Settings:   () => <window.DaycareSettings />,
 };
 
@@ -104,7 +104,7 @@ const DROPSHIP_PAGES = {
   Customers:  () => <window.DropshipSupport />,
   Analytics:  () => <window.DropshipAnalytics />,
   Connections: () => <window.DropshipConnections />,
-  Brain:      () => <window.BrainPage />,
+  Brain:      () => <window.BrainPage ws="dropship" />,
   Settings:   () => <window.DropshipSettings />,
 };
 

@@ -113,7 +113,7 @@ function HubRail({ agents, businesses, sel, onSel }) {
 }
 
 // ── chat ──────────────────────────────────────────────────────────────────────
-function HubChat({ agent, agents }) {
+function HubChat({ agent, agents, biz }) {
   const [msgs, setMsgs] = useStateHub([]);
   const [text, setText] = useStateHub("");
   const [busy, setBusy] = useStateHub(false);
@@ -144,7 +144,9 @@ function HubChat({ agent, agents }) {
     if (!t || busy) return;
     setText(""); setErr(null); setBusy(true);
     setMsgs((m) => m.concat([{ role: "user", text: t }]));
-    window.apiPost("/api/hub/chat", { agentId: agent.id, message: t })
+    // biz = the workspace this hub is in; the server refuses an agent outside its home
+    // workspace with a pointer. The Agent Control Center drawer (cross-business) sends none.
+    window.apiPost("/api/hub/chat", biz ? { agentId: agent.id, message: t, business: biz } : { agentId: agent.id, message: t })
       .then((d) => {
         if (d.needsKey) setErr("No Anthropic key wired for this agent yet.");
         setMsgs((m) => m.concat([{ role: "agent", text: d.reply || "…" }]));
@@ -192,7 +194,7 @@ function HubChat({ agent, agents }) {
 }
 
 // ── tasks ─────────────────────────────────────────────────────────────────────
-function HubTasks({ agent }) {
+function HubTasks({ agent, biz }) {
   const [rows, setRows] = useStateHub([]);
   const [title, setTitle] = useStateHub("");
   const [busy, setBusy] = useStateHub(false);
@@ -209,7 +211,7 @@ function HubTasks({ agent }) {
     const t = title.trim();
     if (!t || busy) return;
     setBusy(true); setErr(null);
-    window.apiPost("/api/hub/task", { agentId: agent.id, title: t })
+    window.apiPost("/api/hub/task", biz ? { agentId: agent.id, title: t, business: biz } : { agentId: agent.id, title: t })
       .then(() => { setTitle(""); load(); })
       .catch((e) => setErr(String(e.message || e)))
       .then(() => setBusy(false));
@@ -392,7 +394,8 @@ function HubAgentsPage({ ws }) {
   // not the wholesale team, and not the Retell voice agents (those live in the REI
   // Outbound tab, where they're actually configured).
   const wsId = ws || localStorage.getItem("forge_ws") || "rei";
-  const biz = wsId === "agency" ? "agency" : wsId === "daycare" ? "daycare" : "wholesale";
+  const biz = wsId === "agency" ? "agency" : wsId === "daycare" ? "daycare"
+    : wsId === "dropship" ? "dropship" : "wholesale";
   const roster = window.useApi("/api/hub/roster?business=" + biz, { interval: 30000 });
 
   const data = roster.data || {};
@@ -422,8 +425,8 @@ function HubAgentsPage({ ws }) {
 
   const color = HUB_BIZ_COLOR[agent.business] || "#4F7CFF";
   const TABS = [["chat", "Chat"], ["tasks", "Tasks"], ["coach", "Coach"], ["console", "Console"]];
-  const panel = tab === "chat" ? <HubChat agent={agent} agents={agents} />
-    : tab === "tasks" ? <HubTasks agent={agent} />
+  const panel = tab === "chat" ? <HubChat agent={agent} agents={agents} biz={biz} />
+    : tab === "tasks" ? <HubTasks agent={agent} biz={biz} />
       : tab === "coach" ? <HubCoachFeed agent={agent} agents={agents} />
         : <HubConsole agent={agent} />;
 

@@ -1004,7 +1004,10 @@ def _handle_message(msg, reply_token=None):
     if low in ("/agents", "/who"):
         cur = (_AGENT_SESS.get(chat_id) or {}).get("agent") or _default_agent(chat_id)
         lines = ["🕹 <b>Your crew</b> — tap one, then just talk:"]
+        here = _business_of_chat(chat_id)   # a business chat lists only its own agents
         for aid, emo, blurb in _AGENT_ROSTER:
+            if here and _agent_business(aid) != here:
+                continue
             now = "  ← active" if aid == cur else ""
             lines.append(f"{emo} <code>/{aid}</code> — {blurb}{now}")
         lines.append("\n<code>/task ...</code> hands the active agent a job.")
@@ -1078,6 +1081,11 @@ def _handle_message(msg, reply_token=None):
             sess["agent"] = (m.group(1) or m.group(3)).lower()
             text = (m.group(2) or "").strip()
             switched = True
+    if switched and chat_biz and sess["agent"] == "orion":   # Orion = HQ only (cross-business)
+        sess["agent"] = _BIZ_AGENT[chat_biz]
+        reply_to(f"Orion works in the HQ chat (health, cost, what's down) — ask him there. "
+                 f"This chat is {_BIZ_LABEL[chat_biz]} with <b>{_BIZ_AGENT[chat_biz].title()}</b>.")
+        return
     if switched and chat_biz and _agent_business(sess["agent"]) not in (chat_biz, None):
         other = _agent_business(sess["agent"])
         sess["agent"] = _BIZ_AGENT[chat_biz]

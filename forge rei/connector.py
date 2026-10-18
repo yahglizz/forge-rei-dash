@@ -3793,17 +3793,20 @@ class Handler(BaseHTTPRequestHandler):
                 # The Agents hub — same shared thread Telegram reads/writes, so a
                 # conversation continues across the dashboard and your phone.
                 _aid = body.get("agentId", "marcus")
+                # business = the workspace the chat came from (hub / mobile portal); an agent
+                # outside its home workspace refuses with a pointer (agents_hub.wrong_workspace).
                 result = agents_hub.chat(ghl_get, LOCATION_ID, _aid,
                                          body.get("message", ""),
                                          history=(body.get("history")
                                                   or agents_history.recent_for_context(_aid)),
-                                         scout=SCOUT)
-                if isinstance(result, dict) and result.get("reply") and not result.get("needsKey"):
+                                         scout=SCOUT, business=body.get("business"))
+                if (isinstance(result, dict) and result.get("reply") and not result.get("needsKey")
+                        and not result.get("refused")):   # a refusal never lands in the agent's thread
                     agents_history.record(_aid, body.get("message", ""),
                                           result.get("reply"), via="dash")
             elif parsed.path == "/api/hub/task":
                 result = agents_hub.send_task(body.get("agentId"), body.get("title"),
-                                              body.get("note", ""))
+                                              body.get("note", ""), business=body.get("business"))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
             elif parsed.path in ("/api/office/task", "/api/office/plan", "/api/office/chat", "/api/office/checkin"):

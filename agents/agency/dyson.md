@@ -75,6 +75,7 @@ Key: `AGENCY_ANTHROPIC_API_KEY` → agency.env → wholesale key. No agent-speci
 
 - `/api/hub/chat {agentId:"dyson"}` → `agency_agents.chat` (`agents_hub.py:435`); also `/api/agency/agents/chat`. Reply ≤700 tok.
 - Tasks: `/api/hub/task` writes the hub store **and** the agency board; Dyson sees open ones via `open_tasks_block` in chat.
+- **Live data (2026-10-18):** `agency_agents.chat` runs `dash_live.ask` — read-only `api_get`/`route_help` over `/api/agency/*` + `/api/coach/*` + brain/owner-actions, ≤4 tool turns. Daycare/wholesale routes refuse with 'that is Solomon's/Marcus's lane', so he points the owner there instead of guessing. Workspace: Agency only (cross-workspace `/api/hub/chat {business}` refused). Knob `FORGE_CHAT_LIVE=0`.
 
 ## 8. Cost
 

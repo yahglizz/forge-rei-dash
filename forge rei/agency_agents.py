@@ -433,8 +433,9 @@ def chat(agent_id, message, history_in=None):
             pass
     user = _history_block(history_in) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=700,
-                                     model=review_agent.SMART_MODEL, effort="low")
+        import dash_live   # live read-only dashboard tools (agency scope)
+        reply = dash_live.ask(key, system + caveman.block(), user, agent_id, max_tokens=700,
+                              model=review_agent.SMART_MODEL, effort="low")
     except Exception as e:  # noqa: BLE001
         # ok:False so the caller can tell this apart from a real reply — nothing was
         # written to history on this path, so a blind refresh would lose the message.

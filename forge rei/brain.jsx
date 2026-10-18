@@ -306,11 +306,18 @@ function GraphifyNodeDetail({ nodeId, allNodes, allLinks }) {
   );
 }
 
-function BrainPage() {
+// Each workspace opens its OWN agent's playbook (the vault is shared; the agent isn't).
+const BRAIN_HOME_NOTE = {
+  rei: "Skills/marcus-playbook.md", agency: "Skills/dyson-playbook.md",
+  daycare: "Skills/solomon-playbook.md", dropship: "Skills/midas-playbook.md",
+};
+
+function BrainPage({ ws } = {}) {
   const Icons = window.Icons;
+  const brainWs = ws || "rei";
   const [src, setSrc]       = useStateB("vault");          // "vault" | "graphify"
   const [view, setView]     = useStateB("graph");           // graph | files
-  const [sel, setSel]       = useStateB("Skills/marcus-playbook.md");
+  const [sel, setSel]       = useStateB(BRAIN_HOME_NOTE[brainWs] || BRAIN_HOME_NOTE.rei);
   const [gfySel, setGfySel] = useStateB(null);             // selected graphify node id
   const [q, setQ]           = useStateB("");
   const [results, setResults]     = useStateB(null);
@@ -498,7 +505,8 @@ function BrainPage() {
 
         {/* RIGHT RAIL — learning + activity/undo */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0 }}>
-          <LearnPanel onLearned={() => graph.refresh && graph.refresh()} />
+          {/* Marcus's voice learning (seller texts) — wholesale's own lane, so REI only. */}
+          {brainWs === "rei" && <LearnPanel onLearned={() => graph.refresh && graph.refresh()} />}
           <BrainActivity onUndone={() => { graph.refresh && graph.refresh(); note.refresh && note.refresh(); }} />
         </div>
       </div>

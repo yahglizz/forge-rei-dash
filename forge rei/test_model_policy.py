@@ -54,7 +54,7 @@ def check():
 AGENT_BRAIN_FILES = (
     "review_agent", "legit_check", "marcus_lead", "daycare_ads_autopilot", "mission_control_agent",
     "daycare_director", "dropship_director", "style_agent", "skill_forge", "scout_triage",
-    "deal_prep", "marcus_screening", "agency_agents", "agents_chat", "agent_collab",
+    "deal_prep", "marcus_screening", "agency_agents", "agents_chat", "agent_collab", "dash_live",
 )
 
 

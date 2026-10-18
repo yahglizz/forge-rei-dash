@@ -125,7 +125,7 @@ function MABusCard() {
 
 // Registry business → mobile business id ("rei" kept for older registries; brainless
 // engines followup/ace/autopilot already report "wholesale"). cross/system (Orion,
-// daily brief) show in every business.
+// daily brief) are cross-business: only the unscoped "Everything" crew shows them.
 function MABizOf(a, fixed) {
   const b = a.business || (fixed.crew === "agency" ? "agency" : fixed.crew === "rei" ? "wholesale" : "");
   return b === "rei" ? "wholesale" : b;
@@ -146,7 +146,7 @@ function MAgentsPage(props) {
   const inBiz = (a) => {
     if (!business) return true;
     const b = MABizOf(a, MA_AGENTS.find((f) => f.id === a.id) || {});
-    return b === business || b === "cross" || b === "system";
+    return b === business;   // every agent only in its own business (Orion: Everything only)
   };
   const agents = (hasRegistry ? registered : MA_AGENTS).filter(inBiz).map((a, i) => {
     const fixed = MA_AGENTS.find((f) => f.id === a.id) || {};
@@ -194,9 +194,8 @@ function MAgentsPage(props) {
     setBusyId(a.id);
     setSendErr(null);
     try {
-      const body = a.crew === "agency"
-        ? { agentId: a.id, message: q, history }
-        : { agentId: a.id, message: q, history };
+      // business = the portal we're in; the hub refuses an agent outside its home workspace.
+      const body = business ? { agentId: a.id, message: q, history, business } : { agentId: a.id, message: q, history };
       await window.apiPostM(a.ep, body);
       hist.refresh();               // server recorded both turns — pull them in
     } catch (e) {

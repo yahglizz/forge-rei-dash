@@ -363,9 +363,11 @@ def _director_chat(agent_id, message, history):
     except Exception:
         pass
 
-    if agent_id == "solomon":
+    import dash_live
+    if agent_id == "solomon" and not dash_live.active(agent_id):
         # Ad numbers come ONLY from a live Pipeboard pull made for this message (7d/30d/90d/max +
         # the autopilot's state) — never the brief's stale copy. Unknown sections say so.
+        # With live chat tools on he pulls /api/daycare/ads/feed himself, only when asked.
         try:
             import daycare_growth
             live += daycare_growth.ads_feed_block()
@@ -416,8 +418,9 @@ def _director_chat(agent_id, message, history):
     )
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
-        reply = review_agent._claude(key, system + caveman.block(), user, max_tokens=1400 if agent_id == "orion" else 700,
-                                   model=review_agent.SMART_MODEL)
+        reply = dash_live.ask(key, system + caveman.block(), user, agent_id,   # live read-only tools
+                              max_tokens=1400 if agent_id == "orion" else 700,
+                              model=review_agent.SMART_MODEL, effort="low")
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}", "error": str(e),
                 "agent": meta["name"]}
@@ -510,8 +513,36 @@ def _flag_error(out):
     return out
 
 
-def chat(ghl_get, location_id, agent_id, message, history=None, scout=None):
-    """Route the operator's message to the agent's REAL brain."""
+# Where each home business lives in the app — the one-line pointer a wrong-workspace chat gets.
+WORKSPACE_LABEL = {"wholesale": "Wholesale (REI) workspace", "agency": "Agency workspace",
+                   "daycare": "Daycare workspace", "dropship": "Dropship workspace (archived)",
+                   "cross": "Mission Control / Agent Office"}
+_WS_ALIAS = {"rei": "wholesale", "hq": "cross", "mission": "cross"}
+
+
+def wrong_workspace(agent_id, business):
+    """None when `agent_id` belongs in workspace `business` (or no workspace was given — the
+    office, coaching, Telegram and the Agent Control Center are cross-business surfaces);
+    else a one-line pointer to the agent's real home + who answers here instead."""
+    ws = _WS_ALIAS.get((business or "").strip().lower(), (business or "").strip().lower())
+    meta = _BY_ID.get(main_agent(agent_id or "marcus"))   # _chat's default agent
+    if not ws or (meta and meta["business"] == ws):
+        return None
+    if not meta:   # anything else is a Retell voice persona — those live in REI → Outbound
+        return None if ws == "wholesale" else "Voice agents live in the REI Outbound tab, not here."
+    here = next((a["name"] for a in AGENTS if a["business"] == ws and not a.get("lane")), None)
+    return (f"{meta['name']} works in the {WORKSPACE_LABEL.get(meta['business'], meta['business'])}, "
+            f"not here." + (f" Ask {here} here, or switch workspaces to reach {meta['name']}."
+                            if here else f" Switch workspaces to reach {meta['name']}."))
+
+
+def chat(ghl_get, location_id, agent_id, message, history=None, scout=None, business=None):
+    """Route the operator's message to the agent's REAL brain. `business` = the workspace the
+    chat was sent from (the hub passes it); an agent outside its home workspace refuses."""
+    nope = wrong_workspace(agent_id, business)
+    if nope:
+        return {"reply": nope, "agent": (_BY_ID.get(main_agent(agent_id or "marcus")) or {}).get("name"),
+                "refused": True, "wrongWorkspace": True}
     return _flag_error(_chat(ghl_get, location_id, agent_id, message, history, scout))
 
 
@@ -572,13 +603,17 @@ def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None):
 
 
 # ── tasks ─────────────────────────────────────────────────────────────────────
-def send_task(agent_id, title, note=""):
+def send_task(agent_id, title, note="", business=None):
     """Assign work to any agent. Persisted + broadcast on the bus so the agent sees it
     on its next run and the operator sees it in the hub.
 
     A task is an ASSIGNMENT, not an action — dispatching one never sends an SMS,
     launches an ad, or writes a system of record (CLAUDE.md rule 2 holds).
+    `business` = the workspace it was filed from; the wrong workspace is refused.
     """
+    nope = wrong_workspace(agent_id, business)
+    if nope:
+        return {"error": nope, "wrongWorkspace": True}
     agent_id = main_agent(agent_id)   # a task for a lane is filed under its main agent
     title = (title or "").strip()
     if agent_id not in _BY_ID:

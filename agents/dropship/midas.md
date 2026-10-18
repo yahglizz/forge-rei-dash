@@ -86,6 +86,7 @@ Brief uses `lane=""` (core only). Enforced by `forge rei/test_dropship_skills.py
 
 - `/api/hub/chat {agentId:"midas"}` → `_director_chat`: creed → `dropship_context` → latest brief [:3500] → `top_skills_text()` (ALL skills incl. lane + on-demand — deliberately ungated) → `playbook_text(4000)` → `open_tasks_block("midas")` → `caveman.block()`.
 - Agent Office tasks run the same chat path.
+- **Live data (2026-10-18):** `_director_chat` runs `dash_live.ask` — read-only `api_get`/`route_help` over `/api/dropship/*` + brain/owner-actions, ≤4 tool turns. Workspace: Dropship only (archived). Knob `FORGE_CHAT_LIVE=0`.
 
 ## 8. Cost
 

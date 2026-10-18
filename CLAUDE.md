@@ -242,6 +242,17 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 ONE agent per business, plus the CEO. **Active businesses: Wholesale (REI), Agency, Daycare.
 Archived: Dropship and the Agency Personal lens.**
 
+**Placement (owner rule, 2026-10-18): every agent only where it works.** Marcus (+lanes) = Wholesale; Dyson (+Eco) =
+Agency; Solomon (+Replies/Leads/Starts/Ads) = Daycare; Midas = Dropship (archived); Orion = cross-business surfaces only
+(Mission Control, Agent Control Center, Agent Office, Telegram HQ); Retell voice agents = REI Outbound. The hub, mobile
+portal crews, the Brain tab's default note/learning card and Telegram business chats follow it; `/api/hub/chat` +
+`/api/hub/task` take `business` and refuse the wrong workspace with a one-line pointer (`agents_hub.wrong_workspace`).
+**Dashboard chats read live data (2026-10-18, `dash_live.py`):** every operator chat (hub, Agency tab, Office, mobile)
+runs a read-only tool loop over the connector's own API (`api_get`/`route_help`, + `find_people` for Solomon; ≤4 tool
+turns; `telegram_agent.SCOPE`/`DENY`; no writes). Each agent reads only its own business (+ brain, owner-actions);
+Orion reads HQ + all four. Off-scope = "that is <Owner>'s lane (<Workspace>)". Kill `FORGE_CHAT_LIVE=0`.
+Tests: `test_dash_live.py`, `test_agent_placement.py`.
+
 | Business | Agent | Lanes (same agent, own loop) |
 |---|---|---|
 | Wholesale | **Marcus** | Scout, Atlas, Follow-up, ACE, Autopilot |
@@ -469,7 +480,7 @@ update that skill if you improved the pattern.
   Wholesale = Home·Inbox·Pipeline·Calc·Crew; Agency = Home·Calls·Requests·Approvals·Crew;
   Daycare = Home·Messages·Families·Logins (the **management app**, below). "Everything" = the classic 5-tab app, unchanged. The header
   mascot (⇄ badge) switches business; the choice persists (`localStorage.m_biz`, `?biz=` deep link).
-  Crew = `MAgentsPage business=<id>` (that business's agents + Orion/brief). No PIN — the tailnet is
+  Crew = `MAgentsPage business=<id>` (that business's agents only — Orion is in "Everything"; 2026-10-18). No PIN — the tailnet is
   the lock, same as the dashboard. No keys in the app: every function is the same `/api/*` the desktop
   uses (connector holds env/keys/agents/brain). Outward actions stay tap + `confirm()` gated.
   - **Daycare management app (2026-09-24, `m_biz_daycare.jsx`).** Styled after the family/staff
@@ -933,7 +944,11 @@ to operator-facing chat prompts ONLY — Scout/Atlas (`agents_chat`), Solomon
 (`agents_hub`), Dyson/Eco (`agency_agents`), Marcus screening chat (`marcus_chat`). It is
 **NEVER** on seller-facing SMS drafts (`marcus_engine._ai_draft` — voice-critical), internal
 scoring/underwriting, briefs, or the creed. Intensity: `FORGE_CAVEMAN_LEVEL=lite|full|ultra`;
-kill switch: `FORGE_CAVEMAN=0`. When adding any new operator-facing AI chat surface, append
+kill switch: `FORGE_CAVEMAN=0`. **ADHD shape (2026-10-18):** the same block adds the owner's ADHD reading rules
+(adapted from github.com/ayghri/i-have-adhd, MIT, vendored at `forge rei/vendor/i-have-adhd/`): answer/next action
+first, numbered steps, ONE next action at the end, no tangents, ≤5 items per list, no preamble/recap/closer; Unknowns
+never cut; 'explain' and irreversible confirmations get full prose. `FORGE_ADHD=0` drops just that part.
+When adding any new operator-facing AI chat surface, append
 `caveman.block()` LAST (after the creed/context) — never on an outward-message or structured
 (JSON) generator.
 

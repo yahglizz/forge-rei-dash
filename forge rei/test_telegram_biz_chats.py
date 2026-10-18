@@ -115,6 +115,22 @@ class BizChatTests(unittest.TestCase):
         self.assertIn("solomon here", self.replies[-1][1])
         self.assertIn("Solomon", self.replies[-1][1])
 
+    def test_business_chat_keeps_its_own_agents_only(self):
+        self.msg("/bind daycare")
+        self.msg("orion, what's down?")                          # Orion = HQ only
+        self.assertIn("HQ chat", self.replies[-1][1])
+        self.assertEqual(tg._AGENT_SESS[DAYCARE_GROUP]["agent"], "solomon")
+        self.msg("/dyson")                                        # another business's agent
+        self.assertIn("own chat", self.replies[-1][1])
+        self.assertEqual(tg._AGENT_SESS[DAYCARE_GROUP]["agent"], "solomon")
+        self.msg("/agents")                                       # roster = this business only
+        roster = self.replies[-1][1]
+        self.assertIn("/solomon", roster)
+        for other in ("/marcus", "/dyson", "/orion", "/midas"):
+            self.assertNotIn(other, roster)
+        self.msg("/agents", chat=OPERATOR, kind="private")         # HQ keeps the full crew
+        self.assertIn("/orion", self.replies[-1][1])
+
 
 if __name__ == "__main__":
     unittest.main()

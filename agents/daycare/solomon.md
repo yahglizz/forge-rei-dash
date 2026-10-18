@@ -101,6 +101,7 @@ Lane routes: §10 (`/api/daycare/replies*`), §11 (`/api/daycare/leads*`). `repl
 - `/api/hub/chat {agentId:"solomon"}` → `agents_hub._director_chat` (`agents_hub.py:301`), key from `daycare_director._solomon_key()`.
 - Prompt: role + blurb → creed → `daycare_context.context_block()` → latest brief [:3500] → top skills (**empty** — `daycare_director` has no `top_skills_text`) → `playbook_text(4000)` → **YOUR LIVE LANES** (`_lanes_block` → `_delegate_context("solomon")`: Replies + Leads state, [:2500]) → `open_tasks_block("solomon")` → `caveman.block()`. ≤700 tok.
 - Tasks reach him twice: `open_tasks_block` in chat + the bus `task` message read at brief time.
+- **Live data (2026-10-18):** `_director_chat` runs `dash_live.ask` — read-only `api_get`/`find_people`/`route_help` over `/api/daycare/*` + brain/owner-actions, ≤4 tool turns; he pulls `/api/daycare/ads/feed` himself before quoting a Meta figure (the per-message `ads_feed_block` preload now runs only when live tools are off). Workspace: Daycare only (cross-workspace `/api/hub/chat {business}` refused). Knob `FORGE_CHAT_LIVE=0`.
 
 ## 8. Cost
 

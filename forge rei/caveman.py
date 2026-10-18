@@ -1,23 +1,25 @@
-"""caveman.py — operator-chat brevity ("caveman") block. Token discipline.
+"""caveman.py — operator-chat answer style: caveman brevity + ADHD-friendly shape.
 
-Appended to OPERATOR-FACING CHAT system prompts ONLY: Scout/Atlas/Retell chat
-(agents_chat.py), daycare Solomon chat (agents_hub.py), agency
-Dyson/Eco chat (agency_agents.py), Marcus screening chat (marcus_chat.py). Cuts
-Anthropic OUTPUT tokens on every operator reply.
+Appended LAST to OPERATOR-FACING CHAT system prompts ONLY: Scout/Atlas/Retell chat
+(agents_chat.py), Solomon/Midas/Orion chat (agents_hub.py), agency Dyson/Eco chat
+(agency_agents.py), Marcus chat (marcus_chat.py), the Telegram partners
+(telegram_agent.py). Cuts Anthropic OUTPUT tokens on every operator reply.
 
 NEVER used on: seller-facing SMS drafts (`marcus_engine._ai_draft` — voice +
-quality critical), internal scoring/screening/underwriting jobs, briefs, or the
-creed. Substance / names / numbers / Unknowns stay — only filler is cut.
+quality critical), internal scoring/screening/underwriting jobs, briefs, the
+creed, or any JSON generator. Substance / names / numbers / Unknowns stay — only
+filler is cut.
 
-Mirrors the caveman SKILL (github.com/JuliusBrussee/caveman) that governs Claude
-Code / the operator's own replies — same house style, agent side. Intensity via
-FORGE_CAVEMAN_LEVEL = lite | full (default) | ultra. Flip the whole thing off
-with FORGE_CAVEMAN=0. The block is appended last, so it frames tone without
-outranking the creed or evidence discipline above it.
+Two parts:
+  1. caveman — mirrors github.com/JuliusBrussee/caveman (the operator's own house
+     style). Intensity FORGE_CAVEMAN_LEVEL = lite | full (default) | ultra.
+  2. ADHD shape — the owner's reading needs, adapted for agents from
+     github.com/ayghri/i-have-adhd (MIT, © 2026 Ayoub Ghriss; vendored at
+     vendor/i-have-adhd/, commit 1ecea19). FORGE_ADHD=0 drops just this part.
+FORGE_CAVEMAN=0 turns the whole block off. Env is read per call (no restart needed
+for a test; the box still needs a restart to change its unit env).
 """
 import os
-
-_ON = os.environ.get("FORGE_CAVEMAN", "1") != "0"
 
 # Shared spine — the discipline that holds at every level. Substance never dies.
 _CORE = (
@@ -54,6 +56,25 @@ _LEVELS = {
     ),
 }
 
+# The owner has ADHD: shape the reply so he can ACT on it (i-have-adhd, agent-side).
+_ADHD = (
+    "\n=== SHAPE FOR AN ADHD READER (the owner) ===\n"
+    "1. First line = the answer or the next action. Never context first.\n"
+    "2. Multi-step work = a numbered list, one action per step, fewest steps that work.\n"
+    "3. End with ONE concrete next action he can do in under 2 minutes (a tap, a call, a name).\n"
+    "4. No tangents. A second issue gets one closing line: 'Separately: X. Want that next?'\n"
+    "5. Max 5 items per list, best first. Hold the rest; show on request. Never hide one that "
+    "changes the decision.\n"
+    "6. Errors: matter-of-fact — cause, then fix. No 'uh oh'.\n"
+    "7. No preamble ('Great question', 'Let me…', 'Sure!'), no recap, no closer ('Hope this "
+    "helps', 'Let me know').\n"
+    "8. Caveman brevity and evidence discipline still hold: Unknowns, sources, date windows "
+    "and real caveats are never cut to look short.\n"
+    "Exceptions (full prose): he asks to 'explain' or 'walk me through' (use short headers, "
+    "still no preamble/closer); anything irreversible or outward (send, spend, delete, launch) "
+    "— state the exact effect in full sentences before he taps.\n"
+)
+
 
 def _level():
     lv = (os.environ.get("FORGE_CAVEMAN_LEVEL", "full") or "full").strip().lower()
@@ -61,12 +82,14 @@ def _level():
 
 
 def block(level=None):
-    """The brevity instruction, or '' when FORGE_CAVEMAN=0. Never raises.
+    """The answer-style instruction, or '' when FORGE_CAVEMAN=0. Never raises.
 
-    level overrides FORGE_CAVEMAN_LEVEL for a single call (lite|full|ultra)."""
-    if not _ON:
+    level overrides FORGE_CAVEMAN_LEVEL for a single call (lite|full|ultra).
+    FORGE_ADHD=0 drops the ADHD shape and keeps caveman."""
+    if os.environ.get("FORGE_CAVEMAN", "1") == "0":
         return ""
     lv = level or _level()
     if lv not in _LEVELS:
         lv = "full"
-    return _CORE + _LEVELS[lv]
+    adhd = _ADHD if os.environ.get("FORGE_ADHD", "1") != "0" else ""
+    return _CORE + _LEVELS[lv] + adhd

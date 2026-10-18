@@ -90,6 +90,7 @@ Hard never-rules (code-enforced):
 - `/api/hub/chat {agentId:"marcus"}` → `agents_chat.chat` → `marcus_chat.chat` (`agents_chat.py:170`); also `/api/marcus/chat`, `/api/agents/chat`.
 - Searches 4 pages of GHL threads, ranks by keyword. Prompt: LEAD AGENT text + `agent_collab.protocol("scout")` + `_hub_tasks("marcus")` (= `open_tasks_block`, which also lists Follow-up/ACE/Autopilot tasks) + `caveman.block()`. No creed in chat.
 - Marcus also answers chat for Follow-up, ACE, Autopilot (`chatVia`, `agents_hub.py:421`) with commands disabled.
+- **Live data (2026-10-18):** dashboard chat runs `dash_live.ask` — read-only tools `api_get`/`route_help` over the wholesale scope (`/api/scout/*`, `/api/marcus/*`, `/api/screening/*`, `/api/prep/*`, `/api/deals/*` … + brain, owner-actions), ≤4 tool turns. No writes; an off-scope read returns the owning agent + workspace. Teammate consults (`_depth>0`) stay plain. Workspace: Wholesale only — `/api/hub/chat {business}` from another workspace is refused with a pointer (`agents_hub.wrong_workspace`). Knob `FORGE_CHAT_LIVE=0`.
 
 ## 8. Cost
 
