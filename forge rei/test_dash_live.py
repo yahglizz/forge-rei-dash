@@ -24,6 +24,8 @@ SCRIPT = []
 
 def fake_http(method, path, query=None, body=None, timeout=90):
     HTTP.append((method, path, query))
+    if path == "/api/agency/ads":     # the shared Pipeboard account is the daycare's (agency_ads labels it)
+        return {"accountOwner": "daycare", "totals": {"spend": 289.2, "leads": 11}}
     return {"ok": True, "path": path, "spend7d": 41.5, "api_key": "sk-live-SECRET", "pin": "482913"}
 
 
@@ -191,6 +193,14 @@ def test_ads_widen_domain_and_capability_lines():
     out = dash_live.ask("k", "SYS", "check the best ads", "dyson")
     assert [q for _, p, q in HTTP] == [{"days": "7"}, {"days": "90"}], HTTP
     assert "90d window" in out and "/api/agency/ads?days=30" in CALLS[0]["system"][0]["text"]
+
+
+def test_daycare_numbers_withheld_off_the_daycare_side():
+    reset()
+    r = dash_live.run_tool("api_get", {"path": "/api/agency/ads?days=90"}, "dyson")
+    assert r.get("withheld") and "Solomon" in r["note"] and "289" not in str(r), r
+    assert dash_live.run_tool("api_get", {"path": "/api/agency/ads"}, "orion")["totals"]["spend"] == 289.2
+    assert "never open with 'Unknown'" in dash_live.live_block("marcus")
 
 
 def test_daycare_account_labeled_not_agency():

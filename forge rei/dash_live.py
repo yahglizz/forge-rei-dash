@@ -132,7 +132,14 @@ def run_tool(name, inp, agent_id):
         q = dict(urllib.parse.parse_qsl(qs))
         if isinstance(inp.get("query"), dict):
             q.update(inp["query"])
-        return ta._http("GET", path, query=q or None)
+        out = ta._http("GET", path, query=q or None)
+        # The shared Pipeboard login carries the DAYCARE's Meta account, so an agency route can
+        # return daycare numbers (agency_ads labels them). Off the daycare side they stay withheld.
+        if isinstance(out, dict) and out.get("accountOwner") == "daycare" and "daycare" not in bizs:
+            return {"accountOwner": "daycare", "withheld": True,
+                    "note": "This is the daycare's Meta account — Solomon's lane (Daycare workspace). "
+                            "No agency ad account is connected yet, so there is no agency ad to rank."}
+        return out
     return {"error": f"{name} is not available in dashboard chat — chat is read-only; "
                      "tell the owner which button or Telegram tap does it"}
 
@@ -167,8 +174,9 @@ def live_block(agent_id):
             "tell the owner which agent/workspace owns it, never guess their numbers.\n"
             "- OUT-OF-LANE ASK (another business's ads, sellers, families, clients, store): answer in ONE line "
             "naming the owner — Marcus · Wholesale, Dyson · Agency, Solomon · Daycare (incl. the daycare's Meta "
-            "ads), Midas · Dropship, Orion · Mission Control. Do not send the owner off to do the work himself "
-            "and do not pad with Unknowns.\n"
+            "ads), Midas · Dropship, Orion · Mission Control. Do not send the owner off to do the work himself, "
+            "never open with 'Unknown', no clarifying question. E.g. Marcus asked for the best ads: "
+            "\"Ads aren't my lane — daycare Meta ads: Solomon (Daycare); agency ads: Dyson (Agency).\"\n"
             "- ADS/METRICS: an empty or $0 short window is NOT 'no data'. Widen with the route's own window "
             "before concluding (agency: /api/agency/ads?days=30, then 90, then 365; daycare: the feed already "
             "carries 7d/30d/90d/maximum), and always name the window you used. A payload with "
