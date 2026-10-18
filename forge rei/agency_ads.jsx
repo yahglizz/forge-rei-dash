@@ -194,6 +194,9 @@ function AgencyAds() {
   const { data, loading, error, refresh } = window.useApi(analyticsPath, { interval: 30000 });
 
   const live = !!(data && data.dataSource === "live");
+  // The shared Pipeboard account is the DAYCARE's: the server sends the no-account shape instead of
+  // its figures. No numbers, no charts, no "default" account name on this page then.
+  const adNoAcct = !!((data && data.noAccount) || (acctRes.data && acctRes.data.noAgencyAccount));
   const totals = (live && data.totals) || {};
   const acctName = (live && data.account && data.account.name) || "";
 
@@ -210,6 +213,21 @@ function AgencyAds() {
     { label: "Conversions", value: totals.conversions,              icon: "Check",    color: "#16A34A" },
     { label: "ROAS",        value: totals.roas,        suffix: "x", icon: "Trend",    color: "#22C55E" },
   ];
+
+  if (adNoAcct) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.5px" }}>Meta Ads Analytics</h1>
+        <div className="card empty" style={{ minHeight: "30vh" }}>
+          <div className="empty-ico" style={{ width: 72, height: 72 }}><Icons.Ads size={30} /></div>
+          <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 16 }}>No agency ad account connected</div>
+          <div style={{ fontSize: 13, maxWidth: 380, textAlign: "center" }}>
+            Daycare ads live in the Daycare workspace → Growth → Ads.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

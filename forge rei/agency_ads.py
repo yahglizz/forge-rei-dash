@@ -415,6 +415,54 @@ def owner_of(acct):
     return "daycare" if acct and _bare(acct) in daycare_account_ids() else None
 
 
+# ── the AGENCY side's view (connector /api/agency/ads|accounts|eco) ────────────────────────────
+# analytics()/accounts() stay generic: the daycare reads its OWN account through them under its
+# own creds (daycare_growth env swap). Only the agency endpoints swap the daycare's account for
+# the honest no-account shape below.
+NO_ACCOUNT_NOTE = ("No agency ad account connected. Daycare ads live in the Daycare workspace "
+                   "→ Growth → Ads.")
+
+
+def resolve_account(account=None, client=None):
+    """The account analytics(account, client) would read (None = mock / unknown)."""
+    if account:
+        return account
+    if pipeboard_io.configured():
+        return _pb_map().get(client) or pipeboard_io.default_account() or None
+    try:
+        return json.loads(os.environ.get("META_AD_ACCOUNT_MAP") or "{}").get(client) if client else None
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return None
+
+
+def agency_no_account(account=None, client=None):
+    """True when the agency would be reading the DAYCARE's account (no agency account of its own)."""
+    return owner_of(resolve_account(account, client)) == "daycare"
+
+
+def no_account_shape(days=7):
+    """Same keys the Ads UI reads, with nothing in them — never the daycare's figures."""
+    return {"dataSource": "no_account", "noAccount": True, "accountOwner": "daycare",
+            "note": NO_ACCOUNT_NOTE, "account": None, "days": days, "dateRange": _date_range(days),
+            "totals": {}, "campaigns": [], "ads": [], "topAds": [], "weakAds": [],
+            "connection": {**connection(), "noAgencyAccount": True, "todo": NO_ACCOUNT_NOTE}}
+
+
+def agency_analytics(account=None, client=None, days=7):
+    return no_account_shape(days) if agency_no_account(account, client) else \
+        analytics(account=account, client=client, days=days)
+
+
+def agency_accounts():
+    out = accounts()
+    rows = [a for a in out.get("accounts", []) if a.get("accountOwner") != "daycare"]
+    if len(rows) == len(out.get("accounts", [])):
+        return out
+    return {**out, "accounts": rows, "noAgencyAccount": True, "note": NO_ACCOUNT_NOTE,
+            "connection": {**(out.get("connection") or {}), "noAgencyAccount": True,
+                           "todo": NO_ACCOUNT_NOTE}}
+
+
 def connection():
     """Connection state — connected=True when token present, source flag included."""
     if pipeboard_io.configured():        # Pipeboard wins when keyed: it owns Meta's token refresh

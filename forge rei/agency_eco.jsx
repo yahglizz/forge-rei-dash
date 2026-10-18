@@ -12,7 +12,8 @@ const { useState: useStateEc, useEffect: useEffectEc } = React;
 function EcDataBadge({ src, range }) {
   if (!src) return null;
   const live = src === "live";
-  const label = live ? "LIVE" : src === "token_rejected" ? "TOKEN REJECTED — replace it" : "MOCK DATA";
+  const label = live ? "LIVE" : src === "token_rejected" ? "TOKEN REJECTED — replace it"
+    : src === "no_account" ? "NO AGENCY ACCOUNT" : "MOCK DATA";
   const color = live ? "var(--green)" : src === "token_rejected" ? "var(--red)" : "var(--orange)";
   const win = range && range.since ? range.since + " → " + range.until : "";
   return (
@@ -189,7 +190,9 @@ function AgencyEco() {
     setBusy(false);
   }
 
-  const ok = data && data.ok;
+  // The shared Pipeboard account is the daycare's: the server sends noAccount instead of its numbers.
+  const ecNoAcct = !!(data && data.noAccount);
+  const ok = data && data.ok && !ecNoAcct;
   const acct = ok ? data.account : null;
   const best = (ok && data.best) || [];
   const weak = (ok && data.weak) || [];
@@ -241,6 +244,16 @@ function AgencyEco() {
           <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 16 }}>Pick a client to strategize</div>
           <div className="faint" style={{ fontSize: 13, maxWidth: 340, textAlign: "center" }}>
             Choose a client above and Eco will review their ad account.
+          </div>
+        </div>
+      )}
+
+      {ecNoAcct && selectedId && (
+        <div className="card empty" style={{ minHeight: "24vh" }}>
+          <div className="empty-ico" style={{ width: 72, height: 72 }}><Eco size={30} /></div>
+          <div style={{ fontWeight: 600, color: "var(--text)", fontSize: 16 }}>No agency ad account connected</div>
+          <div className="faint" style={{ fontSize: 13, maxWidth: 380, textAlign: "center" }}>
+            Daycare ads live in the Daycare workspace → Growth → Ads.
           </div>
         </div>
       )}

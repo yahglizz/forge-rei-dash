@@ -2820,16 +2820,22 @@ def api_agency_ads(q):
     account = (q.get("account", [None]) or [None])[0]
     client = (q.get("client", [None]) or [None])[0]
     days = _qint(q, "days", 7)
-    return agency_ads.analytics(account=account, client=client, days=days)
+    # Agency side: the shared Pipeboard account is the DAYCARE's -> the no-account shape, never
+    # the daycare's figures (its own reads go through /api/daycare/ads under daycare creds).
+    return agency_ads.agency_analytics(account=account, client=client, days=days)
 
 
 def api_agency_ads_accounts(_q):
-    return agency_ads.accounts()
+    return agency_ads.agency_accounts()
 
 
 def api_agency_eco(q):
     account = (q.get("account", [None]) or [None])[0]
     client = (q.get("client", [None]) or [None])[0]
+    if agency_ads.agency_no_account(account, client):   # never strategize on the daycare's ads
+        # ok:False keeps an older cached Eco page from rendering (it reads data.account when ok).
+        return {**agency_ads.no_account_shape(), "ok": False, "best": [], "weak": [], "next": [],
+                "competitor": {}}
     return agency_eco.recommendations(account=account, client=client)
 
 
@@ -3961,8 +3967,11 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/build/handoff":
                 result = agency_build_studio.hand_off(body.get("id"))
             elif parsed.path == "/api/agency/eco/generate":
-                result = agency_eco.generate(
-                    account=body.get("account"), client=body.get("client"))
+                if agency_ads.agency_no_account(body.get("account"), body.get("client")):
+                    result = {"error": agency_ads.NO_ACCOUNT_NOTE, "noAccount": True}
+                else:
+                    result = agency_eco.generate(
+                        account=body.get("account"), client=body.get("client"))
             elif parsed.path == "/api/agency/eco/decision":
                 result = agency_eco.decision(body.get("id"), body.get("action"))
             elif parsed.path == "/api/agency/eco/image":

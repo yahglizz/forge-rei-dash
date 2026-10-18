@@ -1,5 +1,6 @@
 """Live read-only dashboard data in operator agent chat (dash_live).
 Run: python3 test_dash_live.py   (no network: Claude + loopback HTTP are faked; exit 1 on failure)."""
+import json
 import os
 import sys
 import tempfile
@@ -221,15 +222,37 @@ def test_daycare_account_labeled_not_agency():
         assert an["accountOwner"] == "daycare" and "not agency client data" in an["ownerNote"], an
         ctx = agency_agents._eco_context()
         assert "DAYCARE's" in ctx and "no ad account connected" in ctx and "289" not in ctx, ctx
+        # the AGENCY endpoints get the no-account shape, never the daycare's figures
+        na = agency_ads.agency_analytics(days=30)
+        assert na["dataSource"] == "no_account" and na["noAccount"] and na["totals"] == {}, na
+        assert na["topAds"] == [] and na["account"] is None and "289" not in json.dumps(na), na
+        assert na["dateRange"]["days"] == 30 and "Growth → Ads" in na["note"]
+        assert agency_ads.agency_no_account(client="bloom-dental")        # no map entry -> daycare default
+        accs = agency_ads.agency_accounts()
+        assert accs["accounts"] == [] and accs["noAgencyAccount"] and accs["connection"]["noAgencyAccount"]
         pb.default_account = lambda: "act_999"                  # a real agency account: no label
         assert "accountOwner" not in agency_ads.accounts()["accounts"][0]
         assert "accountOwner" not in agency_ads.analytics()
+        assert agency_ads.agency_analytics()["totals"]["spend"] == 289.2   # renders as before
+        assert agency_ads.agency_accounts()["accounts"][0]["id"] == "act_999"
+        assert not agency_ads.agency_no_account()
         assert "289.2" in agency_agents._eco_context()
     finally:
         pb.configured, pb.default_account, pb.auth_dead, pb.analytics, agency_ads.daycare_account_ids = saved[:5]
         if saved[5] is not None:
             os.environ["META_AD_ACCOUNT_MAP"] = saved[5]
     assert agency_ads._bare("ACT_123") == "123" and agency_ads.owner_of(None) is None
+
+
+def test_agency_ads_ui_and_routes_use_no_account_shape():
+    here = Path(__file__).parent
+    src = (here / "connector.py").read_text()
+    assert "agency_ads.agency_analytics(account=account" in src and "agency_ads.agency_accounts()" in src
+    assert src.count("agency_ads.agency_no_account(") >= 2, "eco view + eco generate are guarded"
+    ads = (here / "agency_ads.jsx").read_text()
+    assert "No agency ad account connected" in ads and "Daycare workspace → Growth → Ads" in ads
+    eco = (here / "agency_eco.jsx").read_text()
+    assert '"no_account" ? "NO AGENCY ACCOUNT"' in eco and "data.ok && !ecNoAcct" in eco
 
 
 def test_marcus_skips_thread_scan_for_off_lane_asks():

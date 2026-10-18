@@ -678,6 +678,10 @@ key on the box. New migrations go in BOTH migration folders.
   rejection is cached 15 min and reads `auth_error`. Launch/activate/budget are NOT in it (rule 2).
   Self-check: `python3 pipeboard_io.py`; test: `test_pipeboard_io.py`. The Pipeboard login currently carries ONE
   ad account — the daycare's `act_1175564690150627`; the agency has none yet.
+  **Agency side (2026-10-18):** `/api/agency/ads|ads/accounts|eco` (+ `eco/generate`) go through
+  `agency_ads.agency_analytics/agency_accounts/agency_no_account`: when the account they'd read is the daycare's they
+  return the no-account shape (`dataSource:"no_account"`, empty totals, "No agency ad account connected") and the
+  Agency Ads/Eco tabs show that empty state; `/api/daycare/ads` and Solomon's reads (daycare creds) are untouched.
   **Meta-exact reads + live agent packet (2026-10-17).** `ads_range.py` is the ONE range resolver (Meta picker
   presets: today … last_30d … this/last week (Sun–Sat), this/last month, maximum; "last N days" = N complete days
   ending yesterday; "today" = the ad ACCOUNT's day via `get_account_info.timezone_name`, cached 1 h, fallback
