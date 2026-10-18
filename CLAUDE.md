@@ -69,7 +69,7 @@ Folders (siblings under `forge rei dash/`, secrets stay OUTSIDE the web root):
    - **Exception — AUTOPILOT follow-up bumps (operator opt-in, default OFF).** When the operator flips autopilot on (Telegram `/autopilot on`), the routine no-response RE-ENGAGE bumps that followup.py already drafts are auto-sent through `autopilot.maybe_send` — gated by: re-engage drafts only (never first replies, never PRICE/READY/HELP/DNC), legit_check thread verdict, daily cap (FORGE_AUTOPILOT_CAP=10), 9am-8pm ET window, send-ledger dedupe, voice scrub, and a Telegram receipt per send. `/autopilot off` kills it instantly. Everything else stays tap-gated.
    - **Exception — Solomon · Replies AUTO-SEND (operator opt-in, default OFF).** *(2026-09-30.)* `FORGE_DAYCARE_REPLY_AUTO=1` lets `daycare_replies.auto_send` text back an enrollment **lead** by itself — only a clean, flag-free draft in the safe categories (tour/subsidy/availability/enroll/pricing-deflect; never escalations, enrolled families, billing/safety/custody/medical, a $ figure, an unverified phone), through `approve()`'s live re-check (staff already replied / opt-out / DND / 8am–9pm ET), capped 30/day and 3 per contact, Telegram receipt + action-log row per send. Only the operator flips it (edit `/etc/default/forge-reios` + restart); kill: knob 0, `forge_ops` clock-out, or any staff reply in GHL. Test: `test_daycare_replies.py`.
    - **Exception — ACE (operator opt-in, default OFF).** *(Documented 2026-09-22 — was missing.)* `ace.py` + `conversation_engine.py` run a per-thread state machine after every Scout auto-screen. Modes `off` / `shadow` (drafts proposals only) / `supervised` / `full`. **In supervised AND full, `ace.apply` auto-sends qualifying-question and call-pivot texts** through `marcus.approve` → `sms_guard` (autonomous=True), capped 3/10 per day, with Telegram receipt + ⛔ stop / ↩ undo taps and a call-ready queue. One POST (`/api/ace/mode`) changes the mode — only the operator flips it; never an agent, never a deploy. Kill: mode `off`, `forge_ops` clock-out, per-thread hold.
-   - **Exception — Solomon · Ads (operator opt-in; default SHADOW).** *(2026-09-30.)* `daycare_ads_autopilot.py` reads the daycare Meta account through Pipeboard once a day (complete days only), judges every delivering ad/budget against a target cost-per-lead (marketing-skills Meta decision system → `forge-daycare/skills/daycare-ad-optimizer.md`), then builds one new test ad (winners + competitor long-runners → Nova → Higgsfield → Pipeboard, PAUSED, inside the best delivering ad set). Modes `off` / `shadow` (DEFAULT: decides + Telegrams, writes **nothing**; each proposal is one tap, `POST /api/daycare/ads-auto/approve`) / `auto` (executes: pause losing ads, budget −25% on bleeders, +20% on winners — one step/5 days, never above `FORGE_DAYCARE_ADS_MAX_DAILY`, never pauses the last ad in an ad set, ≤4 actions/run, pause-only, every write dry-run first, verified after, logged, `undo`able). The rules engine decides; Claude may only VETO/annotate, and a dead Anthropic account degrades to rules-only. Only the operator flips the mode (`POST /api/daycare/ads-auto/mode` or Growth → Autopilot); never an agent, never a deploy. Kill: mode `off`, `forge_ops` clock-out, `hold` one entity. Test: `test_daycare_ads_auto.py`.
+   - **Exception — Solomon · Ads (operator opt-in; default SHADOW).** *(2026-09-30.)* `daycare_ads_autopilot.py` reads the daycare Meta account through Pipeboard once a day (complete days only), judges every delivering ad/budget against a target cost-per-lead (marketing-skills Meta decision system → `forge-daycare/skills/daycare-ad-optimizer.md`), then builds one new test ad (winners + competitor long-runners → Nova → Higgsfield → Pipeboard, PAUSED, inside the best delivering ad set). Modes `off` / `shadow` (DEFAULT: decides + Telegrams, writes **nothing**; each proposal is one tap, `POST /api/daycare/ads-auto/approve`) / `auto` (executes: pause losing ads, budget −25% on bleeders, +20% on winners — one step/5 days, never above `FORGE_DAYCARE_ADS_MAX_DAILY`, never pauses the last ad in an ad set, ≤4 actions/run, pause-only, every write dry-run first, verified after, logged, `undo`able). The rules engine decides; Claude may only VETO/annotate, and a dead Anthropic account degrades to rules-only. Only the operator flips the mode (`POST /api/daycare/ads-auto/mode` or Growth → Autopilot); never an agent, never a deploy. Kill: mode `off`, `forge_ops` clock-out, `hold` one entity. Test: `test_daycare_ads_auto.py`. **Telegram approval cards (2026-10-17):** every proposed pause/budget move, every new-ad concept and every launch is one tap in the daycare chat; preview images auto-generate within `HIGGSFIELD_AUTO_CREDITS` (default 25 credits/day, app credits not ad spend); launch only $10/$20 per day, capped by `FORGE_DAYCARE_ADS_MAX_DAILY`; autopilot stays shadow. In shadow the creative loop no longer builds a test ad by itself — new ads arrive as concept cards (`daycare_ads_tg.py`, kill `FORGE_DAYCARE_ADS_CARDS=0`). Test: `test_daycare_ads_tg.py`.
    - **Exception — Solomon · Auto-enroll (ON by default, no click).** *(Owner decision 2026-10-07; documented 2026-10-16 — was missing.)* `daycare_auto_enroll.py` (thread `daycare_auto_enroll`, box only via `FORGE_MARCUS`, every 5 min, ≤5 per tick) turns every READY Family Contact Form card into a **real child row + parent login in production Supabase** at the family's center through the same enroll core as the Create-login click (`Handler._daycare_enroll_family`). Odd cards (missing email/birth date/parent/center, implausible birth date, test/junk names, non-US phone, possible duplicate, too-short parent name) are HELD with a reason in `GET /api/daycare/auto-enroll`, never guessed. The PIN/login text is held unless `FORGE_DAYCARE_AUTO_ENROLL_TEXT=1` (default 0); held logins go to `daycare_login_queue` when it flips. Kill: `FORGE_DAYCARE_AUTO_ENROLL=0` (+ restart) or `forge_ops` clock-out. Test: `test_daycare_auto_enroll.py`.
 3. **Marcus owns texting.** Scout ranks + tags + hands off; it never sends SMS. Same spirit for every agent: one agent per outward channel.
 4. **Reply to sellers only — never to our own messages.** Agents never draft a reply to OUR outreach/opener/blast (e.g. "we buy houses", "I was calling about…", "just following up"). Only genuine inbound seller messages get a draft. GHL sometimes mis-flags our own text as inbound; the `_is_our_message()` filter in `marcus_engine.py` (`_OUR_OUTREACH_PHRASES`) skips it. Edit that list to match your scripts.
@@ -662,15 +662,6 @@ key on the box. New migrations go in BOTH migration folders.
   and the Eco share read it — never a cached number. Dashboard **Enrollment ads** card + Growth → Ads use a
   Meta-style date picker (presets, two-month calendar, compare, account-tz footnote) and a read-only autopilot
   strip. Read-only throughout: no Pipeboard write is reachable from these paths. Test: `test_daycare_ads_feed.py`.
-  runbook — the daycare's REAL Meta account (`act_1175564690150627`, page/lead-form IDs),
-  the 3 live PAUSED angles (Urgency/Trust/Offer) with campaign+creative+image IDs, ad copy,
-  Higgsfield image prompts + model table, targeting, and the Higgsfield→Pipeboard workflow.
-  Loaded via `daycare_context.load_skill()` / `ad_agent_block()` and injected into the
-  enrollment engine (`eco_ideas`) so ideas build on the actual running assets. **FORGE gate
-  overrides its "execute immediately" line:** image/creative/paused-campaign builds run;
-  activating campaigns, budget changes, and `scale winner` are one-tap owner approvals
-  (spend). IDs there are business identifiers, not secrets — tokens stay in `daycare.env`.
-  The "Ideas" tab (`daycare_growth.eco_ideas` → `/api/daycare/eco/ideas`) is the daycare's
 - **Ads + Social + Ideas (Growth tab).** `daycare_growth.py` reuses the agency
   `agency_ads`/`agency_social`/`agency_eco` engines with the daycare's OWN creds (locked
   env-swap; agency code untouched). Mock until `META_ACCESS_TOKEN` / `METRICOOL_USER_TOKEN`
@@ -686,11 +677,37 @@ key on the box. New migrations go in BOTH migration folders.
   confirm tap; the autopilot's creative cycle uses the same guard. Routes `GET /api/daycare/adgen/status`,
   `POST /api/daycare/adgen/{quote,generate}`. The Higgsfield MCP is Claude-session-only. Card:
   `agents/daycare/solomon.md` §15. Test: `test_daycare_adgen.py`.
+- **Ads by Telegram tap (2026-10-17, `daycare_ads_tg.py`).** After each SHADOW autopilot run the daycare chat gets
+  one card per proposal (action, rule, numbers + window + "Meta via Pipeboard", guardrails; ✅ = `approve` with a
+  fresh guard, ❌ = reject, receipt ↩ Undo) and, every 3 days, ≤3 concept cards: the Ad Generator's concept + a
+  preview image drawn as source `auto` (quoted cost only, `HIGGSFIELD_AUTO_CREDITS` 25/day on top of the global
+  cap; no ready engine → a text card with the next step and NO Build button). ✅ Build = `create_ad` (PAUSED; now
+  records campaign/ad set/ad ids + the image) → a LAUNCH card: 🚀 $10 or $20/day (`FORGE_DAYCARE_ADS_LAUNCH_BUDGETS`)
+  → `daycare_ads_autopilot.launch()` — the only new Meta spend path, reachable only from that tap: our own recorded
+  ids, clock-out/off/health refusals, ceiling incl. this budget, no lifetime/CBO budget, one launch per 24 h unless
+  re-tapped, dry-run → write → verify, rollback to PAUSED on any failure, logged + undoable. The Telegram partner
+  may ask for cards (`POST /api/daycare/adgen/cards {n}`, a 💸 tap card) but never builds or launches. `GET
+  /api/daycare/adgen/cards` → card states (Ad Studio "Telegram cards" list + dashboard pending count). Cards live in
+  `marcus_state/daycare_ads_cards.json`; callback data is `<prefix>:<card id>[:usd]` (≤21 bytes). **Box engine:**
+  `forge rei/deploy/install-higgsfield-cli.sh` (pinned v1.2.2 tarball + SHA-256) then, from the Mac,
+  `forge rei/deploy/higgsfield-login-box.sh` (OAuth through an SSH tunnel on :8765 — the box gets its own login,
+  never a copy of the Mac's). Env: `HIGGSFIELD_CLI_BIN=/opt/forge/bin/hf`, `HIGGSFIELD_HOME=/root` (the unit has
+  no `$HOME`). The cap day is the ET day (`FORGE_TZ_OFFSET`), not the box's UTC day. A lapsed CLI login sends ONE
+  HQ alert per day. Test: `test_daycare_ads_tg.py`.
 - **Daycare agent context brief — READ FIRST.** Every daycare AI task loads
   `forge-daycare/skills/daycare-context.md` (business facts, mission = grow enrollment,
   current status, brand voice, standing job) BEFORE reasoning, via `daycare_context.py`
   (mtime hot-reload; `context_block()` injected into the Eco prompt ahead of the playbook).
 - **Enrollment Ad Agent spec.** `forge-daycare/skills/enrollment-ad-agent.md` is the ad-ops
+  runbook — the daycare's REAL Meta account (`act_1175564690150627`, page/lead-form IDs),
+  the 3 live PAUSED angles (Urgency/Trust/Offer) with campaign+creative+image IDs, ad copy,
+  Higgsfield image prompts + model table, targeting, and the Higgsfield→Pipeboard workflow.
+  Loaded via `daycare_context.load_skill()` / `ad_agent_block()` and injected into the
+  enrollment engine (`eco_ideas`) so ideas build on the actual running assets. **FORGE gate
+  overrides its "execute immediately" line:** image/creative/paused-campaign builds run;
+  activating campaigns, budget changes, and `scale winner` are one-tap owner approvals
+  (spend). IDs there are business identifiers, not secrets — tokens stay in `daycare.env`.
+  The "Ideas" tab (`daycare_growth.eco_ideas` → `/api/daycare/eco/ideas`) is the daycare's
   Eco agent: it reads the brief, drafts new enrollment angles + a competitor read, and
   returns PROPOSALS (launching an ad stays approval-gated). Eco's `extra_context` param is
   ""/no-op for the agency, so agency output is unchanged. Owner keeps the brief current by

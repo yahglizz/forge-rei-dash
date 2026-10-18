@@ -145,6 +145,31 @@ function DcgConceptCard({ idea, eng, metaReady, onChanged }) {
   </div>;
 }
 
+// Telegram approval cards (daycare_ads_tg): what was sent to the daycare chat and what you did with it.
+const DCG_KIND = { optimize: "Proposal", concept: "New concept", launch: "Launch", launch2: "2nd launch", undo: "Receipt" };
+const DCG_STATE_C = { pending: "#F4B860", launched: "#22C55E", applied: "#22C55E", built: "#22C55E", failed: "#EF4444" };
+
+function DcgTgCards() {
+  const res = window.DcxUseResource("/adgen/cards", "dcg-cards", 60000);
+  const d = (res.data && !Array.isArray(res.data)) ? res.data : null;
+  if (res.error) return <div className="dc-form-hint">Telegram cards Unknown — {res.error.message}</div>;
+  if (!d) return null;
+  const cards = (d.cards || []).filter((c) => c.kind !== "undo").slice(0, 12);
+  return <div className="card card-pad dc-panel dcg-strip" style={{ marginTop: 12 }}>
+    <div className="dc-panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
+      <div style={{ minWidth: 0 }}><div className="card-title">Telegram cards</div><div className="faint">Proposals, new concepts and launches sent to the daycare chat — each one is your tap there.</div></div>
+      <span className="dc-live dc-mock" style={d.pending ? { color: "#F4B860", borderColor: "#F4B860" } : null}><i style={d.pending ? { background: "#F4B860" } : null} /> {d.enabled === false ? "CARDS OFF" : d.pending + " WAITING"}</span>
+    </div>
+    {!cards.length && <div className="faint dcg-note" style={{ marginTop: 8 }}>No cards sent yet.</div>}
+    {cards.map((c) => <div key={c.id} className="dcg-note" style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap", minWidth: 0 }}>
+      <b style={{ color: DCG_STATE_C[c.state] || undefined, minWidth: 64 }}>{String(c.state || "").toUpperCase()}</b>
+      <span className="faint">{DCG_KIND[c.kind] || c.kind}</span>
+      <span style={{ flex: "1 1 140px", minWidth: 0, overflowWrap: "anywhere" }}>{c.title || "—"}{c.usd ? " · $" + c.usd + "/day" : ""}{c.credits != null ? " · " + DcgCredits(c.credits) : ""}{c.noImage ? " · no image: " + c.noImage : ""}{c.sent === false ? " · not delivered" + (c.sendError ? " (" + c.sendError + ")" : "") : ""}</span>
+      <span className="faint">{c.createdAt ? new Date(c.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}</span>
+    </div>)}
+  </div>;
+}
+
 function DcgAdStudio() {
   const res = window.DcxUseResource("/adgen/status", "dcg-adgen", 60000);
   const st = (res.data && !Array.isArray(res.data)) ? res.data : null;
@@ -181,6 +206,7 @@ function DcgAdStudio() {
       actions={<DcgEngineBadge eng={eng} />} />
     {res.error && <div className="dc-form-hint" style={{ color: "#EF4444" }}>Engine status Unknown — {res.error.message}</div>}
     <DcgEngineStrip st={eng ? { engine: eng } : null} onRecheck={recheck} busy={busy === "check"} />
+    <DcgTgCards />
     <div className="dc-hero-actions" style={{ margin: "12px 0" }}>
       <button className="dc-primary" onClick={generate} disabled={!!busy}><window.Icons.Bot size={15} /> {busy === "concepts" ? "Drafting concepts… (about a minute)" : "Generate ad concepts"}</button>
       <span className="faint dcg-note" style={{ alignSelf: "center" }}>Text only — uses no image credits.</span>
@@ -197,6 +223,8 @@ function DcaAdGenCard() {
   const st = (res.data && !Array.isArray(res.data)) ? res.data : null;
   const eng = st && st.engine;
   const cap = (eng && eng.cap) || {};
+  const tg = window.DcxUseResource("/adgen/cards", "dcg-cards-home", 120000);
+  const tgPending = tg.data && !Array.isArray(tg.data) ? tg.data.pending : null;
   const open = () => { window.__dcaGrowthTab = "ideas"; window.GoTo("Growth"); };
   return <div className="card card-pad dc-panel dcg-home">
     <div className="dc-panel-head" style={{ flexWrap: "wrap", gap: 8 }}>
@@ -208,8 +236,9 @@ function DcaAdGenCard() {
       <div className="dcg-note" style={{ marginTop: 8 }}>{st.ideas} concept{st.ideas === 1 ? "" : "s"} · {st.drafts} draft{st.drafts === 1 ? "" : "s"} · {st.assets} image{st.assets === 1 ? "" : "s"} · {st.built} built (paused)</div>
       {eng && !eng.ready && <div className="faint dcg-note" style={{ marginTop: 6 }}>{eng.nextStep}</div>}
       {eng && <div className="faint dcg-note" style={{ marginTop: 6 }}>Today: {DcgCredits(cap.spentToday)} of {cap.daily} credit cap.</div>}
+      {tgPending != null && <div className="dcg-note" style={{ marginTop: 6 }}>{tgPending} Telegram card{tgPending === 1 ? "" : "s"} waiting for your tap.</div>}
     </>}
   </div>;
 }
 
-Object.assign(window, { DcgAdStudio, DcgConceptCard, DcgEngineStrip, DcaAdGenCard });
+Object.assign(window, { DcgAdStudio, DcgConceptCard, DcgEngineStrip, DcaAdGenCard, DcgTgCards });

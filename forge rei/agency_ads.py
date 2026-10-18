@@ -574,6 +574,9 @@ def _live_create_ad(token, spec, paused):
                 "link": creative.get("link", ""),
                 "name": creative.get("headline", ""),
                 "description": creative.get("description", ""),
+                # 2026-10-17: the daycare studio passes its generated image here; it was silently
+                # dropped, so a built ad showed the site's link preview instead. Agency passes none.
+                **({"picture": creative["picture"]} if creative.get("picture") else {}),
             },
         }),
         "access_token": token,

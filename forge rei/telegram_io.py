@@ -374,6 +374,44 @@ def send_biz(business, text, buttons=None, dedupe_key=None):
     return send(text, buttons=buttons, dedupe_key=dedupe_key, business=business)
 
 
+CAPTION_MAX = 1024        # Telegram's sendPhoto caption limit
+
+
+def send_photo(business, image_url, caption, buttons=None, dedupe_key=None):
+    """sendPhoto by URL to `business`'s chat (HQ when unbound) — same routing + dedupe as
+    send_biz. Caption is cut to 1024 chars. If Telegram refuses the photo (bad/expired URL,
+    unsupported type) it falls back to a text message carrying the link, buttons kept.
+    Returns {ok, messageId, photo:bool} or {error}. Never raises."""
+    if not configured():
+        return {"error": "telegram not configured"}
+    if _dedupe_seen(dedupe_key):
+        return {"ok": True, "skipped": "dedupe"}
+    caption = str(caption or "")
+    cap = caption if len(caption) <= CAPTION_MAX else caption[:CAPTION_MAX - 1] + "…"
+    payload = {"chat_id": chat_for(business), "photo": str(image_url or ""), "caption": cap,
+               "parse_mode": "HTML"}
+    if buttons:
+        payload["reply_markup"] = {"inline_keyboard": buttons}
+    try:
+        resp = _api("sendPhoto", payload, timeout=20)
+        if isinstance(resp, dict) and resp.get("ok"):
+            _dedupe_commit(dedupe_key)
+            with _LOCK:
+                st = _load()
+                st["lastSentAt"] = int(time.time())
+                st["lastError"] = None
+                _save(st)
+            return {"ok": True, "photo": True,
+                    "messageId": (resp.get("result") or {}).get("message_id")}
+        err = (resp.get("description") if isinstance(resp, dict) else None) or "sendPhoto failed"
+    except Exception as e:  # noqa: BLE001
+        err = str(e)
+    _set_error(f"sendPhoto: {err}")
+    out = send(f"{caption}\n\n🖼 <a href=\"{_esc(image_url)}\">Image</a>", buttons=buttons,
+               dedupe_key=dedupe_key, business=business)
+    return {**out, "photo": False, "photoError": _redact(err)[:200]} if isinstance(out, dict) else out
+
+
 def send_test():
     """Operator 'Send test' button -> a friendly confirmation message."""
     return send("✅ FORGE REI OS connected to Telegram. Alerts are live.")
@@ -628,7 +666,8 @@ _TAP_AGENT = (("approve", "marcus", "wholesale"), ("mdismiss", "marcus", "wholes
               ("handoff", "scout", "wholesale"), ("scoutdismiss", "scout", "wholesale"),
               ("ace", "ace", "wholesale"), ("dyson", "dyson", "agency"),
               ("reqdismiss", "dyson", "agency"), ("skill", "skill_forge", None),
-              ("ops", "operator", None), ("pgo", "partner", None), ("pno", "partner", None))
+              ("ops", "operator", None), ("pgo", "partner", None), ("pno", "partner", None),
+              ("ads", "solomon", "daycare"))   # daycare_ads_tg cards (2026-10-17)
 
 
 def _handle_callback(cq, token=None, agent_chat=False):
@@ -697,7 +736,20 @@ def _handle_callback(cq, token=None, agent_chat=False):
         pass
 
     # append the outcome to the original message so the operator sees what happened
-    if chat_id and message_id is not None:
+    if chat_id and message_id is not None and message.get("photo"):
+        # A photo card (send_photo) has a caption, not text — editMessageText would fail and
+        # leave the buttons tappable. Edit the caption and drop the keyboard instead.
+        cap = f"{_esc((message.get('caption') or '')[:820])}\n\n{_esc(summary)}".strip()
+        if len(cap) > CAPTION_MAX:            # never cut an HTML entity in half
+            cap = _esc(summary)[:CAPTION_MAX]
+        try:
+            _api("editMessageCaption",
+                 {"chat_id": chat_id, "message_id": message_id, "caption": cap,
+                  "parse_mode": "HTML", "reply_markup": {"inline_keyboard": []}},
+                 timeout=10, token=token)
+        except Exception:  # noqa: BLE001
+            pass
+    elif chat_id and message_id is not None:
         orig = message.get("text") or ""
         footer = _esc(summary)   # summary may carry an error string with < > &
         new_text = f"{_esc(orig)}\n\n{footer}" if orig else footer

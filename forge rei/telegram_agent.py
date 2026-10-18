@@ -87,7 +87,7 @@ _RISKY = (("dismiss", "🙈 dismisses"), ("reset-pin", "🔐 resets a login"), (
           ("approve", "✉️ sends / approves"), ("delete", "🗑 deletes"),
           ("deactivate", "🗑 deactivates"), ("stripe", "💳 money"), ("invoice", "💳 money"),
           ("payroll", "💳 money"), ("launch", "💸 spend"), ("create-ad", "💸 spend"),
-          ("adgen/generate", "💸 spends image credits"))
+          ("adgen/generate", "💸 spends image credits"), ("adgen/cards", "💸 spends image credits"))
 MAX_CARDS = 5
 MAX_BODY = 900
 
@@ -476,6 +476,10 @@ def system_prompt(agent_id, business):
                      "vs cap) and /api/daycare/nova/ideas (saved concepts). You may PROPOSE new concepts via "
                      "api_post /api/daycare/nova/generate (drafts text only). Images (/api/daycare/adgen/generate) "
                      "spend credits and building an ad is Meta — both only on the owner's tap, never on your own.")
+        parts.append("\nMAKE NEW ADS: when the owner asks for new ads, api_post /api/daycare/adgen/cards {\"n\": 3} — it "
+                     "drafts concepts and sends tap cards here (preview images spend app credits within the auto cap). "
+                     "You never build or launch an ad yourself: Build PAUSED and Launch $10/$20 a day are the owner's "
+                     "taps on those cards.")
     try:
         import caveman
         parts.append(caveman.block())

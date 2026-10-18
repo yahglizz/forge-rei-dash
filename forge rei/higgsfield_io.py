@@ -378,14 +378,38 @@ def _ledger_save(d: dict) -> None:
         os.replace(tmp, LEDGER)
 
 
+def _now() -> float:
+    return time.time()                                 # one seam so tests can move the clock
+
+
 def _today() -> str:
-    return datetime.now().strftime("%Y-%m-%d")      # the connector host's local day
+    """The operator's calendar day (FORGE_TZ_OFFSET, ET by default) — NOT the host's local day:
+    the box runs UTC, so a machine-local day reset the cap at 8 pm ET (2026-10-17 fix)."""
+    try:
+        off = float(os.environ.get("FORGE_TZ_OFFSET") or -4)
+    except ValueError:
+        off = -4.0
+    return time.strftime("%Y-%m-%d", time.gmtime(_now() + off * 3600))
 
 
 def spent_today() -> tuple:
     """(credits counted today, generations whose cost stayed Unknown)."""
     day = (_ledger_load().get("days") or {}).get(_today()) or {}
     return float(day.get("credits") or 0), int(day.get("unknown") or 0)
+
+
+def auto_cap() -> float:
+    """HIGGSFIELD_AUTO_CREDITS (default 25/day) — a second cap that only source "auto" images
+    (the Telegram concept previews, the autopilot's creative cycle) count against."""
+    try:
+        return float(os.environ.get("HIGGSFIELD_AUTO_CREDITS", "25"))
+    except ValueError:
+        return 25.0
+
+
+def auto_spent_today() -> float:
+    day = (_ledger_load().get("days") or {}).get(_today()) or {}
+    return float(day.get("autoCredits") or 0)
 
 
 def _ledger_add(entry: dict) -> None:
@@ -397,6 +421,8 @@ def _ledger_add(entry: dict) -> None:
             day["unknown"] = int(day.get("unknown") or 0) + 1
         else:
             day["credits"] = float(day.get("credits") or 0) + float(entry["credits"])
+            if entry.get("source") == "auto":
+                day["autoCredits"] = float(day.get("autoCredits") or 0) + float(entry["credits"])
         day["entries"] = (day.get("entries") or [])[-49:] + [entry]
         for k in sorted(days)[:-14]:
             days.pop(k, None)
@@ -414,10 +440,19 @@ def mark_rest(outcome: str, error: str = "") -> None:
         pass
 
 
-def cap_check(credits, confirm_unknown: bool = False) -> tuple:
-    """(ok, why). Fail closed: an Unknown cost needs the owner's explicit confirm tap."""
+def cap_check(credits, confirm_unknown: bool = False, source: str = "manual") -> tuple:
+    """(ok, why). Fail closed: an Unknown cost needs the owner's explicit confirm tap.
+    source "auto" (no per-image tap) never runs on an Unknown cost and also stays under
+    HIGGSFIELD_AUTO_CREDITS on top of the global cap."""
     cap = daily_cap()
     spent, unk = spent_today()
+    if source == "auto":
+        if credits is None:
+            return False, "cost Unknown — automatic previews only run on a quoted cost"
+        acap, aspent = auto_cap(), auto_spent_today()
+        if aspent + float(credits) > acap:
+            return False, (f"would exceed the automatic-image cap: {aspent:g} used + {float(credits):g} "
+                           f"> {acap:g} credits today (HIGGSFIELD_AUTO_CREDITS)")
     if credits is None:
         if not confirm_unknown:
             return False, ("cost Unknown — the engine gave no credit estimate. Tap again to "
@@ -443,14 +478,33 @@ def cli_bin() -> str:
     return shutil.which("higgsfield") or shutil.which("hf") or ""
 
 
+def cli_home() -> str:
+    """The HOME the CLI reads its login from (~/.config/higgsfield/credentials.json — it is a Go
+    binary: os.UserHomeDir/UserConfigDir need $HOME). Verified 2026-10-17: the box's systemd unit
+    runs with NO $HOME (only PATH + USER), so without this every CLI call from the service would
+    lose the login that `hf auth login` stored under /root over SSH.
+    HIGGSFIELD_HOME → $HOME → the running user's passwd home."""
+    h = (os.environ.get("HIGGSFIELD_HOME") or os.environ.get("HOME") or "").strip()
+    if h:
+        return h
+    try:
+        import pwd
+        return pwd.getpwuid(os.getuid()).pw_dir
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _run_cli(args: list, timeout: float = 30) -> tuple:
     """(rc, stdout, stderr). No shell, stdin closed (a login prompt can never hang us)."""
     b = cli_bin()
     if not b:
         return 127, "", "Higgsfield CLI not installed"
+    env = {**os.environ, "NO_COLOR": "1"}
+    if cli_home():
+        env["HOME"] = cli_home()
     try:
         p = subprocess.run([b, *args], capture_output=True, text=True, timeout=timeout,
-                           stdin=subprocess.DEVNULL, env={**os.environ, "NO_COLOR": "1"})
+                           stdin=subprocess.DEVNULL, env=env)
         return p.returncode, p.stdout or "", p.stderr or ""
     except subprocess.TimeoutExpired:
         return 124, "", f"timed out after {int(timeout)}s"
@@ -595,13 +649,51 @@ def cli_status(fresh: bool = False) -> dict:
                 # Verified: not logged in → "request failed (no response received)" + "Hint: Run:
                 # hf auth login"; no workspace → "No workspace selected" (checked before the login,
                 # so login state stays Unknown there).
-                if any(w in low for w in ("auth login", "log in", "unauthor", "expired", "401")):
+                if any(w in low for w in ("auth login", "log in", "unauthor", "expired", "401", "refresh")):
                     out["loggedIn"] = False
                 elif "workspace" in low:
                     out["needsWorkspace"] = True
                 out["error"] = msg or f"account status exited {rc}"
+    # Lapsed = this machine WAS logged in (a ready answer is remembered) and now is not — the
+    # refresh token stopped working. Never logged in at all is "not set up", not lapsed.
+    try:
+        if out["ready"]:
+            if time.time() - float((_ledger_load().get("cli") or {}).get("okAt") or 0) > 3600:
+                with _LLOCK:
+                    d = _ledger_load()
+                    d["cli"] = {**(d.get("cli") or {}), "okAt": time.time()}
+                    _ledger_save(d)
+        out["lapsed"] = bool(out["installed"] and out["loggedIn"] is False
+                             and (_ledger_load().get("cli") or {}).get("okAt"))
+    except Exception:  # noqa: BLE001
+        out["lapsed"] = False
     _CLI_CACHE.update(at=time.time(), val=out)
     return dict(out)
+
+
+def alert_login_lapsed(why: str = "") -> bool:
+    """ONE Telegram alert to HQ (system chat, not the daycare chat) per operator day when an
+    automatic job needed the CLI and its login has lapsed. True when sent. Never raises."""
+    try:
+        day = _today()
+        with _LLOCK:
+            d = _ledger_load()
+            if (d.get("cli") or {}).get("lapseAlertDay") == day:
+                return False
+        import telegram_io
+        r = telegram_io.send("⚠️ Higgsfield login on the dashboard box has lapsed — automatic ad previews "
+                             "are paused. Fix (from the Mac): <code>bash deploy/higgsfield-login-box.sh</code>"
+                             + (f"\n{telegram_io._esc(why[:160])}" if why else ""),
+                             dedupe_key=f"hf-lapsed-{day}")
+        if r.get("ok") and not r.get("skipped"):
+            with _LLOCK:
+                d = _ledger_load()
+                d["cli"] = {**(d.get("cli") or {}), "lapseAlertDay": day}
+                _ledger_save(d)
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    return False
 
 
 def rest_status(model: str | None = None, key: str | None = None, secret: str | None = None) -> dict:
@@ -634,9 +726,14 @@ def _next_step(eng: str, r: dict, c: dict) -> str:
                     "(the API pool is separate from your app credits).")
         return "Ready — images use the Higgsfield API credits."
     steps = []
-    if not c.get("installed"):
-        steps.append("Install the Higgsfield CLI on the dashboard machine (`npm i -g @higgsfield/cli`), "
-                     "then run `higgsfield auth login` and `higgsfield workspace set <id>`")
+    if c.get("lapsed"):
+        steps.append("The Higgsfield login on this machine has lapsed (it was working, now its token "
+                     "is refused) — on the box run `bash deploy/higgsfield-login-box.sh` from the Mac; "
+                     "on a Mac run `hf auth login` again")
+    elif not c.get("installed"):
+        steps.append("Install the Higgsfield CLI on the dashboard machine (`npm i -g @higgsfield/cli`; on the "
+                     "box: `bash deploy/install-higgsfield-cli.sh`, then `deploy/higgsfield-login-box.sh` from the "
+                     "Mac), then run `higgsfield auth login` and `higgsfield workspace set <id>`")
     elif c.get("needsWorkspace") or c.get("loggedIn") is not True:
         steps.append("Run `higgsfield auth login` on the dashboard machine, then `higgsfield workspace list` "
                      "and `higgsfield workspace set <id>` (uses your app credits)")
@@ -661,7 +758,8 @@ def status(fresh: bool = False, rest_model_name: str | None = None) -> dict:
                 "cli": {**c, "model": CLI_IMAGE_MODEL, "quality": CLI_QUALITY,
                         "params": ",".join(_cli_params("1:1")[1:])},
                 "cap": {"daily": cap, "spentToday": spent, "unknownToday": unk,
-                        "remaining": max(0.0, cap - spent)},
+                        "remaining": max(0.0, cap - spent),
+                        "autoDaily": auto_cap(), "autoSpentToday": auto_spent_today(), "day": _today()},
                 "formats": list(FORMATS), "nextStep": _next_step(eng, r, c)}
     except Exception as e:  # noqa: BLE001
         return {"engine": "none", "ready": False, "error": f"{type(e).__name__}: {e}",
@@ -718,10 +816,15 @@ def _cli_generate(prompt: str, fmt: str, model: str) -> dict:
 
 def generate(prompt: str, fmt: str = "1:1", *, rest_model_name: str | None = None,
              cli_model: str | None = None, confirm_unknown: bool = False, ref: str = "",
-             key: str | None = None, secret: str | None = None, timeout: int = 180) -> dict:
+             key: str | None = None, secret: str | None = None, timeout: int = 180,
+             source: str = "manual") -> dict:
     """ONE guarded image (call only after the owner's tap, or from the autopilot's capped
     cycle). → {ok, imageUrl, model, engine, credits, format} or {ok:False, error, …}.
-    Never raises. One generation at a time per process."""
+    Never raises. One generation at a time per process. source "auto" = no per-image tap:
+    Unknown cost refused outright + the HIGGSFIELD_AUTO_CREDITS cap (ledger keeps the tag)."""
+    source = "auto" if source == "auto" else "manual"
+    if source == "auto":
+        confirm_unknown = False
     fmt = fmt if fmt in FORMATS else "1:1"
     prompt = str(prompt or "").strip()
     if not prompt:
@@ -742,10 +845,10 @@ def generate(prompt: str, fmt: str = "1:1", *, rest_model_name: str | None = Non
         refusal, last = None, None
         for eng, model in plan:
             q = _quote(eng, prompt, fmt, model)
-            ok, why = cap_check(q["credits"], confirm_unknown)
+            ok, why = cap_check(q["credits"], confirm_unknown, source)
             if not ok:
                 refusal = refusal or {"ok": False, "engine": eng, "model": model, "format": fmt,
-                                      "credits": q["credits"], "error": why,
+                                      "credits": q["credits"], "error": why, "source": source,
                                       "needsConfirm": q["credits"] is None and not confirm_unknown,
                                       "capped": not (q["credits"] is None and not confirm_unknown)}
                 continue
@@ -757,7 +860,7 @@ def generate(prompt: str, fmt: str = "1:1", *, rest_model_name: str | None = Non
             if res.get("ok"):
                 credits = res.get("credits") if res.get("credits") is not None else q["credits"]
                 _ledger_add({"ts": int(time.time() * 1000), "engine": eng, "model": model, "format": fmt,
-                             "credits": credits, "ref": str(ref)[:80]})
+                             "credits": credits, "ref": str(ref)[:80], "source": source})
                 return {"ok": True, "imageUrl": res["imageUrl"], "model": model, "engine": eng,
                         "credits": credits, "format": fmt}
             last = {**res, "engine": eng, "format": fmt}
@@ -767,6 +870,42 @@ def generate(prompt: str, fmt: str = "1:1", *, rest_model_name: str | None = Non
         return last or refusal
     finally:
         _GEN_LOCK.release()
+
+
+def run_in_background(fn, on_done, timeout: float | None = None, name: str = "hf_bg") -> threading.Thread:
+    """Run fn() off the caller's thread (an HTTP handler or the Telegram poll loop must never
+    wait minutes on a CLI image) and hand the result dict to on_done(result). If fn has not
+    finished within `timeout` (default HIGGSFIELD_CLI_WAIT + 90 s — the CLI subprocess itself is
+    killed at WAIT + 60 s) on_done gets {ok:False, timedOut:True} once and a late result is
+    dropped. Never raises."""
+    limit = float(timeout if timeout is not None else _seconds(CLI_WAIT) + 90)
+    box, done = {}, threading.Event()
+    sent = threading.Lock()
+
+    def deliver(res):
+        if sent.acquire(blocking=False):
+            try:
+                on_done(res)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def work():
+        try:
+            box["r"] = fn()
+        except Exception as e:  # noqa: BLE001
+            box["r"] = {"ok": False, "error": f"{type(e).__name__}: {e}"[:200]}
+        done.set()
+        deliver(box["r"] if isinstance(box["r"], dict) else {"ok": True, "result": box["r"]})
+
+    def watch():
+        if not done.wait(limit):
+            deliver({"ok": False, "timedOut": True,
+                     "error": f"still running after {int(limit)} s — gave up waiting (HIGGSFIELD_CLI_WAIT)"})
+
+    t = threading.Thread(target=work, name=name, daemon=True)
+    t.start()
+    threading.Thread(target=watch, name=name + "_watch", daemon=True).start()
+    return t
 
 
 def _probe() -> None:

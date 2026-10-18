@@ -1096,6 +1096,7 @@ import daycare_supabase  # noqa: E402 — secure Supabase-backed Daycare managem
 import daycare_growth  # noqa: E402 — daycare Ads + Social monitoring (reuses agency engines)
 import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad pipeline
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
+import daycare_ads_tg  # noqa: E402 — Solomon · Ads Telegram approval cards (optimize / create / launch taps)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
@@ -2405,6 +2406,9 @@ telegram_io.set_actions({
     # Business-partner chat (telegram_agent): ✅ runs the queued API write, ❌ drops it.
     "pgo": telegram_agent.confirm,
     "pno": telegram_agent.cancel,
+    # Solomon · Ads cards (daycare chat): apply/skip/undo a proposal, build/alt/drop a concept,
+    # launch at $10/$20 per day / keep paused. Every Meta write is behind one of these taps.
+    **daycare_ads_tg.handlers(),
 })
 
 
@@ -4773,7 +4777,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/adops/run", "/api/daycare/adops/learn",
                 "/api/daycare/nova/generate", "/api/daycare/nova/image",
                 "/api/daycare/nova/create-ad", "/api/daycare/nova/discard",
-                "/api/daycare/adgen/quote", "/api/daycare/adgen/generate",
+                "/api/daycare/adgen/quote", "/api/daycare/adgen/generate", "/api/daycare/adgen/cards",
                 "/api/daycare/ads-auto/run", "/api/daycare/ads-auto/mode", "/api/daycare/ads-auto/approve",
                 "/api/daycare/ads-auto/reject", "/api/daycare/ads-auto/undo", "/api/daycare/ads-auto/hold"}:
             return self._send_json(
@@ -4843,6 +4847,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = daycare_ads_studio.generate_asset(
                     body.get("ideaId"), body.get("format"), confirm=body.get("confirm") is True,
                     confirm_unknown=body.get("confirmUnknown") is True, variant=body.get("variant", 0))
+            elif path == "/api/daycare/adgen/cards":
+                # Drafts concepts + sends Telegram concept cards in the background (preview images
+                # within HIGGSFIELD_AUTO_CREDITS). Builds and launches stay separate owner taps.
+                result = daycare_ads_tg.start_concept_cards(body.get("n", 3), source="chat")
             elif path == "/api/daycare/nova/create-ad":
                 # Builds the campaign PAUSED. Nothing serves, nothing spends — going
                 # ACTIVE / changing budget stays the owner's call (CLAUDE.md rule 2).
@@ -5005,6 +5013,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/adgen/status": lambda session: daycare_ads_studio.adgen_status(
                 q.get("fresh", ["0"])[0] in ("1", "true")),
             "/api/daycare/ads-auto/status": lambda session: daycare_ads_autopilot.status(),
+            "/api/daycare/adgen/cards": lambda session: daycare_ads_tg.cards_view(),
             "/api/daycare/director/status": lambda session: SOLOMON.status(),
             "/api/daycare/director/overview": lambda session: SOLOMON.overview(),
             "/api/daycare/director/brief": lambda session: SOLOMON.brief(),

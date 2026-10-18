@@ -520,6 +520,8 @@ def undo(aid: str) -> dict:
     with _RUN_LOCK, _creds():
         st = _load()
         rec = next((a for a in st.get("actions") or [] if a.get("aid") == aid), None)
+        if rec and rec.get("status") == "executed" and rec.get("kind") == "launch":
+            return _undo_launch(rec, st)               # pausing is always the safe direction
         if not rec or rec.get("status") != "executed" or rec["kind"] not in ("budget", "status"):
             return {"ok": False, "error": "nothing to undo"}
         structure = pb.structure(_account())
@@ -534,6 +536,184 @@ def undo(aid: str) -> dict:
         _log(rec, True)
         _commit(st)
         return {"ok": True}
+
+
+# ── LAUNCH (2026-10-17) — the ONE new Meta spend path: the owner's Telegram tap turns ON an ad
+# this system built PAUSED (daycare_ads_studio.create_ad), at $10 or $20/day. Every guard below
+# runs on every tap; nothing here is reachable from the rules engine, the creative loop or any
+# HTTP route — only daycare_ads_tg's adslaunch/adsagain tap handlers call it.
+def launch_budgets() -> list:
+    """Allowed daily budgets in whole USD (FORGE_DAYCARE_ADS_LAUNCH_BUDGETS, default "10,20")."""
+    out = []
+    for x in (os.environ.get("FORGE_DAYCARE_ADS_LAUNCH_BUDGETS") or "10,20").split(","):
+        try:
+            v = int(x.strip())
+        except ValueError:
+            continue
+        if v > 0:
+            out.append(v)
+    return out or [10, 20]
+
+
+_VERIFY_WAIT = 3.0          # seconds between the two verify reads (Meta can lag a write)
+LAUNCH_EVERY_S = 24 * 3600
+
+
+def _live_total(structure: dict) -> int:
+    """Total ACTIVE daily budget in cents — same arithmetic guard() uses for the ceiling."""
+    camps = structure.get("campaigns") or []
+    return sum(int(_n(x.get("daily_budget"))) for x in camps if x.get("status") == "ACTIVE") + sum(
+        int(_n(x.get("daily_budget"))) for x in structure.get("adsets") or []
+        if x.get("status") == "ACTIVE" and x.get("daily_budget") and not any(
+            k["id"] == x.get("campaign_id") and k.get("daily_budget") for k in camps))
+
+
+def _health(acct: str) -> tuple:
+    """(ok, label) — the same account-health rule run_once applies before any write."""
+    label = pb.account_info(acct).get("account_status_label") or "ACTIVE"
+    return label == "ACTIVE", label
+
+
+def launch(idea_id: str, daily_usd, second_ok: bool = False) -> dict:
+    """Turn ON (campaign + ad set + ad) one ad THIS system built PAUSED, at daily_usd/day.
+    → {ok, action, …} or {ok:False, error, code}. Guards, in order: clock-out · autopilot off ·
+    budget ∈ launch_budgets() and ≤ ceiling · built by us (ids from the idea's meta) · Pipeboard
+    wired · account health · ids exist in the live account and belong together · no lifetime /
+    CBO budget · idempotent · one launch per 24 h (second_ok = the owner's explicit re-tap) ·
+    live total + this ≤ FORGE_DAYCARE_ADS_MAX_DAILY · every write dry-run first · verify ·
+    roll back to PAUSED on any failure. Recorded in actions[] (undo = pause all three)."""
+    try:
+        usd = int(daily_usd)
+    except (TypeError, ValueError):
+        return {"ok": False, "code": "budget", "error": "budget must be a whole dollar amount"}
+    if forge_ops.paused():
+        return {"ok": False, "code": "paused", "error": "agents are clocked out (forge_ops) — not launching"}
+    if get_mode() == "off":
+        return {"ok": False, "code": "off", "error": "ads autopilot is off — not launching"}
+    c = cfg()
+    if usd not in launch_budgets():
+        return {"ok": False, "code": "budget",
+                "error": f"${usd}/day is not an allowed launch budget ({', '.join('$%d' % b for b in launch_budgets())})"}
+    if usd > c["maxDaily"]:
+        return {"ok": False, "code": "ceiling", "error": f"${usd}/day is above the ${c['maxDaily']:.0f}/day ceiling"}
+    import daycare_ads_studio as studio
+    idea = studio._find(idea_id)
+    meta = (idea or {}).get("meta") or {}
+    ids = {k: str(meta.get(k) or "") for k in ("campaignId", "adsetId", "adId")}
+    if not idea or idea.get("status") != "built" or not all(ids.values()):
+        return {"ok": False, "code": "foreign",
+                "error": "not an ad this system built (no recorded campaign/ad set/ad ids) — launch it in Meta yourself"}
+    if not meta.get("imageUrl"):
+        return {"ok": False, "code": "no_image", "error": "this ad was built without a generated image — not spending on it"}
+    if not configured():
+        return {"ok": False, "code": "config", "error": "PIPEBOARD_API_TOKEN not set in daycare.env"}
+    cents = usd * 100
+    with _RUN_LOCK, _creds():
+        acct = _account()
+        if meta.get("account") and str(meta["account"]).replace("act_", "") != str(acct).replace("act_", ""):
+            return {"ok": False, "code": "foreign", "error": "built on a different ad account — refusing"}
+        try:
+            ok, label = _health(acct)
+            if not ok:
+                return {"ok": False, "code": "health", "error": f"Meta ad account is {label} — not launching"}
+            s = pb.structure(acct)
+        except pb.PipeboardError as e:
+            return {"ok": False, "code": "read", "error": f"Pipeboard read failed: {str(e)[:160]}"}
+        camp = next((x for x in s.get("campaigns") or [] if str(x.get("id")) == ids["campaignId"]), None)
+        aset = next((x for x in s.get("adsets") or [] if str(x.get("id")) == ids["adsetId"]), None)
+        ad = next((x for x in s.get("ads") or [] if str(x.get("id")) == ids["adId"]), None)
+        if not (camp and aset and ad):
+            return {"ok": False, "code": "foreign", "error": "the built campaign/ad set/ad is not in the live account any more"}
+        if str(aset.get("campaign_id") or ids["campaignId"]) != ids["campaignId"] or \
+                str(ad.get("adset_id") or ids["adsetId"]) != ids["adsetId"]:
+            return {"ok": False, "code": "foreign", "error": "recorded ids do not belong together — refusing"}
+        if _n(aset.get("lifetime_budget")) or _n(camp.get("lifetime_budget")) or _n(camp.get("daily_budget")):
+            return {"ok": False, "code": "budget_type",
+                    "error": "this campaign uses a lifetime or campaign-level budget — launch it in Meta yourself"}
+        on = [x.get("status") == "ACTIVE" for x in (camp, aset, ad)]
+        if all(on):
+            if int(_n(aset.get("daily_budget"))) == cents:
+                return {"ok": True, "noop": True, "message": f"already live at ${usd}/day — nothing changed"}
+            return {"ok": False, "code": "live",
+                    "error": f"already live at ${_n(aset.get('daily_budget')) / 100:.0f}/day — changing a live budget is a different action"}
+        st = _load()
+        last = float(st.get("lastLaunchAt") or 0)
+        if not second_ok and time.time() - last < LAUNCH_EVERY_S:
+            return {"ok": False, "code": "daily_limit",
+                    "error": f"an ad was already launched {int((time.time() - last) / 3600)} h ago — one per 24 h unless you confirm again"}
+        total = _live_total(s)
+        if total + cents > int(c["maxDaily"] * 100):
+            return {"ok": False, "code": "ceiling",
+                    "error": (f"would pass the ${c['maxDaily']:.0f}/day ceiling: ${total / 100:.0f} already active "
+                              f"+ ${usd} = ${(total + cents) / 100:.0f}")}
+        rec = _record(st, {"kind": "launch", "level": "campaign", "id": ids["campaignId"],
+                           "name": f"{idea.get('title') or 'Ad'} · ${usd}/day", "from": "PAUSED", "to": "ACTIVE",
+                           "budgetCents": cents, "adsetId": ids["adsetId"], "adId": ids["adId"], "ideaId": idea_id,
+                           "reason": f"owner tapped Launch at ${usd}/day in Telegram",
+                           "evidence": {"activeBefore": total / 100, "ceiling": c["maxDaily"]}},
+                      "executed", "approved")
+        steps = [("budget", "adset", ids["adsetId"], cents), ("status", "ad", ids["adId"], "ACTIVE"),
+                 ("status", "adset", ids["adsetId"], "ACTIVE"), ("status", "campaign", ids["campaignId"], "ACTIVE")]
+        try:
+            for dry in (True, False):                 # Meta validates the whole set before any write
+                for kind, lvl, oid, val in steps:
+                    (pb.set_budget if kind == "budget" else pb.set_status)(lvl, oid, val, dry_run=dry)
+            good = False
+            for i in range(2):
+                if i:
+                    time.sleep(_VERIFY_WAIT)
+                v = pb.structure(acct)
+                vc = next((x for x in v.get("campaigns") or [] if str(x.get("id")) == ids["campaignId"]), {})
+                va = next((x for x in v.get("adsets") or [] if str(x.get("id")) == ids["adsetId"]), {})
+                vd = next((x for x in v.get("ads") or [] if str(x.get("id")) == ids["adId"]), {})
+                good = (all(x.get("status") == "ACTIVE" for x in (vc, va, vd))
+                        and int(_n(va.get("daily_budget"))) == cents)
+                if good:
+                    break
+            if not good:
+                raise pb.PipeboardError("verify failed: Meta does not show campaign/ad set/ad ACTIVE at the chosen budget")
+        except Exception as e:  # noqa: BLE001 — ANY failure after the first write rolls back
+            rb = _pause_all(ids)
+            rec.update(status="failed", why=f"{str(e)[:160]} · rolled back: {rb}")
+            _log(rec, False, str(e))
+            _commit(st)
+            return {"ok": False, "code": "write", "error": f"launch failed — {str(e)[:160]}. Rolled back to PAUSED: {rb}",
+                    "action": rec}
+        rec["verified"] = True
+        st["lastLaunchAt"] = time.time()
+        st.setdefault("changed", {})[ids["campaignId"]] = time.time()
+        _log(rec, True)
+        _commit(st)
+        return {"ok": True, "action": rec, "message": f"live at ${usd}/day"}
+
+
+def _pause_all(ids: dict) -> str:
+    """Campaign first (stops delivery), then ad set, then ad. Reports what stuck. Never raises."""
+    out = []
+    for lvl, key in (("campaign", "campaignId"), ("adset", "adsetId"), ("ad", "adId")):
+        try:
+            pb.set_status(lvl, ids[key], "PAUSED")
+            out.append(f"{lvl} ok")
+        except pb.PipeboardError as e:
+            out.append(f"{lvl} FAILED ({str(e)[:60]})")
+    return ", ".join(out)
+
+
+def _undo_launch(rec: dict, st: dict) -> dict:
+    ids = {"campaignId": rec["id"], "adsetId": rec.get("adsetId"), "adId": rec.get("adId")}
+    try:
+        for lvl, key in (("campaign", "campaignId"), ("adset", "adsetId"), ("ad", "adId")):
+            pb.set_status(lvl, ids[key], "PAUSED", dry_run=True)
+    except pb.PipeboardError as e:
+        return {"ok": False, "error": str(e)[:200]}
+    rb = _pause_all(ids)
+    ok = "FAILED" not in rb
+    if ok:
+        rec["status"] = "undone"
+    rec["why"] = f"undo: {rb}"
+    _log(rec, ok, None if ok else rb)
+    _commit(st)
+    return {"ok": ok, "message": "paused again" if ok else None, "error": None if ok else f"undo partly failed: {rb}"}
 
 
 # ── judge: Claude may veto + annotate, never escalate ───────────────────────────────────────────
@@ -659,6 +839,10 @@ def creative_cycle(result: dict, structure: dict, st: dict, c: dict, mode: str, 
     rep = {"ran": False}
     if not c["creative"]:
         return {**rep, "why": "creative loop switched off (FORGE_DAYCARE_ADS_CREATIVE=0)"}
+    if mode == "shadow" and _cards_on():
+        # 2026-10-17: in shadow nothing is built without a tap — new ads arrive as Telegram
+        # concept cards (daycare_ads_tg) and are built PAUSED only on the owner's ✅.
+        return {**rep, "why": "shadow: new ads go to the daycare Telegram chat as concept cards (built only on your tap)"}
     try:
         import daycare_ads_studio as studio
         import higgsfield_io
@@ -795,6 +979,7 @@ def run_once(force: bool = False) -> dict:
                 agent_bus.send("solomon", "all", "status", "Ads: " + run["note"][:240], {"ads": run["counts"]})
             except Exception:  # noqa: BLE001
                 pass
+        _after_run(run, mode)
         return {"ok": True, **run}
     except pb.PipeboardError as e:
         return _finish({"ok": False, "error": str(e)[:200]}, local_now().date())
@@ -802,6 +987,25 @@ def run_once(force: bool = False) -> dict:
         return _finish({"ok": False, "error": f"{type(e).__name__}: {str(e)[:160]}"}, local_now().date())
     finally:
         _RUN_LOCK.release()
+
+
+def _cards_on() -> bool:
+    try:
+        import daycare_ads_tg
+        return daycare_ads_tg.enabled()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _after_run(run: dict, mode: str) -> None:
+    """Telegram approval cards (daycare_ads_tg): one card per shadow proposal + the day's concept
+    cards. Shadow only — auto executes on its own and off does nothing. Never raises."""
+    try:
+        if mode == "shadow" and _cards_on():
+            import daycare_ads_tg
+            daycare_ads_tg.after_run(run)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _finish(res: dict, today) -> dict:

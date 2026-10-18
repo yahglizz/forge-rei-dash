@@ -399,12 +399,16 @@ def attach_image(idea_id, image_url="", confirm_unknown=False, trigger="autopilo
             "engine": out.get("engine"), "credits": out.get("credits")}
 
 
-def _higgsfield_image(prompt, fmt="1:1", confirm_unknown=False, ref=""):
+def _higgsfield_image(prompt, fmt="1:1", confirm_unknown=False, ref="", source="manual"):
     """Generate via the shared, guarded Higgsfield engine (same account Eco uses)."""
     import higgsfield_io
     return higgsfield_io.generate(prompt, fmt, rest_model_name=REST_MODEL,
-                                  confirm_unknown=confirm_unknown, ref=ref,
+                                  confirm_unknown=confirm_unknown, ref=ref, source=source,
                                   key=_hf_key() or None, secret=_hf_secret() or None)
+
+
+# Triggers with no per-image owner tap → the HIGGSFIELD_AUTO_CREDITS cap + never Unknown cost.
+_AUTO_TRIGGERS = ("autopilot", "auto", "telegram_auto")
 
 
 def _prompt_for(idea, variant):
@@ -462,7 +466,8 @@ def generate_asset(idea_id, fmt=None, confirm=False, confirm_unknown=False, vari
     if not prompt:
         return {"ok": False, "error": "this concept has no image prompt"}
     f = _fmt(idea, fmt)
-    out = _higgsfield_image(prompt, f, confirm_unknown=bool(confirm_unknown), ref=idea_id)
+    out = _higgsfield_image(prompt, f, confirm_unknown=bool(confirm_unknown), ref=idea_id,
+                            source="auto" if trigger in _AUTO_TRIGGERS else "manual")
     try:
         import action_log
         action_log.record("solomon", "adgen_image", business="daycare", trigger=trigger, ref=idea_id,
@@ -580,6 +585,9 @@ def create_ad(idea_id):
             "detail": out.get("detail"), "url": out.get("url"),
             "builtAt": int(time.time() * 1000), "paused": True,
             "dailyBudget": budget_dollars,
+            # The ids THIS system built — the Telegram launch tap may only ever touch these.
+            "campaignId": out.get("campaignId"), "adsetId": out.get("adsetId"), "adId": out.get("adId"),
+            "account": AD_ACCOUNT, "imageUrl": idea.get("imageUrl") or "",
         }})
         try:
             import agent_bus

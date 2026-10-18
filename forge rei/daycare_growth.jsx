@@ -648,7 +648,7 @@ function DaycareAdsAuto() {
       <div className="dc-panel-head"><div><div className="card-title">What he did</div><div className="faint">Every action is logged. Executed ones can be undone while Meta still shows the value he set.</div></div></div>
       {d.recent.slice(0, 12).map((a) => <div key={a.aid} style={{ display: "flex", gap: 10, alignItems: "center", padding: "6px 0", borderTop: "1px solid rgba(255,255,255,.06)" }}>
         <div style={{ flex: 1 }}><b>{fmt(a)}</b> <span className="faint">· {a.status}{a.verified === false ? " · NOT VERIFIED on Meta" : ""} · {when(a.ts)}</span><div className="faint">{a.why || a.reason}</div></div>
-        {a.status === "executed" && (a.kind === "budget" || a.kind === "status") && <button className="dc-outline" disabled={!!busy} onClick={() => act("un" + a.aid, "/ads-auto/undo", { id: a.aid }, "Undone.")}>Undo</button>}
+        {a.status === "executed" && (a.kind === "budget" || a.kind === "status" || a.kind === "launch") && <button className="dc-outline" disabled={!!busy} onClick={() => act("un" + a.aid, "/ads-auto/undo", { id: a.aid }, "Undone.")}>Undo</button>}
       </div>)}
     </div>}
   </div>;
