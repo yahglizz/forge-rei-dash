@@ -2832,11 +2832,13 @@ def api_agency_ads_accounts(_q):
 def api_agency_eco(q):
     account = (q.get("account", [None]) or [None])[0]
     client = (q.get("client", [None]) or [None])[0]
-    if agency_ads.agency_no_account(account, client):   # never strategize on the daycare's ads
+    # Allowlist, fail-closed: only an agency-map account is read; never the daycare's.
+    st, acct = agency_ads.agency_account(account, client)
+    if st == "none":
         # ok:False keeps an older cached Eco page from rendering (it reads data.account when ok).
         return {**agency_ads.no_account_shape(), "ok": False, "best": [], "weak": [], "next": [],
                 "competitor": {}}
-    return agency_eco.recommendations(account=account, client=client)
+    return agency_eco.recommendations(account=acct if st == "ok" else account, client=client)
 
 
 def api_agency_approvals(q):
@@ -3967,11 +3969,13 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/build/handoff":
                 result = agency_build_studio.hand_off(body.get("id"))
             elif parsed.path == "/api/agency/eco/generate":
-                if agency_ads.agency_no_account(body.get("account"), body.get("client")):
+                _st, _acct = agency_ads.agency_account(body.get("account"), body.get("client"))
+                if _st == "none":   # allowlist, fail-closed — never the daycare's account
                     result = {"error": agency_ads.NO_ACCOUNT_NOTE, "noAccount": True}
                 else:
                     result = agency_eco.generate(
-                        account=body.get("account"), client=body.get("client"))
+                        account=_acct if _st == "ok" else body.get("account"),
+                        client=body.get("client"))
             elif parsed.path == "/api/agency/eco/decision":
                 result = agency_eco.decision(body.get("id"), body.get("action"))
             elif parsed.path == "/api/agency/eco/image":

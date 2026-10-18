@@ -209,11 +209,12 @@ def test_daycare_account_labeled_not_agency():
     import agency_agents
     import pipeboard_io as pb
     saved = (pb.configured, pb.default_account, pb.auth_dead, pb.analytics,
-             agency_ads.daycare_account_ids, os.environ.pop("META_AD_ACCOUNT_MAP", None))
+             agency_ads._daycare_ids, os.environ.pop("META_AD_ACCOUNT_MAP", None))
+    read = []
     pb.configured, pb.auth_dead = (lambda: True), (lambda: False)
-    pb.analytics = lambda acct, days: {"totals": {"spend": 289.2, "leads": 11, "cpl": 26.29, "roas": 0},
-                                       "dataSource": "live"}
-    agency_ads.daycare_account_ids = lambda: {"1175564690150627"}
+    pb.analytics = lambda acct, days: read.append(acct) or {
+        "totals": {"spend": 289.2, "leads": 11, "cpl": 26.29, "roas": 0}, "dataSource": "live"}
+    agency_ads._daycare_ids = lambda: ({"1175564690150627"}, True)
     try:
         pb.default_account = lambda: "act_1175564690150627"
         acct = agency_ads.accounts()["accounts"][0]
@@ -223,32 +224,61 @@ def test_daycare_account_labeled_not_agency():
         ctx = agency_agents._eco_context()
         assert "DAYCARE's" in ctx and "no ad account connected" in ctx and "289" not in ctx, ctx
         # the AGENCY endpoints get the no-account shape, never the daycare's figures
+        read.clear()
         na = agency_ads.agency_analytics(days=30)
         assert na["dataSource"] == "no_account" and na["noAccount"] and na["totals"] == {}, na
         assert na["topAds"] == [] and na["account"] is None and "289" not in json.dumps(na), na
         assert na["dateRange"]["days"] == 30 and "Growth → Ads" in na["note"]
-        assert agency_ads.agency_no_account(client="bloom-dental")        # no map entry -> daycare default
+        assert agency_ads.agency_no_account(client="bloom-dental")        # no map entry
         accs = agency_ads.agency_accounts()
         assert accs["accounts"] == [] and accs["noAgencyAccount"] and accs["connection"]["noAgencyAccount"]
-        pb.default_account = lambda: "act_999"                  # a real agency account: no label
-        assert "accountOwner" not in agency_ads.accounts()["accounts"][0]
-        assert "accountOwner" not in agency_ads.analytics()
-        assert agency_ads.agency_analytics()["totals"]["spend"] == 289.2   # renders as before
-        assert agency_ads.agency_accounts()["accounts"][0]["id"] == "act_999"
-        assert not agency_ads.agency_no_account()
-        assert "289.2" in agency_agents._eco_context()
+        # ALLOWLIST: only the agency's own map ids, canonicalized one way, daycare subtracted
+        os.environ["META_AD_ACCOUNT_MAP"] = json.dumps({"acme": "act_555", "daycare": "act_1175564690150627",
+                                                        "junk": "not-an-id"})
+        assert agency_ads.agency_allowed_accounts() == {"555"}
+        for bad in ("act_1175564690150627", " 1175564690150627 ", "1175564690150627",
+                    "ACT_1175564690150627", "act_ 1175564690150627", "999", "abc", "act_555x", "５５５"):
+            out = agency_ads.agency_analytics(account=bad)
+            assert out["dataSource"] == "no_account" and bad.strip() not in json.dumps(out), (bad, out)
+        assert agency_ads.agency_analytics(client="daycare")["dataSource"] == "no_account"
+        assert agency_ads.agency_analytics()["dataSource"] == "no_account", "daycare default is not on the list"
+        assert read == [], "no daycare/unknown read ever reached analytics(): %s" % read
+        for good in ("act_555", "555", " ACT_555 "):
+            assert agency_ads.agency_analytics(account=good)["totals"]["spend"] == 289.2, good
+        assert agency_ads.agency_analytics(client="acme")["totals"]["spend"] == 289.2
+        assert set(read) == {"act_555"}, read
+        assert [a["id"] for a in agency_ads.agency_accounts()["accounts"]] == ["act_555"]
+        assert agency_ads.agency_account("act_555") == ("ok", "act_555")
+        # fail closed when the daycare's ownership can't be resolved
+        agency_ads._daycare_ids = lambda: (set(), False)
+        assert agency_ads.agency_allowed_accounts() == set()
+        assert agency_ads.agency_analytics(account="act_555")["dataSource"] == "no_account"
+        assert agency_ads.agency_accounts()["noAgencyAccount"]
+        agency_ads._daycare_ids = lambda: ({"1175564690150627"}, True)
+        import daycare_supabase
+        real_read = daycare_supabase._read_env
+        daycare_supabase._read_env = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("unreadable"))
+        try:
+            assert saved[4]()[1] is False, "an unreadable daycare.env is unresolved"
+        finally:
+            daycare_supabase._read_env = real_read
+        # no Meta creds at all -> the honestly-labeled mock, as before
+        pb.configured = lambda: False
+        assert agency_ads.agency_account("act_555") == ("mock", None)
     finally:
-        pb.configured, pb.default_account, pb.auth_dead, pb.analytics, agency_ads.daycare_account_ids = saved[:5]
+        pb.configured, pb.default_account, pb.auth_dead, pb.analytics, agency_ads._daycare_ids = saved[:5]
+        os.environ.pop("META_AD_ACCOUNT_MAP", None)
         if saved[5] is not None:
             os.environ["META_AD_ACCOUNT_MAP"] = saved[5]
-    assert agency_ads._bare("ACT_123") == "123" and agency_ads.owner_of(None) is None
+    assert agency_ads.canon("ACT_123") == "123" and agency_ads.canon("12a") is None
+    assert agency_ads.canon("") is None and agency_ads.owner_of(None) is None
 
 
 def test_agency_ads_ui_and_routes_use_no_account_shape():
     here = Path(__file__).parent
     src = (here / "connector.py").read_text()
     assert "agency_ads.agency_analytics(account=account" in src and "agency_ads.agency_accounts()" in src
-    assert src.count("agency_ads.agency_no_account(") >= 2, "eco view + eco generate are guarded"
+    assert src.count("agency_ads.agency_account(") >= 2, "eco view + eco generate are guarded"
     ads = (here / "agency_ads.jsx").read_text()
     assert "No agency ad account connected" in ads and "Daycare workspace → Growth → Ads" in ads
     eco = (here / "agency_eco.jsx").read_text()

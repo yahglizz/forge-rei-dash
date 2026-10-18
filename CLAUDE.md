@@ -679,8 +679,9 @@ key on the box. New migrations go in BOTH migration folders.
   Self-check: `python3 pipeboard_io.py`; test: `test_pipeboard_io.py`. The Pipeboard login currently carries ONE
   ad account — the daycare's `act_1175564690150627`; the agency has none yet.
   **Agency side (2026-10-18):** `/api/agency/ads|ads/accounts|eco` (+ `eco/generate`) go through
-  `agency_ads.agency_analytics/agency_accounts/agency_no_account`: when the account they'd read is the daycare's they
-  return the no-account shape (`dataSource:"no_account"`, empty totals, "No agency ad account connected") and the
+  `agency_ads.agency_account` — an ALLOWLIST, fail-closed: only canonical ids (`canon()`: digits after `act_`) from the
+  agency's own `META_AD_ACCOUNT_MAP`, minus the daycare's, are read; any other `account`/`client`/default, or unresolvable
+  daycare ownership, returns the no-account shape (`dataSource:"no_account"`, empty totals, "No agency ad account connected") and the
   Agency Ads/Eco tabs show that empty state; `/api/daycare/ads` and Solomon's reads (daycare creds) are untouched.
   **Meta-exact reads + live agent packet (2026-10-17).** `ads_range.py` is the ONE range resolver (Meta picker
   presets: today … last_30d … this/last week (Sun–Sat), this/last month, maximum; "last N days" = N complete days

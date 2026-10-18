@@ -196,7 +196,8 @@ function AgencyAds() {
   const live = !!(data && data.dataSource === "live");
   // The shared Pipeboard account is the DAYCARE's: the server sends the no-account shape instead of
   // its figures. No numbers, no charts, no "default" account name on this page then.
-  const adNoAcct = !!((data && data.noAccount) || (acctRes.data && acctRes.data.noAgencyAccount));
+  const adNoAcct = !!((acctRes.data && acctRes.data.noAgencyAccount)
+    || (data && data.noAccount && !accounts.length));   // no flash while a real account loads
   const totals = (live && data.totals) || {};
   const acctName = (live && data.account && data.account.name) || "";
 

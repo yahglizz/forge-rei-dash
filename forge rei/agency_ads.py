@@ -381,28 +381,39 @@ def _pb_map():
         return {}
 
 
-def _bare(acct):
+def canon(acct):
+    """THE one account-id canonicalizer (agency allowlist + daycare ownership): digits only after
+    stripping whitespace and an `act_` prefix, case-insensitive. Anything else -> None."""
     s = str(acct or "").strip().lower()
-    return s[4:] if s.startswith("act_") else s
+    s = s[4:] if s.startswith("act_") else s
+    return s if s.isdigit() and s.isascii() else None
 
 
-def daycare_account_ids():
-    """The daycare's own Meta account id(s) — daycare.env (PIPEBOARD_AD_ACCOUNT_ID / the map's
-    "daycare") + daycare_ads_studio.AD_ACCOUNT. Bare ids, compared only, never printed."""
-    ids = set()
+_bare = canon   # older name
+
+
+def _daycare_ids():
+    """(canonical daycare account ids, resolved?) — daycare.env (PIPEBOARD_AD_ACCOUNT_ID / the map's
+    "daycare") + daycare_ads_studio.AD_ACCOUNT. resolved=False when either source can't be read,
+    so the agency side fails closed. Compared only, never printed."""
+    ids, ok = set(), True
     try:
         import daycare_supabase
         c = daycare_supabase._read_env()
-        ids.add(_bare(c.get("PIPEBOARD_AD_ACCOUNT_ID")))
-        ids.add(_bare(json.loads(c.get("META_AD_ACCOUNT_MAP") or "{}").get("daycare")))
-    except Exception:  # noqa: BLE001 — unreadable config = only the constant below
-        pass
+        ids.add(canon(c.get("PIPEBOARD_AD_ACCOUNT_ID")))
+        ids.add(canon(json.loads(c.get("META_AD_ACCOUNT_MAP") or "{}").get("daycare")))
+    except Exception:  # noqa: BLE001
+        ok = False
     try:
         import daycare_ads_studio
-        ids.add(_bare(daycare_ads_studio.AD_ACCOUNT))
+        ids.add(canon(daycare_ads_studio.AD_ACCOUNT))
     except Exception:  # noqa: BLE001
-        pass
-    return {i for i in ids if i}
+        ok = False
+    return {i for i in ids if i}, ok
+
+
+def daycare_account_ids():
+    return _daycare_ids()[0]
 
 
 DAYCARE_OWNER_NOTE = ("This Meta account is the DAYCARE's (Solomon's lane, Daycare workspace), "
@@ -412,53 +423,88 @@ DAYCARE_OWNER_NOTE = ("This Meta account is the DAYCARE's (Solomon's lane, Dayca
 def owner_of(acct):
     """'daycare' when `acct` is the daycare's own Meta account, else None. The shared Pipeboard
     login carries the daycare's account; without this the agency read reported it as its own."""
-    return "daycare" if acct and _bare(acct) in daycare_account_ids() else None
+    c = canon(acct)
+    return "daycare" if c and c in daycare_account_ids() else None
 
 
-# ── the AGENCY side's view (connector /api/agency/ads|accounts|eco) ────────────────────────────
-# analytics()/accounts() stay generic: the daycare reads its OWN account through them under its
-# own creds (daycare_growth env swap). Only the agency endpoints swap the daycare's account for
-# the honest no-account shape below.
+# ── the AGENCY side's view (connector /api/agency/ads|accounts|eco|eco/generate) ────────────────
+# ALLOWLIST, fail-closed (security review 2026-10-18): the agency may read only accounts from its
+# OWN maps (META_AD_ACCOUNT_MAP, which _pb_map also reads), minus the daycare's. A caller-supplied
+# `account` counts only when its canonical id is on that list; `client` only via the map; the
+# Pipeboard default only when it is on the list. Anything else -> the no-account shape, never
+# analytics(), and the requested id is never echoed. analytics()/accounts() stay generic: the
+# daycare reads its own account through them under daycare creds (daycare_growth env swap).
 NO_ACCOUNT_NOTE = ("No agency ad account connected. Daycare ads live in the Daycare workspace "
                    "→ Growth → Ads.")
 
 
-def resolve_account(account=None, client=None):
-    """The account analytics(account, client) would read (None = mock / unknown)."""
+def _agency_map():
+    """client -> canonical id from the agency's own META_AD_ACCOUNT_MAP (bad entries dropped)."""
+    out = {}
+    for c, a in _pb_map().items():
+        k = canon(a)
+        if k:
+            out[str(c)] = k
+    return out
+
+
+def agency_allowed_accounts():
+    """Canonical ids the agency may read. Empty when the daycare's ids can't be resolved."""
+    daycare, ok = _daycare_ids()
+    if not ok:
+        return set()
+    return set(_agency_map().values()) - daycare
+
+
+def _live_creds():
+    return pipeboard_io.configured() or bool(os.environ.get("META_ACCESS_TOKEN", ""))
+
+
+def agency_account(account=None, client=None):
+    """("mock", None) = no Meta creds at all (honestly-labeled mock, nothing real to protect);
+    ("ok", "act_<id>") = an allowlisted agency account; ("none", None) = no-account shape."""
+    if not _live_creds():
+        return "mock", None
+    allowed = agency_allowed_accounts()
     if account:
-        return account
-    if pipeboard_io.configured():
-        return _pb_map().get(client) or pipeboard_io.default_account() or None
-    try:
-        return json.loads(os.environ.get("META_AD_ACCOUNT_MAP") or "{}").get(client) if client else None
-    except (json.JSONDecodeError, TypeError, AttributeError):
-        return None
+        want = canon(account)
+    elif client:
+        want = _agency_map().get(str(client))
+    else:
+        want = canon(pipeboard_io.default_account()) if pipeboard_io.configured() else None
+    return ("ok", "act_" + want) if want and want in allowed else ("none", None)
 
 
 def agency_no_account(account=None, client=None):
-    """True when the agency would be reading the DAYCARE's account (no agency account of its own)."""
-    return owner_of(resolve_account(account, client)) == "daycare"
+    return agency_account(account, client)[0] == "none"
 
 
 def no_account_shape(days=7):
-    """Same keys the Ads UI reads, with nothing in them — never the daycare's figures."""
-    return {"dataSource": "no_account", "noAccount": True, "accountOwner": "daycare",
+    """Same keys the Ads UI reads, with nothing in them — never another account's figures."""
+    return {"dataSource": "no_account", "noAccount": True,
             "note": NO_ACCOUNT_NOTE, "account": None, "days": days, "dateRange": _date_range(days),
             "totals": {}, "campaigns": [], "ads": [], "topAds": [], "weakAds": [],
             "connection": {**connection(), "noAgencyAccount": True, "todo": NO_ACCOUNT_NOTE}}
 
 
 def agency_analytics(account=None, client=None, days=7):
-    return no_account_shape(days) if agency_no_account(account, client) else \
-        analytics(account=account, client=client, days=days)
+    st, acct = agency_account(account, client)
+    if st == "mock":
+        return analytics(account=account, client=client, days=days)
+    if st == "none":
+        return no_account_shape(days)
+    return analytics(account=acct, days=days)
 
 
 def agency_accounts():
     out = accounts()
-    rows = [a for a in out.get("accounts", []) if a.get("accountOwner") != "daycare"]
-    if len(rows) == len(out.get("accounts", [])):
+    if not _live_creds():
         return out
-    return {**out, "accounts": rows, "noAgencyAccount": True, "note": NO_ACCOUNT_NOTE,
+    allowed = agency_allowed_accounts()
+    rows = [a for a in out.get("accounts", []) if canon(a.get("id")) in allowed]
+    if rows:
+        return {**out, "accounts": rows}
+    return {**out, "accounts": [], "noAgencyAccount": True, "note": NO_ACCOUNT_NOTE,
             "connection": {**(out.get("connection") or {}), "noAgencyAccount": True,
                            "todo": NO_ACCOUNT_NOTE}}
 
