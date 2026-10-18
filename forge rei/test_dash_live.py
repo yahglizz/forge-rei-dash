@@ -174,6 +174,63 @@ def test_seams_wired():
     assert "dash_live" not in draft and "caveman" not in draft, "seller SMS drafts stay tool- and style-free"
 
 
+def test_ads_widen_domain_and_capability_lines():
+    for aid in ("marcus", "dyson", "solomon", "midas", "orion"):
+        b = dash_live.live_block(aid)
+        assert "OUT-OF-LANE ASK" in b and "ONE line" in b and "Solomon · Daycare" in b, aid
+        assert "Do not send the owner off to do the work" in b, aid
+        assert "is NOT 'no data'" in b and "/api/agency/ads?days=30" in b and "name the window" in b, aid
+        assert "accountOwner:'daycare'" in b, aid
+        assert "WHAT YOU CAN DO HERE" in b and "Needs the owner's tap" in b, aid
+    assert dash_live.CAN["agency"][0] in dash_live.live_block("dyson")
+    assert dash_live.CAN["hq"][0] in dash_live.live_block("orion")
+    # injected call: Dyson widens 7d -> 90d through his own route before answering
+    reset()
+    SCRIPT.extend([use("/api/agency/ads?days=7"), use("/api/agency/ads?days=90", tid="t2"),
+                   text("No agency ad account yet — 90d window. Daycare ads: Solomon · Daycare.")])
+    out = dash_live.ask("k", "SYS", "check the best ads", "dyson")
+    assert [q for _, p, q in HTTP] == [{"days": "7"}, {"days": "90"}], HTTP
+    assert "90d window" in out and "/api/agency/ads?days=30" in CALLS[0]["system"][0]["text"]
+
+
+def test_daycare_account_labeled_not_agency():
+    import agency_ads
+    import agency_agents
+    import pipeboard_io as pb
+    saved = (pb.configured, pb.default_account, pb.auth_dead, pb.analytics,
+             agency_ads.daycare_account_ids, os.environ.pop("META_AD_ACCOUNT_MAP", None))
+    pb.configured, pb.auth_dead = (lambda: True), (lambda: False)
+    pb.analytics = lambda acct, days: {"totals": {"spend": 289.2, "leads": 11, "cpl": 26.29, "roas": 0},
+                                       "dataSource": "live"}
+    agency_ads.daycare_account_ids = lambda: {"1175564690150627"}
+    try:
+        pb.default_account = lambda: "act_1175564690150627"
+        acct = agency_ads.accounts()["accounts"][0]
+        assert acct["accountOwner"] == "daycare" and "Solomon" in acct["ownerNote"], acct
+        an = agency_ads.analytics(days=30)
+        assert an["accountOwner"] == "daycare" and "not agency client data" in an["ownerNote"], an
+        ctx = agency_agents._eco_context()
+        assert "DAYCARE's" in ctx and "no ad account connected" in ctx and "289" not in ctx, ctx
+        pb.default_account = lambda: "act_999"                  # a real agency account: no label
+        assert "accountOwner" not in agency_ads.accounts()["accounts"][0]
+        assert "accountOwner" not in agency_ads.analytics()
+        assert "289.2" in agency_agents._eco_context()
+    finally:
+        pb.configured, pb.default_account, pb.auth_dead, pb.analytics, agency_ads.daycare_account_ids = saved[:5]
+        if saved[5] is not None:
+            os.environ["META_AD_ACCOUNT_MAP"] = saved[5]
+    assert agency_ads._bare("ACT_123") == "123" and agency_ads.owner_of(None) is None
+
+
+def test_marcus_skips_thread_scan_for_off_lane_asks():
+    import marcus_chat
+    assert not marcus_chat.needs_threads("check the best ads and tell me the best one")
+    assert not marcus_chat.needs_threads("how are the daycare ads doing")
+    for q in ("what is hot right now", "the seller asking 85k", "did the facebook ads bring any sellers?",
+              "call list for today", "who should I text back"):
+        assert marcus_chat.needs_threads(q), q
+
+
 def test_caveman_adhd_switches():
     b = caveman.block()
     assert "ANSWER STYLE" in b and "ADHD" in b and "ONE concrete next action" in b

@@ -381,6 +381,40 @@ def _pb_map():
         return {}
 
 
+def _bare(acct):
+    s = str(acct or "").strip().lower()
+    return s[4:] if s.startswith("act_") else s
+
+
+def daycare_account_ids():
+    """The daycare's own Meta account id(s) — daycare.env (PIPEBOARD_AD_ACCOUNT_ID / the map's
+    "daycare") + daycare_ads_studio.AD_ACCOUNT. Bare ids, compared only, never printed."""
+    ids = set()
+    try:
+        import daycare_supabase
+        c = daycare_supabase._read_env()
+        ids.add(_bare(c.get("PIPEBOARD_AD_ACCOUNT_ID")))
+        ids.add(_bare(json.loads(c.get("META_AD_ACCOUNT_MAP") or "{}").get("daycare")))
+    except Exception:  # noqa: BLE001 — unreadable config = only the constant below
+        pass
+    try:
+        import daycare_ads_studio
+        ids.add(_bare(daycare_ads_studio.AD_ACCOUNT))
+    except Exception:  # noqa: BLE001
+        pass
+    return {i for i in ids if i}
+
+
+DAYCARE_OWNER_NOTE = ("This Meta account is the DAYCARE's (Solomon's lane, Daycare workspace), "
+                      "not agency client data.")
+
+
+def owner_of(acct):
+    """'daycare' when `acct` is the daycare's own Meta account, else None. The shared Pipeboard
+    login carries the daycare's account; without this the agency read reported it as its own."""
+    return "daycare" if acct and _bare(acct) in daycare_account_ids() else None
+
+
 def connection():
     """Connection state — connected=True when token present, source flag included."""
     if pipeboard_io.configured():        # Pipeboard wins when keyed: it owns Meta's token refresh
@@ -415,7 +449,9 @@ def accounts():
                              if pipeboard_io.default_account() else {})
         if amap:
             return {"accounts": [{"id": a, "name": f"{c} — Meta (Pipeboard)",
-                                  "clientId": c, "clientName": c} for c, a in amap.items()],
+                                  "clientId": c, "clientName": c,
+                                  **({"accountOwner": "daycare", "ownerNote": DAYCARE_OWNER_NOTE}
+                                     if owner_of(a) else {})} for c, a in amap.items()],
                     "connection": connection()}
     token = os.environ.get("META_ACCESS_TOKEN", "")
     if token:
@@ -442,6 +478,8 @@ def analytics(account=None, client=None, days=7):
             try:
                 out = pipeboard_io.analytics(acct_id, days)
                 out["connection"] = connection()
+                if owner_of(acct_id):          # label it honestly; it is not agency data
+                    out.update(accountOwner="daycare", ownerNote=DAYCARE_OWNER_NOTE)
                 return out
             except Exception as e:   # noqa: BLE001 — fall back to an honestly-labeled mock
                 import sys

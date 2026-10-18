@@ -252,6 +252,11 @@ portal crews, the Brain tab's default note/learning card and Telegram business c
 runs a read-only tool loop over the connector's own API (`api_get`/`route_help`, + `find_people` for Solomon; ≤4 tool
 turns; `telegram_agent.SCOPE`/`DENY`; no writes). Each agent reads only its own business (+ brain, owner-actions);
 Orion reads HQ + all four. Off-scope = "that is <Owner>'s lane (<Workspace>)". Kill `FORGE_CHAT_LIVE=0`.
+The live block also carries: out-of-lane ask = ONE line naming the owner (never "go do it yourself"); an empty
+short ads window is not "no data" (widen: `/api/agency/ads?days=30|90|365`, daycare feed 7d…maximum; name the window);
+a "what can you do" line per agent (`dash_live.CAN`). `agency_ads` labels the daycare's own Meta account
+(`accountOwner:'daycare'`, `owner_of()`) — the shared Pipeboard login carries it, so it is never agency data.
+Marcus skips the GHL thread scan for ads/other-business questions with nothing seller-shaped (`marcus_chat.needs_threads`).
 Tests: `test_dash_live.py`, `test_agent_placement.py`.
 
 | Business | Agent | Lanes (same agent, own loop) |

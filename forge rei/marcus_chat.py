@@ -119,6 +119,19 @@ def _render(conv, msgs):
     return "\n".join(lines)
 
 
+# A question about ads / another business, with nothing seller-shaped in it, needs no GHL thread
+# scan (4 pages + up to 100 thread fetches, ~20-30 s). Live tools + lanes still answer it.
+# ponytail: keyword heuristic; any seller-ish word or a digit keeps the full scan.
+_OFF_THREAD = re.compile(r"\b(ads?|advert\w*|campaigns?|cpl|ctr|cpm|roas|meta|facebook|instagram|"
+                         r"creatives?|daycare|enrollment|agency|clients?|dropship|store)\b", re.I)
+_THREADISH = re.compile(r"\d|\b(sellers?|house|houses|homes?|propert\w*|offers?|leads?|threads?|"
+                        r"texts?|texted|calls?|called|asking|motivat\w*|owners?|deals?|contracts?)\b", re.I)
+
+
+def needs_threads(question):
+    return not (_OFF_THREAD.search(question or "") and not _THREADISH.search(question or ""))
+
+
 def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
     # _depth > 0 means a TEAMMATE agent (via agent_collab.ask) is consulting Marcus —
     # he answers normally but gets no consult protocol himself (no ask-back loops).
@@ -130,7 +143,8 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
     if not question:
         return {"reply": "Ask me something — a seller, a number, a deal."}
 
-    convos = _pull_conversations(ghl_get, location_id, pages=4)
+    scan_threads = needs_threads(question)
+    convos = _pull_conversations(ghl_get, location_id, pages=4) if scan_threads else []
     now = int(time.time() * 1000)
     window = days * 86400 * 1000
     scoped = [c for c in convos
@@ -177,7 +191,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
     user = (
         f"OPERATOR'S QUESTION:\n{question}\n\n"
         f"RECENT SELLER THREADS ({len(top)} shown, {matched} matched the question):\n\n"
-        f"{corpus if corpus else '(no threads found)'}\n\n"
+        f"{corpus if corpus else ('(no threads found)' if scan_threads else '(not a seller-thread question — no threads pulled; answer from your live tools, or name the agent who owns it)')}\n\n"
         "Answer now."
     )
     try:

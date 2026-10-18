@@ -153,13 +153,23 @@ def _eco_context():
     try:
         import agency_ads
         accts = agency_ads.accounts().get("accounts", [])
+        # The shared Pipeboard login carries the DAYCARE's account; never present it as agency data.
+        daycare = [a for a in accts if a.get("accountOwner") == "daycare"]
+        accts = [a for a in accts if a.get("accountOwner") != "daycare"]
         out = []
         for a in accts[:3]:
             an = agency_ads.analytics(account=a["id"])
             t = an["totals"]
             out.append(f"- {a['clientName']}: spend ${t['spend']}, {t['leads']} leads, "
-                       f"CPL ${t['cpl']}, ROAS {t['roas']}x")
-        return "CLIENT AD ACCOUNTS (last 7d):\n" + ("\n".join(out) if out else "(none)")
+                       f"CPL ${t['cpl']}, ROAS {t['roas']}x (window: last 7 days only — widen with "
+                       "/api/agency/ads?days=30|90|365 before calling it empty)")
+        note = ("\nThe only Meta account on the shared Pipeboard login is the DAYCARE's — Solomon's lane "
+                "(Daycare workspace). It is NOT agency data; never report it as an agency/client ad. "
+                "Agency: no ad account connected yet." if daycare and not accts else
+                "\n(The daycare's Meta account is also on Pipeboard — Solomon's lane, not agency data.)"
+                if daycare else "")
+        return ("CLIENT AD ACCOUNTS (last 7d):\n" + ("\n".join(out) if out else "(none connected)")
+                + note)
     except Exception:
         return ""
 

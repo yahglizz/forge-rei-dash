@@ -47,6 +47,28 @@ _HINT = {
 }
 
 
+# "What can you do?" — (live read-only lookups, what it only proposes, what needs the owner's tap).
+CAN = {
+    "wholesale": ("seller leads + triage buckets, Marcus's drafts waiting on you, screening reports, "
+                  "deal preps, deals, pipeline, conversations, Do Today",
+                  "seller text-backs (never a price), call prep, who to call first",
+                  "every seller text, pipeline move, tag push and contract"),
+    "agency": ("clients, edit requests, approvals, call sheet, agency Meta ads, social, workflows",
+               "site/code edit plans, ad concepts, campaign reads",
+               "shipping any edit, launching/pausing an ad, sending anything to a client"),
+    "daycare": ("enrollment leads, parent threads, Solomon · Replies drafts, start dates, seats/classrooms, "
+                "Meta ad results (/api/daycare/ads/feed), ad concepts",
+                "parent replies, growth moves, new ad concepts",
+                "every parent text, building or launching an ad, spending image credits, any enroll/login change"),
+    "dropship": ("store overview, products, orders, inventory, suppliers, ads (archived business)",
+                 "products to test, creative angles, fulfillment fixes",
+                 "any launch, budget, supplier order, listing edit or customer message"),
+    "hq": ("system health, API cost, the agent registry, owner actions — and read-only views of every business",
+           "who should work on what (assignments you approve)",
+           "assigning work, any setting or mode change"),
+}
+
+
 def enabled():
     return os.environ.get("FORGE_CHAT_LIVE", "1") != "0"
 
@@ -115,6 +137,21 @@ def run_tool(name, inp, agent_id):
                      "tell the owner which button or Telegram tap does it"}
 
 
+def _can_line(agent_id, bizs):
+    """One line for 'what can you do?' — answered as 3-5 bullets from this, nothing invented."""
+    key = "hq" if len(bizs) > 1 else bizs[0]
+    look, propose, tap = CAN.get(key, ("", "", ""))
+    blurb = ""
+    try:
+        import agents_hub
+        blurb = (agents_hub._BY_ID.get(agents_hub.main_agent(agent_id)) or {}).get("blurb", "")
+    except Exception:  # noqa: BLE001
+        pass
+    return (f"- WHAT YOU CAN DO HERE ('what can you do?' → 3-5 bullets from this, nothing else): {blurb} "
+            f"Live read-only lookups: {look}. You propose: {propose}. Needs the owner's tap: {tap}. "
+            "Chat itself changes nothing.\n")
+
+
 def live_block(agent_id):
     bizs = businesses(agent_id)
     own = OWNER.get(bizs[0] if len(bizs) == 1 else "hq", ("", ""))
@@ -128,7 +165,17 @@ def live_block(agent_id):
             "A failed or empty read = Unknown; never fill it from memory.\n"
             f"- You are {own[0]}'s side ({own[1]}). A tool error naming another agent's lane = not yours: "
             "tell the owner which agent/workspace owns it, never guess their numbers.\n"
+            "- OUT-OF-LANE ASK (another business's ads, sellers, families, clients, store): answer in ONE line "
+            "naming the owner — Marcus · Wholesale, Dyson · Agency, Solomon · Daycare (incl. the daycare's Meta "
+            "ads), Midas · Dropship, Orion · Mission Control. Do not send the owner off to do the work himself "
+            "and do not pad with Unknowns.\n"
+            "- ADS/METRICS: an empty or $0 short window is NOT 'no data'. Widen with the route's own window "
+            "before concluding (agency: /api/agency/ads?days=30, then 90, then 365; daycare: the feed already "
+            "carries 7d/30d/90d/maximum), and always name the window you used. A payload with "
+            "accountOwner:'daycare' is the daycare's account (Solomon's lane) — never report it as yours "
+            "unless you are Solomon.\n"
             + "".join(_HINT.get(b, "") for b in bizs)
+            + _can_line(agent_id, bizs)
             + "YOUR GET ROUTES: " + " ".join(routes(bizs)))
 
 
