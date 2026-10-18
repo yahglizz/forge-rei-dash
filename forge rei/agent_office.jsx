@@ -167,7 +167,10 @@ function AgentOfficeCheckin({ checkin, now, onSelect, onAssign, assigning }) {
 }
 
 // ── the page ─────────────────────────────────────────────────────────────────
-function AgentOfficePage() {
+// ws = the workspace this Office sits in: its floor shows that business's agent + Orion only
+// (2026-10-18). No ws = the whole cross-business floor (back-compat).
+function AgentOfficePage({ ws } = {}) {
+  const aoQs = ws ? "?business=" + encodeURIComponent(ws) : "";
   const [state, setState] = useStateAO(null);
   const [err, setErr] = useStateAO(null);
   const [selected, setSelected] = useStateAO("orion");
@@ -185,21 +188,21 @@ function AgentOfficePage() {
     let alive = true;
     const load = async () => {
       try {
-        const d = await window.apiGet("/api/office/state");
+        const d = await window.apiGet("/api/office/state" + aoQs);
         if (alive) { setState(d); setErr(null); }
       } catch (e) { if (alive) setErr(e.message || String(e)); }
     };
     load();
     const timer = setInterval(load, 2500);
     return () => { alive = false; clearInterval(timer); };
-  }, []);
+  }, [aoQs]);
 
   const agents = [];
   ((state && state.departments) || []).forEach((d) => (d.agents || []).forEach((a) => agents.push(a)));
   if (state && state.director) agents.unshift(state.director);
   const agent = agents.find((a) => a.id === selected) || null;
   async function refreshOffice() {
-    try { setState(await window.apiGet("/api/office/state")); }
+    try { setState(await window.apiGet("/api/office/state" + aoQs)); }
     catch (e) { setErr(e.message || String(e)); }
   }
 
@@ -225,7 +228,7 @@ function AgentOfficePage() {
     if (!agent || !title) return;
     setSending(true); setSendErr(null);
     try {
-      const d = await window.apiPost("/api/office/task", { agentId: agent.id, title });
+      const d = await window.apiPost("/api/office/task", { agentId: agent.id, title, business: ws });
       if (d.error) throw new Error(d.error);
       if (d.jobId) {
         jobIdRef.current = d.jobId;
@@ -241,7 +244,7 @@ function AgentOfficePage() {
     if (checking) return;
     setChecking(true); setErr(null);
     try {
-      const d = await window.apiPost("/api/office/checkin", {});
+      const d = await window.apiPost("/api/office/checkin", { business: ws });
       if (d.error) throw new Error(d.error);
       await refreshOffice();
     } catch (e) { setErr("Check-in: " + (e.message || String(e))); }
@@ -252,7 +255,7 @@ function AgentOfficePage() {
   async function assignSuggestion(s) {
     setAssigning(s.agentId); setErr(null);
     try {
-      const d = await window.apiPost("/api/office/task", { agentId: s.agentId, title: s.title, note: s.note || "", directedBy: "orion" });
+      const d = await window.apiPost("/api/office/task", { agentId: s.agentId, title: s.title, note: s.note || "", directedBy: "orion", business: ws });
       if (d.error || !d.jobId) throw new Error(d.error || "No job was created");
       await refreshOffice();
     } catch (e) { setErr("Assign: " + (e.message || String(e))); }
@@ -269,7 +272,7 @@ function AgentOfficePage() {
         <div>
           <div className="office-head-title" style={{ fontWeight: 700 }}>Agent Office <span className="office-live">Live</span></div>
           <div className="faint" style={{ fontSize: 11.5 }}>
-            {((state && state.departments) || []).length} departments, live. {agents.length} agents · {busy} working right now.
+            {((state && state.departments) || []).length === 1 ? "This workspace's floor, live." : ((state && state.departments) || []).length + " departments, live."} {agents.length} agents · {busy} working right now.
           </div>
         </div>
         <div style={{ flex: 1 }} />

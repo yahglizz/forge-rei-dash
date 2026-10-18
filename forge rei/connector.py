@@ -1219,7 +1219,7 @@ def api_office_jobs(q):
 
 def api_office_checkins(q):
     import agent_office
-    return agent_office.checkins()
+    return agent_office.checkins(business=(q.get("business", [None]) or [None])[0])
 
 
 # Cross-agent coaching — the live feed powering the Agent Network's Coaching panel.
@@ -3815,28 +3815,32 @@ class Handler(BaseHTTPRequestHandler):
                 # chat_fn is the hub chat bound to THIS GHL sub-account (same pattern as
                 # /api/coach/ask) — agent_office stays connector-free.
                 import agent_office
+                _floor = body.get("business")   # the workspace's own floor (agent + Orion)
 
                 def _office_chat(_aid, _msg):
                     out = agents_hub.chat(ghl_get, LOCATION_ID, _aid, _msg,
-                                          history=agents_history.recent_for_context(_aid))
+                                          history=agents_history.recent_for_context(_aid),
+                                          floor=_floor)
                     if isinstance(out, dict) and out.get("reply") and not out.get("needsKey"):
                         agents_history.record(_aid, _msg, out.get("reply"), via="office")
                     return out
 
                 if parsed.path == "/api/office/plan":
-                    result = agent_office.plan(body.get("message"), _office_chat)
+                    result = agent_office.plan(body.get("message"), _office_chat, business=_floor)
                 elif parsed.path == "/api/office/chat":
                     # Office chat: the agent's real brain, or a labelled live-status reply
                     # when the AI provider is down (agent_office.chat).
                     result = agent_office.chat(str(body.get("agentId") or "orion"),
-                                               str(body.get("message") or ""), _office_chat)
+                                               str(body.get("message") or ""), _office_chat,
+                                               business=_floor)
                 elif parsed.path == "/api/office/checkin":
                     # Orion checks in on the team — read-only, zero Claude.
-                    result = agent_office.checkin("operator")
+                    result = agent_office.checkin("operator", business=_floor)
                 else:
                     result = agent_office.dispatch(body.get("agentId"), body.get("title"),
                                                    body.get("note", ""), chat_fn=_office_chat,
-                                                   directed_by=body.get("directedBy", ""))
+                                                   directed_by=body.get("directedBy", ""),
+                                                   business=_floor)
             elif parsed.path == "/api/agency/billing/send":
                 # Owner's "Send payment link" tap: build the Stripe link + email/text it to the client.
                 import agency_billing

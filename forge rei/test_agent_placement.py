@@ -86,6 +86,64 @@ def test_ui_surfaces_scoped():
     assert 'daycare: "Skills/solomon-playbook.md"' in brain
 
 
+def test_office_floor_per_workspace():
+    import agent_office as ao
+    ao.AUTO_CHECKIN = False
+    want = {"rei": ["marcus"], "wholesale": ["marcus"], "agency": ["dyson"],
+            "daycare": ["solomon"], "dropship": ["midas"]}
+    for ws, ids in want.items():
+        st = ao.state(ws)
+        got = [a["id"] for d in st["departments"] for a in d["agents"]]
+        assert got == ids, (ws, got)
+        assert st["director"]["id"] == "orion", ws          # Orion on every floor
+        assert all(m.get("from") in set(ids) | {"orion", "operator", "all"} for m in st["messages"])
+    every = [a["id"] for d in ao.state()["departments"] for a in d["agents"]]
+    assert "marcus" in every and "dyson" in every and "solomon" in every, every   # no param = all active
+
+
+def test_office_refuses_other_business_and_scopes_orion():
+    import agent_office as ao
+    ao.AUTO_CHECKIN = False
+    called = []
+    fn = lambda a, m: called.append((a, m)) or {"reply": "ok"}   # noqa: E731
+    r = ao.chat("dyson", "best daycare ad?", fn, business="daycare")
+    assert r["refused"] and "Agency floor" in r["reply"] and not called, r
+    assert ao.chat("eco", "hi", fn, business="rei")["refused"]                   # lane -> Dyson
+    assert ao.chat("solomon", "hi", fn, business="daycare") == {"reply": "ok"}
+    assert ao.chat("orion", "hi", fn, business="agency") == {"reply": "ok"}       # Orion on every floor
+    jobs_before = len(ao._JOBS)
+    d = ao.dispatch("marcus", "x", chat_fn=fn, business="daycare")
+    assert d.get("wrongWorkspace") and len(ao._JOBS) == jobs_before, d
+    assert ao.dispatch("solomon", "y", chat_fn=fn, directed_by="orion",
+                       business="agency").get("wrongWorkspace")
+    assert ao.checkin("operator", only="dyson", business="daycare").get("wrongWorkspace")
+    rec = ao.checkin("operator", business="daycare")
+    assert [x["agentId"] for x in rec["reviews"]] == ["solomon"] and rec["dept"] == "daycare", rec
+    assert ao.latest_checkin("daycare")["id"] == rec["id"]
+    assert (ao.latest_checkin("agency") or {}).get("id") != rec["id"], "a daycare round never shows on the agency floor"
+    assert all(c["dept"] == "daycare" for c in ao.checkins(business="daycare")["checkins"])
+    seen = {}
+
+    def planner(agent, prompt):
+        seen["prompt"] = prompt
+        return {"reply": json.dumps({"summary": "s", "assignments": [{"agentId": "marcus", "title": "t"}]})}
+    import json
+    assert ao.plan("rank leads", planner, business="daycare").get("error"), "Orion can't assign off-floor"
+    assert "Only use active ids: solomon." in seen["prompt"], seen["prompt"][:400]
+
+
+def test_office_ui_passes_workspace():
+    app = (HERE / "app.jsx").read_text()
+    for ws in ("rei", "agency", "daycare", "dropship"):
+        assert f'<window.AgentOfficePage ws="{ws}" />' in app, ws
+    office = (HERE / "agent_office.jsx").read_text()
+    assert '"/api/office/state" + aoQs' in office and "business: ws" in office
+    orion = (HERE / "orion_office.jsx").read_text()
+    assert "business: floorBiz" in orion
+    src = (HERE / "connector.py").read_text()
+    assert "floor=_floor" in src and "business=_floor" in src
+
+
 def main():
     failed = 0
     for name, fn in list(globals().items()):

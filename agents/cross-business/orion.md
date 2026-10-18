@@ -63,7 +63,7 @@ Read-only, propose only; every recommendation must trace to a signal an agent re
 
 - `/api/hub/chat {agentId:"orion"}` (dashboard/Agent Control Center only) → `_director_chat` with `_DIRECTOR["cross"]` (`agents_hub.py:284`): NORTH_STAR as brief → latest brief → `eng._playbook()[:4000]` → `open_tasks_block("orion")` (includes tasks filed for `briefs`) → `caveman.block()`.
 - Tasks: `/api/hub/task {agentId:"orion"}`; visible only in chat — the scheduled brief does not read tasks.
-- **Live data (2026-10-18):** `_director_chat` runs `dash_live.ask` — read-only `api_get`/`route_help` over the HQ scope **plus all four business scopes** (`dash_live.businesses`), ≤4 tool turns, no writes. Placement: cross-business surfaces only (Mission Control, Agent Control Center, Agent Office); a workspace hub/mobile portal or a bound Telegram business chat refuses him with a pointer to HQ. Knob `FORGE_CHAT_LIVE=0`.
+- **Live data (2026-10-18):** `_director_chat` runs `dash_live.ask` — read-only `api_get`/`route_help` over the HQ scope **plus all four business scopes** (`dash_live.businesses`), ≤4 tool turns, no writes. Placement: cross-business surfaces (Mission Control, Agent Control Center) + every workspace's Agent Office floor, where his check-in/plan/chat cover that floor's agent only; a workspace hub/mobile portal or a bound Telegram business chat refuses him with a pointer to HQ. Knob `FORGE_CHAT_LIVE=0`.
 
 ## 8. Cost
 

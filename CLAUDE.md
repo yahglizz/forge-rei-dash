@@ -244,7 +244,8 @@ Archived: Dropship and the Agency Personal lens.**
 
 **Placement (owner rule, 2026-10-18): every agent only where it works.** Marcus (+lanes) = Wholesale; Dyson (+Eco) =
 Agency; Solomon (+Replies/Leads/Starts/Ads) = Daycare; Midas = Dropship (archived); Orion = cross-business surfaces only
-(Mission Control, Agent Control Center, Agent Office, Telegram HQ); Retell voice agents = REI Outbound. The hub, mobile
+(Mission Control, Agent Control Center, Telegram HQ) + every workspace's Agent Office floor (that floor's agent + Orion
+only); Retell voice agents = REI Outbound. The hub, mobile
 portal crews, the Brain tab's default note/learning card and Telegram business chats follow it; `/api/hub/chat` +
 `/api/hub/task` take `business` and refuse the wrong workspace with a one-line pointer (`agents_hub.wrong_workspace`).
 **Dashboard chats read live data (2026-10-18, `dash_live.py`):** every operator chat (hub, Agency tab, Office, mobile)
@@ -451,7 +452,8 @@ update that skill if you improved the pattern.
   bucket, tags or pipeline (`test_seller_class.py`).
 - **Agent Office — 3D only** (`agent_office.py` + `agent_office.jsx` page, `office_scene.js` Three.js
   floor, `orion_office.jsx` chat/voice panel; nav "Agent Office" in all four workspaces — three
-  visible while Dropship is archived). The pixel view was **removed 2026-09-30**. Orion, the kid CEO,
+  visible while Dropship is archived). Each workspace's Office floor shows ONLY that business's agent + Orion (2026-10-18): `GET /api/office/{state,jobs,checkins}?business=rei|wholesale|agency|daycare|dropship`, the office POSTs carry `business`; another business's agent is refused (`agent_office.off_floor`); Orion's check-in, plan and chat see that floor only. No param = the whole floor (back-compat).
+  The pixel view was **removed 2026-09-30**. Orion, the kid CEO,
   oversees the real agents; Marcus/Dyson/Solomon/Midas are Meshy dogs (unrigged — paws stay on the
   floor; a real quadruped walk needs a signed-in Meshy web rig, owner action), the rest are
   procedural figures with typing arms. Everything that moves is a REAL signal from `/api/office/state`

@@ -323,7 +323,7 @@ _DIRECTOR = {
 }
 
 
-def _director_chat(agent_id, message, history):
+def _director_chat(agent_id, message, history, floor=None):
     """Chat for a business's director agent (Solomon · daycare, Midas · dropship).
     They produced briefs but had no chat surface — this is it. Grounded in the creed +
     the business brief + their OWN live brief and playbook, so the agent you talk to is
@@ -378,7 +378,12 @@ def _director_chat(agent_id, message, history):
     if agent_id == "orion":
         try:
             import agent_office
-            live += "\n\n=== LIVE OFFICE / TEAM REPORTS ===\n" + json.dumps(agent_office.state(), default=str)[:9000]
+            live += "\n\n=== LIVE OFFICE / TEAM REPORTS ===\n" + json.dumps(agent_office.state(floor), default=str)[:9000]
+            dept = agent_office._dept(floor)
+            if dept:   # asked from one workspace's Agent Office: that floor only
+                live += (f"\nYOU ARE ON THE {agent_office._WS_NAME[dept].upper()} OFFICE FLOOR: review, plan and "
+                         "report on this workspace's agent only. Other businesses' agents are not on this floor — "
+                         "point the owner to their workspace's office instead of discussing them.")
         except Exception:
             live += "\nLive office is unreachable; do not invent team activity."
 
@@ -536,17 +541,20 @@ def wrong_workspace(agent_id, business):
                             if here else f" Switch workspaces to reach {meta['name']}."))
 
 
-def chat(ghl_get, location_id, agent_id, message, history=None, scout=None, business=None):
+def chat(ghl_get, location_id, agent_id, message, history=None, scout=None, business=None,
+         floor=None):
     """Route the operator's message to the agent's REAL brain. `business` = the workspace the
-    chat was sent from (the hub passes it); an agent outside its home workspace refuses."""
+    chat was sent from (the hub passes it); an agent outside its home workspace refuses.
+    `floor` = the workspace Agent Office it came from (agent_office does its own refusal;
+    Orion's office view is scoped to that floor)."""
     nope = wrong_workspace(agent_id, business)
     if nope:
         return {"reply": nope, "agent": (_BY_ID.get(main_agent(agent_id or "marcus")) or {}).get("name"),
                 "refused": True, "wrongWorkspace": True}
-    return _flag_error(_chat(ghl_get, location_id, agent_id, message, history, scout))
+    return _flag_error(_chat(ghl_get, location_id, agent_id, message, history, scout, floor))
 
 
-def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None):
+def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None, floor=None):
     agent_id = (agent_id or "marcus").strip()
     message = (message or "").strip()
     if not message:
@@ -594,7 +602,7 @@ def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None):
 
     # The directors — Solomon (daycare), Midas (dropship), Orion (cross-business).
     if business in _DIRECTOR:
-        return _director_chat(agent_id, message, history)
+        return _director_chat(agent_id, message, history, floor=floor)
 
     # Wholesale + Retell voice — the existing brain (GHL threads, commands, collab).
     import agents_chat

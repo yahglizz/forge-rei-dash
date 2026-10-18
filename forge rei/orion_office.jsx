@@ -23,6 +23,9 @@ function OrionOfficeFloor({ state, selected, onSelect, mode, dogModes }) {
 
 function OrionOfficePanel({ state, onMode, onRefresh, onCheckin, checking, agent }) {
   const agentId = agent ? agent.id : 'orion', name = agent ? agent.name : 'Orion';
+  // The workspace floor this office shows (server-normalized); every POST carries it so the
+  // server keeps another business's agent off this floor and scopes Orion to it.
+  const floorBiz = (state && state.business) || undefined;
   const [text, setText] = useStateOO(''), [msgs, setMsgs] = useStateOO([]);
   const [busy, setBusy] = useStateOO(false), [error, setError] = useStateOO('');
   const [proposal, setProposal] = useStateOO(null), [voice, setVoice] = useStateOO(false);
@@ -67,7 +70,7 @@ function OrionOfficePanel({ state, onMode, onRefresh, onCheckin, checking, agent
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     setSpeaking(false); setText(''); setMsgs(m => m.concat([{ role: 'user', text: message }]));
     try {
-      const d = await window.apiPost(plan ? '/api/office/plan' : '/api/office/chat', plan ? { message } : { agentId, message });
+      const d = await window.apiPost(plan ? '/api/office/plan' : '/api/office/chat', plan ? { message, business: floorBiz } : { agentId, message, business: floorBiz });
       if (!mounted.current) return;
       if (d.error || d.needsKey) throw new Error(d.error || d.reply || name + ' needs an AI key.');
       const reply = plan ? d.summary : d.reply;
@@ -84,7 +87,7 @@ function OrionOfficePanel({ state, onMode, onRefresh, onCheckin, checking, agent
     // Each successful assignment is removed immediately: retry never repeats an accepted job.
     for (const assignment of proposal.assignments) {
       try {
-        const d = await window.apiPost('/api/office/task', { ...assignment, directedBy: 'orion', note: (assignment.note + '\nOwner request: ' + proposal.request).slice(0, 4000) });
+        const d = await window.apiPost('/api/office/task', { ...assignment, business: floorBiz, directedBy: 'orion', note: (assignment.note + '\nOwner request: ' + proposal.request).slice(0, 4000) });
         if (d.error || !d.jobId) throw new Error(d.error || 'No job was created');
         accepted.push(assignment.agentId);
       } catch (e) { remaining.push(assignment); if (mounted.current) setError(String(e.message || e)); }

@@ -83,6 +83,29 @@ _CHECKINS = []      # Orion's reviews, newest first, capped at MAX_CHECKINS
 _CSEQ = 0
 
 
+# ── workspace scope (2026-10-18, owner): each workspace's floor = its own agent + Orion ──
+_DEPT_ALIAS = {"wholesale": "rei"}
+_WS_NAME = {"rei": "Wholesale (REI)", "agency": "Agency", "daycare": "Daycare",
+            "dropship": "Dropship (archived)"}
+
+
+def _dept(business):
+    """A workspace/business id -> department id, or None (= the whole cross-business floor)."""
+    b = _DEPT_ALIAS.get(str(business or "").strip().lower(), str(business or "").strip().lower())
+    return b if any(d["id"] == b for d in DEPARTMENTS) else None
+
+
+def off_floor(agent_id, business):
+    """None when `agent_id` may be used on this workspace's floor (its own agent, a lane of
+    it, or Orion); else a one-line pointer to the floor it works on."""
+    dept = _dept(business)
+    aid = LANE_OF.get(agent_id, agent_id)
+    if not dept or aid == "orion" or DEPT_OF.get(aid) in (None, dept):
+        return None
+    return (f"{_card(aid)['name']} works on the {_WS_NAME.get(DEPT_OF[aid], DEPT_OF[aid])} floor, "
+            f"not this one — open the Agent Office in that workspace.")
+
+
 # ── roster ────────────────────────────────────────────────────────────────────
 def _hub_agents():
     """The agents_hub agents keyed by id. {} if the hub can't be imported."""
@@ -248,8 +271,9 @@ def _activity(agent_id, bus_idx, task_counts, now_ms):
 
 
 def state(business=None):
-    """The whole floor. `business` scopes to one department; None returns every
-    non-archived one."""
+    """The whole floor. `business` scopes to one department (a workspace's own floor: its
+    agent + Orion; "wholesale" == "rei"); None returns every non-archived one."""
+    business = _dept(business)
     now_ms = int(time.time() * 1000)
     bus_idx = _bus_index()
     task_counts = _open_tasks()
@@ -291,14 +315,15 @@ def state(business=None):
         running = sum(1 for j in _JOBS if j["status"] == "running")
     return {"ok": True, "now": now_ms, "departments": out, "running": running,
             "business": business, "director": director, "messages": messages,
-            "checkin": latest_checkin(), "ai": _ai_state()}
+            "checkin": latest_checkin(business), "ai": _ai_state()}
 
 
-def plan(message, chat_fn):
-    """Orion proposes assignments; this never dispatches them. The owner reviews first."""
+def plan(message, chat_fn, business=None):
+    """Orion proposes assignments; this never dispatches them. The owner reviews first.
+    From a workspace floor (`business`) he may only assign that workspace's agent."""
     if not isinstance(message, str) or not message.strip() or len(message) > 4000:
         return {"error": "Enter a request of 1–4000 characters"}
-    floor = state()
+    floor = state(business)
     active = {a["id"] for d in floor["departments"] for a in d["agents"]}
     prompt = ("Plan internal analytical tasks for this OWNER request. Do not execute anything. "
               "Return ONLY valid JSON: {\"summary\":\"short explanation\",\"assignments\":"
@@ -449,7 +474,7 @@ def _fail_task(job, err):
         pass
 
 
-def dispatch(agent_id, title, note="", chat_fn=None, directed_by=""):
+def dispatch(agent_id, title, note="", chat_fn=None, directed_by="", business=None):
     """Give an agent a task from the floor: file it, then actually run it.
 
     chat_fn(agent_id, message) -> the agents_hub chat bound to this GHL sub-account.
@@ -464,6 +489,9 @@ def dispatch(agent_id, title, note="", chat_fn=None, directed_by=""):
     title = title.strip()
     if agent_id not in DEPT_OF:
         return {"error": "unknown agent"}
+    nope = off_floor(agent_id, business)
+    if nope:
+        return {"error": nope, "wrongWorkspace": True}
     if not title:
         return {"error": "a task needs a title"}
     if len(title) > 600 or len(note) > 4000:
@@ -522,6 +550,7 @@ def jobs(business=None, limit=20):
         limit = max(1, min(int(limit), MAX_JOBS))
     except (TypeError, ValueError):
         limit = 20
+    business = _dept(business)
     with _LOCK:
         rows = [dict(j) for j in _JOBS if not business or j["dept"] == business]
     for r in rows:
@@ -655,20 +684,26 @@ def _build_checkin(by, only, floor):
                if reviews else "No active agents to check.")
     if ai.get("ok") is False:
         summary += " AI is down — " + _short(ai.get("reason"), 120)
-    return {"ok": True, "by": by, "scope": only or "team", "ts": now, "reviews": reviews,
+    return {"ok": True, "by": by, "scope": only or "team", "dept": floor.get("business"),
+            "ts": now, "reviews": reviews,
             "summary": summary, "tally": tally,
             "suggestions": _suggest(reviews, titles, last_by)}
 
 
-def checkin(by="operator", only=None, floor=None):
+def checkin(by="operator", only=None, floor=None, business=None):
     """Orion walks the floor and reviews the team. Read-only, zero Claude, recorded so the
-    3D office can play the round. `only` = one agent's review (the auto check-in after a job)."""
+    3D office can play the round. `only` = one agent's review (the auto check-in after a job,
+    filed on that agent's floor). `business` = a workspace floor: review only its agents."""
     global _CSEQ
     if only is not None:
         only = LANE_OF.get(only, only)
     if by not in ("operator", "auto") or (only is not None and only not in DEPT_OF):
         return {"error": "invalid check-in"}
-    rec = _build_checkin(by, only, floor or state())
+    if only and off_floor(only, business):
+        return {"error": off_floor(only, business), "wrongWorkspace": True}
+    dept = _dept(business) or (DEPT_OF.get(only) if only and only != "orion" else None)
+    rec = _build_checkin(by, only, floor or state(dept))
+    rec["dept"] = dept
     with _LOCK:
         _CSEQ += 1
         rec["id"] = f"c{_CSEQ}_{rec['ts']}"
@@ -677,20 +712,28 @@ def checkin(by="operator", only=None, floor=None):
     return dict(rec)
 
 
-def latest_checkin():
-    with _LOCK:
-        return dict(_CHECKINS[0]) if _CHECKINS else None
+def _on_floor(rec, dept):
+    return not dept or rec.get("dept") == dept
 
 
-def checkins(limit=10):
+def latest_checkin(business=None):
+    """Newest check-in; a workspace floor only sees check-ins of its own agents."""
+    dept = _dept(business)
     with _LOCK:
-        return {"ok": True, "checkins": [dict(c) for c in _CHECKINS[:max(1, min(int(limit), MAX_CHECKINS))]]}
+        return next((dict(c) for c in _CHECKINS if _on_floor(c, dept)), None)
+
+
+def checkins(limit=10, business=None):
+    dept = _dept(business)
+    with _LOCK:
+        rows = [dict(c) for c in _CHECKINS if _on_floor(c, dept)]
+    return {"ok": True, "checkins": rows[:max(1, min(int(limit), MAX_CHECKINS))]}
 
 
 # ── chat that survives an AI outage ───────────────────────────────────────────
-def status_reply(agent_id):
+def status_reply(agent_id, business=None):
     """What an agent can truthfully say from the live floor alone — no reasoning, no invention."""
-    floor = state()
+    floor = state(business)
     if agent_id == "orion":
         rec = _build_checkin("auto", None, floor)
         lines = [rec["summary"]] + [f"• {r['name']}: {r['text']}" for r in rec["reviews"]]
@@ -703,9 +746,13 @@ def status_reply(agent_id):
     return f"{a['name']} — {r['verdict'].replace('_', ' ')}: {r['text']}."
 
 
-def chat(agent_id, message, chat_fn):
-    """The agent's real brain when it answers; otherwise a clearly-labelled status reply."""
+def chat(agent_id, message, chat_fn, business=None):
+    """The agent's real brain when it answers; otherwise a clearly-labelled status reply.
+    On a workspace floor, another business's agent is refused with a pointer."""
     agent_id = LANE_OF.get(agent_id, agent_id)
+    nope = off_floor(agent_id, business)
+    if nope:
+        return {"reply": nope, "refused": True, "wrongWorkspace": True}
     out = chat_fn(agent_id, message)
     ok = isinstance(out, dict) and out.get("reply") and not out.get("error") and not out.get("needsKey")
     if ok:
@@ -717,7 +764,7 @@ def chat(agent_id, message, chat_fn):
         return out if isinstance(out, dict) else {"error": "unknown agent"}
     note = ("My AI brain is unreachable right now" + (f" ({_short(err, 110)})" if err else "") +
             ", so I can't reason about your message. Here is what I can see live on the floor:\n")
-    return {"reply": note + status_reply(agent_id), "offline": True, "aiError": _short(err, 200)}
+    return {"reply": note + status_reply(agent_id, business), "offline": True, "aiError": _short(err, 200)}
 
 
 

@@ -236,7 +236,8 @@ def test_solomon_owns_reply_and_lead_lanes():
     approval queue, their loop health folds into his status, his chat sees their state."""
     import json
     assert "daycare_replies" not in agents_hub._BY_ID                 # a lane, not a row
-    assert agents_hub._BY_ID["solomon"]["hb"] == ["daycare_replies", "daycare_leads", "daycare_starts"]
+    assert agents_hub._BY_ID["solomon"]["hb"] == ["daycare_replies", "daycare_leads", "daycare_starts",
+                                              "daycare_ads"]   # + Starts/Ads lanes (agents_hub.AGENTS)
     daycare_replies.STATE.write_text(json.dumps({"lastRunAt": NOW, "drafts": {
         "c1": {"contactId": "c1", "status": "pending", "action": "draft",
                "inboundAt": NOW - 600_000},
