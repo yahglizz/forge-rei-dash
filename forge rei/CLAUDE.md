@@ -87,6 +87,14 @@ Local UI-only run: `FORGE_MARCUS=0 FORGE_PORT=7799 python3 connector.py`
   `price_guard` event. Approval gate unchanged — drafts are still proposals.
 - **New-lead flag:** `_mark_seen`/`seen_contacts.jsonl` → first-ever proposal per contact
   sets `newLead:true` + bus `new_lead:true`; the Telegram ping headline gets 🆕.
+- **Dashboard chat actions (2026-10-18):** `dash_live.py` — inside the five interactive chat
+  routes (connector `_chat_with_actions` → `begin()/take()`) agents get `api_post` /
+  `api_post_batch` / `pipeboard_read`. `AUTO_PATHS` (internal + reversible) run now, logged
+  `chat_auto`, capped 20/msg + 200/day/agent; everything else is a ✅ card (`actions` on the
+  reply, `POST /api/chat/action/{confirm,cancel}`, `telegram_agent.confirm(tok, "dash", hook=…)`,
+  batch cards via `_queue(calls=…)`). Kill `FORGE_CHAT_ACTIONS=0` / `FORGE_CHAT_AUTO=0` /
+  clock-out. New daycare routes: `POST /api/daycare/ghl/tag`, `GET /api/daycare/ghl/contacts?tag=`.
+  Root `CLAUDE.md` §2 "Dashboard chat AUTO tier". Test: `test_chat_actions.py`.
 - **Daily brief + recap:** `daily_brief.py` / `daily_recap.py` — box scheduler
   `_brief_scheduler_forever` ticks both (`_maybe_daily_brief` + `_maybe_daily_recap`),
   `/api/brief*` + `/api/recap*`, mobile More sheets.

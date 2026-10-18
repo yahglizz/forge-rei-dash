@@ -139,6 +139,7 @@ function MAgentsPage(props) {
   const [busyId, setBusyId] = useStateMA(null);   // agentId currently "thinking"
   const [pending, setPending] = useStateMA(null); // optimistic {agentId, text, ts}
   const [sendErr, setSendErr] = useStateMA(null);
+  const [acts, setActs] = useStateMA(null);     // {agentId, actions, done} from the latest reply (cards live until the next send)
   const feedRefMA = useRefMA(null);
   const rosterM = window.useApiM("/api/agents/registry", { interval: 30000 });
   const hasRegistry = !!(rosterM.data && Array.isArray(rosterM.data.agents));
@@ -193,10 +194,12 @@ function MAgentsPage(props) {
     setDrafts((d) => Object.assign({}, d, { [a.id]: "" }));
     setBusyId(a.id);
     setSendErr(null);
+    setActs(null);
     try {
       // business = the portal we're in; the hub refuses an agent outside its home workspace.
       const body = business ? { agentId: a.id, message: q, history, business } : { agentId: a.id, message: q, history };
-      await window.apiPostM(a.ep, body);
+      const d = await window.apiPostM(a.ep, body);
+      if (d && (d.actions || d.done)) setActs({ agentId: a.id, actions: d.actions, done: d.done });
       hist.refresh();               // server recorded both turns — pull them in
     } catch (e) {
       // The server writes history only on a real reply, so on any error there is
@@ -296,6 +299,9 @@ function MAgentsPage(props) {
                 </div>
               )}
               {rows}
+              {acts && acts.agentId === active.id && window.ChatActions && (
+                <div style={{ alignSelf: "stretch", marginTop: 6 }}><window.ChatActions actions={acts.actions} done={acts.done} /></div>
+              )}
               {thinking && (
                 <div className="m-tg-bubble in" style={{ marginTop: 9, fontStyle: "italic",
                   color: "var(--text-2, #9FB0C7)" }}>

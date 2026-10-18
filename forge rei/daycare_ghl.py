@@ -469,6 +469,94 @@ def iter_contacts(client, *, max_pages: int = 6, page_size: int = 100):
         after = (str(nxt_id), str(meta.get("startAfter") or ""))
 
 
+# --- Tag edits + contacts-by-tag (2026-10-18, dashboard chat AUTO tier) ------------------
+# POST /api/daycare/ghl/tag + GET /api/daycare/ghl/contacts. A tag is internal + reversible
+# (the opposite call undoes it) and sends NO message — same class as the HOT-lead auto-tag.
+MAX_TAGS, MAX_TAG_LEN = 20, 64
+# Tags that drive center routing / intake / logins. Allowed (owner's call), but every edit is logged.
+SYSTEM_TAG_PREFIXES = ("loc-", LOCATION_PREFIX)
+SYSTEM_TAGS = {FAMILY_TAG, FORM_TAG, LEAD_TAG, *ENROLLED_TAGS}
+
+
+def _tag_list(v):
+    """A clean, de-duplicated tag list; None when the input is not a valid list."""
+    if v is None:
+        return []
+    if not isinstance(v, list) or len(v) > MAX_TAGS:
+        return None
+    out = [t.strip() for t in v if isinstance(t, str)]
+    if len(out) != len(v) or any(not t or len(t) > MAX_TAG_LEN for t in out):
+        return None
+    return list(dict.fromkeys(out))
+
+
+def tag_contact(client, contact_id, add=None, remove=None) -> dict:
+    """Add and/or remove tags on ONE daycare GHL contact. -> {ok, contactId, added, removed}."""
+    cid = contact_id.strip() if isinstance(contact_id, str) else ""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", cid):
+        return {"ok": False, "error": "contact_id required"}
+    add, remove = _tag_list(add), _tag_list(remove)
+    if add is None or remove is None or not (add or remove):
+        return {"ok": False, "error": f"add/remove must be lists of 1-{MAX_TAGS} tags, "
+                                      f"each 1-{MAX_TAG_LEN} characters"}
+    if client is None or not client.configured:
+        return {"ok": False, "error": "GHL not connected — add GHL_API_KEY + GHL_LOCATION_ID to daycare.env."}
+    touched = [t for t in add + remove
+               if t.lower().startswith(SYSTEM_TAG_PREFIXES) or t.lower() in SYSTEM_TAGS]
+    if touched:
+        print(f"[daycare_ghl] tag edit on {cid} touches system tag(s): {', '.join(touched)}", flush=True)
+    done = {"added": [], "removed": []}
+    for key, tags, call in (("added", add, client.post), ("removed", remove, client.delete)):
+        if not tags:
+            continue
+        try:
+            call(f"/contacts/{cid}/tags", {"tags": tags})
+        except Exception as e:  # noqa: BLE001 — never leak the upstream body
+            return {"ok": False, "contactId": cid, **done,
+                    "error": f"GHL {getattr(e, 'code', None) or type(e).__name__} — {key} step failed"}
+        done[key] = tags
+    return {"ok": True, "contactId": cid, **done}
+
+
+def contacts_by_tag(client, tag, limit=100) -> dict:
+    """Daycare GHL contacts carrying `tag` (case-insensitive). Read-only. Each row carries its
+    center (`location:` tag) + `loc-` tag: 1923 A Mother's Touch is a separate business and
+    must never be mixed with the Blessings centers. Phone is full (matching guardians by
+    phone is the point); emails are never returned.
+    ponytail: scans iter_contacts' 600-contact cap; raise max_pages if the location grows."""
+    want = tag.strip().lower() if isinstance(tag, str) else ""
+    if not want or len(want) > MAX_TAG_LEN:
+        return {"ok": False, "error": "tag required", "contacts": []}
+    try:
+        lim = max(1, min(int(limit or 100), 200))
+    except (TypeError, ValueError):
+        lim = 100
+    if client is None or not client.configured:
+        return {"ok": False, "error": "GHL not connected", "contacts": []}
+    rows, truncated = [], False
+    try:
+        for c in iter_contacts(client):
+            tags = [str(t) for t in (c.get("tags") or [])]
+            if want not in {t.lower() for t in tags}:
+                continue
+            if len(rows) >= lim:
+                truncated = True
+                break
+            name = (c.get("contactName") or " ".join(
+                p for p in ((c.get("firstName") or "").strip(), (c.get("lastName") or "").strip()) if p))
+            rows.append({"id": c.get("id"), "name": name,
+                         "parent": str(_cf_map(c).get(CF_PARENT_NAME) or ""),
+                         "phone": c.get("phone") or "",
+                         "center": next((t[len(LOCATION_PREFIX):] for t in tags
+                                         if t.lower().startswith(LOCATION_PREFIX)), ""),
+                         "locTag": next((t for t in tags if t.lower().startswith("loc-")), ""),
+                         "tags": tags[:15]})
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": f"GHL read failed ({getattr(e, 'code', None) or type(e).__name__})",
+                "contacts": rows}
+    return {"ok": True, "tag": tag.strip(), "count": len(rows), "truncated": truncated, "contacts": rows}
+
+
 # --- Family-form confirmation + multi-child (spec 2026-10-05-family-form-automation) ---
 # forms/api/submit.js keeps one entry per child in children_json; child 0 is the contact's
 # identity. Each child is its own inbox card keyed card_id = contact_id (child 0) or

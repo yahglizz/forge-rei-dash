@@ -2373,7 +2373,27 @@ def _tg_handoff(conv_id):
 
 import telegram_ops  # noqa: E402
 import telegram_agent  # noqa: E402
+import dash_live  # noqa: E402  — dashboard chat tools + actions (AUTO runs, TAP = ✅ card)
 import autopilot      # noqa: E402
+
+
+def _chat_with_actions(fn):
+    """One INTERACTIVE operator chat with chat actions on (dash_live collector). AUTO writes
+    land as `done` lines, TAP writes as `actions` cards on the reply. take() always runs, so a
+    collector never outlives the request; a background thread never opens one (read-only)."""
+    dash_live.begin()
+    try:
+        result = fn()
+    finally:
+        acts = dash_live.take()
+    if isinstance(result, dict) and (acts["actions"] or acts["done"]):
+        result.update(acts)
+    return result
+
+
+def _dash_tap_history(_chat, agent_id, text):
+    """A dashboard ✅ ran — the agent sees the outcome on its next turn (PIN-redacted text)."""
+    agents_history.record(agent_id, "(tap)", f"[owner tapped ✅] {text[:1500]}", via="dash")
 import skill_forge    # noqa: E402
 
 # skill_forge listens to every bus broadcast (cross-agent pattern detection).
@@ -3590,6 +3610,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/hub/chat",
                                    "/api/hub/task",
                                    "/api/hub/task/update",
+                                   "/api/chat/action/confirm", "/api/chat/action/cancel",
                                    "/api/office/task", "/api/office/plan", "/api/office/chat", "/api/office/checkin",
                                    "/api/stripe/link", "/api/agency/billing/send",
                                    "/api/graphify/rebuild",
@@ -3781,17 +3802,14 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/marcus/chat":
                 _msg = body.get("message", "")
                 _cmd = telegram_ops.handle_agent_command("marcus", _msg, source="dashboard")
-                result = _cmd if _cmd else marcus_chat.chat(ghl_get, LOCATION_ID,
-                                                            _msg,
-                                                            days=int(body.get("days", 7)))
+                result = _cmd if _cmd else _chat_with_actions(lambda: marcus_chat.chat(
+                    ghl_get, LOCATION_ID, _msg, days=int(body.get("days", 7))))
             elif parsed.path == "/api/agents/chat":
-                result = agents_chat.chat(ghl_get, LOCATION_ID,
-                                          body.get("agentId", "marcus"),
-                                          body.get("message", ""),
-                                          history=(body.get("history")
-                                                   or agents_history.recent_for_context(
-                                                       body.get("agentId", "marcus"))),
-                                          scout=SCOUT)
+                result = _chat_with_actions(lambda: agents_chat.chat(
+                    ghl_get, LOCATION_ID, body.get("agentId", "marcus"), body.get("message", ""),
+                    history=(body.get("history")
+                             or agents_history.recent_for_context(body.get("agentId", "marcus"))),
+                    scout=SCOUT))
                 # Shared thread: the same history Telegram reads/writes.
                 if isinstance(result, dict) and result.get("reply") and not result.get("needsKey"):
                     agents_history.record(body.get("agentId", "marcus"),
@@ -3803,11 +3821,10 @@ class Handler(BaseHTTPRequestHandler):
                 _aid = body.get("agentId", "marcus")
                 # business = the workspace the chat came from (hub / mobile portal); an agent
                 # outside its home workspace refuses with a pointer (agents_hub.wrong_workspace).
-                result = agents_hub.chat(ghl_get, LOCATION_ID, _aid,
-                                         body.get("message", ""),
-                                         history=(body.get("history")
-                                                  or agents_history.recent_for_context(_aid)),
-                                         scout=SCOUT, business=body.get("business"))
+                result = _chat_with_actions(lambda: agents_hub.chat(
+                    ghl_get, LOCATION_ID, _aid, body.get("message", ""),
+                    history=(body.get("history") or agents_history.recent_for_context(_aid)),
+                    scout=SCOUT, business=body.get("business")))
                 if (isinstance(result, dict) and result.get("reply") and not result.get("needsKey")
                         and not result.get("refused")):   # a refusal never lands in the agent's thread
                     agents_history.record(_aid, body.get("message", ""),
@@ -3817,6 +3834,20 @@ class Handler(BaseHTTPRequestHandler):
                                               body.get("note", ""), business=body.get("business"))
             elif parsed.path == "/api/hub/task/update":
                 result = agents_hub.update_task(body.get("id"), body.get("status"))
+            elif parsed.path in ("/api/chat/action/confirm", "/api/chat/action/cancel"):
+                # Dashboard chat ✅/❌ on a dash_live TAP card — the owner's tap IS the approval
+                # (rule 2). Single-use, bound to chat "dash", scope re-checked per call at tap time.
+                _tok = str(body.get("tok") or "")
+                if parsed.path.endswith("/cancel"):
+                    result = telegram_agent.cancel(_tok, "dash")
+                elif not dash_live.actions_enabled():   # cardKept: token NOT spent, tap again later
+                    result = {"error": "Chat actions are switched off (FORGE_CHAT_ACTIONS=0).",
+                              "cardKept": True}
+                elif forge_ops.paused():
+                    result = {"error": "Agents are clocked out — chat actions are off until you "
+                                       "clock them back in. The card is still there.", "cardKept": True}
+                else:
+                    result = telegram_agent.confirm(_tok, "dash", hook=_dash_tap_history)
             elif parsed.path in ("/api/office/task", "/api/office/plan", "/api/office/chat", "/api/office/checkin"):
                 # The Agent Office floor: file the task AND actually run that agent's
                 # real brain in the background so the operator watches it happen.
@@ -3837,10 +3868,11 @@ class Handler(BaseHTTPRequestHandler):
                     result = agent_office.plan(body.get("message"), _office_chat, business=_floor)
                 elif parsed.path == "/api/office/chat":
                     # Office chat: the agent's real brain, or a labelled live-status reply
-                    # when the AI provider is down (agent_office.chat).
-                    result = agent_office.chat(str(body.get("agentId") or "orion"),
-                                               str(body.get("message") or ""), _office_chat,
-                                               business=_floor)
+                    # when the AI provider is down (agent_office.chat). Runs on THIS thread, so
+                    # it gets chat actions; plan + dispatch (background _run) stay read-only.
+                    result = _chat_with_actions(lambda: agent_office.chat(
+                        str(body.get("agentId") or "orion"), str(body.get("message") or ""),
+                        _office_chat, business=_floor))
                 elif parsed.path == "/api/office/checkin":
                     # Orion checks in on the team — read-only, zero Claude.
                     result = agent_office.checkin("operator", business=_floor)
@@ -4006,8 +4038,8 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/callsheet/clear-dead":
                 result = agency_callsheet.clear_dead()
             elif parsed.path == "/api/agency/agents/chat":
-                result = agency_agents.chat(
-                    body.get("agentId"), body.get("message"), body.get("history"))
+                result = _chat_with_actions(lambda: agency_agents.chat(
+                    body.get("agentId"), body.get("message"), body.get("history")))
             elif parsed.path == "/api/agency/agents/task":
                 result = agency_agents.send_task(
                     body.get("agentId"), body.get("title"))
@@ -4783,7 +4815,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/media/sign-upload", "/api/daycare/location/switch",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
-                "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply",
+                "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply", "/api/daycare/ghl/tag",
                 "/api/daycare/guardian/resend-login", "/api/daycare/login-queue/run",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
                 "/api/daycare/starts/confirm", "/api/daycare/starts/date", "/api/daycare/starts/dismiss",
@@ -4905,6 +4937,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = daycare_ghl.dismiss(body.get("contact_id"))
             elif path == "/api/daycare/ghl/undismiss":
                 result = daycare_ghl.undismiss(body.get("contact_id"))
+            elif path == "/api/daycare/ghl/tag":
+                # Add/remove tags on one family's GHL contact — internal + reversible, sends
+                # nothing (dashboard chat AUTO tier, CLAUDE.md §2).
+                result = daycare_ghl.tag_contact(DAYCARE_GHL, body.get("contact_id"),
+                                                 body.get("add"), body.get("remove"))
             elif path == "/api/daycare/ghl/enroll":
                 result = self._daycare_ghl_enroll(session, body)
             # --- W2-5 --- Lead Desk one-tap stage mark: local state file only — never
@@ -5070,6 +5107,9 @@ class Handler(BaseHTTPRequestHandler):
                 DAYCARE_GHL, q.get("limit", ["60"])[0]),
             "/api/daycare/ghl/thread": lambda session: daycare_replies.thread(
                 DAYCARE_GHL, q.get("contact_id", [None])[0]),
+            # Contacts carrying a tag (id, name, parent, phone, center, locTag) — read-only.
+            "/api/daycare/ghl/contacts": lambda session: daycare_ghl.contacts_by_tag(
+                DAYCARE_GHL, q.get("tag", [""])[0], q.get("limit", ["100"])[0]),
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(

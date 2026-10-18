@@ -77,6 +77,7 @@ DENY = (
     "/api/sync/check",
     # operator-only switches — never from a model-written card (CLAUDE.md rule 2 exceptions)
     "/api/ace/mode", "/api/autopilot/toggle", "/api/ops/set", "/api/businesses/set",
+    "/api/daycare/ads-auto/mode",
     "/api/brain/undo", "/api/outbound/agent/",
     # raw seller sends skip the no-price guard — seller texts go through Marcus drafts
     "/api/send", "/api/reply/send", "/api/screening/send",
@@ -205,13 +206,16 @@ def _load():
         return {}
 
 
-def _queue(chat_id, agent_id, business, path, body, summary):
+def _queue(chat_id, agent_id, business, path, body, summary, calls=None):
+    """calls=[{path, body}] = one card for a whole batch (dashboard chat, dash_live)."""
     tok = secrets.token_hex(8)
     now = int(time.time())
     with _LOCK:
         d = {k: v for k, v in _load().items() if now - v.get("ts", 0) < PENDING_TTL}
         d[tok] = {"chat": str(chat_id), "agent": agent_id, "business": business,
                   "path": path, "body": body, "summary": summary, "ts": now}
+        if calls:
+            d[tok]["calls"] = calls
         forge_atomic.atomic_write_json(STATE, d)
     return tok
 
@@ -219,9 +223,34 @@ def _queue(chat_id, agent_id, business, path, body, summary):
 _ON_RESULT = {"fn": None}    # telegram_io hooks this to append the outcome to chat history
 
 
-def confirm(tok, chat_id=None):
+def _failed(res):
+    return isinstance(res, dict) and (res.get("error") or res.get("ok") is False)
+
+
+def _log_tap(p, path, res):
+    try:
+        import action_log
+        action_log.record_result(res if isinstance(res, dict) else {}, p["agent"],
+                                 f"partner:{path}", business=p["business"],
+                                 trigger="dash_tap" if p.get("chat") == "dash" else "telegram_tap",
+                                 ref=p["summary"][:120], approval_required=True)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _hook(hook, p, text):
+    """hook=True → telegram_io's history hook; False → none; a callable → that (dashboard)."""
+    fn = _ON_RESULT["fn"] if hook is True else (hook if callable(hook) else None)
+    if fn:
+        try:
+            fn(p["chat"], p["agent"], text)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def confirm(tok, chat_id=None, hook=True):
     """✅ tap. Pops once, must be tapped in the chat it was issued in, re-checks scope,
-    then runs the queued POST."""
+    then runs the queued POST (or each call of a batch card)."""
     with _LOCK:
         d = _load()
         p = d.get(tok)
@@ -231,29 +260,43 @@ def confirm(tok, chat_id=None):
         forge_atomic.atomic_write_json(STATE, d)
     if not p or time.time() - p.get("ts", 0) > PENDING_TTL:
         return {"error": "expired — ask again"}
+    if p.get("calls"):
+        return _confirm_calls(p, hook)
     ok, why = allowed(p["business"], "POST", p["path"])
     if not ok:
         return {"error": why}
     res = _http("POST", p["path"], body=p.get("body") or {})
-    failed = isinstance(res, dict) and (res.get("error") or res.get("ok") is False)
+    failed = _failed(res)
     text = f"{p['summary']}\n{_clip(redact(res), 1500)}"      # footer: PIN shown once
-    try:
-        import action_log
-        action_log.record_result(res if isinstance(res, dict) else {}, p["agent"],
-                                 f"partner:{p['path']}", business=p["business"],
-                                 trigger="telegram_tap", ref=p["summary"][:120],
-                                 approval_required=True)
-    except Exception:  # noqa: BLE001
-        pass
-    if _ON_RESULT["fn"]:
-        try:
-            _ON_RESULT["fn"](p["chat"], p["agent"], ("FAILED: " if failed else "DONE: ")
-                             + f"{p['summary']}\n{_clip(redact(res, pin=True), 1500)}")
-        except Exception:  # noqa: BLE001
-            pass
+    _log_tap(p, p["path"], res)
+    _hook(hook, p, ("FAILED: " if failed else "DONE: ")
+          + f"{p['summary']}\n{_clip(redact(res, pin=True), 1500)}")
     if failed:
         return {"error": f"{p['summary']} — {res.get('error') or res.get('detail') or 'failed'}"}
     return {"ok": True, "message": text}
+
+
+def _confirm_calls(p, hook):
+    """A batch card: every call re-checked against scope + deny at tap time, run in order,
+    a failure never stops the rest. -> counts."""
+    n, done, errs = len(p["calls"]), 0, []
+    for c in p["calls"]:
+        path = str((c or {}).get("path") or "")
+        ok, why = allowed(p["business"], "POST", path)
+        if not ok:
+            errs.append(f"{path}: {why}")
+            continue
+        res = _http("POST", path, body=(c or {}).get("body") or {})
+        _log_tap(p, path, res)
+        if _failed(res):
+            errs.append(f"{path}: {res.get('error') or res.get('detail') or 'failed'}")
+        else:
+            done += 1
+    text = f"{p['summary']}\n{done}/{n} done" + (
+        f" — {len(errs)} failed: " + "; ".join(str(e)[:160] for e in errs[:5]) if errs else "")
+    _hook(hook, p, ("FAILED: " if not done else "DONE: ") + text)
+    out = {"count": n, "done": done, "failed": len(errs)}
+    return {"error": text, **out} if not done else {"ok": True, "message": text, **out}
 
 
 def cancel(tok, chat_id=None):

@@ -149,7 +149,7 @@ function HubChat({ agent, agents, biz }) {
     window.apiPost("/api/hub/chat", biz ? { agentId: agent.id, message: t, business: biz } : { agentId: agent.id, message: t })
       .then((d) => {
         if (d.needsKey) setErr("No Anthropic key wired for this agent yet.");
-        setMsgs((m) => m.concat([{ role: "agent", text: d.reply || "…" }]));
+        setMsgs((m) => m.concat([{ role: "agent", text: d.reply || "…", actions: d.actions, done: d.done }]));
       })
       .catch((e) => setErr(String(e.message || e)))
       .then(() => setBusy(false));
@@ -171,6 +171,7 @@ function HubChat({ agent, agents, biz }) {
           <div className="hub-message-body">
             {!mine && <span className="hub-message-author">{agent.name}</span>}
             <div className="hub-message-bubble">{m.text}</div>
+            {!mine && window.ChatActions && <window.ChatActions actions={m.actions} done={m.done} />}
           </div>
         </div>;
       })}

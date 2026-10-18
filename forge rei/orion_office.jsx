@@ -74,7 +74,7 @@ function OrionOfficePanel({ state, onMode, onRefresh, onCheckin, checking, agent
       if (!mounted.current) return;
       if (d.error || d.needsKey) throw new Error(d.error || d.reply || name + ' needs an AI key.');
       const reply = plan ? d.summary : d.reply;
-      setMsgs(m => m.concat([{ role: 'agent', text: reply, offline: !!d.offline }]));
+      setMsgs(m => m.concat([{ role: 'agent', text: reply, offline: !!d.offline, actions: plan ? null : d.actions, done: plan ? null : d.done }]));
       if (plan) setProposal({ ...d, request: message });
       say(reply || 'Ready.');
     } catch (e) { if (mounted.current) { setError(String(e.message || e)); setText(message); onMode('idle'); } }
@@ -104,7 +104,7 @@ function OrionOfficePanel({ state, onMode, onRefresh, onCheckin, checking, agent
     <div className="orion-panel-head">{orionDog ? <img src={agentId === 'orion' ? '/assets/orion/preview.png' : '/assets/dogs/' + agentId + '/reference.png'} alt={name + ' office character'} /> : <div className="orion-emoji" aria-hidden="true">{agent.emoji}</div>}<div><strong>Talk to {name}</strong><div className="faint">{agentId === 'orion' ? 'Chief of Staff · your live team' : (agent.role || 'Team agent') + ' · live agent brain'}</div></div></div>
     <div className="orion-conversation" aria-live="polite">
       {!msgs.length && <div className="faint">Ask {name} what needs attention or what to work on next.</div>}
-      {msgs.map((m, i) => <div className={'orion-message ' + (m.role === 'user' ? 'mine' : '')} key={i}><small>{m.role === 'user' ? 'You' : name}{m.offline ? ' · AI offline — live status, not reasoning' : ''}</small><div>{m.text}</div></div>)}
+      {msgs.map((m, i) => <div className={'orion-message ' + (m.role === 'user' ? 'mine' : '')} key={i}><small>{m.role === 'user' ? 'You' : name}{m.offline ? ' · AI offline — live status, not reasoning' : ''}</small><div>{m.text}</div>{m.role !== 'user' && window.ChatActions && <window.ChatActions actions={m.actions} done={m.done} />}</div>)}
       {busy && <div className="faint" role="status">{name} is working…</div>}<div ref={end} />
     </div>
     {proposal && <div className="orion-plan"><strong>Review assignments</strong>{proposal.assignments.map(a => <div key={a.agentId}><b>{(agents.find(x => x.id === a.agentId) || {}).name || a.agentId}</b><p>{a.title}</p>{a.note && <small>{a.note}</small>}</div>)}

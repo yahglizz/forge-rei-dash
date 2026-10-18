@@ -1,4 +1,4 @@
-"""Live read-only dashboard data in operator agent chat (dash_live).
+"""Live dashboard data in operator agent chat (dash_live) — reads + scope. Write tiers: test_chat_actions.py.
 Run: python3 test_dash_live.py   (no network: Claude + loopback HTTP are faked; exit 1 on failure)."""
 import json
 import os
@@ -95,7 +95,9 @@ def test_off_scope_points_to_owner():
     assert not ok and "off-limits" in why, "deny list holds even for Orion: " + why
 
 
-def test_no_write_tool():
+def test_write_tools_only_inside_an_interactive_chat():
+    """Background (no begin(): Office dispatch, briefs, learn, Telegram) = read-only exactly as
+    before; inside begin()/take() the write tools appear (tier logic: test_chat_actions.py)."""
     for aid in ("marcus", "scout", "atlas", "dyson", "eco", "solomon", "midas", "orion"):
         names = {t["name"] for t in dash_live.tools(aid)}
         assert names <= {"api_get", "route_help", "find_people"}, (aid, names)
@@ -103,7 +105,7 @@ def test_no_write_tool():
     assert {t["name"] for t in dash_live.tools("solomon")} == {"api_get", "route_help", "find_people"}
     assert "find_people" not in {t["name"] for t in dash_live.tools("orion")}
     reset()
-    for name in ("api_post", "file_task"):
+    for name in ("api_post", "api_post_batch", "pipeboard_read", "file_task"):
         r = dash_live.run_tool(name, {"path": "/api/daycare/adgen/cards", "body": {"n": 3}}, "solomon")
         assert "read-only" in r["error"], r
     assert dash_live.run_tool("find_people", {"q": "mia"}, "dyson")["error"].startswith("find_people")
@@ -113,6 +115,18 @@ def test_no_write_tool():
     dash_live.ask("k", "SYS", "make ads", "solomon")
     assert HTTP == [] and "read-only" in tool_results(CALLS[1])
     assert all(t["name"] != "api_post" for t in CALLS[0]["tools"])
+    assert "read-only" in dash_live.live_block("solomon") and "READ-ONLY" not in dash_live.live_block("solomon")
+    dash_live.begin()
+    try:
+        names = {t["name"] for t in dash_live.tools("solomon")}
+        assert {"api_post", "api_post_batch", "pipeboard_read"} <= names, names
+        assert "pipeboard_read" not in {t["name"] for t in dash_live.tools("marcus")}
+        assert "file_task" not in names, "Telegram-only tool"
+        assert dash_live.tools("retell-123") == [] or "api_post" not in {
+            t["name"] for t in dash_live.tools("retell-123")}, "no business = no writes"
+    finally:
+        assert dash_live.take() == {"actions": [], "done": []}
+    assert dash_live._col() is None
 
 
 def test_orion_reads_every_business():
