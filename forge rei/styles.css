@@ -980,3 +980,15 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .dca-months { grid-template-columns:1fr; }
   .dca-picker { padding:12px; }
 }
+/* --- Daycare Ad Generator (daycare_adgen.jsx) --- */
+.dcg-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.dcg-actions > button { max-width:100%; white-space:normal; }
+.dcg-note { font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+.dcg-copy { display:grid; gap:6px; margin-top:8px; font-size:13px; overflow-wrap:anywhere; }
+.dcg-evidence { font-size:11.5px; padding:6px 8px; border-radius:8px; background:rgba(255,255,255,.04); color:var(--text-2); }
+.dcg-prompt { white-space:pre-wrap; margin-top:6px; padding:8px; border-radius:8px; background:rgba(255,255,255,.04); }
+.dcg-assets { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(140px, 100%), 1fr)); gap:10px; margin-top:10px; }
+.dcg-asset { min-width:0; }
+.dcg-asset img { display:block; width:100%; height:auto; border-radius:10px; }
+.dcg-card, .dcg-strip, .dcg-home { min-width:0; overflow:hidden; }
+.dcg-card .card-title, .dcg-strip .card-title, .dcg-home .card-title { white-space:normal; overflow-wrap:anywhere; }

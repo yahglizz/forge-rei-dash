@@ -86,7 +86,8 @@ _RISKY = (("dismiss", "🙈 dismisses"), ("reset-pin", "🔐 resets a login"), (
           ("/send", "✉️ sends a message"), ("reply", "✉️ texts someone"),
           ("approve", "✉️ sends / approves"), ("delete", "🗑 deletes"),
           ("deactivate", "🗑 deactivates"), ("stripe", "💳 money"), ("invoice", "💳 money"),
-          ("payroll", "💳 money"), ("launch", "💸 spend"), ("create-ad", "💸 spend"))
+          ("payroll", "💳 money"), ("launch", "💸 spend"), ("create-ad", "💸 spend"),
+          ("adgen/generate", "💸 spends image credits"))
 MAX_CARDS = 5
 MAX_BODY = 900
 
@@ -471,6 +472,10 @@ def system_prompt(agent_id, business):
         parts.append("\n\nAD NUMBERS: before quoting any Meta ad figure, api_get /api/daycare/ads/feed "
                      "(a fresh Pipeboard pull: 7d/30d/90d/maximum + autopilot; preset/since/until/compare "
                      "accepted) and cite the window + 'Meta via Pipeboard'. unknown:true = Unknown, never 0.")
+        parts.append("\nAD GENERATOR: api_get /api/daycare/adgen/status (image engine, credits, today's spend "
+                     "vs cap) and /api/daycare/nova/ideas (saved concepts). You may PROPOSE new concepts via "
+                     "api_post /api/daycare/nova/generate (drafts text only). Images (/api/daycare/adgen/generate) "
+                     "spend credits and building an ad is Meta — both only on the owner's tap, never on your own.")
     try:
         import caveman
         parts.append(caveman.block())

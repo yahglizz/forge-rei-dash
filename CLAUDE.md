@@ -651,15 +651,6 @@ key on the box. New migrations go in BOTH migration folders.
   rejection is cached 15 min and reads `auth_error`. Launch/activate/budget are NOT in it (rule 2).
   Self-check: `python3 pipeboard_io.py`; test: `test_pipeboard_io.py`. The Pipeboard login currently carries ONE
   ad account — the daycare's `act_1175564690150627`; the agency has none yet.
-- **Ads + Social + Ideas (Growth tab).** `daycare_growth.py` reuses the agency
-  `agency_ads`/`agency_social`/`agency_eco` engines with the daycare's OWN creds (locked
-  env-swap; agency code untouched). Mock until `META_ACCESS_TOKEN` / `METRICOOL_USER_TOKEN`
-  are added to `daycare.env`. Routes `/api/daycare/{ads,social,eco,eco/ideas}`.
-- **Daycare agent context brief — READ FIRST.** Every daycare AI task loads
-  `forge-daycare/skills/daycare-context.md` (business facts, mission = grow enrollment,
-  current status, brand voice, standing job) BEFORE reasoning, via `daycare_context.py`
-  (mtime hot-reload; `context_block()` injected into the Eco prompt ahead of the playbook).
-- **Enrollment Ad Agent spec.** `forge-daycare/skills/enrollment-ad-agent.md` is the ad-ops
   **Meta-exact reads + live agent packet (2026-10-17).** `ads_range.py` is the ONE range resolver (Meta picker
   presets: today … last_30d … this/last week (Sun–Sat), this/last month, maximum; "last N days" = N complete days
   ending yesterday; "today" = the ad ACCOUNT's day via `get_account_info.timezone_name`, cached 1 h, fallback
@@ -680,6 +671,26 @@ key on the box. New migrations go in BOTH migration folders.
   activating campaigns, budget changes, and `scale winner` are one-tap owner approvals
   (spend). IDs there are business identifiers, not secrets — tokens stay in `daycare.env`.
   The "Ideas" tab (`daycare_growth.eco_ideas` → `/api/daycare/eco/ideas`) is the daycare's
+- **Ads + Social + Ideas (Growth tab).** `daycare_growth.py` reuses the agency
+  `agency_ads`/`agency_social`/`agency_eco` engines with the daycare's OWN creds (locked
+  env-swap; agency code untouched). Mock until `META_ACCESS_TOKEN` / `METRICOOL_USER_TOKEN`
+  are added to `daycare.env`. Routes `/api/daycare/{ads,social,eco,eco/ideas}`.
+- **Ad Generator (Growth → Ad Studio, 2026-10-17).** `daycare_ads_studio.py` + `daycare_adgen.jsx` +
+  `higgsfield_io.py`. Concepts = one SMART Claude call grounded in creed → live ad packet → brief/ad spec →
+  `forge-daycare/skills/daycare-adgen-brand.md` (human-owned brand rules, no children's faces; not reachable by
+  any `learn()`) → stored market intel → image craft; each carries an evidence line or "Unknown". Images = ONE
+  owner tap each through `higgsfield_io.generate()`: quote → `HIGGSFIELD_DAILY_CREDITS` cap (default 100) →
+  REST pool, or — when it says out of credits (the API pool is separate from the Plus app credits; verified empty
+  2026-10-17) — the Higgsfield CLI on app credits (`higgsfield auth login` + `workspace set <id>` on the
+  connector machine; `python3 higgsfield_io.py --probe` = read-only check). Unknown cost needs an explicit
+  confirm tap; the autopilot's creative cycle uses the same guard. Routes `GET /api/daycare/adgen/status`,
+  `POST /api/daycare/adgen/{quote,generate}`. The Higgsfield MCP is Claude-session-only. Card:
+  `agents/daycare/solomon.md` §15. Test: `test_daycare_adgen.py`.
+- **Daycare agent context brief — READ FIRST.** Every daycare AI task loads
+  `forge-daycare/skills/daycare-context.md` (business facts, mission = grow enrollment,
+  current status, brand voice, standing job) BEFORE reasoning, via `daycare_context.py`
+  (mtime hot-reload; `context_block()` injected into the Eco prompt ahead of the playbook).
+- **Enrollment Ad Agent spec.** `forge-daycare/skills/enrollment-ad-agent.md` is the ad-ops
   Eco agent: it reads the brief, drafts new enrollment angles + a competitor read, and
   returns PROPOSALS (launching an ad stays approval-gated). Eco's `extra_context` param is
   ""/no-op for the agency, so agency output is unchanged. Owner keeps the brief current by

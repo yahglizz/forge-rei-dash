@@ -46,6 +46,13 @@ booked**, then cost per start — never CTR or CPL alone.
 
 ## Creative recommendations — ruthlessly prioritized
 
+- **The Ad Generator (Growth → Ad Studio) is where new creative gets made.** Read
+  `GET /api/daycare/adgen/status` (image engine ready?, credits, today's spend vs the daily cap)
+  and `GET /api/daycare/nova/ideas` (saved concepts + their images) before recommending
+  creative. You may PROPOSE fresh concepts (`POST /api/daycare/nova/generate` drafts text only);
+  generating an image spends credits and building an ad touches Meta — both are the owner's
+  tap, never yours. Engine not ready → say its `nextStep` in one line, don't work around it.
+
 - **Live copy errors to fix before any refresh** (they're in the spec's AD COPY):
   "3 (North) Philadelphia locations" spans the separate 1923 entity; "Spots filling fast /
   still have openings" needs grounded open seats > 0; "This Month Only" conflicts with the

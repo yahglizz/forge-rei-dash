@@ -4773,6 +4773,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/adops/run", "/api/daycare/adops/learn",
                 "/api/daycare/nova/generate", "/api/daycare/nova/image",
                 "/api/daycare/nova/create-ad", "/api/daycare/nova/discard",
+                "/api/daycare/adgen/quote", "/api/daycare/adgen/generate",
                 "/api/daycare/ads-auto/run", "/api/daycare/ads-auto/mode", "/api/daycare/ads-auto/approve",
                 "/api/daycare/ads-auto/reject", "/api/daycare/ads-auto/undo", "/api/daycare/ads-auto/hold"}:
             return self._send_json(
@@ -4829,8 +4830,19 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/daycare/nova/generate":
                 result = daycare_ads_studio.ideas(body.get("account"))
             elif path == "/api/daycare/nova/image":
+                # The owner's tap: same guarded engine + daily cap as /adgen/generate.
                 result = daycare_ads_studio.attach_image(body.get("id"),
-                                                         body.get("imageUrl", ""))
+                                                         body.get("imageUrl", ""),
+                                                         confirm_unknown=bool(body.get("confirmUnknown")),
+                                                         trigger="owner_tap", fmt=body.get("format"))
+            # --- Ad Generator: quote is read-only; generate = ONE image per owner tap (confirm:true) ---
+            elif path == "/api/daycare/adgen/quote":
+                result = daycare_ads_studio.quote_image(body.get("ideaId"), body.get("format"),
+                                                        body.get("variant", 0))
+            elif path == "/api/daycare/adgen/generate":
+                result = daycare_ads_studio.generate_asset(
+                    body.get("ideaId"), body.get("format"), confirm=body.get("confirm") is True,
+                    confirm_unknown=body.get("confirmUnknown") is True, variant=body.get("variant", 0))
             elif path == "/api/daycare/nova/create-ad":
                 # Builds the campaign PAUSED. Nothing serves, nothing spends — going
                 # ACTIVE / changing budget stays the owner's call (CLAUDE.md rule 2).
@@ -4989,6 +5001,9 @@ class Handler(BaseHTTPRequestHandler):
             # Nova's ad studio — saved ad packages + what's actually wired.
             "/api/daycare/nova/ideas": lambda session: daycare_ads_studio.saved(),
             "/api/daycare/nova/status": lambda session: daycare_ads_studio.status(),
+            # Ad Generator: engine (REST pool / CLI), credits, today's spend vs cap. Read-only.
+            "/api/daycare/adgen/status": lambda session: daycare_ads_studio.adgen_status(
+                q.get("fresh", ["0"])[0] in ("1", "true")),
             "/api/daycare/ads-auto/status": lambda session: daycare_ads_autopilot.status(),
             "/api/daycare/director/status": lambda session: SOLOMON.status(),
             "/api/daycare/director/overview": lambda session: SOLOMON.overview(),

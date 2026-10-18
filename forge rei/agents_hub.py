@@ -457,8 +457,10 @@ def _delegate_context(agent_id):
     try:
         if agent_id == "solomon":
             import daycare_director
+            import daycare_ads_studio
             return {"replies": daycare_director.reply_desk_state(),   # Solomon · Replies
-                    "leads": daycare_director.lead_desk_state()}      # Solomon · Leads
+                    "leads": daycare_director.lead_desk_state(),      # Solomon · Leads
+                    "adGenerator": daycare_ads_studio.lane_state()}   # Ad Studio (images = owner tap)
         if agent_id == "marcus":   # his lanes: Scout · Atlas · Follow-up · ACE · Autopilot
             out = {}
             for lid in LANES.get("marcus", ()):

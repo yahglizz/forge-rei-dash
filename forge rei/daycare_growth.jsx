@@ -658,7 +658,7 @@ function DaycareGrowth() {
   const [tab, setTab] = useStateDca(() => { const t = window.__dcaGrowthTab; window.__dcaGrowthTab = null; return t || "ideas"; });   // the dashboard's "Open Autopilot" lands on its tab
   return <div className="dc-page">
     <div className="dc-hero" style={{ marginBottom: 14 }}><div><div className="dc-eyebrow">GROWTH ENGINE</div><h1>Grow enrollment. Run the ads. Watch the socials.</h1><p>The daycare's marketing command center — <b>Solomon</b> drafts complete enrollment ads from your business brief and builds them on Meta, PAUSED. Going live, changing budget, and publishing posts stay behind your one-tap approval — unless you switch Autopilot to Auto.</p><div className="dc-hero-actions"><button className={tab === "ideas" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ideas")}><window.Icons.Bot size={15} /> Ad Studio</button><button className={tab === "ads" ? "dc-primary" : "dc-outline"} onClick={() => setTab("ads")}><window.Icons.Dollar size={15} /> Ads</button><button className={tab === "auto" ? "dc-primary" : "dc-outline"} onClick={() => setTab("auto")}><window.Icons.Shield size={15} /> Autopilot</button><button className={tab === "social" ? "dc-primary" : "dc-outline"} onClick={() => setTab("social")}><window.Icons.Bell size={15} /> Social</button></div></div></div>
-    {tab === "ideas" ? <DaycareNova /> : tab === "ads" ? <DaycareAds /> : tab === "auto" ? <DaycareAdsAuto /> : <DaycareSocial />}
+    {tab === "ideas" ? (window.DcgAdStudio ? <window.DcgAdStudio /> : <DaycareNova />) : tab === "ads" ? <DaycareAds /> : tab === "auto" ? <DaycareAdsAuto /> : <DaycareSocial />}
   </div>;
 }
 
