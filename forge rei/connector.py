@@ -1098,6 +1098,7 @@ import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad 
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import daycare_ads_tg  # noqa: E402 — Solomon · Ads Telegram approval cards (optimize / create / launch taps)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
+import gmail_io  # noqa: E402 — daycare Gmail, read-only + daycare-only (2026-10-18; the box's Gmail path)
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
 import daycare_auto_enroll  # noqa: E402 — Family Contact Form -> child + parent login, hands-free (2026-10-07)
@@ -3195,6 +3196,10 @@ def api_actions_log(q):
 
 ROUTES["/api/actions/log"] = api_actions_log
 NO_CACHE.add("/api/actions/log")
+# "What the agents did" (action_digest, zero Claude): per-agent counts by trigger + undo hints.
+import action_digest  # noqa: E402
+ROUTES["/api/actions/digest"] = lambda q: action_digest.digest((q.get("hours", ["24"]) or ["24"])[0])
+NO_CACHE.add("/api/actions/digest")
 # --- /W2-6 ---
 
 
@@ -5124,6 +5129,15 @@ class Handler(BaseHTTPRequestHandler):
                 session, q.get("tag", ["enrolled"])[0]),
             "/api/daycare/ghl/contacts": lambda session: daycare_ghl.contacts_by_tag(
                 DAYCARE_GHL, q.get("tag", [""])[0], q.get("limit", ["100"])[0]),
+            # Daycare Gmail (gmail_io): DAYCARE mail only, read-only, never mutates Gmail. Non-daycare
+            # mail is dropped inside gmail_io (filteredOut); bodies fetched on demand, never stored.
+            # The guardian-email set (GHL, 10 min) is a filter input only — never in the payload.
+            "/api/daycare/mail": lambda session: gmail_io.mail_view(
+                q.get("days", ["7"])[0], q.get("limit", ["25"])[0], q.get("q", [""])[0],
+                q.get("bucket", [""])[0], q.get("page", [None])[0],
+                known=lambda: gmail_io.known_emails(DAYCARE_GHL)),
+            "/api/daycare/mail/thread": lambda session: telegram_agent.redact(gmail_io.thread_view(
+                q.get("id", [""])[0], known=lambda: gmail_io.known_emails(DAYCARE_GHL))),
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(

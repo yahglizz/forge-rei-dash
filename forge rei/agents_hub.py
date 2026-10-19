@@ -124,11 +124,11 @@ AGENTS = [
     # on this row: their heartbeats fold into his status, their pending drafts are his
     # approval queue, and _probe/_delegate_context add their live state.
     {"id": "solomon", "name": "Solomon", "business": "daycare", "emoji": "🏛️",
-     "role": "Growth Director — enrollment",
-     "blurb": "Grows enrollment only: families waiting on us, funnel leaks, sellable seats, "
-              "retention + referrals, and the enrollment ads (paperwork is not his lane). Lanes: Solomon · Replies drafts every parent text-back "
-              "(you tap send), Solomon · Leads watches enrollment leads and Solomon · Starts texts the app login on a confirmed start day. Ranks it all, "
-              "never acts outward.",
+     "role": "Daycare Director — growth first, whole daycare side",
+     "blurb": "Runs the whole daycare side, growth first: families waiting on us, funnel leaks, sellable seats, "
+              "retention + referrals, the enrollment ads — and billing, daycare email, GHL and system health. Lanes: Solomon · Replies drafts every parent text-back "
+              "(you tap send), Solomon · Leads watches enrollment leads and Solomon · Starts texts the app login on a confirmed start day. Does the safe internal work himself "
+              "(tags, tasks, notes, drafts); anything outward is your tap.",
      # "solomon" (the scheduled-brief loop) is OFF by default and retired at boot — a retired loop
      # in `hb` would read the whole row as DISABLED, so it is only listed when the brief is on.
      "hb": (["solomon"] if os.environ.get("FORGE_SOLOMON_BRIEF", "0") != "0" else [])

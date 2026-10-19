@@ -171,6 +171,61 @@ def test_deny_scope_and_missing_routes_refused():
     assert dash_live.write_business("scout") == "wholesale" and dash_live.write_business("retell-1") is None
 
 
+def test_cross_business_write_refused_with_a_task_pointer():
+    """Reads cross businesses; WRITES stay in the agent's own business. A foreign write is refused
+    (nothing run, nothing queued) and the error tells the agent which agent to file a task for."""
+    reset()
+    cases = [("solomon", "/api/scout/apply", "marcus"), ("marcus", "/api/daycare/ghl/tag", "solomon"),
+             ("dyson", "/api/daycare/replies/approve", "solomon"), ("orion", "/api/daycare/ghl/tag", "solomon"),
+             ("scout", "/api/agency/callsheet/status", "dyson"), ("eco", "/api/scout/dismiss", "marcus")]
+    for agent, path, owner in cases:
+        dash_live.begin()
+        try:
+            r = dash_live.run_tool("api_post", {"path": path, "body": {"contact_id": "c1"}, "summary": "s"}, agent)
+        finally:
+            acts = dash_live.take()
+        err = r.get("error", "")
+        assert "scope" in err and f"File {owner.title()} a task" in err, (agent, path, r)
+        assert f'api_post /api/hub/task {{"agentId": "{owner}"' in err and "nothing was run" in err, err
+        assert acts == {"actions": [], "done": []}, (agent, path, acts)
+    _, acts = turn("solomon", batch([tag("c1"), {"path": "/api/scout/apply", "body": {"id": "x"}}]), text("ok"))
+    assert "call 2 (/api/scout/apply)" in results(1) and "File Marcus a task" in results(1)
+    assert acts == {"actions": [], "done": []}
+    assert HTTP == [] and not ta.STATE.exists(), "one foreign member = the whole batch refused"
+    # the deny list still beats the pointer
+    dash_live.begin()
+    try:
+        r = dash_live.run_tool("api_post", {"path": "/api/agency/reset", "body": {}, "summary": "s"}, "solomon")
+    finally:
+        dash_live.take()
+    assert "off-limits" in r["error"] and "task" not in r["error"], r
+
+
+def test_cross_agent_task_filing():
+    """Any agent files a hub task on any other agent from chat (AUTO); the UI's wrong-workspace
+    refusal never applies to it (business stripped), and the real route files it."""
+    import agent_bus
+    import agents_hub
+    reset()
+    body = {"agentId": "marcus", "title": "Is seller 2210 Oak still hot?", "business": "daycare"}
+    _, acts = turn("solomon", post("/api/hub/task", body, "Ask Marcus about 2210 Oak"), text("Filed it for Marcus."))
+    sent = posts()
+    assert sent == [("/api/hub/task", {"agentId": "marcus", "title": "Is seller 2210 Oak still hot?",
+                                       "note": "Filed by Solomon from the owner's chat"})], sent
+    assert acts["done"][0]["ok"] and acts["actions"] == [], acts
+    with mock.patch.object(agents_hub, "TASKS", TMP / "hub_tasks_x.json"), \
+            mock.patch.object(agent_bus, "_NOTIFIERS", []):
+        code, res = _req("do_POST", "/api/hub/task", sent[0][1])
+        assert code == 200 and res["ok"] and res["task"]["agentId"] == "marcus", res
+        assert res["task"]["business"] == "wholesale" and "Solomon" in res["task"]["note"], res
+        code, res = _req("do_POST", "/api/hub/task", {"agentId": "dyson", "title": "t", "business": "daycare"})
+        assert res.get("wrongWorkspace"), "the UI placement refusal itself is unchanged"
+    for frm, to in (("dyson", "solomon"), ("orion", "midas"), ("eco", "marcus"), ("midas", "dyson")):
+        reset()
+        _, acts = turn(frm, post("/api/hub/task", {"agentId": to, "title": "x"}), text("ok"))
+        assert posts()[0][1]["agentId"] == to and acts["done"], (frm, to)
+
+
 def test_batches():
     reset()
     _, acts = turn("solomon", batch([tag(f"c{i}") for i in range(51)]), text("ok"))
@@ -381,6 +436,10 @@ def test_auto_paths_exist_in_the_real_catalog():
     missing = sorted(p for p in dash_live.AUTO_PATHS if p not in real)
     assert not missing, f"AUTO_PATHS typo / missing route: {missing}"
     assert "/api/daycare/ghl/contacts" in REAL_CATALOG["GET"], "contacts-by-tag read is in the catalog"
+    for p, biz in (("/api/daycare/mail", "daycare"), ("/api/daycare/mail/thread", "daycare"),
+                   ("/api/actions/digest", "hq")):
+        assert p in REAL_CATALOG["GET"] and p not in real, p          # GET-only, auto-catalogued
+        assert ta.path_business(p) == biz, p
     assert "/api/chat/action/confirm" in real and not any(
         ta.allowed(b, "POST", "/api/chat/action/confirm")[0] for b in ta.SCOPE), "no agent can tap its own card"
 

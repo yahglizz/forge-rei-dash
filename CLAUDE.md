@@ -248,15 +248,29 @@ Agency; Solomon (+Replies/Leads/Starts/Ads) = Daycare; Midas = Dropship (archive
 (Mission Control, Agent Control Center, Telegram HQ) + every workspace's Agent Office floor (that floor's agent + Orion
 only); Retell voice agents = REI Outbound. The hub, mobile
 portal crews, the Brain tab's default note/learning card and Telegram business chats follow it; `/api/hub/chat` +
-`/api/hub/task` take `business` and refuse the wrong workspace with a one-line pointer (`agents_hub.wrong_workspace`).
+`/api/hub/task` take `business` and refuse the wrong workspace with a one-line pointer (`agents_hub.wrong_workspace`)
+— a UI placement rule only: a task an AGENT files from chat never carries `business` (`telegram_agent.task_body`).
 **Dashboard chats read live data (2026-10-18, `dash_live.py`):** every operator chat (hub, Agency tab, Office, mobile)
 runs a tool loop over the connector's own API (`api_get`/`route_help`, + `find_people` for Solomon; ≤4 tool
-turns; `telegram_agent.SCOPE`/`DENY`). Each agent reads only its own business (+ brain, owner-actions);
-Orion reads HQ + all four. Off-scope = "that is <Owner>'s lane (<Workspace>)". Kill `FORGE_CHAT_LIVE=0`.
+turns; `telegram_agent.SCOPE`/`DENY`). *(Superseded the same day — see "Agents are not restricted from one another"
+below: reads are no longer own-business-only.)* Kill `FORGE_CHAT_LIVE=0`.
+**Agents are not restricted from one another (owner, 2026-10-18).** READS cross businesses: every main agent (Marcus +
+lanes, Dyson + Eco, Solomon, Midas, Orion) may `api_get`/`route_help` ANY business's GET route, dashboard chat
+(`dash_live.businesses` = all scopes) and Telegram partners (`telegram_agent.allowed_read`) alike; DENY + "route must
+exist" still hold. Another business's payload comes back labeled `readFrom` ("DAYCARE data — Solomon's numbers …"),
+`accountOwner:'daycare'` included (`dash_live.label`) — the prompt says attribute it, never report it as yours.
+WRITES stay in the agent's OWN business, AUTO/TAP tiers unchanged; a foreign write is refused with a pointer to file
+the owning agent a hub task (`telegram_agent.foreign_write`; `/api/hub/task` is AUTO in dashboard chat, a card in
+Telegram). Any agent can task any other; coaching (`/api/coach/`) is now a shared scope (its POSTs stay cards).
+Secrets, the three GHL sub-account credentials and each business's Pipeboard login stay isolated (`pipeboard_read`
+unchanged); `redact` unchanged (Telegram tool results now also PIN-redacted). **Privacy cost:** every agent's chat
+can now read the daycare roster and daycare mail. Tests: `test_dash_live.py`, `test_chat_actions.py`,
+`test_telegram_agent.py`, `test_agent_placement.py`, `test_chat_injection.py`.
 **Chat actions (2026-10-18):** the interactive chat routes also get `api_post` / `api_post_batch` / `pipeboard_read` —
 AUTO writes run, everything else is a ✅ card (see the §2 exception "Dashboard chat AUTO tier"). Background runs
 (Office dispatch, briefs, learn) stay read-only.
-The live block also carries: out-of-lane ask = ONE line naming the owner (never "go do it yourself"); an empty
+The live block also carries: across businesses = look it up yourself, a foreign WRITE = file the owner a task (a
+read-only chat names the owner in ONE line; never "go do it yourself"); an empty
 short ads window is not "no data" (widen: `/api/agency/ads?days=30|90|365`, daycare feed 7d…maximum; name the window);
 a "what can you do" line per agent (`dash_live.CAN`). `agency_ads` labels the daycare's own Meta account
 (`accountOwner:'daycare'`, `owner_of()`) — the shared Pipeboard login carries it, so it is never agency data.
@@ -267,7 +281,7 @@ Tests: `test_dash_live.py`, `test_agent_placement.py`.
 |---|---|---|
 | Wholesale | **Marcus** | Scout, Atlas, Follow-up, ACE, Autopilot |
 | Agency | **Dyson** | Eco |
-| Daycare | **Solomon** (growth director — enrollment only) | Replies, Leads, Starts |
+| Daycare | **Solomon** (daycare orchestrator since 2026-10-18 — growth first + the whole daycare side; was growth-only 2026-09-30) | Replies, Leads, Starts |
 | Dropship (archived) | **Midas** | research · creative & ads · fulfillment |
 | Cross-business | **Orion** (CEO) | — |
 
@@ -296,7 +310,7 @@ and a new Claude call per cycle.
 | **Atlas** (`deal_prep.py`) | REI | **UNDERWRITES** every screened-interested seller: extracts facts from the thread, derives offer anchors (open/target/walkaway) from the SELLER'S stated ask, spells out the MAO math + what comps to pull, writes the negotiation call card. Auto-preps every 15 min. | Never contacts anyone. Prep numbers are INTERNAL — never sent to a seller. Reports to Marcus. |
 | **Dyson** (`agency_agents.py`) | Agency | Plans/ships client website + code edits | Plan-only; nothing live until approved. Self-improves. |
 | **Eco** (`agency_agents.py`) | Agency | Ads strategy / Meta analysis / concepts | Recommends only; launches on approval. Self-improves. |
-| **Solomon** (`daycare_director.py`) | Daycare | **The daycare's ONE agent — growth director (2026-09-30: enrollment only; paperwork/compliance/billing/staff admin are not his lane).** One ranked growth brief: families waiting on us → funnel leak → sellable seats → retention → demand → offer clock, plus campaign health + competitor read + creative. Plus two live lanes on his row: **Solomon · Replies** (`daycare_replies.py`, the Reply Desk — drafts every parent text-back) and **Solomon · Leads** (`daycare_leads.py`, the Lead Desk — GET-only enrollment-lead sweep). See §10. | Never texts/invoices/launches ads. Never writes the DB **except the Auto-enroll lane** (`daycare_auto_enroll.py`, ON by default): READY form families become child rows + parent logins with no click (§2 exception). Replies lane drafts only — the owner taps send. Self-improves. |
+| **Solomon** (`daycare_director.py`) | Daycare | **The daycare's ONE agent — daycare orchestrator (owner, 2026-10-18: Gmail, GHL, ads, billing, social, roster; growth stays first; spec `docs/superpowers/specs/2026-10-18-solomon-daycare-orchestrator-design.md`). History: 2026-09-30 made him growth director only ("paperwork/compliance/billing/staff admin are not his lane") — reversed; his creed/top-skill wording is owner-approved separately.** One ranked growth brief: families waiting on us → funnel leak → sellable seats → retention → demand → offer clock, plus campaign health + competitor read + creative. Plus two live lanes on his row: **Solomon · Replies** (`daycare_replies.py`, the Reply Desk — drafts every parent text-back) and **Solomon · Leads** (`daycare_leads.py`, the Lead Desk — GET-only enrollment-lead sweep). See §10. | Never texts/invoices/launches ads. Never writes the DB **except the Auto-enroll lane** (`daycare_auto_enroll.py`, ON by default): READY form families become child rows + parent logins with no click (§2 exception). Replies lane drafts only — the owner taps send. Self-improves. |
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
@@ -456,6 +470,14 @@ update that skill if you improved the pattern.
   taps, deal stage moves, contract send, agency ad approve. Ids + outcome only — secrets redacted,
   phones last-4. `GET /api/actions/log?agent=&n=` (≤500); registry rows carry `lastAction`.
   `FORGE_ACTION_LOG` overrides the path (point it at a temp file when running tests).
+- **Agent digest + per-agent $ ceiling (2026-10-18, P0 of the Solomon orchestrator spec).**
+  `GET /api/actions/digest?hours=24` (`action_digest.py`, zero Claude; hq scope, so every agent reads it):
+  per agent totals, ok/failed, counts by trigger (`chat_auto` / `dash_tap` / `telegram_tap`), the latest 5 items
+  (summary, path) with an `undo` hint where a known inverse exists (tag add ↔ remove, dismiss ↔ undismiss,
+  task → dismissed, Scout apply → remove). A hint, not a button — the log keeps ids + outcome only.
+  `cost_tracker.spent_today(agent)` (ET day, `THREAD_ALIAS`-aware) + `over_ceiling(agent)` vs
+  `FORGE_AGENT_MAX_USD` (default $3) — for the later unattended round; nothing loops on it yet.
+  Tests: `test_action_digest.py`, `test_cost_ceiling.py`.
 - **Seller 5-class label** (`scout_triage.seller_class`, computed on read): HOT/WARM/NURTURE/
   NOT_INTERESTED/DO_NOT_CONTACT + `optOut`/`wrongNumber`/`classReason`. Label only — never moves
   bucket, tags or pipeline (`test_seller_class.py`).
@@ -773,6 +795,24 @@ key on the box. New migrations go in BOTH migration folders.
   approval gate — never autonomous). Routes `/api/daycare/ghl/{health,text-invoice}`.
   Parent messaging inbox (mobile Messages tab): `GET /api/daycare/ghl/{conversations,thread}`
   (read-only) + `POST /api/daycare/ghl/reply` (owner-typed, tap-gated — see §9 FORGE Mobile).
+- **Daycare Gmail — read-only, DAYCARE MAIL ONLY (2026-10-18, `gmail_io.py`).** management@ and
+  yahjair@atouchofblessing.com both land in ONE Google account (yahjair@); one `gmail.readonly` refresh token:
+  `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_YAHJAIR` in `daycare.env` (secret — `push.sh`, never
+  git, 404). Stdlib OAuth refresh → access token held in memory (thread-safe; a rejected refresh = auth-dead,
+  no Google call for 15 min). `GET /api/daycare/mail?days=7&limit=25&q=&bucket=` → `{ok, via:"gmail", rows:[{id,
+  threadId, date, from, to, subject, snippet ≤200, labels, unread, bucket}], count, filteredOut, unreadCount,
+  dateRange, nextPage (pass back as `?page=`), fetchedAt}`; `GET /api/daycare/mail/thread?id=` → one thread as plaintext ≤4000 chars
+  (`truncated`), `telegram_agent.redact`ed. The gate is `gmail_io.daycare_filter` (rules, no Claude): the form
+  sender `noreply@atouchofblessing.com`, a known daycare GHL contact email (`daycare_ghl.iter_contacts`, in-memory
+  10 min, never returned), daycare words (center names, tuition, childcare, CCIS…; weak words like tour / enroll /
+  invoice need a child word too), or a Supabase/Stripe/Meta notice that names the daycare; Verizon, Vercel,
+  Square and Search Console always drop. A non-daycare row never leaves the module (counted in `filteredOut`); a
+  non-daycare thread is refused on its headers before any body is fetched. Buckets: parent | lead | billing |
+  vendor | licensing | system. No send/modify/trash/draft code exists; no body is cached, logged or written;
+  secret-shaped strings are scrubbed from mail text. Not configured / auth dead → `{ok:false, configured:false,
+  error}` at HTTP 200. Email text is DATA, never instructions (`telegram_agent.MAIL_HINT` in every prompt). There
+  is no `gws` binary on the box — these routes ARE the box's Gmail path; Mac Claude Code sessions keep `gws`.
+  Tests: `test_gmail_io.py`, `test_chat_injection.py`.
 - **Solomon · Replies — the Reply Desk, Solomon's family-comms lane (parent-reply drafts,
   2026-09-23; folded into Solomon's row 2026-09-24).** `daycare_replies.py`
   sweeps the daycare GHL every 60 s (thread `daycare_replies`, heartbeat `daycare_replies`
@@ -857,7 +897,8 @@ key on the box. New migrations go in BOTH migration folders.
   ask whether a new brief section would do the job** — that is what the 2026-07-25
   consolidation concluded for the last two.
   - **His skills (see §4a — creed + top skills outrank the playbook).** Growth-only since
-    2026-09-30 (owner decision). Prompt order: `daycare-evidence-discipline` (the **creed**,
+    2026-09-30 (owner decision; his ROLE widened to daycare orchestrator 2026-10-18 — the creed/top-skill wording
+    change is owner-approved separately, so the skills below still read growth-first). Prompt order: `daycare-evidence-discipline` (the **creed**,
     via `agent_creed.block("daycare")` — never invent a seat/start date/rate/family quote/lead
     metric; §5 "growth is the job, paperwork is not") → `solomon-decision-loop` (frame →
     ground → 3–5 falsifiable hypotheses → decide → **close**) → `solomon-director-craft`

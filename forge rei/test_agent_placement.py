@@ -64,6 +64,24 @@ def test_cross_workspace_chat_and_task_refused():
         review_agent._claude, review_agent.post_messages, agents_hub.TASKS = saved
 
 
+def test_agent_to_agent_tasks_cross_businesses():
+    """Owner 2026-10-18: any agent files a task on any other agent. Only the UI chat placement
+    (`business` = the workspace a human typed in) refuses; a chat-filed task never carries it."""
+    import telegram_agent as ta
+    saved = agents_hub.TASKS
+    agents_hub.TASKS = Path(tempfile.mkdtemp()) / "hub_tasks.json"
+    try:
+        for frm, to in (("solomon", "marcus"), ("marcus", "solomon"), ("dyson", "midas"),
+                        ("midas", "orion"), ("orion", "scout")):
+            body = ta.task_body({"agentId": to, "title": "x", "business": "daycare"}, frm)
+            assert "business" not in body and frm.title() in body["note"], body
+            res = agents_hub.send_task(body["agentId"], body["title"], body["note"], business=body.get("business"))
+            assert res.get("ok") and res["task"]["agentId"] == agents_hub.main_agent(to), (frm, to, res)
+        assert agents_hub.send_task("dyson", "x", business="daycare").get("wrongWorkspace"), "UI placement unchanged"
+    finally:
+        agents_hub.TASKS = saved
+
+
 def test_connector_passes_workspace_and_keeps_refusals_out_of_history():
     src = (HERE / "connector.py").read_text()
     assert 'scout=SCOUT, business=body.get("business"))' in src

@@ -285,6 +285,33 @@ def status():
         return {"ok": False, "error": str(e), "today": {}, "mtd": {}, "trend": []}
 
 
+def spent_today(agent):
+    """USD of Claude spend billed to one agent bucket today (ET day). A lane/thread name resolves
+    through THREAD_ALIAS ("daycare_replies" → "solomon"). Never raises; unknown = 0.0."""
+    try:
+        who = THREAD_ALIAS.get(agent, agent)
+        with _LOCK:
+            row = (_load().get("days") or {}).get(_today_key()) or {}
+        return round(float(((row.get("byAgent") or {}).get(who) or {}).get("usd") or 0.0), 6)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+def max_usd():
+    """FORGE_AGENT_MAX_USD — one agent's daily Claude ceiling (default $3; bad value = default)."""
+    import os
+    try:
+        return max(0.0, float(os.environ.get("FORGE_AGENT_MAX_USD") or 3.0))
+    except ValueError:
+        return 3.0
+
+
+def over_ceiling(agent):
+    """True when this agent's spend today is at/over its daily ceiling. For the unattended
+    orchestrator round (spec 2026-10-18 P3) to skip itself — nothing calls it on a loop yet."""
+    return spent_today(agent) >= max_usd()
+
+
 def digest_line():
     """One-line spend summary for the daily brief. Never raises."""
     try:
