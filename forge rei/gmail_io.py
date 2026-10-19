@@ -323,11 +323,18 @@ def daycare_filter(row, known_emails=()):
     return "vendor"
 
 
-def daycare_query(days=7, q=""):
-    """Gmail-side pre-narrow (window + no promotions/social/forums/sent/drafts/chats).
-    daycare_filter is the gate; this only saves fetches."""
+def daycare_query(days=7, q="", known=()):
+    """Gmail-side pre-narrow: window, no promotions/social/forums/sent/drafts/chats, AND at least one
+    daycare signal (form sender, a daycare word, or a known guardian sender). daycare_filter is the
+    gate; this only saves fetches. A guardian with a NEW address and no daycare word is missed by
+    the pre-narrow — the known set refreshes from GHL every 10 min."""
+    sig = [f"from:{FORM_SENDER}", f"to:{FORM_SENDER}", '"touch of blessings"', '"mother\'s touch"',
+           "tuition", "enrollment", "childcare", '"child care"', "daycare", "CCIS"]
+    kn = sorted(e for e in (known or ()) if re.fullmatch(r"[\w.+-]+@[\w.-]+", e))[:40]
+    if kn:
+        sig.append("from:(" + " OR ".join(kn) + ")")
     base = (f"newer_than:{int(days)}d -category:promotions -category:social -category:forums "
-            "-in:sent -in:drafts -in:chats")
+            f"-in:sent -in:drafts -in:chats ({' OR '.join(sig)})")
     q = re.sub(r"\s+", " ", str(q or ""))[:200].strip()
     return f"{base} ({q})" if q else base
 
@@ -341,25 +348,33 @@ def _valid_id(v):
 
 def search(query, limit=25, page_token=None, known_emails=()):
     """DAYCARE rows for a Gmail query — metadata only, no bodies. A row that fails daycare_filter
-    never leaves this module. -> {rows (each + bucket), filteredOut, nextPage}"""
+    never leaves this module. Pages (≤3 Gmail pages) until `limit` daycare rows are kept.
+    -> {rows (each + bucket), filteredOut, nextPage}"""
     limit = max(1, min(int(limit or 25), MAX_LIMIT))
-    params = {"q": query or "", "maxResults": limit}
-    if page_token:
-        params["pageToken"] = str(page_token)[:300]
-    d = _get("/messages", params)
-    rows, dropped = [], 0
-    # ponytail: one metadata GET per message (≤50 sequential); Gmail's batch endpoint if it gets slow.
-    for m in d.get("messages") or []:
-        mid = str((m or {}).get("id") or "")
-        if not _ID.fullmatch(mid):
-            continue
-        r = _row(_get(f"/messages/{mid}", {"format": "metadata", "metadataHeaders": list(_HDRS)}))
-        b = daycare_filter(r, known_emails)
-        if b is None:
-            dropped += 1
-            continue
-        rows.append(dict(r, bucket=b))
-    return {"rows": rows, "filteredOut": dropped, "nextPage": d.get("nextPageToken")}
+    rows, dropped, token, seen = [], 0, page_token, set()
+    for _ in range(3):
+        params = {"q": query or "", "maxResults": limit}
+        if token:
+            params["pageToken"] = str(token)[:300]
+        d = _get("/messages", params)
+        token = d.get("nextPageToken")
+        # ponytail: one metadata GET per message (≤50 sequential); Gmail's batch endpoint if it gets slow.
+        for m in d.get("messages") or []:
+            mid = str((m or {}).get("id") or "")
+            if not _ID.fullmatch(mid) or mid in seen:
+                continue
+            seen.add(mid)
+            r = _row(_get(f"/messages/{mid}", {"format": "metadata", "metadataHeaders": list(_HDRS)}))
+            b = daycare_filter(r, known_emails)
+            if b is None:
+                dropped += 1
+                continue
+            rows.append(dict(r, bucket=b))
+            if len(rows) >= limit:
+                return {"rows": rows, "filteredOut": dropped, "nextPage": token}
+        if not token:
+            break
+    return {"rows": rows, "filteredOut": dropped, "nextPage": token}
 
 
 def thread(thread_id, max_chars=MAX_CHARS, known_emails=()):
@@ -368,17 +383,26 @@ def thread(thread_id, max_chars=MAX_CHARS, known_emails=()):
     tid = _valid_id(thread_id)
     meta = _get(f"/threads/{tid}", {"format": "metadata", "metadataHeaders": list(_HDRS)})
     heads = [_row(m) for m in meta.get("messages") or []]
-    buckets = [b for b in (daycare_filter(r, known_emails) for r in heads) if b]
-    if not buckets:
+    ok = {r["id"]: b for r in heads if (b := daycare_filter(r, known_emails))}      # per-MESSAGE gate
+    if not ok:
         raise GmailError("not daycare mail — out of scope (this inbox reads daycare mail only)")
+    own = "@" + FORM_SENDER.rpartition("@")[2]      # our own replies inside a daycare thread are daycare too
+    first = next(iter(ok.values()))
+    for r in heads:
+        frm = _addrs(r.get("from"))
+        if r["id"] not in ok and frm and frm[0].endswith(own):
+            ok[r["id"]] = first
+    heads = [r for r in heads if r["id"] in ok]
     full = _get(f"/threads/{tid}", {"format": "full"})
     parts = []
     for m in full.get("messages") or []:
         r = _row(m)
+        if r["id"] not in ok:                  # a non-daycare message in the same thread stays out
+            continue
         parts.append(f"--- {r['date']} | From: {r['from']} | {r['subject']}\n{_body(m.get('payload'))}")
     text = scrub(_collapse("\n".join(parts)))
     cut = len(text) > max_chars
-    return {"id": tid, "bucket": buckets[0], "count": len(heads),
+    return {"id": tid, "bucket": next(iter(ok.values())), "count": len(heads),
             "messages": [{k: r[k] for k in ("id", "date", "from", "to", "subject", "unread")} for r in heads],
             "text": text[:max_chars] + ("…" if cut else ""), "truncated": cut}
 
@@ -433,7 +457,8 @@ def mail_view(days=7, limit=25, q="", bucket="", page_token=None, known=None):
     if bucket and bucket not in BUCKETS:
         return {"ok": False, "via": "gmail", "error": f"bucket must be one of {', '.join(BUCKETS)}"}
     try:
-        res = search(daycare_query(days, q), limit, page_token, known() if callable(known) else (known or ()))
+        kn = known() if callable(known) else (known or ())
+        res = search(daycare_query(days, q, kn), limit, page_token, kn)
     except GmailError as e:
         return _down(e)
     rows = [r for r in res["rows"] if not bucket or r["bucket"] == bucket]

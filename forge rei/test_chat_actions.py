@@ -30,7 +30,7 @@ import telegram_agent as ta  # noqa: E402
 TAP_PATHS = {"/api/daycare/replies/approve", "/api/pipeline/move", "/api/scout/pipeline",
              "/api/daycare/guardian/reset-pin", "/api/marcus/approve", "/api/daycare/blast/send",
              "/api/daycare/brand/new", "/api/brief/send", "/api/agency/reset", "/api/notify/settings"}
-CAT = {"GET": {"/api/daycare/ghl/contacts", "/api/daycare/ads/feed", "/api/scout/leads",
+CAT = {"GET": {"/api/daycare/mail", "/api/daycare/ghl/contacts", "/api/daycare/ads/feed", "/api/scout/leads",
                "/api/agency/clients", "/api/system/health", "/api/daycare/auth/status", "/api/daycare/staff"},
        "POST": set(dash_live.AUTO_PATHS) | TAP_PATHS}
 HTTP, CALLS, SCRIPT = [], [], []
@@ -202,28 +202,31 @@ def test_cross_business_write_refused_with_a_task_pointer():
 
 
 def test_cross_agent_task_filing():
-    """Any agent files a hub task on any other agent from chat (AUTO); the UI's wrong-workspace
-    refusal never applies to it (business stripped), and the real route files it."""
+    """Any agent can file a hub task on any other agent from chat. Aimed at ANOTHER business's agent it is a
+    ✅ card (security review 2026-10-18); the tap files it. The UI's wrong-workspace refusal never applies to it."""
     import agent_bus
     import agents_hub
     reset()
     body = {"agentId": "marcus", "title": "Is seller 2210 Oak still hot?", "business": "daycare"}
-    _, acts = turn("solomon", post("/api/hub/task", body, "Ask Marcus about 2210 Oak"), text("Filed it for Marcus."))
-    sent = posts()
-    assert sent == [("/api/hub/task", {"agentId": "marcus", "title": "Is seller 2210 Oak still hot?",
-                                       "note": "Filed by Solomon from the owner's chat"})], sent
-    assert acts["done"][0]["ok"] and acts["actions"] == [], acts
+    _, acts = turn("solomon", post("/api/hub/task", body, "Ask Marcus about 2210 Oak"), text("Card for Marcus."))
+    assert posts() == [] and len(acts["actions"]) == 1 and acts["done"] == [], (HTTP, acts)
+    queued = {"agentId": "marcus", "title": "Is seller 2210 Oak still hot?",
+              "note": "Filed by Solomon from the owner's chat"}
+    assert acts["actions"][0]["preview"][0]["body"] == queued, acts
     with mock.patch.object(agents_hub, "TASKS", TMP / "hub_tasks_x.json"), \
             mock.patch.object(agent_bus, "_NOTIFIERS", []):
-        code, res = _req("do_POST", "/api/hub/task", sent[0][1])
+        code, res = _req("do_POST", "/api/hub/task", queued)
         assert code == 200 and res["ok"] and res["task"]["agentId"] == "marcus", res
         assert res["task"]["business"] == "wholesale" and "Solomon" in res["task"]["note"], res
         code, res = _req("do_POST", "/api/hub/task", {"agentId": "dyson", "title": "t", "business": "daycare"})
         assert res.get("wrongWorkspace"), "the UI placement refusal itself is unchanged"
+    reset()                                   # same-business task stays AUTO
+    _, acts = turn("dyson", post("/api/hub/task", {"agentId": "eco", "title": "x"}), text("ok"))
+    assert posts()[0][1]["agentId"] == "eco" and acts["done"], (HTTP, acts)
     for frm, to in (("dyson", "solomon"), ("orion", "midas"), ("eco", "marcus"), ("midas", "dyson")):
         reset()
         _, acts = turn(frm, post("/api/hub/task", {"agentId": to, "title": "x"}), text("ok"))
-        assert posts()[0][1]["agentId"] == to and acts["done"], (frm, to)
+        assert posts() == [] and len(acts["actions"]) == 1, (frm, to, HTTP, acts)
 
 
 def test_batches():
@@ -594,6 +597,24 @@ def test_system_tags_go_to_tap():
     reset()                                   # a batch with one guarded member = ONE card, nothing run
     _, acts = turn("solomon", batch([tag("c1", "enrolled"), tag("c2", "family-contact-form")]), text("q"))
     assert posts() == [] and len(acts["actions"]) == 1 and acts["actions"][0]["count"] == 2, (HTTP, acts)
+
+
+def test_mail_taints_the_turn_and_cross_business_tasks_are_taps():
+    """Security review 2026-10-18: email/parent text in context => every write that message is a card."""
+    reset()
+    _, acts = turn("solomon", tool("api_get", {"path": "/api/daycare/mail"}),
+                   post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t", tid="t2"),
+                   text("queued"))
+    assert posts() == [] and len(acts["actions"]) == 1 and acts["done"] == [], (HTTP, acts)
+    reset()                                   # same write without reading mail first stays AUTO
+    _, acts = turn("solomon", post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t"), text("ok"))
+    assert len(posts()) == 1 and acts["actions"] == [], (HTTP, acts)
+    reset()                                   # own-business task AUTO; other business's agent = card
+    _, acts = turn("solomon", post("/api/hub/task", {"agentId": "solomon", "title": "x"}, "t"), text("ok"))
+    assert len(posts()) == 1 and acts["actions"] == [], (HTTP, acts)
+    reset()
+    _, acts = turn("solomon", post("/api/hub/task", {"agentId": "marcus", "title": "x"}, "t"), text("q"))
+    assert posts() == [] and len(acts["actions"]) == 1, (HTTP, acts)
 
 
 def test_enrolled_audit():

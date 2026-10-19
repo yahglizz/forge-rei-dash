@@ -198,7 +198,9 @@ def test_filter_keeps_daycare_and_drops_everything_else():
         assert word not in s, f"{word} leaked out of the module"
     assert "dad.ross@yahoo.com" in s and "hidden.parent" not in s, \
         "a sender's own From header shows; the known-guardian set itself is never in the payload"
-    assert len(f.api()) == 1 + len(KEEP) + len(DROP), "one list + one metadata GET per message"
+    # the fake serves the same page for every token; paging (≤3 list calls) + id de-dupe = one GET per message
+    n_meta = len(KEEP) + len(DROP)
+    assert n_meta <= len(f.api()) <= n_meta + 3, "one metadata GET per message + at most 3 list calls"
     assert set(out) >= {"ok", "via", "rows", "filteredOut", "dateRange", "fetchedAt", "unreadCount", "count"}
     assert out["via"] == "gmail" and out["unreadCount"] == len(KEEP) and out["nextPage"] == "NEXTPAGE"
     import telegram_agent as ta

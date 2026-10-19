@@ -190,6 +190,22 @@ def _cap_key(agent_id):
         return str(agent_id)
 
 
+# Reading these puts third-party text (parents, senders) in the model's context. For the rest of THAT
+# message every write is a tap — injected "tag/task/dismiss …" text can't ride an AUTO write (security review).
+TAINT_PREFIXES = ("/api/daycare/mail", "/api/daycare/ghl/thread", "/api/daycare/ghl/conversations")
+
+
+def _task_cross_business(body, writer_biz):
+    """A hub task aimed at ANOTHER business's agent — an assignment that agent reads as work."""
+    try:
+        import agents_hub
+        tgt = agents_hub.main_agent(str(body.get("agentId") or "").lower())
+    except Exception:  # noqa: BLE001
+        return False
+    b = ta.AGENT_BUSINESS.get(tgt or "")
+    return bool(b and b != writer_biz)
+
+
 def _arg_needs_tap(path, body):
     """An AUTO route whose ARGUMENTS can reach an important effect goes to the tap instead."""
     if path == "/api/daycare/ghl/tag":
@@ -238,6 +254,10 @@ def _write(name, inp, agent_id, col):
     tap, why_tap = not auto_enabled() or any(p not in AUTO_PATHS for p in paths), ""
     if not tap and any(_arg_needs_tap(c["path"], c["body"]) for c in calls):
         tap, why_tap = True, "that tag edit touches intake / login / center tags"
+    if not tap and col.get("tainted"):
+        tap, why_tap = True, "this message read email / parent text, so writes need your tap"
+    if not tap and any(c["path"] == "/api/hub/task" and _task_cross_business(c["body"], biz) for c in calls):
+        tap, why_tap = True, "a task for another business's agent"
     if not tap and col["auto"] + n > MAX_AUTO_TURN:
         tap, why_tap = True, f"over the {MAX_AUTO_TURN}-per-message auto cap"
     if not tap and not _reserve_day(_cap_key(agent_id), n):
@@ -362,6 +382,8 @@ _WRITE_RULES = (
     "pipeline moves, contracts) comes back queued as a ✅ card: it is NOT done until the owner taps. "
     "Never say a card's action happened — say it is waiting on his tap; the card appears right under your reply in this chat (no other approval page).\n"
     "- A list of the same action = ONE api_post_batch (one card at most), never many calls or cards.\n"
+    "- After you read email or a parent thread in a message, EVERY write that message becomes a ✅ card "
+    "(third-party text can't trigger an AUTO write); a task for another business's agent is a card too.\n"
     f"- {_DATA_RULE}\n")
 
 # business -> (owner agent, where the owner finds it) — the off-scope pointer.
@@ -500,6 +522,9 @@ def run_tool(name, inp, agent_id):
         q = dict(urllib.parse.parse_qsl(qs))
         if isinstance(inp.get("query"), dict):
             q.update(inp["query"])
+        col = _col()
+        if col is not None and path.startswith(TAINT_PREFIXES):
+            col["tainted"] = True
         return label(ta._http("GET", path, query=q or None), path, agent_id)
     return {"error": f"{name} is not available in dashboard chat — chat is read-only for that; "
                      "tell the owner which button or Telegram tap does it"}
