@@ -103,7 +103,7 @@ AGENT_THREADS = {"scout", "marcus", "atlas", "followup", "solomon", "midas",
 # Lane threads that bill to the agent that owns them: Solomon's Replies + Leads lanes
 # (daycare_replies drafts with Claude; daycare_leads makes no Claude call today).
 THREAD_ALIAS = {"daycare_replies": "solomon", "daycare_leads": "solomon", "daycare_starts": "solomon",
-                "daycare_ads": "solomon",
+                "daycare_ads": "solomon", "solomon_orchestrator": "solomon",
                 "orion": "brief"}   # Telegram partner turns run on a thread named for the agent
 
 
@@ -308,7 +308,7 @@ def max_usd():
 
 def over_ceiling(agent):
     """True when this agent's spend today is at/over its daily ceiling. For the unattended
-    orchestrator round (spec 2026-10-18 P3) to skip itself — nothing calls it on a loop yet."""
+    orchestrator round (spec 2026-10-18 P3) to skip itself — solomon_orchestrator.tick checks it."""
     return spent_today(agent) >= max_usd()
 
 

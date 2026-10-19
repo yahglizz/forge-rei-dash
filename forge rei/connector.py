@@ -1110,6 +1110,9 @@ import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead vis
 import daycare_starts  # noqa: E402 — Solomon · Starts: agreed start date → confirm → start-day login
 import daycare_replies  # noqa: E402 — Solomon family-comms: drafts parent replies, owner sends
 # --- /WP-E ---
+import daycare_board  # noqa: E402 — Solomon's Command Board (state file; spec 2026-10-18 orchestrator)
+import daycare_watches  # noqa: E402 — zero-Claude watches that fill the board (inbox/enrollment/billing/…)
+import solomon_orchestrator  # noqa: E402 — the board's wake-up timer, FORGE_SOLOMON_ORCH=1 (default OFF)
 import daycare_director  # noqa: E402 — Solomon, the daycare's head agent (executive director)
 # Nora (roster/family-comms) and Nova (ad ops) were merged into Solomon on 2026-07-25 —
 # one director, one brief, one Claude call. Their routes narrow his brief; see
@@ -4837,6 +4840,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/starts/confirm", "/api/daycare/starts/date", "/api/daycare/starts/dismiss",
                 "/api/daycare/replies/run", "/api/daycare/replies/approve",
                 "/api/daycare/replies/dismiss",
+                "/api/daycare/board/run", "/api/daycare/board/snooze", "/api/daycare/board/done",
                 "/api/daycare/blast/preview", "/api/daycare/blast/create",
                 "/api/daycare/blast/send", "/api/daycare/blast/cancel",
                 "/api/daycare/blast/optout",
@@ -4986,6 +4990,14 @@ class Handler(BaseHTTPRequestHandler):
                                                  body.get("text"))
             elif path == "/api/daycare/replies/dismiss":
                 result = daycare_replies.dismiss(body.get("contact_id"))
+            # Command Board: a round = zero-Claude reads → the board file (nothing outward); snooze /
+            # done are internal + reversible (done reopens next round if the source still shows it).
+            elif path == "/api/daycare/board/run":
+                result = daycare_watches.run_round()
+            elif path == "/api/daycare/board/snooze":
+                result = daycare_board.snooze(body.get("id"), body.get("hours", 24))
+            elif path == "/api/daycare/board/done":
+                result = daycare_board.done(body.get("id"))
             elif path == "/api/daycare/ghl/reply":
                 # Owner-typed text from the Messages tab: the confirm tap IS the approval
                 # (rule 2); texting window / opt-out / DND are re-checked server-side.
@@ -5049,7 +5061,7 @@ class Handler(BaseHTTPRequestHandler):
                 session, q.get("date", [None])[0]),
             "/api/daycare/behavior": lambda session: daycare_supabase.get_behavior(
                 session, q.get("date", [None])[0]),
-            "/api/daycare/classrooms": lambda session: daycare_supabase.get_classrooms(session),
+            "/api/daycare/classrooms": lambda session: _daycare_at(session, q, daycare_supabase.get_classrooms),
             "/api/daycare/staff": lambda session: _daycare_at(session, q, daycare_supabase.get_staff),
             "/api/daycare/logs": lambda session: daycare_supabase.get_logs(
                 session, q.get("from", [None])[0], q.get("to", [None])[0]),
@@ -5060,7 +5072,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/thread": lambda session: daycare_supabase.get_thread(
                 session, q.get("id", [None])[0]),
             "/api/daycare/notifications": lambda session: daycare_supabase.get_notifications(session),
-            "/api/daycare/billing": lambda session: daycare_supabase.get_billing(session),
+            # ?location_id= (optional) reads another center without switching (the board's watches)
+            "/api/daycare/billing": lambda session: _daycare_at(session, q, daycare_supabase.get_billing),
             "/api/daycare/payroll": lambda session: daycare_supabase.get_payroll(session),
             "/api/daycare/reports": lambda session: daycare_supabase.get_reports(
                 session, q.get("from", [None])[0], q.get("to", [None])[0]),
@@ -5137,7 +5150,11 @@ class Handler(BaseHTTPRequestHandler):
                 q.get("bucket", [""])[0], q.get("page", [None])[0],
                 known=lambda: gmail_io.known_emails(DAYCARE_GHL)),
             "/api/daycare/mail/thread": lambda session: telegram_agent.redact(gmail_io.thread_view(
-                q.get("id", [""])[0], known=lambda: gmail_io.known_emails(DAYCARE_GHL))),
+                q.get("id", [""])[0], known=lambda: gmail_io.known_emails(DAYCARE_GHL),
+                meta_only=q.get("meta", ["0"])[0] in ("1", "true"))),   # ?meta=1 = headers only, no body
+            # Solomon's Command Board (state file only — no network on the request path).
+            "/api/daycare/board": lambda session: daycare_board.view(
+                q.get("state", ["open"])[0], q.get("domain", [""])[0], q.get("limit", ["50"])[0]),
             "/api/daycare/blast": lambda session: self._daycare_blast_overview(
                 session, q.get("classroom", [None])[0]),
             "/api/daycare/media/signed-read": lambda session: daycare_supabase.sign_media(
@@ -5912,6 +5929,16 @@ def main():
                              daemon=True, name="daycare_auto_enroll").start()
         else:
             forge_heartbeat.retire("daycare_auto_enroll")
+        # Solomon · Orchestrator: the Command Board's wake-up timer — zero-Claude watch rounds every
+        # FORGE_SOLOMON_ORCH_EVERY_MIN in business hours + 20:00 ET, digest to the daycare chat only
+        # when something is new/urgent. Reads + the board file only; never acts outward.
+        # OPERATOR OPT-IN: FORGE_SOLOMON_ORCH=1 (default 0 = off, heartbeat retired).
+        if solomon_orchestrator.enabled():
+            print(f"   Solomon · Orchestrator: board rounds every {solomon_orchestrator.every_min()} min (7–19 ET + 20:00)")
+            threading.Thread(target=solomon_orchestrator.run_forever, daemon=True,
+                             name="solomon_orchestrator").start()
+        else:
+            forge_heartbeat.retire("solomon_orchestrator")
         # Midas — the dropship store's head agent (e-com director). Reads the store
         # (Shopify/AutoDS/Meta) + the brief, writes a ranked operating brief covering
         # product research, ads and fulfillment. Propose-only; self-improves. Lane work

@@ -36,6 +36,7 @@ Every call goes through review_agent.post_messages → same AI-health stamp + co
 import json
 import os
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -58,6 +59,7 @@ AUTO_PATHS = frozenset({
     "/api/daycare/ghl/tag", "/api/scout/apply",                      # GHL tags (reversible)
     "/api/scout/run", "/api/prep/run", "/api/daycare/replies/run", "/api/screening/run",  # engines
     "/api/daycare/nova/generate", "/api/agency/dyson/generate", "/api/agency/eco/generate",  # drafts
+    "/api/daycare/board/run", "/api/daycare/board/snooze", "/api/daycare/board/done",       # Solomon's board
 })
 MAX_AUTO_TURN = 20           # per chat message
 MAX_AUTO_DAY = 200           # per agent per ET day
@@ -190,9 +192,58 @@ def _cap_key(agent_id):
         return str(agent_id)
 
 
-# Reading these puts third-party text (parents, senders) in the model's context. For the rest of THAT
-# message every write is a tap — injected "tag/task/dismiss …" text can't ride an AUTO write (security review).
-TAINT_PREFIXES = ("/api/daycare/mail", "/api/daycare/ghl/thread", "/api/daycare/ghl/conversations")
+# FAIL-CLOSED taint (security review 2026-10-18): reading ANY route that is not on this allowlist of
+# status/number/identifier routes puts third-party text (parents, senders, form fields, seller texts) in the
+# model's context. From then on, for 30 minutes (FORGE_CHAT_TAINT_MIN, across messages), every write by that
+# agent is a tap — injected "tag/task/dismiss …" text can't ride an AUTO write.
+NO_TAINT_PREFIXES = ("/api/system/", "/api/health", "/api/cost/", "/api/agents/registry", "/api/actions/",
+                     "/api/businesses", "/api/daycare/auth/status", "/api/daycare/locations",
+                     "/api/daycare/classrooms", "/api/daycare/ads", "/api/daycare/ghl/enrolled-audit",
+                     "/api/daycare/ghl/contacts", "/api/daycare/starts", "/api/daycare/auto-enroll",
+                     "/api/ace/", "/api/autopilot/", "/api/goals/")
+TAINT_STATE = forge_atomic.guard_state_path(Path(__file__).resolve().parent / "marcus_state" / "chat_taint.json")
+_TAINT_LOCK = threading.Lock()
+
+
+def _taint_ttl():
+    try:
+        return max(1, int(os.environ.get("FORGE_CHAT_TAINT_MIN") or 30)) * 60
+    except ValueError:
+        return 1800
+
+
+def _mark_tainted(agent_id):
+    """Remember (on disk, per agent) that this agent has third-party text in context."""
+    try:
+        with _TAINT_LOCK:
+            try:
+                d = json.loads(TAINT_STATE.read_text())
+            except Exception:  # noqa: BLE001
+                d = {}
+            d = d if isinstance(d, dict) else {}
+            d[_cap_key(agent_id)] = int(time.time())
+            forge_atomic.atomic_write_json(TAINT_STATE, d)
+    except Exception:  # noqa: BLE001 — can't record it: the in-message flag still holds
+        pass
+
+
+def _recently_tainted(agent_id):
+    try:
+        d = json.loads(TAINT_STATE.read_text())
+        return time.time() - int(d.get(_cap_key(agent_id)) or 0) < _taint_ttl()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _taint(col, agent_id):
+    if col is not None:
+        col["tainted"] = True
+    _mark_tainted(agent_id)
+
+
+def _taints(out):
+    """A payload that says it carries third-party text (the board with email subjects/senders)."""
+    return isinstance(out, dict) and bool(out.get("thirdPartyText"))
 
 
 def _task_cross_business(body, writer_biz):
@@ -254,8 +305,8 @@ def _write(name, inp, agent_id, col):
     tap, why_tap = not auto_enabled() or any(p not in AUTO_PATHS for p in paths), ""
     if not tap and any(_arg_needs_tap(c["path"], c["body"]) for c in calls):
         tap, why_tap = True, "that tag edit touches intake / login / center tags"
-    if not tap and col.get("tainted"):
-        tap, why_tap = True, "this message read email / parent text, so writes need your tap"
+    if not tap and (col.get("tainted") or _recently_tainted(agent_id)):
+        tap, why_tap = True, "third-party text (email / parent / form) is in context, so writes need your tap"
     if not tap and any(c["path"] == "/api/hub/task" and _task_cross_business(c["body"], biz) for c in calls):
         tap, why_tap = True, "a task for another business's agent"
     if not tap and col["auto"] + n > MAX_AUTO_TURN:
@@ -281,6 +332,8 @@ def _write(name, inp, agent_id, col):
                                  business=biz, trigger="chat_auto", ref=summary[:120],
                                  approval_required=False)
         results.append(res)
+        if _taints(res):              # e.g. a board round that surfaced email subjects
+            _taint(col, agent_id)
         if _err(res if isinstance(res, dict) else {}):
             errs.append(f"{c['path']}: {_err(res)}")
     line = {"summary": summary, "path": paths[0] if len(set(paths)) == 1 else None, "ok": not errs}
@@ -412,6 +465,18 @@ _HINT = {
 }
 
 
+def _board_hint(writes):
+    """Solomon's Command Board — his standing task list (spec 2026-10-18 orchestrator)."""
+    return ("- BOARD: api_get /api/daycare/board — your standing task list; read it FIRST for 'what's on my "
+            "plate' / 'what needs me' (open items ranked urgent→low, each with source + window, a center and an "
+            "owner; sources[] with ok:false = that domain is Unknown, never zero). "
+            + ("Run a fresh round with api_post /api/daycare/board/run (zero Claude, reads only); "
+               "/api/daycare/board/snooze {id, hours} and /api/daycare/board/done {id} are AUTO (done reopens next "
+               "round while the source still shows it). Board items can quote email subjects, so a board read makes "
+               "the rest of the message's writes ✅ cards.\n" if writes else
+               "A fresh round is the owner's 'Run round now' button on the Daycare dashboard.\n"))
+
+
 # "What can you do?" — (live lookups, what it only proposes, what needs the owner's tap).
 CAN = {
     "wholesale": ("seller leads + triage buckets, Marcus's drafts waiting on you, screening reports, "
@@ -421,7 +486,9 @@ CAN = {
     "agency": ("clients, edit requests, approvals, call sheet, agency Meta ads, social, workflows",
                "site/code edit plans, ad concepts, campaign reads",
                "shipping any edit, launching/pausing an ad, sending anything to a client"),
-    "daycare": ("enrollment leads, parent threads, Solomon · Replies drafts, start dates, seats/classrooms, "
+    "daycare": ("your Command Board (/api/daycare/board — open items across inbox, enrollment, billing, ads, "
+                "social, roster, systems), enrollment leads, parent threads, Solomon · Replies drafts, start dates, "
+                "seats/classrooms, invoices, "
                 "Meta ad results (/api/daycare/ads/feed), ad concepts, daycare Gmail (/api/daycare/mail — "
                 "daycare-only, read-only; /api/daycare/mail/thread?id= for one thread)",
                 "parent replies, growth moves, new ad concepts",
@@ -438,7 +505,7 @@ CAN_AUTO = {
     "wholesale": "dismiss a draft/lead, push Scout's tags, screening notes, goals, tasks, re-run Scout/screening/prep",
     "agency": "call-sheet status + notes, the call log, tasks, Dyson/Eco drafts",
     "daycare": "GHL tags on families, lead stage marks, dismiss/undismiss, re-run Replies drafts, "
-               "new ad concepts (text), tasks",
+               "new ad concepts (text), tasks, a board round + snooze/done on board items",
     "dropship": "tasks",
     "hq": "tasks on any agent's board",
 }
@@ -509,7 +576,7 @@ def run_tool(name, inp, agent_id):
     if name == "find_people":
         if write_business(agent_id) != "daycare":
             return {"error": "find_people is daycare-only (Solomon)"}
-        return ta._find_people(str(inp.get("q") or ""))
+        return ta._find_people(str(inp.get("q") or ""))        # names + login IDs only: identifier route
     if name in ("api_get", "route_help"):
         ok, why = read_ok(bizs, path)
         if not ok and name == "route_help" and writes_on(agent_id):   # learn a write's body shape
@@ -523,9 +590,10 @@ def run_tool(name, inp, agent_id):
         if isinstance(inp.get("query"), dict):
             q.update(inp["query"])
         col = _col()
-        if col is not None and path.startswith(TAINT_PREFIXES):
-            col["tainted"] = True
-        return label(ta._http("GET", path, query=q or None), path, agent_id)
+        out = ta._http("GET", path, query=q or None)
+        if col is not None and (_taints(out) or not path.startswith(NO_TAINT_PREFIXES)):
+            _taint(col, agent_id)
+        return label(out, path, agent_id)
     return {"error": f"{name} is not available in dashboard chat — chat is read-only for that; "
                      "tell the owner which button or Telegram tap does it"}
 
@@ -581,6 +649,7 @@ def live_block(agent_id):
             "accountOwner:'daycare' is the daycare's account (Solomon's lane) — never report it as yours "
             "unless you are Solomon.\n"
             + "".join(_HINT.get(b, "") for b in bizs)
+            + (_board_hint(writes) if write_business(agent_id) == "daycare" else "")
             + (_HINT["daycare_w"] if writes and write_business(agent_id) == "daycare" else "")
             + _can_line(agent_id, bizs, writes)
             + "GET ROUTES (every business — read-only): " + " ".join(routes(bizs))

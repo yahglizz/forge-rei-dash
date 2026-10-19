@@ -16,7 +16,7 @@ hub task to its agent (foreign_write). A hard deny list (auth, reset, notify, po
 everywhere — scope + deny re-checked at tap time. A loopback call carries no proxy headers, so daycare routes get the box's
 auto-admin session exactly like the owner's SSH tunnel does.
 
-Credits out / no key: quick() serves /status, /starts, /logins, /pin with zero Claude.
+Credits out / no key: quick() serves /status, /starts, /logins, /pin, /board with zero Claude.
 Self-check: python3 test_telegram_agent.py
 """
 import secrets
@@ -582,6 +582,9 @@ def system_prompt(agent_id, business):
                      "You never build or launch an ad yourself: Build PAUSED and Launch $10/$20 a day are the owner's "
                      "taps on those cards.")
         parts.append("\n" + MAIL_HINT)
+        parts.append("\nBOARD: api_get /api/daycare/board — your standing task list (open items with source + window; "
+                     "sources ok:false = Unknown, never zero). A fresh round is api_post /api/daycare/board/run (a card "
+                     "here); /board shows the top 8 with no AI.")
     try:
         import caveman
         parts.append(caveman.block())
@@ -720,10 +723,16 @@ def quick(cmd, arg, chat_id, business):
                 + (f"💸 Month to date: ${float(mtd.get('totalUSD') or 0):.2f} "
                    f"(Claude ${float(mtd.get('claudeUSD') or 0):.2f})"
                    if mtd else "💸 Cost: unavailable"), [])
-    if cmd not in ("/starts", "/logins", "/pin"):
+    if cmd not in ("/starts", "/logins", "/pin", "/board"):
         return None
     if business not in (None, "daycare"):
         return ("That's a daycare command — use it in the 🏫 Daycare chat.", [])
+    if cmd == "/board":        # Solomon's Command Board: top 8 open items + counts (state file, zero Claude)
+        res = _http("GET", "/api/daycare/board", query={"limit": 8}) or {}
+        if res.get("error") and not res.get("items"):
+            return (f"⚠️ Couldn't read the board: {_esc(res['error'])}", [])
+        import daycare_board
+        return (daycare_board.telegram_text(res), [])
     if cmd == "/starts":
         res = _http("GET", "/api/daycare/starts") or {}
         if res.get("error") and not res.get("starts"):

@@ -377,9 +377,10 @@ def search(query, limit=25, page_token=None, known_emails=()):
     return {"rows": rows, "filteredOut": dropped, "nextPage": token}
 
 
-def thread(thread_id, max_chars=MAX_CHARS, known_emails=()):
+def thread(thread_id, max_chars=MAX_CHARS, known_emails=(), meta_only=False):
     """One DAYCARE thread as plaintext. Headers first (the gate); the body is fetched only when
-    the thread passes, decoded on demand and never stored. Raises GmailError when it is not daycare."""
+    the thread passes, decoded on demand and never stored. Raises GmailError when it is not daycare.
+    meta_only=True stops after the gated headers (no body GET) — the board's "answered?" check."""
     tid = _valid_id(thread_id)
     meta = _get(f"/threads/{tid}", {"format": "metadata", "metadataHeaders": list(_HDRS)})
     heads = [_row(m) for m in meta.get("messages") or []]
@@ -393,6 +394,9 @@ def thread(thread_id, max_chars=MAX_CHARS, known_emails=()):
         if r["id"] not in ok and frm and frm[0].endswith(own):
             ok[r["id"]] = first
     heads = [r for r in heads if r["id"] in ok]
+    if meta_only:
+        return {"id": tid, "bucket": first, "count": len(heads), "metaOnly": True, "text": "", "truncated": False,
+                "messages": [{k: r[k] for k in ("id", "date", "from", "to", "subject", "unread")} for r in heads]}
     full = _get(f"/threads/{tid}", {"format": "full"})
     parts = []
     for m in full.get("messages") or []:
@@ -471,13 +475,14 @@ def mail_view(days=7, limit=25, q="", bucket="", page_token=None, known=None):
             "fetchedAt": int(time.time() * 1000)}
 
 
-def thread_view(thread_id, known=None, max_chars=MAX_CHARS):
-    """GET /api/daycare/mail/thread — one daycare thread, plaintext ≤ max_chars, read-only."""
+def thread_view(thread_id, known=None, max_chars=MAX_CHARS, meta_only=False):
+    """GET /api/daycare/mail/thread — one daycare thread, plaintext ≤ max_chars, read-only.
+    ?meta=1 → headers only (who wrote when), no body fetched."""
     bad = _down()
     if bad:
         return bad
     try:
-        t = thread(thread_id, max_chars, known() if callable(known) else (known or ()))
+        t = thread(thread_id, max_chars, known() if callable(known) else (known or ()), meta_only=meta_only)
     except GmailError as e:
         out = _down(e)
         if "out of scope" in str(e):

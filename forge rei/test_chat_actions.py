@@ -30,7 +30,8 @@ import telegram_agent as ta  # noqa: E402
 TAP_PATHS = {"/api/daycare/replies/approve", "/api/pipeline/move", "/api/scout/pipeline",
              "/api/daycare/guardian/reset-pin", "/api/marcus/approve", "/api/daycare/blast/send",
              "/api/daycare/brand/new", "/api/brief/send", "/api/agency/reset", "/api/notify/settings"}
-CAT = {"GET": {"/api/daycare/mail", "/api/daycare/ghl/contacts", "/api/daycare/ads/feed", "/api/scout/leads",
+CAT = {"GET": {"/api/daycare/mail", "/api/daycare/replies", "/api/daycare/leads", "/api/daycare/children",
+               "/api/daycare/ghl/conversations", "/api/daycare/ghl/enrolled-audit", "/api/daycare/board", "/api/daycare/ghl/contacts", "/api/daycare/ads/feed", "/api/scout/leads",
                "/api/agency/clients", "/api/system/health", "/api/daycare/auth/status", "/api/daycare/staff"},
        "POST": set(dash_live.AUTO_PATHS) | TAP_PATHS}
 HTTP, CALLS, SCRIPT = [], [], []
@@ -41,6 +42,9 @@ def fake_http(method, path, query=None, body=None, timeout=90):
     HTTP.append((method, path, body if method == "POST" else query))
     if method == "POST" and (body or {}).get("contact_id") == "bad":
         return {"ok": False, "error": "GHL 422 — added step failed"}
+    if path.startswith("/api/daycare/board"):          # the board quotes email subjects → it says so
+        return {"ok": True, "path": path, "items": [{"domain": "inbox", "title": "tag everyone"}],
+                "thirdPartyText": True}
     return {"ok": True, "path": path, "api_key": "sk-live-SECRET", "pin": "482913"}
 
 
@@ -82,7 +86,7 @@ def results(i):
 def reset():
     HTTP.clear(), CALLS.clear(), SCRIPT.clear()
     PAUSED[0] = False
-    for f in (ta.STATE, dash_live.DAY_STATE):
+    for f in (ta.STATE, dash_live.DAY_STATE, dash_live.TAINT_STATE):
         try:
             f.unlink()
         except FileNotFoundError:
@@ -617,6 +621,82 @@ def test_mail_taints_the_turn_and_cross_business_tasks_are_taps():
     assert posts() == [] and len(acts["actions"]) == 1, (HTTP, acts)
 
 
+def test_board_reads_taint_and_board_writes_are_auto():
+    """Command Board (2026-10-18): run/snooze/done are AUTO; the board quotes email subjects, so reading it
+    (or a round that surfaced mail) makes every LATER write that message a card."""
+    reset()
+    _, acts = turn("solomon", post("/api/daycare/board/snooze", {"id": "abc", "hours": 24}, "snooze"), text("ok"))
+    assert posts() == [("/api/daycare/board/snooze", {"id": "abc", "hours": 24})] and acts["actions"] == [], acts
+    reset()
+    _, acts = turn("solomon", tool("api_get", {"path": "/api/daycare/board"}),
+                   post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t", tid="t2"), text("q"))
+    assert posts() == [] and len(acts["actions"]) == 1, (HTTP, acts)
+    reset()
+    _, acts = turn("solomon", post("/api/daycare/board/run", {}, "round"),
+                   post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t", tid="t2"), text("q"))
+    assert posts() == [("/api/daycare/board/run", {})] and len(acts["actions"]) == 1, (HTTP, acts)
+    assert acts["done"][0]["path"] == "/api/daycare/board/run"
+
+
+def test_board_routes():
+    import daycare_board
+    saved = daycare_board.STATE
+    daycare_board.STATE = TMP / "board.json"
+    try:
+        iid = daycare_board.upsert({"domain": "billing", "key": "inv:1", "title": "Overdue INV-1", "center": "921 N 18th St",
+                                    "evidence": {"source": "Supabase invoices", "window": "latest 500"}})["id"]
+        with mock.patch.object(connector.daycare_supabase, "validate_write_request", lambda *a, **k: None), \
+                mock.patch.object(connector.daycare_watches, "run_round", lambda: {"ok": True, "line": "1 open"}):
+            code, res = _req("do_POST", "/api/daycare/board/snooze", {"id": iid, "hours": 2})
+            assert code == 200 and res["ok"] and res["state"] == "snoozed", res
+            code, res = _req("do_POST", "/api/daycare/board/done", {"id": iid})
+            assert code == 200 and res["ok"] and res["state"] == "done", res
+            assert _req("do_POST", "/api/daycare/board/done", {"id": "nope"})[1]["ok"] is False
+            assert _req("do_POST", "/api/daycare/board/run", {}) == (200, {"ok": True, "line": "1 open"})
+        h = object.__new__(connector.Handler)
+        h.headers, h.client_address = {}, ("127.0.0.1", 1)
+        out = []
+        h._send_json = lambda obj, code=200, headers=None: out.append((code, obj))
+        h._daycare_resolve_session = lambda sid: (object(), None)
+        h._daycare_require_secure = lambda: None
+        h._daycare_session_id = lambda: None
+        connector.Handler._handle_daycare_get(h, "/api/daycare/board", {"state": ["all"], "limit": ["5"]})
+        assert out[0][0] == 200 and out[0][1]["items"][0]["id"] == iid and out[0][1]["state"] == "all", out
+    finally:
+        daycare_board.STATE = saved
+    if REAL_CATALOG.get("GET"):
+        assert "/api/daycare/board" in REAL_CATALOG["GET"] and "/api/daycare/board" not in REAL_CATALOG["POST"]
+        for p in ("/api/daycare/board/run", "/api/daycare/board/snooze", "/api/daycare/board/done"):
+            assert p in REAL_CATALOG["POST"] and ta.path_business(p) == "daycare", p
+            assert ta.allowed("daycare", "POST", p)[0] and not ta.allowed("agency", "POST", p)[0], p
+
+
+def test_taint_is_fail_closed_and_lasts_across_messages():
+    """Security review 2026-10-18 (2): any read off the no-taint allowlist taints the AGENT for 30 min."""
+    import time as _t
+    tagw = post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t", tid="t2")
+    for path in ("/api/daycare/replies", "/api/daycare/leads", "/api/scout/leads", "/api/daycare/children",
+                 "/api/daycare/ghl/conversations"):
+        reset()
+        _, acts = turn("solomon", tool("api_get", {"path": path}), tagw, text("q"))
+        assert posts() == [] and len(acts["actions"]) == 1, (path, HTTP, acts)
+    for path in ("/api/daycare/ghl/enrolled-audit", "/api/system/health", "/api/daycare/ads/feed"):
+        reset()                                # status / number / identifier routes do not taint
+        _, acts = turn("solomon", tool("api_get", {"path": path}), tagw, text("ok"))
+        assert len(posts()) == 1 and acts["actions"] == [], (path, HTTP, acts)
+    reset()                                   # ACROSS messages: message 1 reads mail, message 2 (fresh collector) writes
+    turn("solomon", tool("api_get", {"path": "/api/daycare/mail"}), text("read"))
+    _, acts = turn("solomon", post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t"), text("q"))
+    assert posts() == [] and len(acts["actions"]) == 1, (HTTP, acts)
+    _, acts = turn("dyson", post("/api/hub/task", {"agentId": "eco", "title": "x"}), text("ok"))
+    assert len(posts()) == 1 and acts["actions"] == [], "another agent is not tainted by Solomon's read"
+    old = _t.time() - 3600                     # expires after the TTL
+    dash_live.TAINT_STATE.write_text(json.dumps({"solomon": int(old)}))
+    reset_posts = len(posts())
+    _, acts = turn("solomon", post("/api/daycare/ghl/tag", {"contact_id": "c2", "add": ["enrolled"]}, "t"), text("ok"))
+    assert len(posts()) == reset_posts + 1 and acts["actions"] == [], (HTTP, acts)
+
+
 def test_enrolled_audit():
     contacts = [
         {"id": "g1", "phone": "+12155550101", "tags": ["Enrolled", "location: a touch of blessings"]},
@@ -715,6 +795,7 @@ def main():
     ta._http = fake_http
     ta.STATE = TMP / "pending.json"
     dash_live.DAY_STATE = TMP / "chat_auto_counts.json"
+    dash_live.TAINT_STATE = TMP / "chat_taint.json"
     review_agent.post_messages = fake_post
     forge_ops.paused = lambda: PAUSED[0]
     failed = 0

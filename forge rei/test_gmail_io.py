@@ -285,6 +285,16 @@ def test_out_of_scope_thread_never_fetches_a_body():
     assert not [c for c in f.api() if "format=full" in c[1]], "the gate runs on headers; no body is fetched"
 
 
+def test_meta_only_thread_never_fetches_a_body():
+    """?meta=1 (the board's "answered?" check): gated headers incl. our own reply, no body GET."""
+    f = install(FakeGoogle(threads={"tm000201": [
+        msg("m000201", "seara.p@gmail.com", "Mia", payload={"mimeType": "text/plain", "body": {"data": b64("SECRETBODY")}}),
+        msg("m000202", ME, "Re: Mia")]}))
+    t = gmail_io.thread_view("tm000201", known=KNOWN, meta_only=True)
+    assert t["ok"] and t["metaOnly"] and t["text"] == "" and [m["from"] for m in t["messages"]] == ["seara.p@gmail.com", ME], t
+    assert "SECRETBODY" not in json.dumps(t) and not [c for c in f.api() if "format=full" in c[1]], f.api()
+
+
 # ── hygiene ────────────────────────────────────────────────────────────────────────────
 def test_no_secrets_in_output_or_logs():
     leak = ("key sk_live_ABCDEFGHIJKLMNOPQRSTUV and ya29.A0ARrdaMleakleakleak and 1//0gLEAKrefreshTOKENxxxxxx "

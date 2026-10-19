@@ -132,7 +132,10 @@ AGENTS = [
      # "solomon" (the scheduled-brief loop) is OFF by default and retired at boot — a retired loop
      # in `hb` would read the whole row as DISABLED, so it is only listed when the brief is on.
      "hb": (["solomon"] if os.environ.get("FORGE_SOLOMON_BRIEF", "0") != "0" else [])
-           + ["daycare_replies", "daycare_leads", "daycare_starts", "daycare_ads"], "queue": "daycare_replies"},
+           + ["daycare_replies", "daycare_leads", "daycare_starts", "daycare_ads"]
+           # the board's wake-up timer — opt-in (FORGE_SOLOMON_ORCH=1), retired + unlisted when off
+           + (["solomon_orchestrator"] if os.environ.get("FORGE_SOLOMON_ORCH", "0") == "1" else []),
+     "queue": "daycare_replies"},
     {"id": "midas", "name": "Midas", "business": "dropship", "emoji": "🛒",
      "role": "E-com Director — the whole store",
      "blurb": "Product research, creative + ads, fulfillment and support. Ranks the "
@@ -466,9 +469,13 @@ def _delegate_context(agent_id):
     chat gets it via _lanes_block). Read-only, no network; {} when unreachable."""
     try:
         if agent_id == "solomon":
+            import daycare_board
             import daycare_director
             import daycare_ads_studio
-            return {"replies": daycare_director.reply_desk_state(),   # Solomon · Replies
+            # Command Board FIRST (_lanes_block cuts at 2500 chars) — counts only: titles can quote email
+            # subjects; the items themselves come from GET /api/daycare/board.
+            return {"board": daycare_board.counts_block(),
+                    "replies": daycare_director.reply_desk_state(),   # Solomon · Replies
                     "leads": daycare_director.lead_desk_state(),      # Solomon · Leads
                     "adGenerator": daycare_ads_studio.lane_state()}   # Ad Studio (images = owner tap)
         if agent_id == "marcus":   # his lanes: Scout · Atlas · Follow-up · ACE · Autopilot
@@ -884,6 +891,12 @@ def _probe(agent_id):
             sweep = r.get("lastSweep") or {}
             lanes = (f"Replies: {r.get('pending', '?')} draft(s) waiting on you · "
                      f"Leads: {'?' if nh is None else nh} need a human")
+            try:
+                import daycare_board
+                bc = daycare_board.counts_block()
+                lanes += f" · Board: {bc['open']} open ({(bc.get('bySeverity') or {}).get('urgent', 0)} urgent)"
+            except Exception:  # noqa: BLE001 — the board is optional on this row
+                pass
             p["work"] = f"{p['work']} · {lanes}" if p.get("work") else lanes
             p["detail"] = " · ".join(x for x in (
                 (f"Replies last sweep: {sweep.get('drafted', 0)} drafted, "

@@ -260,6 +260,21 @@ def test_daycare_mail_hint_and_capability():
     assert dash_live.CAN["daycare"][0] in dash_live.live_block("solomon")
 
 
+def test_board_hint_is_solomons():
+    """The Command Board is Solomon's task list: his live block points at it; other agents don't get the hint."""
+    b = dash_live.live_block("solomon")
+    assert "BOARD: api_get /api/daycare/board — your standing task list" in b and "Unknown, never zero" in b, b
+    assert "/api/daycare/board/run" not in b, "read-only chat: a round is the owner's button, not a write"
+    assert "/api/daycare/board" in dash_live.CAN["daycare"][0] and "board round" in dash_live.CAN_AUTO["daycare"]
+    for aid in ("dyson", "marcus", "orion"):
+        assert "BOARD: api_get" not in dash_live.live_block(aid), aid
+    w = dash_live._board_hint(True)
+    assert "api_post /api/daycare/board/run" in w and "✅ cards" in w, w
+    for p in ("/api/daycare/board/run", "/api/daycare/board/snooze", "/api/daycare/board/done"):
+        assert p in dash_live.AUTO_PATHS, p
+    assert dash_live._taints({"thirdPartyText": True}) and not dash_live._taints({"items": []})
+
+
 def test_daycare_account_labeled_not_agency():
     import agency_ads
     import agency_agents

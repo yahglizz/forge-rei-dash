@@ -824,7 +824,7 @@ _AGENT_HELP = (
     "for Jane Smith…”. The partner looks it up live; anything that writes comes back as a ✅ card. "
     "HQ talks to Orion (health, API cost, what's down).\n"
     "No AI needed: <code>/status</code> · <code>/starts</code> · <code>/logins name</code> · "
-    "<code>/pin name</code>"
+    "<code>/pin name</code> · <code>/board</code>"
 )
 
 # Quick-tap reply keyboard (persistent, /menu to show, /menu off to remove). Each label
@@ -859,6 +859,7 @@ _BOT_COMMANDS = [
     ("starts", "Daycare start dates"),
     ("logins", "Daycare login lookup"),
     ("pin", "Reset a daycare PIN (tap to confirm)"),
+    ("board", "Solomon's daycare board (top 8 open)"),
     ("orion", "Chat with Orion (HQ health + cost)"),
     ("menu", "Quick-tap buttons"),
     ("help", "Everything in one card"),
@@ -1038,9 +1039,9 @@ def _handle_message(msg, reply_token=None):
 
     chat_biz = _business_of_chat(chat_id)
 
-    # Zero-Claude commands (work with credits out): /status · /starts · /logins · /pin
+    # Zero-Claude commands (work with credits out): /status · /starts · /logins · /pin · /board
     qcmd, _, qarg = cmd.partition(" ")
-    if qcmd in ("/status", "/starts", "/logins", "/pin"):
+    if qcmd in ("/status", "/starts", "/logins", "/pin", "/board"):
         try:
             import telegram_agent
             out = telegram_agent.quick(qcmd, text.partition(" ")[2].strip(), chat_id, chat_biz)

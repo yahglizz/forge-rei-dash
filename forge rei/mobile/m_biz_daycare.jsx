@@ -127,9 +127,11 @@ function MBDHome() {
   const st = window.useApiM("/api/daycare/status", { interval: 300000 });
   const ghl = window.useApiM("/api/daycare/ghl/health", { interval: 300000 });
   const sys = window.useApiM("/api/system/health", { interval: 60000 });
+  const board = window.useApiM("/api/daycare/board?limit=5", { interval: 120000 });   // Solomon · Board
   const [switching, setSwitching] = useStateBD("");
   const [err, setErr] = useStateBD("");
   const [showBrief, setShowBrief] = useStateBD(false);
+  const [boardBusy, setBoardBusy] = useStateBD(false);
 
   const auth = MBDAuth(ov) || MBDAuth(locs) || MBDAuth(leads);
   const prof = (me.data && me.data.profile) || null;
@@ -151,6 +153,16 @@ function MBDHome() {
   const ai = (sys.data && sys.data.ai) || null;
   const s = st.data || {};
   const g = ghl.data || {};
+
+  const bdv = board.data && board.data.ok ? board.data : null;
+  const bdBad = ((bdv && bdv.sources) || []).filter((x) => !x.ok);
+  // A round is zero-AI reads → the board file; nothing is sent (internal + reversible).
+  async function runRound() {
+    setBoardBusy(true); setErr("");
+    try { await window.apiPostM("/api/daycare/board/run", {}); board.refresh(); }
+    catch (e) { setErr("Board round failed — " + ((e && e.message) || "retry")); }
+    setBoardBusy(false);
+  }
 
   async function switchTo(id) {
     if (!id || id === activeLoc) return;
@@ -205,6 +217,20 @@ function MBDHome() {
           <span className="mbd-row-ico"><window.MIcons.Key size={18} /></span>
           <div className="mbd-row-main"><strong>Logins</strong><small>Create parent + staff logins, reset PINs</small></div><span className="mbd-chev">›</span>
         </button>
+      </div>
+
+      <MBDSection title="Board" right={<button className="m-chip" disabled={boardBusy} onClick={runRound}>{boardBusy ? "Running…" : "Run round"}</button>} />
+      <div className="m-card mbd-list">
+        {board.loading && !board.data ? <window.MSpin /> : !bdv ? <div className="m-fade">Board unavailable{board.error ? " — " + String(board.error) : ""}</div>
+          : <React.Fragment>
+            <div className="m-fade">{(bdv.counts || {}).open || 0} open{bdv.lastRound ? " · last round " + MBDAgo(bdv.lastRound.ranAt) : " · no round yet"}</div>
+            {bdBad.length > 0 && <div className="mw-warn">Unknown, not zero: {bdBad.map((x) => x.domain).join(", ")} (read failed / not wired)</div>}
+            {(bdv.items || []).map((i) => <div className="mbd-row" key={i.id}>
+              <MBDBadge tone={i.severity === "urgent" ? "red" : i.severity === "high" ? "gold" : ""}>{i.severity}</MBDBadge>
+              <div className="mbd-row-main"><strong>{i.title}</strong><small>{i.domain} · {i.center} · {(i.evidence || {}).source}</small></div>
+            </div>)}
+            {!(bdv.items || []).length && <div className="m-fade">Nothing open.</div>}
+          </React.Fragment>}
       </div>
 
       <MBDSection title="Solomon" right={b && brief.data.lastBriefAt ? <span className="m-fade">{MBDAgo(brief.data.lastBriefAt)}</span> : null} />

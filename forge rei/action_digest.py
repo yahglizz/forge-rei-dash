@@ -22,6 +22,9 @@ INVERSE = {
     "/api/daycare/leads/stage": {"path": "/api/daycare/leads/stage", "how": "mark the previous stage"},
     "/api/scout/apply": {"path": "/api/scout/remove",
                          "how": "pulls the hot tags (also marks the opportunity Lost — a ✅ card)"},
+    "/api/daycare/board/snooze": {"path": "/api/daycare/board/snooze", "how": "same id with hours 0 (unsnooze)"},
+    "/api/daycare/board/done": {"path": "/api/daycare/board/run",
+                                "how": "the next round reopens it while its source still shows the problem"},
 }
 MAX_LATEST = 5
 SCAN = 500          # action_log.recent() ceiling

@@ -180,6 +180,7 @@ def main():
     ta._http = fake_http
     ta.STATE = TMP / "pending.json"
     dash_live.DAY_STATE = TMP / "chat_auto_counts.json"
+    dash_live.TAINT_STATE = TMP / "chat_taint.json"
     review_agent.post_messages = fake_post
     forge_ops.paused = lambda: False
     ta._H["handler"] = object()

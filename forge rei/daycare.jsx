@@ -365,6 +365,66 @@ function DstStartDates() {
 }
 // --- /STARTS ---
 
+// --- BOARD --- Solomon · Board (daycare_board.py → /api/daycare/board). Zero-AI watch rounds fill it
+// (daycare_watches.py). Snooze / Done / Run round are internal + reversible: Done reopens next round if
+// the source still shows the problem. A source that failed is Unknown — never "0 items".
+const DBD_SEV = [["urgent", "Urgent", "danger"], ["high", "High", "warning"], ["normal", "Normal", "info"], ["low", "Low", "success"]];
+const DBD_SRC = { inbox: "Gmail", enrollment: "Enrollment (GHL · Starts · Auto-enroll)", billing: "Billing (Supabase)", ads: "Ads (Meta via Pipeboard)", social: "Social (Metricool)", roster: "Roster (Supabase)", systems: "Systems" };
+
+function DbdSourceLine(s) {
+  if (s.domain === "inbox") return (s.notWired ? "Gmail not connected" : "Gmail read failed") + " — 0 mail items is Unknown, not zero";
+  return (DBD_SRC[s.domain] || s.domain) + (s.notWired ? " not wired" : " read failed") + " — 0 " + s.domain + " items is Unknown, not zero";
+}
+
+function DbdBoard() {
+  const bd = DcxUseResource("/board?limit=60", null, 60000);
+  const [dbdBusy, setDbdBusy] = useStateDcx("");
+  const [dbdNote, setDbdNote] = useStateDcx("");
+  const dbdAct = async (kind, body) => {
+    setDbdBusy(kind + (body && body.id ? ":" + body.id : "")); setDbdNote("");
+    try {
+      const res = await DcxRequest("/board/" + kind, { body: body || {} });
+      if (res.ok === false) setDbdNote(res.error || "Could not update the board.");
+      else if (res.skipped) setDbdNote(res.skipped);
+      else if (res.line) setDbdNote("Round done — " + res.line);
+    } catch (error) { setDbdNote(error.message); } finally { setDbdBusy(""); bd.refresh(); }
+  };
+  const data = bd.data && !Array.isArray(bd.data) ? bd.data : {};
+  const items = data.items || [];
+  const counts = data.counts || {};
+  const bad = (data.sources || []).filter((s) => !s.ok);
+  const mail = data.mailDesk || null;
+  const lr = data.lastRound || null;
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head"><div><div className="card-title">Solomon · Board</div><div className="faint">Every daycare domain in one ranked list · zero-AI watch rounds · {lr ? "last round " + DcxDate(lr.ranAt, true) : "no round yet"}{counts.snoozed ? " · " + counts.snoozed + " snoozed" : ""}</div></div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><b>{counts.open || 0}</b><button className="dc-outline" disabled={Boolean(dbdBusy)} onClick={() => dbdAct("run")}>{dbdBusy === "run" ? "Running…" : "Run round now"}</button></div></div>
+    {bd.error && <div className="dc-error-text" role="alert">{bd.error.message || "The board is unavailable."}</div>}
+    {bad.map((s) => <div key={s.domain} className="dc-error-text" role="alert">⚠️ {DbdSourceLine(s)}{s.error ? " · " + s.error : ""}</div>)}
+    {dbdNote && <div className="faint" role="status">{dbdNote}</div>}
+    {bd.loading ? <div className="dc-inline-empty">Loading the board…</div> : !items.length
+      ? <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>Nothing open — last round {lr ? DcxDate(lr.ranAt, true) : "not run yet"}</b><span>{lr ? lr.line : "Run a round to fill the board."}</span></div></div>
+      : DBD_SEV.map(([sev, label, tone]) => { const rows = items.filter((i) => i.severity === sev); return rows.length ? <div key={sev} style={{ marginTop: 10 }}>
+        <div className="dc-section-label">{label} · {rows.length}</div>
+        <div className="dc-alert-list">{rows.map((i) => <div key={i.id} style={{ alignItems: "flex-start" }}>
+          <span className={"dc-severity " + tone}/>
+          <div style={{ flex: 1 }}>
+            <b>{i.title}</b>
+            <small><span className="dc-severity-pill">{i.domain}</span> · {i.center} · {DldDuration(i.ageSec)} old{i.owner === "solomon" ? " · Solomon can fix this himself" : ""}</small>
+            {i.why && <small>{i.why}</small>}
+            <small className="faint">{(i.evidence || {}).source} · {(i.evidence || {}).window}</small>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button className="link" disabled={Boolean(dbdBusy)} onClick={() => dbdAct("snooze", { id: i.id, hours: 24 })}>Snooze 24h</button>
+            <button className="link" disabled={Boolean(dbdBusy)} title="Comes back next round if the source still shows it" onClick={() => dbdAct("done", { id: i.id })}>Done</button>
+          </div>
+        </div>)}</div></div> : null; })}
+    {mail && <details style={{ marginTop: 12 }} open={Boolean(mail.top && mail.top.length)}><summary className="faint" style={{ cursor: "pointer" }}>Inbox — {mail.ok === false ? "Unknown (" + (mail.error || "read failed") + ")" : (mail.unread || 0) + " unread daycare mail · " + (mail.needsAnswer || 0) + " need an answer · " + (mail.window || "")}</summary>
+      {(mail.top || []).length ? <div className="dc-alert-list">{mail.top.map((m, idx) => <div key={idx}><span className="dc-severity info"/><div><b>{m.subject || "(no subject)"}</b><small>{m.from} · {m.bucket}{m.date ? " · " + DcxDate(m.date, true) : ""}</small></div></div>)}</div>
+        : mail.ok !== false && <div className="dc-inline-empty">No unread daycare mail.</div>}
+    </details>}
+  </div>;
+}
+// --- /BOARD ---
+
 function DaycareDashboard() {
   const overview = DcxUseResource("/overview", "overview", 30000);
   const classrooms = DcxUseResource("/classrooms", "classrooms", 30000);
@@ -384,6 +444,7 @@ function DaycareDashboard() {
   return <div className="dc-page"><DcxState loading={overview.loading || classrooms.loading} error={overview.error || classrooms.error} onRetry={()=>{overview.refresh();classrooms.refresh();}}><>
     <section className="dc-hero"><div><div className="dc-eyebrow">{today.toUpperCase()} · LIVE OPERATIONS</div><h1>{center.name || "Daycare command center"}</h1><p>See what needs attention now, then move directly into the operating record shared with your families and team.</p><div className="dc-hero-actions"><button className="dc-primary" onClick={() => window.GoTo("Attendance")}><window.Icons.Attendance size={15}/> Open attendance</button><button className="dc-outline" onClick={() => window.GoTo("Messages")}><window.Icons.Conversations size={15}/> Family messages</button></div></div><div className="dc-hero-mark"><span>{checkedIn}</span><small>ON SITE NOW</small></div></section>
     <div className="dc-kpi-grid"><DcxKpi label="Enrolled" value={enrolled} sub={Math.max(0, capacity - enrolled) + " of " + capacity + " spots open"} icon="Children"/><DcxKpi label="Checked In" value={checkedIn} sub="live attendance" icon="Attendance" color="#22C55E"/><DcxKpi label="Active Staff" value={staff} sub="center team" icon="Staff" color="#8B5CF6"/><DcxKpi label="Balances Due" value={DcxMoney(amountDue)} sub={invoicesDue + " open invoices"} icon="Billing" color={invoicesDue ? "#F4B860" : "#22C55E"}/><DcxKpi label="Unread" value={unread} sub="family + team messages" icon="Bell" color={unread ? "#38BDF8" : "#22C55E"}/><DcxKpi label="Open Alerts" value={alerts.length} sub="items needing review" icon="Bell" color={alerts.length ? "#F4B860" : "#22C55E"}/></div>
+    <DbdBoard/>{/* --- BOARD --- */}
     <DstStartDates/>{/* --- STARTS --- */}
     <DldLeadDesk/>{/* --- WP-E --- */}
     {window.DcaAdsCard && <window.DcaAdsCard/>}{/* --- ENROLLMENT ADS (Pipeboard) --- */}

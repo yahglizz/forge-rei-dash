@@ -142,7 +142,8 @@ def run_once(client, session_fn, enroll_fn, now: float | None = None, dry_run: b
         ready, held = review(cards)
         summary = {"ok": True, "ready": len(ready), "held": [
             {"child": f"{h.get('child_first')} {h.get('child_last') or ''}".strip(), "card_id": h.get("card_id"),
-             "reasons": h["reasons"]} for h in held], "enrolled": [], "failed": [], "text": text_enabled()}
+             "reasons": h["reasons"], "location": h.get("location_tag")}   # center tag (the board's center)
+            for h in held], "enrolled": [], "failed": [], "text": text_enabled()}
         if dry_run:
             summary["would_enroll"] = [f"{c.get('child_first')} ({c.get('location_tag')})" for c in ready[:MAX_PER_TICK]]
             return summary
