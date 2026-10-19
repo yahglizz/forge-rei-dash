@@ -18,7 +18,7 @@ function MarcusChat() {
     setMsgs((m) => [...m, { role: "user", text: q, time: now() }]);
     setVal("");
     setTyping(true);
-    let reply, acts, dn;
+    let reply, acts, dn, cs;
     try {
       // Routes through the connector: Marcus searches the real GHL SMS threads,
       // then answers via Claude (key lives server-side in ghl.env).
@@ -29,12 +29,12 @@ function MarcusChat() {
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || ("HTTP " + res.status));
-      reply = j.reply; acts = j.actions; dn = j.done;
+      reply = j.reply; acts = j.actions; dn = j.done; cs = j.consults;
     } catch (e) {
       reply = "Couldn't reach my brain just now (" + (e.message || "connection error") + "). Make sure the connector is running.";
     }
     setTyping(false);
-    setMsgs((m) => [...m, { role: "ai", text: (reply || "").trim() || "On it.", time: now(), actions: acts, done: dn }]);
+    setMsgs((m) => [...m, { role: "ai", text: (reply || "").trim() || "On it.", time: now(), actions: acts, done: dn, consults: cs }]);
   }
 
   return (
@@ -49,7 +49,7 @@ function MarcusChat() {
         {msgs.map((m, i) => (
           <div key={i} className={"bubble " + m.role}>
             {m.text}
-            {m.role === "ai" && window.ChatActions && <window.ChatActions actions={m.actions} done={m.done} />}
+            {m.role === "ai" && window.ChatActions && <window.ChatActions actions={m.actions} done={m.done} consults={m.consults} />}
             <div className="bubble-time">{m.time}</div>
           </div>
         ))}

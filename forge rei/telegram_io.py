@@ -431,6 +431,8 @@ def _event_class(msg):
     """Map a bus message to an event class, or None to skip."""
     data = msg.get("data") if isinstance(msg.get("data"), dict) else {}
     dtype = data.get("type")
+    if dtype == "collab":   # agent ⇄ agent consult traffic: internal, already shown in the chat — never a ping
+        return None
     if dtype in ("hot_lead", "proposal", "missed_sweep", "skill_proposal",
                  "edit_request", "dyson_plan"):
         return dtype

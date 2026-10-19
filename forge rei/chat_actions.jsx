@@ -1,6 +1,7 @@
-// chat_actions.jsx — owner-tap cards + "done" lines under an agent's chat reply.
-// Backend: chat endpoints return `actions` (TAP cards awaiting the owner) and `done` (AUTO writes
-// the agent already ran). ✅ -> POST /api/chat/action/confirm {tok}; ❌ -> .../cancel {tok}.
+// chat_actions.jsx — owner-tap cards + "done" lines + teammate consults under an agent's chat reply.
+// Backend: chat endpoints return `actions` (TAP cards awaiting the owner), `done` (AUTO writes
+// the agent already ran) and `consults` (dash_live.ask_agent: the agent asked a teammate — read-only,
+// shown as a 🤝 thread). ✅ -> POST /api/chat/action/confirm {tok}; ❌ -> .../cancel {tok}.
 // Never auto-confirms. Inline styles only; inherits text colour so it works in dark + light.
 // Hook aliases for this file: CA. Exports: window.ChatActions. Used by agents_hub, orion_office,
 // dashboard, mobile/m_agents (mobile has no api.jsx, so fall back to apiPostM).
@@ -83,11 +84,41 @@ function CACard({ a }) {
   </div>;
 }
 
-function ChatActions({ actions, done }) {
+// Same palette as agents_hub.jsx HUB_BIZ_COLOR (hq = its "cross"); keyed by the consult's business.
+const CA_BIZ = { wholesale: "#4F7CFF", agency: "#8B5CF6", daycare: "#2DD4BF", dropship: "#F59E0B", hq: "#EC4899" };
+const CA_BUBBLE = { marginTop: 6, padding: "6px 9px", borderRadius: 9, whiteSpace: "pre-wrap", minWidth: 0,
+  background: "var(--card, rgba(127,127,127,.08))", border: "1px solid var(--border, rgba(127,127,127,.3))" };
+
+function CAChip({ name, biz }) {
+  const c = CA_BIZ[caStr(biz)] || "#94A3B8";
+  return <span style={{ display: "inline-block", marginRight: 6, fontSize: 11, fontWeight: 700, padding: "0 7px", borderRadius: 999,
+    border: "1px solid " + c, background: c + "26", color: "inherit", lineHeight: "17px", whiteSpace: "nowrap" }}>{caStr(name) || "Agent"}</span>;
+}
+
+function CAConsult({ c }) {
+  const [open, setOpen] = useStateCA(false);
+  const from = caStr(c.from) || "Agent", to = caStr(c.to) || "Teammate";
+  const ans = caStr(c.a), long = ans.length > 300;
+  return <div style={CA_BOX}>
+    <div style={{ fontSize: 11.5, fontWeight: 700, opacity: .85 }}>🤝 {from} → {to}</div>
+    <div style={CA_BUBBLE}><CAChip name={from} biz={c.fromBusiness} />{caStr(c.q)}</div>
+    {c.ok ? <div style={CA_BUBBLE}>
+      <CAChip name={to} biz={c.business} />{long && !open ? ans.slice(0, 300) + "…" : !long ? ans : null}
+      {long && <details onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary style={{ cursor: "pointer", fontSize: 11.5, opacity: .8, marginTop: 3 }}>{open ? "show less" : "show all"}</summary>{ans}
+      </details>}
+    </div> : <div role="alert" style={{ ...CA_BUBBLE, color: CA_RED }}>✖ {to} couldn't answer{c.error ? " — " + caTrim(c.error, 300) : ""}</div>}
+    {c.tainted && <div style={{ fontSize: 11, opacity: .75, marginTop: 5 }}>⚠ read other-business data — {from}'s next writes need your tap</div>}
+  </div>;
+}
+
+function ChatActions({ actions, done, consults }) {
   const acts = caArr(actions).filter((a) => a && typeof a === "object");
   const dn = caArr(done).filter((d) => d && typeof d === "object");
-  if (!acts.length && !dn.length) return null;
+  const cs = caArr(consults).filter((c) => c && typeof c === "object");
+  if (!acts.length && !dn.length && !cs.length) return null;
   return <div style={{ marginTop: 2, maxWidth: "100%" }}>
+    {cs.map((c, i) => <CAConsult key={"c" + i} c={c} />)}
     {dn.map((d, i) => <CADone key={"d" + i} d={d} />)}
     {acts.map((a, i) => <CACard key={a.tok || "a" + i} a={a} />)}
   </div>;

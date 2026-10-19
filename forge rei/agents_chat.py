@@ -151,10 +151,12 @@ def _format_audit_rundown(report):
 
 
 def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
-         enable_commands=True):
+         enable_commands=True, consult=False):
     message = (message or "").strip()
     if not message:
         return {"reply": "Say something and I'll answer."}
+    if consult:   # a teammate's text (dash_live.ask_agent) must never run as an operator command
+        enable_commands = False
 
     if enable_commands and (agent_id or "marcus") in ("marcus", "scout", "atlas"):
         try:
@@ -169,7 +171,7 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None,
 
     # Marcus = the live GHL-search brain.
     if agent_id == "marcus" or not agent_id:
-        return marcus_chat.chat(ghl_get, location_id, message)
+        return marcus_chat.chat(ghl_get, location_id, message, consult=consult)
 
     # Scout — deep "Missed Leads" audit intent. Detected BEFORE the normal Claude
     # call so the operator can say "go through my messages from last week" and Scout

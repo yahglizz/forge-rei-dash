@@ -563,7 +563,9 @@ def chat(ghl_get, location_id, agent_id, message, history=None, scout=None, busi
     return _flag_error(_chat(ghl_get, location_id, agent_id, message, history, scout, floor))
 
 
-def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None, floor=None):
+def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None, floor=None, consult=False):
+    """consult=True: a TEAMMATE agent is asking (dash_live.ask_agent, read-only sub-collector open) —
+    commands off, no [ASK X] round back, nothing written to the target's own chat store."""
     agent_id = (agent_id or "marcus").strip()
     message = (message or "").strip()
     if not message:
@@ -593,13 +595,13 @@ def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None, flo
         # Commands off: this message carries a context blob, and a delegate chat must
         # never become a write path.
         return agents_chat.chat(ghl_get, location_id, via, message, history=history,
-                                scout=scout, enable_commands=False)
+                                scout=scout, enable_commands=False, consult=consult)
 
     # Agency — Dyson / Eco (their own engine, already creed-injected via _skills_block).
     if business == "agency":
         try:
             import agency_agents
-            out = agency_agents.chat(agent_id, message, history)
+            out = agency_agents.chat(agent_id, message, history, consult=consult)
             if isinstance(out, dict) and not out.get("error"):
                 return out
             err = (out or {}).get("error") or "Couldn't reach that agent."
@@ -616,7 +618,7 @@ def _chat(ghl_get, location_id, agent_id, message, history=None, scout=None, flo
     # Wholesale + Retell voice — the existing brain (GHL threads, commands, collab).
     import agents_chat
     return agents_chat.chat(ghl_get, location_id, agent_id, message,
-                            history=history, scout=scout)
+                            history=history, scout=scout, consult=consult)
 
 
 # ── tasks ─────────────────────────────────────────────────────────────────────

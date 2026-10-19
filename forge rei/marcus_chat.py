@@ -132,9 +132,11 @@ def needs_threads(question):
     return not (_OFF_THREAD.search(question or "") and not _THREADISH.search(question or ""))
 
 
-def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
+def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0, consult=False):
     # _depth > 0 means a TEAMMATE agent (via agent_collab.ask) is consulting Marcus —
     # he answers normally but gets no consult protocol himself (no ask-back loops).
+    # consult=True = a dashboard teammate consult (dash_live.ask_agent): same no-protocol rule, but he
+    # keeps his live READ tools (the ask_agent sub-collector is read-only, so no writes, no consult back).
     key = review_agent._api_key()
     if not key:
         return {"needsKey": True,
@@ -143,7 +145,8 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
     if not question:
         return {"reply": "Ask me something — a seller, a number, a deal."}
 
-    scan_threads = needs_threads(question)
+    asked = question.split("]", 1)[-1] if consult else question   # judge the scan on the question, not the wrapper
+    scan_threads = needs_threads(asked)
     convos = _pull_conversations(ghl_get, location_id, pages=4) if scan_threads else []
     now = int(time.time() * 1000)
     window = days * 86400 * 1000
@@ -151,7 +154,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
               if (_to_ms(c.get("lastMessageDate")) or 0) >= now - window] or convos
     scoped = scoped[:scan]
 
-    kws = _keywords(question)
+    kws = _keywords(asked)
 
     # Pull threads concurrently, score against the question's keywords.
     with ThreadPoolExecutor(max_workers=4) as ex:
@@ -183,7 +186,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
         "say so plainly and say what would help — do NOT invent a name or number. "
         "Be concise, confident, tactical: 1-4 sentences. End with a next action when useful."
     )
-    if _depth == 0:
+    if _depth == 0 and not consult:
         # Consult protocol: Marcus may ask Scout one question mid-answer (agent_collab).
         system += "\n\n" + agent_collab.protocol(
             "scout", "lead-triage analyst with live motivation scores + buckets for "
@@ -202,7 +205,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0):
             model=review_agent.SMART_MODEL, effort="low")
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}"}
-    if _depth == 0:
+    if _depth == 0 and not consult:
         # One consult round: Marcus may [ASK SCOUT] mid-answer (agent_collab logs
         # both sides on the bus). Guarded — collab errors never break a normal reply.
         try:

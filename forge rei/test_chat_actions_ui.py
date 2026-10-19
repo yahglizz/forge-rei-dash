@@ -28,10 +28,15 @@ def check():
             if f.name != "chat_actions.jsx":
                 assert not re.search(r"\b%s\b" % alias, f.read_text()), (alias, "reused in", f.name)
 
+    # agent ⇄ agent consults (2026-10-19): a 🤝 thread per consult; null only when all three lists are empty
+    assert re.search(r"function ChatActions\(\{\s*actions,\s*done,\s*consults\s*\}\)", src), "no consults prop"
+    assert "!acts.length && !dn.length && !cs.length" in src and "<CAConsult" in src and "🤝" in src
+    assert "<details" in src and "show all" in src and "c.tainted" in src and "couldn't answer" in src
     for name in CONSUMERS:
         s = (HERE / name).read_text()
         assert "ChatActions" in s, name + " does not render ChatActions"
         assert re.search(r"\.actions\b", s) and re.search(r"\.done\b", s), name + " ignores response .actions/.done"
+        assert re.search(r"\.consults\b", s) and "consults={" in s, name + " ignores response .consults"
         assert not re.search(r"<\w+\[", s), name + " computed JSX tag"
 
     for html, order in SHELLS.items():

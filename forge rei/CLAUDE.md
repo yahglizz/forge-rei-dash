@@ -95,6 +95,12 @@ Local UI-only run: `FORGE_MARCUS=0 FORGE_PORT=7799 python3 connector.py`
   batch cards via `_queue(calls=…)`). Kill `FORGE_CHAT_ACTIONS=0` / `FORGE_CHAT_AUTO=0` /
   clock-out. New daycare routes: `POST /api/daycare/ghl/tag`, `GET /api/daycare/ghl/contacts?tag=`.
   Root `CLAUDE.md` §2 "Dashboard chat AUTO tier". Test: `test_chat_actions.py`.
+- **Dashboard agent consults (2026-10-19):** `dash_live.ask_agent` — in the same chats an agent asks a
+  teammate (`ask_agent {agent, question}`); the target's REAL brain runs via the connector's runner
+  (`dash_live.set_consult` → `agents_hub._chat(consult=True)`) inside a read-only sub-collector (`ro`:
+  no writes, no consult back, commands off). Reply carries `consults` → `window.ChatActions` 🤝 thread;
+  asker history `via:"consult"` + bus `type:"collab"`. Every answer taints the asker. Caps 3/msg +
+  30/day; kill `FORGE_CHAT_CONSULT=0`. Root §2 "Dashboard agent consults". Test: `test_agent_consult.py`.
 - **Daily brief + recap:** `daily_brief.py` / `daily_recap.py` — box scheduler
   `_brief_scheduler_forever` ticks both (`_maybe_daily_brief` + `_maybe_daily_recap`),
   `/api/brief*` + `/api/recap*`, mobile More sheets.

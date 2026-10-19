@@ -141,6 +141,26 @@ def test_write_tools_only_inside_an_interactive_chat():
     assert dash_live._col() is None
 
 
+def test_ask_agent_needs_a_collector_and_a_runner():
+    """ask_agent (teammate consults, test_agent_consult.py): never in a background run, never without the
+    connector's runner, never for a consulted (read-only sub-collector) agent."""
+    saved = dash_live._CONSULT.pop("fn", None)
+    dash_live.begin()
+    try:
+        assert "ask_agent" not in {t["name"] for t in dash_live.tools("solomon")}, "no runner = no tool"
+        dash_live.set_consult(lambda a, q: {"reply": "ok"})
+        assert "ask_agent" in {t["name"] for t in dash_live.tools("solomon")}
+        dash_live._TL.c = {"actions": [], "done": [], "auto": 0, "consults": [], "ro": True}
+        assert {t["name"] for t in dash_live.tools("marcus")} == {"api_get", "route_help"}, "consulted = read-only"
+        assert not dash_live.writes_on("marcus") and "(read-only tools)" in dash_live.live_block("marcus")
+    finally:
+        dash_live._CONSULT.pop("fn", None)
+        if saved:
+            dash_live._CONSULT["fn"] = saved
+        dash_live.take()
+    assert "ask_agent" not in {t["name"] for t in dash_live.tools("solomon")}
+
+
 def test_every_agent_reads_every_business():
     paths = ("/api/daycare/ads/feed", "/api/agency/clients", "/api/scout/leads",
              "/api/dropship/overview", "/api/system/health", "/api/owner-actions")

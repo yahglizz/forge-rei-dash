@@ -407,7 +407,9 @@ def list_tasks(agent_id=None):
     return {"tasks": tasks, "count": len(tasks)}
 
 
-def chat(agent_id, message, history_in=None):
+def chat(agent_id, message, history_in=None, consult=False):
+    """consult=True: a teammate agent is asking (dash_live.ask_agent) — answered, but never written to
+    this agent's own chat thread (it would read back as an OPERATOR turn) and never counted toward learn()."""
     agent = _AGENTS.get(agent_id)
     if not agent:
         return {"error": "unknown agent"}
@@ -451,6 +453,8 @@ def chat(agent_id, message, history_in=None):
         # written to history on this path, so a blind refresh would lose the message.
         return {"ok": False, "error": str(e), "connected": True,
                 "reply": f"Hit an error reaching my brain: {e}"}
+    if consult:
+        return {"reply": reply or "On it.", "agent": agent["name"], "connected": True, "keySource": src}
 
     now = int(time.time() * 1000)
     with _LOCK:

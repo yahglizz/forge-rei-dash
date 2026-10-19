@@ -473,6 +473,8 @@ class MidasEngine:
         try:
             import agent_bus
             for m in (agent_bus.inbox("midas", unread_only=True).get("messages") or [])[:10]:
+                if (m.get("data") or {}).get("type") == "collab":
+                    continue   # an answered agent ⇄ agent consult is not a delegation
                 out.append(m)
                 if mark_read and m.get("id"):
                     try:

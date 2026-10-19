@@ -601,8 +601,8 @@ class SolomonEngine:
             except Exception:
                 continue
             for m in (res.get("messages") or [])[:10]:
-                if m.get("kind") in ("coach", "status"):
-                    continue   # peer lessons / status pings are not delegations; leave them unread
+                if m.get("kind") in ("coach", "status") or (m.get("data") or {}).get("type") == "collab":
+                    continue   # peer lessons / status pings / answered consults are not delegations; leave them unread
                 mid = m.get("id")
                 if mid and mid not in seen_ids:
                     seen_ids.add(mid)

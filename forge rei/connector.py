@@ -2390,9 +2390,15 @@ def _chat_with_actions(fn):
         result = fn()
     finally:
         acts = dash_live.take()
-    if isinstance(result, dict) and (acts["actions"] or acts["done"]):
+    if isinstance(result, dict) and (acts["actions"] or acts["done"] or acts.get("consults")):
         result.update(acts)
     return result
+
+
+# Dashboard agent consults (dash_live.ask_agent): the teammate answers through its REAL brain, bound to
+# this GHL sub-account; dash_live wraps the call in a read-only sub-collector (no writes, no consult back).
+dash_live.set_consult(lambda _aid, _q: agents_hub._flag_error(agents_hub._chat(
+    ghl_get, LOCATION_ID, _aid, _q, scout=SCOUT, consult=True)))
 
 
 def _dash_tap_history(_chat, agent_id, text):
