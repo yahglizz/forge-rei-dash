@@ -55,9 +55,9 @@ Any of the five interactive chats (a collector is open). Not in background runs,
   long answers collapse behind "show all", a failed consult shows the reason. Inline styles, dark + light,
   mobile-safe. Wired where `actions/done` already are: `agents_hub.jsx`, `orion_office.jsx`, `dashboard.jsx`,
   `mobile/m_agents.jsx` (each copies `consults` off the response like it does `actions`).
-- Reload-proof: each consult is also (a) written to the ASKER's chat history as `[consulted Marcus] Q → A`
-  (`agents_history`, via="consult") so the agent remembers it next turn, and (b) sent on the agent bus both ways
-  (`ask` / `answer`, `{type: "collab"}`) so it shows in the Comms feed / Command Center.
+- Reload-proof: each consult is also (a) a METADATA-ONLY row in the ASKER's chat history and (b) one bus row (`ask`, `{type: "collab"}`) so it shows in the
+  Comms feed — who asked whom + duration, never the question/answer text (security review: third-party text must not
+  replay into later prompts past the taint window). The full thread exists only in the chat response.
 - Limit: the reply is request/response, so the thread appears when the reply lands (no live streaming).
 
 ### 4. "Whenever they need" and "whenever I ask"

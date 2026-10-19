@@ -304,7 +304,7 @@ def test_runner_failure_is_a_failed_consult_never_a_crash():
         assert "couldn't answer" in results(1) and why in results(1)
         assert dash_live._col() is None and "solomon" not in taint_state()
     hist = agents_history.history("solomon")["history"]
-    assert hist[-1]["text"].startswith("[consulted Marcus] q → (no answer: ") and hist[-1]["via"] == "consult"
+    assert hist[-1]["text"].startswith("[consulted Marcus: no answer;") and hist[-1]["via"] == "consult"
 
 
 # ── taint ───────────────────────────────────────────────────────────────────────────────
@@ -390,15 +390,18 @@ def test_history_and_bus_rows():
         dash_live.set_consult(saved)
     row = agents_history.history("solomon")["history"]
     assert [r["role"] for r in row] == ["user", "ai"] and row[0]["text"] == "(consult)", row
-    assert row[1]["text"] == "[consulted Marcus] how many hot leads? → 3 hot: Oak St, Elm, Pine."
+    # METADATA ONLY (security review): neither the question nor the teammate's answer is persisted —
+    # both can carry third-party text that would otherwise replay into later prompts past the taint window.
+    assert row[1]["text"].startswith("[consulted Marcus: answered in "), row
+    assert "hot leads" not in row[1]["text"] and "Oak St" not in row[1]["text"], row
     assert {r["via"] for r in row} == {"consult"}
     assert agents_history.history("marcus")["history"] == [], "nothing written to the target's thread"
     msgs = agent_bus.recent()["messages"]
-    ans, q = msgs[0], msgs[1]
-    assert (q["from"], q["to"], q["data"]) == ("solomon", "marcus", {"type": "collab", "q": "how many hot leads?"})
-    assert q["text"].startswith("🤝 Solomon → Marcus: how many hot leads?"), q
-    assert (ans["from"], ans["to"], ans["data"]) == ("marcus", "solomon", {"type": "collab"})
-    assert ans["text"].startswith("💬 Marcus → Solomon: 3 hot"), ans
+    assert len(msgs) == 1, msgs
+    q = msgs[0]
+    assert (q["from"], q["to"], q["data"]) == ("solomon", "marcus", {"type": "collab"}), q
+    assert q["text"].startswith("🤝 Solomon → Marcus: consulted (answered in "), q
+    assert "hot leads" not in q["text"] and "Oak St" not in json.dumps(msgs), msgs
 
 
 def test_collab_bus_traffic_never_pings_or_delegates():

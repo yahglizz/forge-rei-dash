@@ -474,19 +474,21 @@ def _agent_name(agent_id):
 
 
 def _consult_log(rec):
-    """Reload-proof trail: the ASKER's chat history + the agent bus both ways. Best-effort."""
-    said = rec["a"] if rec["ok"] else f"(no answer: {rec.get('error')})"
+    """Reload-proof trail — METADATA ONLY. The question and the teammate's answer carry third-party text
+    (seller threads, parent messages, edit requests); persisting them in the asker's replayable history or
+    on the bus would feed that text into later prompts after the taint window. The full thread lives only
+    in the chat response the owner sees. Best-effort."""
+    state = f"answered in {rec['ms'] // 1000}s" if rec["ok"] else "no answer"
     try:
         import agents_history
-        agents_history.record(rec["fromId"], "(consult)", f"[consulted {rec['to']}] {rec['q']} → {said}",
+        agents_history.record(rec["fromId"], "(consult)",
+                              f"[consulted {rec['to']}: {state}; the owner saw the full thread in chat]",
                               via="consult")
     except Exception:  # noqa: BLE001
         pass
     try:
         import agent_bus
-        agent_bus.send(rec["fromId"], rec["toId"], "ask", f"🤝 {rec['from']} → {rec['to']}: {rec['q'][:200]}",
-                       {"type": "collab", "q": rec["q"]})
-        agent_bus.send(rec["toId"], rec["fromId"], "answer", f"💬 {rec['to']} → {rec['from']}: {said[:200]}",
+        agent_bus.send(rec["fromId"], rec["toId"], "ask", f"🤝 {rec['from']} → {rec['to']}: consulted ({state})",
                        {"type": "collab"})
     except Exception:  # noqa: BLE001
         pass
