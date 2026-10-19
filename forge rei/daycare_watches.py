@@ -685,6 +685,6 @@ def run_round(get=None, now=None):
         shown = (out.get("newItems") or []) + (out.get("urgent") or [])
         return {"ok": True, "ranAt": out["lastRound"]["ranAt"], "domains": out["domains"], "open": out["open"],
                 "new": out["new"], "closed": out["closed"], "urgent": out["urgent"], "newItems": out["newItems"],
-                "line": out["line"], "thirdPartyText": any(i.get("domain") == "inbox" for i in shown)}
+                "line": out["line"], "thirdPartyText": bool(shown)}   # fail closed: any returned title is third-party text
     finally:
         _RUN.release()

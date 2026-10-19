@@ -315,7 +315,7 @@ def view(state="open", domain="", limit=50, now=None):
             "counts": {"open": len(active), "byDomain": by_dom, "bySeverity": by_sev, "snoozed": snoozed},
             "lastRound": d.get("lastRound"), "sources": d.get("sources") or [], "mailDesk": mail,
             # email subjects / senders are third-party text: dash_live taints the chat turn on this
-            "thirdPartyText": any(i.get("domain") == "inbox" for i in shown) or bool((mail or {}).get("top")),
+            "thirdPartyText": bool(shown) or bool((mail or {}).get("top")),   # fail closed: titles carry names / senders / lead text
             "fetchedAt": n}
 
 

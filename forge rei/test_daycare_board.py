@@ -147,7 +147,8 @@ def test_ranking_counts_and_filters():
                            "bySeverity": {"low": 1, "high": 2, "urgent": 1, "normal": 1}, "snoozed": 0}, v["counts"]
     assert v["thirdPartyText"] is True, "an inbox item (email subject) marks the payload"
     assert ids(b.view(domain="roster", now=T0 + 100)) == ["urg"] and b.view(limit=2, now=T0 + 100)["count"] == 5
-    assert b.view(domain="billing", now=T0 + 100)["thirdPartyText"] is False
+    assert b.view(domain="billing", now=T0 + 100)["thirdPartyText"] is True, "fail closed: any item title is third-party text"
+    assert b.view(domain="ads", now=T0 + 100)["thirdPartyText"] is False, "an empty list carries none"
     assert len(b.view(limit=2, now=T0 + 100)["items"]) == 2 and b.view(limit="x", now=T0)["items"]
     c = b.counts_block(now=T0 + 100)
     assert c["open"] == 5 and "title" not in str(c) and "item " not in str(c), "counts only — no titles"

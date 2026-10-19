@@ -196,11 +196,18 @@ def _cap_key(agent_id):
 # status/number/identifier routes puts third-party text (parents, senders, form fields, seller texts) in the
 # model's context. From then on, for 30 minutes (FORGE_CHAT_TAINT_MIN, across messages), every write by that
 # agent is a tap — injected "tag/task/dismiss …" text can't ride an AUTO write.
-NO_TAINT_PREFIXES = ("/api/system/", "/api/health", "/api/cost/", "/api/agents/registry", "/api/actions/",
+NO_TAINT_PREFIXES = ("/api/system", "/api/health", "/api/cost", "/api/agents/registry",
                      "/api/businesses", "/api/daycare/auth/status", "/api/daycare/locations",
                      "/api/daycare/classrooms", "/api/daycare/ads", "/api/daycare/ghl/enrolled-audit",
-                     "/api/daycare/ghl/contacts", "/api/daycare/starts", "/api/daycare/auto-enroll",
-                     "/api/ace/", "/api/autopilot/", "/api/goals/")
+                     "/api/ace", "/api/autopilot", "/api/goals")
+
+
+def _no_taint(path):
+    """Whole-segment match: /api/cost and /api/cost/status, never /api/costume."""
+    path = str(path or "").split("?", 1)[0].rstrip("/")
+    return any(path == p or path.startswith(p + "/") for p in NO_TAINT_PREFIXES)
+
+
 TAINT_STATE = forge_atomic.guard_state_path(Path(__file__).resolve().parent / "marcus_state" / "chat_taint.json")
 _TAINT_LOCK = threading.Lock()
 
@@ -591,7 +598,7 @@ def run_tool(name, inp, agent_id):
             q.update(inp["query"])
         col = _col()
         out = ta._http("GET", path, query=q or None)
-        if col is not None and (_taints(out) or not path.startswith(NO_TAINT_PREFIXES)):
+        if col is not None and (_taints(out) or not _no_taint(path)):
             _taint(col, agent_id)
         return label(out, path, agent_id)
     return {"error": f"{name} is not available in dashboard chat — chat is read-only for that; "

@@ -680,6 +680,9 @@ def test_taint_is_fail_closed_and_lasts_across_messages():
         reset()
         _, acts = turn("solomon", tool("api_get", {"path": path}), tagw, text("q"))
         assert posts() == [] and len(acts["actions"]) == 1, (path, HTTP, acts)
+    assert dash_live._no_taint("/api/cost/status") and not dash_live._no_taint("/api/costume")
+    assert not dash_live._no_taint("/api/daycare/ghl/contacts") and not dash_live._no_taint("/api/daycare/starts")
+    assert not dash_live._no_taint("/api/actions/log") and not dash_live._no_taint("/api/daycare/board")
     for path in ("/api/daycare/ghl/enrolled-audit", "/api/system/health", "/api/daycare/ads/feed"):
         reset()                                # status / number / identifier routes do not taint
         _, acts = turn("solomon", tool("api_get", {"path": path}), tagw, text("ok"))
