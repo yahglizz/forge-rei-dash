@@ -63,6 +63,19 @@ new ad in its ad set; the board shows "Learning day N, X/50". After the gate ope
 every change is a one-tap owner approval. Target CPL $30. Full rule + baselines: `daycare-ad-optimizer.md`.
 Offer for its copy: $100 enrollment bonus, enroll by November 25, 2026.
 
+**Final geo/audience — set 2026-10-22 (ad set 120256399829260397, read back via Pipeboard, still PAUSED, $30/day CBO unchanged):**
+- Ad set renamed `Zips 19130-19121 — 21-45 — Website Tour` (was `Philly 3mi — Advantage+ — Website Tour`).
+- Geo: US zip codes **19130 + 19121** only (the home zips of all three sites; covers Fairmount, Francisville,
+  Spring Garden, Girard College, Brewerytown, Temple corridor west of Broad). Replaced three 3-mile radius pins.
+- Location type: "living in" (home) was requested; **Meta forces `home` + `frequently_in`** on zip targeting too, so
+  "living in only" is not achievable via API.
+- Audience: **Advantage+ audience OFF**, hard age **21–45**, all genders, no detailed targeting, no languages,
+  no custom audiences. (Advantage+ treated 21–45 as a suggestion and could serve 46–65; past 45+ spend got 0 leads.)
+- Estimated audience (Meta, 2026-10-22): **111.2k–130.8k** (was 1.2M–1.4M with the 3-mile pins + Advantage+).
+- If it under-delivers (can't spend ~$30/day, or 7-day frequency > 3.5), widen in this order: +19122 (Temple east
+  of Broad, est. 148.6k–174.8k), +19123 (est. 190.4k–224k for the 4 zips), +19132. A targeting edit restarts learning.
+- Placements, attribution (7-day click), Lead-on-pixel optimization, ads and creatives were not changed.
+
 ---
 
 ## IMAGE ASSETS
