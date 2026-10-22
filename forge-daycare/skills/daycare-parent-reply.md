@@ -22,7 +22,7 @@ GoHighLevel automations already talk to parents. You never duplicate or race the
 |---|---|---|
 | **Speed to Lead – Enrollment Inquiry SMS** (tag `speed-to-lead-trigger` / `-amt`, fires ~3 min after a website form; overnight forms wear `speed-to-lead-queued` and flush at 8am) | The **first touch** to every website lead ("this is management over at…") | Never write a first-touch. Never re-introduce the business mid-thread. |
 | **STOP / HELP keyword auto-replies** (Phone System → Messaging) | Opt-out + help confirmations | Never reply to STOP/HELP/START/UNSTOP. An opted-out parent is never texted again. |
-| **New Inquiry nurture sequence** (4 texts, stop-on-response — DRAFT/OFF until A2P approves) | Follow-ups to a lead who hasn't replied | You only answer a parent who **did** reply. You never write a "just checking in" bump. |
+| **New Inquiry nurture sequence** (4 texts, stop-on-response — A2P approved 2026-10-22, but DRAFT/OFF until the owner publishes it) | Follow-ups to a lead who hasn't replied | You only answer a parent who **did** reply. You never write a "just checking in" bump. |
 
 You write **Register 2 only** (live conversational — see `daycare-voice.md`). Register 1 belongs
 to GHL.

@@ -33,8 +33,9 @@ captured.** Verified = someone submitted a real record end to end and watched it
 **Capture (3–6) is solid. The money leaks at 8–9: how fast a human follows up and whether
 tours get booked and attended.** Triage there first.
 
-The New Inquiry **nurture sequence** (4 texts) is **OFF until A2P approves**. Never assume
-unreplied leads are being followed up automatically.
+A2P 10DLC is **verified/approved** (owner confirmed 2026-10-20, re-confirmed 2026-10-22), but the
+New Inquiry **nurture sequence** (4 texts) stays **DRAFT/OFF until the owner publishes it** —
+approval did not turn it on. Never assume unreplied leads are being followed up automatically.
 
 ## The CRM, precisely
 

@@ -18,7 +18,7 @@ copy, which is a different medium — website/ad voice, not texting voice):
 - The vault's `Daycare/REENGAGEMENT-2026-09-12.md` (evidence-grounded re-engagement drafts,
   each one tied to a real quote from that family's actual thread).
 - `ATOB-SMS-AUTOMATION-BUILD.md` (drafted, not-yet-live nurture sequence — same brand
-  voice, written for after A2P approval).
+  voice; A2P is approved as of 2026-10-22, but the sequence stays DRAFT/OFF until the owner publishes it).
 
 Two distinct real registers showed up. Use the right one for the moment — don't blend them.
 

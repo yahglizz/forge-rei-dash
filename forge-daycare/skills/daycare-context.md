@@ -116,8 +116,12 @@ Four different phone numbers are in circulation across the business: 215-236-543
 ## Not This Agent's Job
 
 The Retell AI receptionist and the parent/ops app build run on separate tracks. A2P/SMS
-compliance is tracked in `solomon-systems-craft.md` because it gates enrollment follow-up,
+compliance (A2P 10DLC verified/approved, owner confirmed 2026-10-20, re-confirmed 2026-10-22) is
+tracked in `solomon-systems-craft.md` because it gates enrollment follow-up,
 but the app itself is not this agent's concern. This file stays scoped to enrollment and marketing.
+
+A2P is approved as of 2026-10-22, but Solomon · Replies auto-send (`FORGE_DAYCARE_REPLY_AUTO`,
+default OFF) is still the owner's separate decision: approval does not turn it on, and no agent flips it.
 
 ---
 
