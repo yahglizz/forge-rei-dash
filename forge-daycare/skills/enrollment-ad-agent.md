@@ -55,7 +55,51 @@ You are the ATOB Enrollment Ad Agent. You generate ad images via Higgsfield and 
 ### NEW — Enrollment 2026 (October) · logged 2026-10-22
 | Name (prefix the optimizer matches) | Objective | Budget | Structure | Campaign ID | Status |
 |---|---|---|---|---|---|
-| `ATOB — Enrollment 2026 — Leads — Oct` | OUTCOME_LEADS — website conversion, pixel Lead event | CBO $30/day | 1 ad set · 3 image ads (planned spec; ad set/ad ids not recorded yet) | 120256399823530397 | PAUSED — created 2026-10-22 15:00 ET (campaign fields verified via Pipeboard 2026-10-22) |
+| `ATOB — Enrollment 2026 — Leads — Oct` | OUTCOME_LEADS — website conversion, pixel Lead event | **ABO: 3 ad sets × $10/day = $30/day** (no campaign budget, budget sharing OFF) | 3 ad sets · 1 image ad each | **120256402021080397** | PAUSED — created 2026-10-22 18:29 ET; ad sets/ads built + read back via Pipeboard 18:36 ET |
+| `[Superseded] ATOB — Enrollment 2026 — Leads — Oct (CBO)` | same | CBO $30/day | 1 ad set (zips, below) · 3 ads | 120256399823530397 | PAUSED — renamed 2026-10-22 18:29 ET, otherwise untouched. Its name no longer starts with the optimizer prefix, so the learning gate ignores it. Never re-activate alongside the new one (same creatives, same people). |
+
+**Restructure — 2026-10-22 (owner approved "finish the build with 3 mile radius within the daycares addresses"):**
+
+| Ad set | Ad set ID | Ad (name = old ad name, so utm_content stays comparable) | Ad ID | Creative ID |
+|---|---|---|---|---|
+| `Radius 3mi — Now Enrolling App — $10` | 120256402049660397 | ATOB — Now Enrolling App — Image — Oct | 120256402055410397 | 1316489970526443 |
+| `Radius 3mi — $100 Bonus — $10` | 120256402051760397 | ATOB — $100 Bonus Nov 25 — Image — Oct | 120256402056220397 | 1669979474500551 |
+| `Radius 3mi — Hours CCIS Tour — $10` | 120256402052710397 | ATOB — Hours CCIS Tour — Image — Oct | 120256402056810397 | 29294486923503131 |
+
+- **Equal split, one ad per ad set:** each concept gets a guaranteed $10/day so Meta cannot starve two of them
+  (the CBO build would have let one ad eat the budget on day 1). Total stays $30/day.
+- **Geo:** 3 pins × **3-mile radius** — 921 N 18th St (39.9718, −75.1659), 2318 Cecil B. Moore Ave (39.9806, −75.1730),
+  1923 Cecil B. Moore Ave (39.9800, −75.1667), Census-geocoded. Requested "living in" (home); **Meta saved
+  `home` + `frequently_in`** (same as the zip build — not avoidable via API).
+- **Audience:** age 21–45, all genders, Advantage+ audience OFF, no detailed targeting / languages / custom audiences,
+  no lookalike/custom-audience expansion. Meta estimate 2026-10-22: **814.7k–958.5k**.
+- **Placements:** FB feed + FB Reels; IG feed, Stories, Explore, Reels. (No Audience Network, Messenger, Marketplace,
+  FB Stories, right column, search.)
+- **Optimization:** website conversions, pixel 1361417309440327 event LEAD, billing impressions, 7-day click
+  attribution (no view-through), lowest cost (no cap), dynamic creative off.
+- **Start:** ad sets start **2026-10-23 06:00 ET** (no end date) — even if switched on early, nothing delivers before
+  6 AM. The owner activates manually: campaign + 3 ad sets + 3 ads.
+- **Ads:** reuse the existing creatives (copy, SIGN_UP CTA, link `https://www.atouchofblessing.com/#tours`, url_tags,
+  Advantage+ creative enhancements opted out — all unchanged), conversion_domain `atouchofblessing.com`, pixel tracking on.
+  New ads go through Meta review again (PENDING_REVIEW at build).
+- **No dayparting for now.** Meta ad scheduling only works with a lifetime budget + end date; that would replace the
+  daily budgets the optimizer works on and fight learning, and with ~1 lead/day there is no hour-of-day data to
+  schedule from yet.
+- **Trade-offs accepted:** the 3 ad sets target the same people, so they compete with each other a little (Meta
+  enters only one of the account's ad sets per auction, which can slow learning; no custom-audience overlap). At $10/day with a ~$30 CPL each ad
+  set gets ~2–3 leads a week, so Meta will likely mark them **"Learning limited"** — expected, not a fault.
+
+**Plan:**
+1. **Learning (days 1–14):** equal split, hands off. The optimizer's gate is campaign-wide (7 days and 50 results,
+   or 14 days); at ~$30/day it will open by the 14-day timer, around 2026-11-06 if delivery starts 2026-10-23.
+2. **After the gate opens:** budget moves toward the best performer only through proposals the owner approves, one
+   Telegram tap each: +20% on a winner (e.g. $10→$12, then every 5 days), −25% on a bleeder ($10→$8→$6→$5 floor).
+   These are separate moves, not a transfer: a scale can lift the total above $30 (the only hard cap is the $100/day
+   account ceiling), so check the total before tapping a scale.
+3. **Losers:** with one ad per ad set the optimizer can never pause an ad (last-ad-standing rule); it can only cut the
+   ad set to the $5 floor. To stop a dead concept, the owner pauses that ad set in Meta.
+4. **~2 weeks in:** review lead ZIPs (new ZIP field on /enroll) and the hour-of-day breakdown before changing the
+   geo or adding hours. A targeting edit restarts learning.
 
 **Optimizer rule:** Solomon · Ads matches this campaign by name prefix and leaves it alone during Meta's
 learning phase — 7 days with ≥50 results, or 14 days, whichever first: no pause, budget move, replacement or
@@ -63,7 +107,7 @@ new ad in its ad set; the board shows "Learning day N, X/50". After the gate ope
 every change is a one-tap owner approval. Target CPL $30. Full rule + baselines: `daycare-ad-optimizer.md`.
 Offer for its copy: $100 enrollment bonus, enroll by November 25, 2026.
 
-**Final geo/audience — set 2026-10-22 (ad set 120256399829260397, read back via Pipeboard, still PAUSED, $30/day CBO unchanged):**
+**SUPERSEDED (kept for history) — zip geo/audience set 2026-10-22 on the old CBO ad set (ad set 120256399829260397, read back via Pipeboard, still PAUSED, $30/day CBO unchanged). Replaced the same evening by the 3-mile radius ABO build above:**
 - Ad set renamed `Zips 19130-19121 — 21-45 — Website Tour` (was `Philly 3mi — Advantage+ — Website Tour`).
 - Geo: US zip codes **19130 + 19121** only (the home zips of all three sites; covers Fairmount, Francisville,
   Spring Garden, Girard College, Brewerytown, Temple corridor west of Broad). Replaced three 3-mile radius pins.
