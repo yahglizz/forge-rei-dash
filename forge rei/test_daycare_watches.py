@@ -255,6 +255,41 @@ def test_ads():
     assert keys(items).keys() == {"ap:a1"} and st["sources"] == {"ap:": True, "cpl:": False, "nodeliv:": False}, st
 
 
+def test_ads_learning():
+    """The new campaign's board item: 'learning day N, X/50' while ACTIVE + learning, then 'optimizer
+    ready' for LEARN_READY_DAYS after the gate opens; the learning item closes when it flips."""
+    name = "ATOB — Enrollment 2026 — Leads — Oct"
+    g = {"id": "C9", "name": name, "status": "ACTIVE", "open": False, "day": 3, "results": 4, "need": 50,
+         "days": 7, "maxDays": 14, "asOf": day(0), "firstDay": day(-3), "note": "learning: day 3, 4/50 results"}
+
+    def feed(*rows):
+        f = copy.deepcopy(FEED)
+        f["autopilot"]["learning"] = list(rows)
+        return {"/api/daycare/ads/feed": f}
+    items, st = w.watch_ads(make_get(feed(g)), NOW)
+    k = keys(items)
+    assert k["learn:C9"]["title"] == f"Learning day 3, 4/50 — {name}", k["learn:C9"]
+    assert k["learn:C9"]["severity"] == "low" and k["learn:C9"]["evidence"]["window"].startswith("daily run")
+    assert st["sources"]["learn:"] is True and st["ok"], st
+    assert "learn:C9" not in keys(w.watch_ads(make_get(feed(dict(g, status="PAUSED"))), NOW)[0]), "paused = not learning"
+    ready = dict(g, open=True, day=14, results=15, openedOn=day(0))
+    k = keys(w.watch_ads(make_get(feed(ready)), NOW)[0])
+    assert "learn:C9" not in k and "Optimizer ready" in k["learn:C9:ready"]["title"], sorted(k)
+    k = keys(w.watch_ads(make_get(feed(dict(ready, openedOn=day(-5)))), NOW)[0])
+    assert not any(x.startswith("learn:") for x in k), "ready item ages off after LEARN_READY_DAYS"
+    assert "learn:" not in w.watch_ads(make_get(), NOW)[1]["sources"], "no learning block = nothing to close"
+    # on the board: learning → ready closes the learning item and opens the ready one (one ping-worthy NEW)
+    daycare_board.STATE.unlink(missing_ok=True)
+    a = daycare_board.apply_round([{"domain": "ads", "items": [i for i in w.watch_ads(make_get(feed(g)), NOW)[0]
+                                                               if i["key"].startswith("learn:")],
+                                    "status": {"ok": True, "sources": {"learn:": True}}}], now=NOW)
+    b = daycare_board.apply_round([{"domain": "ads", "items": [i for i in w.watch_ads(make_get(feed(ready)), NOW)[0]
+                                                               if i["key"].startswith("learn:")],
+                                    "status": {"ok": True, "sources": {"learn:": True}}}], now=NOW + 86400)
+    assert len(a["new"]) == 1 and len(b["new"]) == 1 and b["closed"] == a["new"], (a["new"], b)
+    daycare_board.STATE.unlink(missing_ok=True)
+
+
 def test_social_is_not_wired():
     for payload in ({"ok": True, "configured": False}, {"ok": True, "connection": {"connected": True}}):
         items, st = w.watch_social(make_get({"/api/daycare/social": payload}), NOW)

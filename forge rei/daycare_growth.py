@@ -495,7 +495,8 @@ def _autopilot_block() -> dict:
             "recent": [{"action": ap._fmt_action(a), "status": a.get("status"), "ts": a.get("ts"),
                         "why": str(a.get("why") or a.get("reason") or "")[:140]}
                        for a in (st.get("recent") or [])[:5]],
-            "held": st.get("held") or []}
+            "held": st.get("held") or [],
+            "learning": [dict(v, id=k) for k, v in (st.get("learning") or {}).items()]}
 
 
 def ads_feed(preset=None, since=None, until=None, compare=False, fresh=True,

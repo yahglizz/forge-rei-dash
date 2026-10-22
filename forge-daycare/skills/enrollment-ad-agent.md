@@ -52,6 +52,17 @@ You are the ATOB Enrollment Ad Agent. You generate ad images via Higgsfield and 
 | Trust | 120249951336120397 | 120249951435510397 | 1503133487886768 |
 | Offer $100 | 120249951337580397 | 120249951435900397 | 1705393354246986 |
 
+### NEW — Enrollment 2026 (October) · logged 2026-10-22
+| Name (prefix the optimizer matches) | Objective | Budget | Structure | Campaign ID | Status |
+|---|---|---|---|---|---|
+| `ATOB — Enrollment 2026 — Leads — Oct` | OUTCOME_LEADS — website conversion, pixel Lead event | CBO $30/day | 1 ad set · 3 image ads (planned spec; ad set/ad ids not recorded yet) | 120256399823530397 | PAUSED — created 2026-10-22 15:00 ET (campaign fields verified via Pipeboard 2026-10-22) |
+
+**Optimizer rule:** Solomon · Ads matches this campaign by name prefix and leaves it alone during Meta's
+learning phase — 7 days with ≥50 results, or 14 days, whichever first: no pause, budget move, replacement or
+new ad in its ad set; the board shows "Learning day N, X/50". After the gate opens it only PROPOSES (shadow) —
+every change is a one-tap owner approval. Target CPL $30. Full rule + baselines: `daycare-ad-optimizer.md`.
+Offer for its copy: $100 enrollment bonus, enroll by November 25, 2026.
+
 ---
 
 ## IMAGE ASSETS

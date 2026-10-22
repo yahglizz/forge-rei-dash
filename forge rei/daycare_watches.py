@@ -46,6 +46,7 @@ DUE_SOON_DAYS = int(_num("FORGE_BOARD_DUE_SOON_DAYS", 3))
 NOINV_DAYS = int(_num("FORGE_BOARD_NOINVOICE_DAYS", 45))
 MAX_INV_ITEMS, MAX_DUE_SOON = 10, 5                         # per center; the rest roll into one item
 MIN_GAP_SEC = int(_num("FORGE_BOARD_MIN_GAP_SEC", 120))     # rounds closer than this are skipped
+LEARN_READY_DAYS = 3                                        # "optimizer ready" shows this long after the gate opens
 OWN_DOMAIN = "@atouchofblessing.com"
 ASK_BUCKETS = {"parent": "Parent", "lead": "Lead", "billing": "Billing", "licensing": "Licensing"}
 _TEST = re.compile(r"zz\s*test", re.I)
@@ -530,6 +531,30 @@ def watch_ads(get, now):
                           "severity": "normal", "owner": "owner", "center": "all",
                           "evidence": {"source": "Solomon · Ads autopilot state", "window": "pending now",
                                        "fetchedAt": int(now * 1000)}})
+    lrn = (feed.get("autopilot") or {}).get("learning")
+    if isinstance(lrn, list):                       # the autopilot's state read OK → learn: items may close
+        src["learn:"] = True
+        for g in lrn:
+            if not g.get("id"):
+                continue
+            ev = {"source": "Solomon · Ads autopilot (Meta via Pipeboard daily rows)",
+                  "window": f"daily run {g.get('asOf') or '?'} · complete days since first delivery "
+                            f"{g.get('firstDay') or '(none yet)'}", "fetchedAt": int(now * 1000)}
+            name = daycare_board._clip(g.get("name") or g["id"], 60)
+            opened = _date(g.get("openedOn"))
+            if not g.get("open") and str(g.get("status") or "").upper() == "ACTIVE":
+                items.append({"key": f"learn:{g['id']}", "severity": "low", "owner": "solomon", "center": "all",
+                              "title": f"Learning day {g.get('day')}, {g.get('results')}/{g.get('need')} — {name}",
+                              "why": (f"Meta learning phase: Solomon · Ads proposes no pause, budget change or new ad for "
+                                      f"this campaign until day {g.get('days')} with {g.get('need')} results, or day "
+                                      f"{g.get('maxDays')}. Watch only."), "evidence": ev})
+            elif g.get("open") and opened and (_today(now) - opened).days <= LEARN_READY_DAYS:
+                items.append({"key": f"learn:{g['id']}:ready", "severity": "normal", "owner": "solomon", "center": "all",
+                              "title": f"Optimizer ready — {name} is out of learning (day {g.get('day')}, "
+                                       f"{g.get('results')} results)",
+                              "why": ("From the next daily run Solomon · Ads judges it on CPL vs target; any pause or budget "
+                                      "change arrives as a Telegram card (shadow — nothing changes until you tap)."),
+                              "evidence": ev})
     w7 = next((w for w in feed.get("windows") or [] if w.get("preset") == "last_7d"), None)
     ok7 = bool(w7) and not w7.get("unknown") and not feed.get("unknown") and not w7.get("partial")
     src["cpl:"] = src["nodeliv:"] = ok7

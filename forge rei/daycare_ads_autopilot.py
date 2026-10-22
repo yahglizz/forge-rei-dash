@@ -27,6 +27,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -57,13 +58,17 @@ def _f(name, default):
 
 def cfg() -> dict:
     return {
-        "tcpl": _f("FORGE_DAYCARE_ADS_TCPL", 40),            # target cost per lead, USD
+        "tcpl": _f("FORGE_DAYCARE_ADS_TCPL", 30),            # target cost per lead, USD (2026-10-22: was 40)
         "maxDaily": _f("FORGE_DAYCARE_ADS_MAX_DAILY", 100),  # ceiling on total active daily budget
         "step": 0.20, "cutStep": 0.25, "floor": 5.0,         # +20% / -25%, never below $5/day
         "upCooldownDays": 5, "downCooldownDays": 2,          # skill: +20% every 5 days
         "maxActions": int(_f("FORGE_DAYCARE_ADS_MAX_ACTIONS", 4)),
         "hour": int(_f("FORGE_DAYCARE_ADS_HOUR", 8)),        # local hour the daily cycle may start
         "maxTests": 2, "creativeEveryDays": 3,
+        # Meta learning gate (2026-10-22): a campaign whose name starts with learnPrefix is hands-off
+        # until it has delivered learnDays days with learnResults results, or learnMaxDays days.
+        "learnPrefix": os.environ.get("FORGE_DAYCARE_ADS_LEARN_PREFIX") or "ATOB — Enrollment 2026 — Leads — Oct",
+        "learnDays": 7, "learnResults": 50, "learnMaxDays": 14,
         "creative": os.environ.get("FORGE_DAYCARE_ADS_CREATIVE", "1") != "0",
         "tz": _f("FORGE_TZ_OFFSET", -4),
         "keywords": [k.strip() for k in (os.environ.get("FORGE_DAYCARE_ADS_KEYWORDS") or
@@ -209,6 +214,46 @@ def _age(created, today: dt.date) -> int | None:
     return (today - d).days if d else None
 
 
+def _norm_name(s) -> str:
+    """Lowercase letters/digits only, one space between words: '—', '-', '|' or no dash all match."""
+    return " ".join(re.sub(r"[^0-9a-z]+", " ", str(s or "").lower()).split())
+
+
+def learn_match(name, c: dict | None = None) -> bool:
+    """Is this campaign under the learning gate? (name starts with cfg learnPrefix)"""
+    p = _norm_name((c or cfg())["learnPrefix"])
+    return bool(p) and _norm_name(name).startswith(p)
+
+
+def _learning(rows, today: dt.date, c: dict) -> dict:
+    """Meta learning gate for ONE matched campaign, from its daily rows (complete days only).
+    Day N = days since its first day with spend (0 = not delivering yet). Open once day ≥ learnMaxDays,
+    or day ≥ learnDays with ≥ learnResults results (pixel leads, same count as the rules)."""
+    # ponytail: the snapshot already holds 14 complete days = learnMaxDays, so day N tops out exactly
+    # where the gate must open anyway — no extra read. A longer learnMaxDays needs a longer _snapshot.
+    end = today - dt.timedelta(days=1)
+    spent = sorted(d for d in (_day(r.get("day")) for r in rows if _n(r.get("spend")) > 0) if d and d <= end)
+    day = (today - spent[0]).days if spent else 0
+    res = _agg(rows, today - dt.timedelta(days=c["learnMaxDays"]), end)["leads"]
+    need = c["learnResults"]
+    is_open = day >= c["learnMaxDays"] or (day >= c["learnDays"] and res >= need)
+    note = (f"learning done: day {day}, {res}/{need} results — optimizer judges it" if is_open else
+            f"learning: day {day}, {res}/{need} results" + ("" if spent else " — no complete day of delivery yet"))
+    return {"day": day, "results": res, "need": need, "days": c["learnDays"], "maxDays": c["learnMaxDays"],
+            "firstDay": spent[0].isoformat() if spent else None, "asOf": today.isoformat(),
+            "open": is_open, "note": note}
+
+
+def learning_hold(camp: dict | None, st: dict | None = None, c: dict | None = None) -> str:
+    """'' = free to touch; else why not. A name-matched campaign the gate has not opened for —
+    including one no daily run has read yet — is hands-off (fail closed)."""
+    c = c or cfg()
+    if not camp or not learn_match(camp.get("name"), c):
+        return ""
+    g = ((_load() if st is None else st).get("learning") or {}).get(str(camp.get("id"))) or {}
+    return "" if g.get("open") else (g.get("note") or "learning: no daily read yet") + " — Meta learning phase, hands off"
+
+
 # ── the rules engine (pure: snapshot in, candidate actions out) ─────────────────────────────────
 def evaluate(snap: dict, c: dict) -> dict:
     """snap = {campaigns, adsets, ads, daily, win:{ad_id: row}, today: date}.
@@ -249,6 +294,11 @@ def evaluate(snap: dict, c: dict) -> dict:
                     carriers.append(("adset", s, by_set.get(s["id"], [])))
     total = sum(int(_n(e.get("daily_budget"))) for _, e, _ in carriers)
 
+    # Meta learning gate: a matched campaign still learning gets NO pause/cut/scale/replace — notes only
+    learning = {k["id"]: dict(_learning(by_camp.get(k["id"], []), today, c), name=k.get("name"), status=k.get("status"))
+                for k in camps.values() if learn_match(k.get("name"), c)}
+    held = {cid for cid, g in learning.items() if not g["open"]}
+
     decisions, refresh, ents = [], [], []
 
     # ── ads
@@ -262,6 +312,9 @@ def evaluate(snap: dict, c: dict) -> dict:
         ev = {"spend14": d14["spend"], "leads14": d14["leads"], "cpl14": d14["cpl"], "ctr14": d14["ctr"],
               "ctr3": d3["ctr"], "freq": freq, "ageDays": age, "tcpl": T}
         ent = {"level": "ad", "id": a["id"], "name": a.get("name"), "verdict": "wait", **ev}
+        if a["campaign_id"] in held:
+            ents.append(dict(ent, verdict="learning", reason=learning[a["campaign_id"]]["note"]))
+            continue
         reason, to_pause = None, False
         if d14["spend"] < 3 * T:
             reason = f"only ${d14['spend']:.0f} spent — below the 3×TCPL (${3 * T:.0f}) data gate, too early to judge"
@@ -311,6 +364,10 @@ def evaluate(snap: dict, c: dict) -> dict:
         ev = {"spend14": d14["spend"], "leads14": d14["leads"], "cpl14": d14["cpl"], "cpl7": d7["cpl"],
               "leads7": d7["leads"], "cpl3": d3["cpl"], "dailyBudget": cur / 100, "tcpl": T}
         ents.append({"level": lvl, "id": e["id"], "name": e.get("name"), "verdict": "budget", **ev})
+        cid = e["id"] if lvl == "campaign" else e.get("campaign_id")
+        if cid in held:
+            ents[-1].update(verdict="learning", note=learning[cid]["note"])
+            continue
         if d14["spend"] < 3 * T:
             continue
         freqs = [(_n(snap["win"].get(a["id"], {}).get("frequency")), int(_n(snap["win"].get(a["id"], {}).get("impressions"))))
@@ -345,7 +402,7 @@ def evaluate(snap: dict, c: dict) -> dict:
                 ents[-1]["note"] = "scale-ready but at the account budget ceiling"
     order = {"status": 0, "budget": 1}
     decisions.sort(key=lambda d: (order[d["kind"]], 0 if d["kind"] == "budget" and d["to"] < d["from"] else 1))
-    return {"decisions": decisions, "refresh": refresh, "entities": ents, "totalBudget": total}
+    return {"decisions": decisions, "refresh": refresh, "entities": ents, "totalBudget": total, "learning": learning}
 
 
 # ── guard: re-checked on every apply, shadow or auto, fresh or approved-later ──────────────────
@@ -353,6 +410,11 @@ def guard(d: dict, structure: dict, st: dict, c: dict, now: float | None = None)
     now = now or time.time()
     if d["id"] in (st.get("held") or []):
         return False, "held by operator"
+    cid = d["id"] if d["level"] == "campaign" else next(
+        (x.get("campaign_id") for x in structure.get(d["level"] + "s") or [] if x["id"] == d["id"]), None)
+    why = learning_hold(next((k for k in structure["campaigns"] if k["id"] == cid), None), st, c)
+    if why:
+        return False, why
     last = (st.get("changed") or {}).get(d["id"])
     if last:
         days = (now - last) / 86400
@@ -840,8 +902,8 @@ def _target_adset(result: dict, structure: dict) -> dict | None:
     live = {a["adset_id"] for a in structure["ads"] if a.get("status") == "ACTIVE"}
     best = None
     for e in result["entities"]:
-        if e["level"] != "ad" or e["id"] not in {a["id"] for a in structure["ads"]}:
-            continue
+        if e["level"] != "ad" or e.get("verdict") == "learning" or e["id"] not in {a["id"] for a in structure["ads"]}:
+            continue                                   # never a new test inside a learning campaign
         a = next(x for x in structure["ads"] if x["id"] == e["id"])
         s = sets.get(a["adset_id"])
         if s and s["id"] in live and s.get("status") == "ACTIVE":
@@ -962,6 +1024,12 @@ def run_once(force: bool = False) -> dict:
             snap = _snapshot(acct, today)
             result = evaluate(snap, c)
             st = _load()
+            prev = st.get("learning") or {}
+            for cid, g in result["learning"].items():          # guard() + approve taps read this
+                if g["open"]:
+                    was = prev.get(cid) or {}
+                    g["openedOn"] = (was.get("open") and was.get("openedOn")) or today.isoformat()
+            st["learning"] = result["learning"]
             mkt = market_intel(result, st, c)
             j = judge(result, c, mkt)
             for i, why in j["vetoes"].items():
@@ -1094,12 +1162,13 @@ def status() -> dict:
     acts = list(reversed(st.get("actions") or []))
     return {
         "ok": True, "mode": get_mode(), "config": {k: c[k] for k in ("tcpl", "maxDaily", "hour", "step", "cutStep",
-                                                                       "maxTests", "keywords")},
+                                                                       "maxTests", "keywords", "learnPrefix")},
         "wired": {"pipeboard": configured(), "higgsfield": img, "competitorIntel": apify,
                   "claude": bool(_claude_key())},
         "lastRun": st.get("lastRun"), "lastError": st.get("lastError"), "lastRunDay": st.get("lastRunDay"),
         "pending": [a for a in acts if a.get("status") == "proposed"],
         "recent": [a for a in acts if a.get("status") != "proposed"][:25],
         "tests": st.get("tests") or {}, "held": st.get("held") or [],
+        "learning": st.get("learning") or {},
         "runs": (st.get("runs") or [])[-14:], "dueNow": _due(),
     }

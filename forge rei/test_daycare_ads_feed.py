@@ -197,7 +197,7 @@ class FeedShape(FeedBase):
         self.assertEqual(w30["totals"]["spend"], 30.0)                      # Meta account-level total
         self.assertEqual(w30["totals"]["leads"], 2)
         self.assertEqual(w30["totals"]["cpl"], 15.0)
-        self.assertEqual(w30["totals"]["tcpl"], 40.0)
+        self.assertEqual(w30["totals"]["tcpl"], 30.0)                       # code default (2026-10-22: was 40)
         self.assertEqual(w30["reconciled"]["spend"], True)
         self.assertTrue(w30["reconciled"]["leadsMatchMetaResults"])
         self.assertIn("series", w30)                                         # selected window (default 30d)

@@ -670,7 +670,8 @@ def pick_target(report, s):
         g["spend"] += _n(r.get("spend"))
         if int(r.get("leads") or 0) > g["bestLeads"]:
             g["bestAd"], g["bestLeads"] = str(r.get("id")), int(r.get("leads") or 0)
-    cands = []
+    import daycare_ads_autopilot as ap
+    cands, learning = [], []
     for sid, g in agg.items():
         a = sets[sid]
         k = camps.get(str(a.get("campaign_id"))) or {}
@@ -678,8 +679,14 @@ def pick_target(report, s):
             continue
         if a.get("status") not in ("ACTIVE", "PAUSED") or k.get("status") not in ("ACTIVE", "PAUSED"):
             continue
+        if ap.learning_hold(k):                     # a new ad would reset Meta's learning — never join it
+            learning.append(k.get("name") or k.get("id"))
+            continue
         cands.append((g["leads"], -(g["spend"] / g["leads"]), sid, g, a, k))
     if not cands:
+        if learning:
+            return None, (f"the only proven ad set is in “{learning[0]}”, still in Meta's learning phase — "
+                          "no new ads join it until the learning gate opens")
         return None, ("no existing ad set in a Leads campaign has produced a lead yet — nothing proven to "
                       "build into (build it in Meta yourself, or run the first ad)")
     cands.sort(key=lambda x: (x[0], x[1]), reverse=True)
