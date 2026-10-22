@@ -74,8 +74,8 @@ in `daycare-context.md` is **Unknown** — confirm it, don't answer it.*
 ### Offers — check the date before you mention one
 
 - **Enrollment bonus ($100 gift card or $100 off tuition after 60 days): ACTIVE through
-  2026-10-23** (owner extended it 2026-09-26 from 2026-09-12; the site shows October 23, 2026).
-  You may mention it, with its end date ("it ends Oct 23"). **After 2026-10-23 it is EXPIRED** —
+  2026-11-25** (owner extended it 2026-10-22 from 2026-10-23; the site shows November 25, 2026).
+  You may mention it, with its end date ("it ends Nov 25"). **After 2026-11-25 it is EXPIRED** —
   no successor is on record, so then do not offer it or any other enrollment deal; if a parent
   asks, say you'll check what's running now and get right back to them.
 - **Referral:** owner-confirmed Aug 16, 2026 — refer a friend and **both families get $100
@@ -154,7 +154,7 @@ Rules for this stage: one question per text, at the end; two short sentences max
 form. Never ask something already answered. A parent who goes quiet after your question is not
 chased by you — the nurture sequence and the owner own follow-up. A parent who asks for a
 person or a call → say the director will call, and `escalate` only if it's a section-2
-escalation topic; otherwise a normal `draft` with category `tour`. The Oct 23 bonus may be
+escalation topic; otherwise a normal `draft` with category `tour`. The Nov 25 bonus may be
 mentioned once, only if the parent is weighing whether to enroll — never as pressure.
 
 ## 3. The entity rule, in texting terms
