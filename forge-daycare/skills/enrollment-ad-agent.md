@@ -58,7 +58,42 @@ You are the ATOB Enrollment Ad Agent. You generate ad images via Higgsfield and 
 | `ATOB — Enrollment 2026 — Leads — Oct` | OUTCOME_LEADS — website conversion, pixel Lead event | **ABO: 3 ad sets × $10/day = $30/day** (no campaign budget, budget sharing OFF) | 3 ad sets · 1 image ad each | **120256402021080397** | PAUSED — created 2026-10-22 18:29 ET; ad sets/ads built + read back via Pipeboard 18:36 ET |
 | `[Superseded] ATOB — Enrollment 2026 — Leads — Oct (CBO)` | same | CBO $30/day | 1 ad set (zips, below) · 3 ads | 120256399823530397 | PAUSED — renamed 2026-10-22 18:29 ET, otherwise untouched. Its name no longer starts with the optimizer prefix, so the learning gate ignores it. Never re-activate alongside the new one (same creatives, same people). |
 
-**Restructure — 2026-10-22 (owner approved "finish the build with 3 mile radius within the daycares addresses"):**
+**2026-10-24 — CONSOLIDATED to ONE ad set × $30/day holding all 3 ads (owner approved 2026-10-24: "switch them making sure our targeted audience and ad settings are the same, targeting the people in our area"):**
+
+| Ad set | Ad set ID | Ad (same names as the old ads, so utm_content stays comparable) | Ad ID | Creative ID |
+|---|---|---|---|---|
+| `Radius 3mi — All 3 Ads — $30` | **120256433035710397** | ATOB — Now Enrolling App — Image — Oct | **120256433037700397** | 1316489970526443 |
+| (same ad set) | 120256433035710397 | ATOB — $100 Bonus Nov 25 — Image — Oct | **120256433038820397** | 1669979474500551 |
+| (same ad set) | 120256433035710397 | ATOB — Hours CCIS Tour — Image — Oct | **120256433039580397** | 29294486923503131 |
+
+- **Built 2026-10-24 13:43 ET via Pipeboard, all PAUSED.** $30.00/day, start 2026-10-24 13:43 ET, no end date. Campaign
+  120256402021080397 not touched.
+- **Settings identical to the three $10 ad sets** (field-by-field read-back diff): same 3 pins × 3 mi, `home` +
+  `frequently_in`, age 21–45, all genders, Advantage+ audience off, lookalike/custom-audience expansion off, same
+  placements (FB feed + Reels; IG feed, Stories, Explore, Reels), website conversions on pixel 1361417309440327 LEAD,
+  billing impressions, lowest cost, 7-day click, destination WEBSITE, dynamic creative off. Meta estimate 2026-10-24:
+  **815.3k–959.1k**.
+- **Ads reuse the same creative ids**: same copy, SIGN_UP CTA, link `https://www.atouchofblessing.com/#tours`, url_tags (on the
+  creative) and Advantage+ creative opt-outs. conversion_domain `atouchofblessing.com`, pixel tracking on (tracking_specs
+  match the old ads exactly).
+- **Why the 3×$10 design was replaced:** (1) learning dilution, since each $10 ad set got only ~2–3 leads/week and stayed
+  "Learning limited". One ad set pools every lead into one learning phase. (2) Self-overlap: the three ad sets targeted
+  the same people and competed with each other in the account's auctions. (3) The optimizer can't pause the last ad in
+  an ad set, so with one ad per ad set it could never pause a losing ad. Trade-off accepted: no guaranteed equal split.
+  Meta may favour one ad early.
+- **Superseded once the cutover runs:** old ad sets 120256402049660397 / 120256402051760397 / 120256402052710397 and old ads
+  120256402055410397 / 120256402056220397 / 120256402056810397. The 3×$10 table below, the "Equal split" bullet and Plan
+  step 3 ("Losers") no longer apply. With 3 ads in one ad set the optimizer can propose pausing a losing ad as long as one
+  ad stays active. The old objects first went ACTIVE 2026-10-24 13:37 ET (activity log), so almost no learning is lost.
+- **Cutover (owner's assistant, not this build):** set ACTIVE ad set 120256433035710397 + ads 120256433037700397,
+  120256433038820397, 120256433039580397. PAUSE the 3 old ad sets + 3 old ads and rename them with a `[Superseded] ` prefix.
+  Never run old and new at the same time (same people, same creatives).
+- **Learning gate:** the optimizer counts from the campaign's first day with spend. The campaign first went live
+  2026-10-24, so the 14-day timer lands around 2026-11-07 (not 11-06). Verify against the optimizer's own reading.
+- **Meta review:** all 3 new ads passed review by 2026-10-24 13:45 ET (effective_status PAUSED, no issues, no review
+  feedback). The new ad set is PAUSED / $30.00. Previews: `Oct-Campaign/preview-links.txt` (2026-10-24 section).
+
+**Restructure — 2026-10-22 (owner approved "finish the build with 3 mile radius within the daycares addresses") — SUPERSEDED 2026-10-24 by the single $30 ad set above:**
 
 | Ad set | Ad set ID | Ad (name = old ad name, so utm_content stays comparable) | Ad ID | Creative ID |
 |---|---|---|---|---|
