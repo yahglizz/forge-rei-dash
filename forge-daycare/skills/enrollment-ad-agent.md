@@ -81,17 +81,18 @@ You are the ATOB Enrollment Ad Agent. You generate ad images via Higgsfield and 
   the same people and competed with each other in the account's auctions. (3) The optimizer can't pause the last ad in
   an ad set, so with one ad per ad set it could never pause a losing ad. Trade-off accepted: no guaranteed equal split.
   Meta may favour one ad early.
-- **Superseded once the cutover runs:** old ad sets 120256402049660397 / 120256402051760397 / 120256402052710397 and old ads
+- **Superseded (cutover ran 2026-10-24 13:48 ET):** old ad sets 120256402049660397 / 120256402051760397 / 120256402052710397 and old ads
   120256402055410397 / 120256402056220397 / 120256402056810397. The 3×$10 table below, the "Equal split" bullet and Plan
   step 3 ("Losers") no longer apply. With 3 ads in one ad set the optimizer can propose pausing a losing ad as long as one
   ad stays active. The old objects first went ACTIVE 2026-10-24 13:37 ET (activity log), so almost no learning is lost.
-- **Cutover (owner's assistant, not this build):** set ACTIVE ad set 120256433035710397 + ads 120256433037700397,
-  120256433038820397, 120256433039580397. PAUSE the 3 old ad sets + 3 old ads and rename them with a `[Superseded] ` prefix.
-  Never run old and new at the same time (same people, same creatives).
+- **Cutover done 2026-10-24 13:48 ET** (activity log, via Pipeboard): ad set 120256433035710397 + ads 120256433037700397,
+  120256433038820397, 120256433039580397 set ACTIVE. The 3 old ad sets + 3 old ads were PAUSED and renamed with a
+  `[Superseded] ` prefix. The old ads had first delivered only at 13:46–13:47 ET. Never re-activate old and new together
+  (same people, same creatives).
 - **Learning gate:** the optimizer counts from the campaign's first day with spend. The campaign first went live
   2026-10-24, so the 14-day timer lands around 2026-11-07 (not 11-06). Verify against the optimizer's own reading.
 - **Meta review:** all 3 new ads passed review by 2026-10-24 13:45 ET (effective_status PAUSED, no issues, no review
-  feedback). The new ad set is PAUSED / $30.00. Previews: `Oct-Campaign/preview-links.txt` (2026-10-24 section).
+  feedback), while the new ad set was still PAUSED at $30.00. Previews: `Oct-Campaign/preview-links.txt` (2026-10-24 section).
 
 **Restructure — 2026-10-22 (owner approved "finish the build with 3 mile radius within the daycares addresses") — SUPERSEDED 2026-10-24 by the single $30 ad set above:**
 
