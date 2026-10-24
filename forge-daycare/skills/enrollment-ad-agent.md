@@ -94,6 +94,19 @@ You are the ATOB Enrollment Ad Agent. You generate ad images via Higgsfield and 
 - **Meta review:** all 3 new ads passed review by 2026-10-24 13:45 ET (effective_status PAUSED, no issues, no review
   feedback), while the new ad set was still PAUSED at $30.00. Previews: `Oct-Campaign/preview-links.txt` (2026-10-24 section).
 
+**2026-10-24 ~15:07 ET — 24/7-badge creative versions REPLACE the ads above (owner approved 2026-10-24: "pause the current ads and add the new ad photos and publish them as the ads"):**
+
+| Ad (in ad set 120256433035710397) | Ad ID | Creative ID | Image hash (v2-247 flyer) | Supersedes ad |
+|---|---|---|---|---|
+| ATOB — Now Enrolling App — 24/7 — Oct | **120256433930340397** | 1379707073969445 | a3426be4217620f8ed55248bd639548e | 120256433037700397 |
+| ATOB — $100 Bonus Nov 25 — 24/7 — Oct | **120256433930310397** | 2597556627430704 | 00abae9deae14b26e6be1619a8eb20dc | 120256433038820397 |
+| ATOB — Hours CCIS Tour — 24/7 — Oct | **120256433930430397** | 971046539411054 | 83287d9aec4bdd4db99a863d4a15cb58 | 120256433039580397 |
+
+- Same flyers plus a "CALL OR TEXT 24/7 (844) 708-6824" badge. Creatives are field-for-field clones of the v1 creatives; only
+  the image differs. conversion_domain and pixel tracking match the old ads. Built PAUSED; Meta review cleared 15:06 ET.
+- The three v1 ads above (120256433037700397 / 120256433038820397 / 120256433039580397) are superseded. At cutover they get
+  PAUSED and renamed with a `[Superseded v1] ` prefix. Never run v1 and 24/7 versions together. Previews: `Oct-Campaign/preview-links.txt`.
+
 **Restructure — 2026-10-22 (owner approved "finish the build with 3 mile radius within the daycares addresses") — SUPERSEDED 2026-10-24 by the single $30 ad set above:**
 
 | Ad set | Ad set ID | Ad (name = old ad name, so utm_content stays comparable) | Ad ID | Creative ID |
