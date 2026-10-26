@@ -806,5 +806,22 @@ class DaycareTimesheetTests(unittest.TestCase):
                 self.assertEqual(400, error.exception.status)
 
 
+class SiblingGuardianContacts(unittest.TestCase):
+    """Two kids on one parent: both embedded guardian copies get the login ID + phone
+    (2026-10-26: the first sibling's parent showed "No login yet")."""
+    def test_every_copy_of_a_shared_guardian_is_filled(self):
+        gid = "5fe5da2b-5766-4e03-84e8-eddebbbd74d6"
+        rows = [{"id": "c1", "profiles": {"id": gid, "display_name": "Ana Lopez"}},
+                {"id": "c2", "profiles": {"id": gid, "display_name": "Ana Lopez"}}]
+        contact = [{"id": gid, "phone": "+12155550120", "auth_email": "ana@example.com", "login_id": "Ana Lopez"}]
+        with mock.patch.object(daycare.BRIDGE, "rest", return_value=rows), \
+             mock.patch.object(daycare.BRIDGE, "rpc", return_value=contact) as rpc, \
+             mock.patch.object(daycare, "active_location", return_value="11111111-1111-1111-1111-111111111111"):
+            kids = daycare.get_children(object())["children"]
+        self.assertEqual([k["guardian"]["login_id"] for k in kids], ["Ana Lopez", "Ana Lopez"])
+        self.assertEqual([k["guardian"]["phone"] for k in kids], ["+12155550120"] * 2)
+        self.assertEqual(rpc.call_args.args[2]["p_ids"], [gid])
+
+
 if __name__ == "__main__":
     unittest.main()

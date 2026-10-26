@@ -1061,7 +1061,12 @@ def _merge_contacts(session: Session, profiles: list[Any]) -> None:
     (migration 202609230001) hands them back to managers/admins for their own center only.
     Any failure leaves them None — never breaks the read that asked.
     """
-    by_id = {str(p["id"]): p for p in profiles if isinstance(p, dict) and is_uuid(p.get("id"))}
+    # One guardian with two kids = two separate embedded dicts (one per child row): fill
+    # EVERY copy, or the first sibling's parent shows "No login yet" / no phone.
+    by_id: dict[str, list[dict]] = {}
+    for p in profiles:
+        if isinstance(p, dict) and is_uuid(p.get("id")):
+            by_id.setdefault(str(p["id"]), []).append(p)
     if not by_id:
         return
     try:
@@ -1069,8 +1074,7 @@ def _merge_contacts(session: Session, profiles: list[Any]) -> None:
     except DaycareError:
         return
     for row in rows:
-        target = by_id.get(str(row.get("id")))
-        if target is not None:
+        for target in by_id.get(str(row.get("id")), []):
             for key in ("phone", "auth_email", "login_id"):
                 target[key] = row.get(key)
 
