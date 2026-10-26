@@ -166,7 +166,7 @@ class LoginQueue(unittest.TestCase):
             self.tick(mint, lambda e, p: {"ok": False, "error": "GHL 500"})
         self.assertEqual(mint.call_count, 1)
         self.assertEqual(lq.view()["queued"], [])
-        problem = lq.view()["problems"][-1]
+        problem = lq.view(AT_0805)["problems"][-1]
         self.assertIn("GHL 500", problem["outcome"])
         self.assertEqual((problem["parent"], problem["child"]), ("Ana", "Maria"))
 
@@ -177,22 +177,22 @@ class LoginQueue(unittest.TestCase):
                           can_send_fn=lambda e: "parent opted out — not sent")
         mint.assert_not_called()
         self.assertEqual(out["dropped"], 1)
-        self.assertIn("opted out", lq.view()["problems"][-1]["outcome"])
-        self.assertIn("PIN unchanged", lq.view()["problems"][-1]["outcome"])
+        self.assertIn("opted out", lq.view(AT_0805)["problems"][-1]["outcome"])
+        self.assertIn("PIN unchanged", lq.view(AT_0805)["problems"][-1]["outcome"])
 
     def test_mint_outage_keeps_retrying_well_past_three_ticks(self):
         lq.enqueue(ENTRY)
         for _ in range(5):
             self.tick(lambda s, e: {"error": "Daycare database request failed"})
         self.assertEqual(len(lq.view()["queued"]), 1)
-        self.assertEqual(lq.view()["problems"], [])
+        self.assertEqual(lq.view(AT_0805)["problems"], [])
 
     def test_mint_outage_gives_up_after_max_tries(self):
         lq.enqueue(ENTRY)
         for _ in range(lq.MAX_TRIES):
             self.tick(lambda s, e: {"error": "Daycare database request failed"})
         self.assertEqual(lq.view()["queued"], [])
-        self.assertIn("gave up", lq.view()["problems"][-1]["outcome"])
+        self.assertIn("gave up", lq.view(AT_0805)["problems"][-1]["outcome"])
 
     def test_concurrent_run_is_skipped(self):
         lq.enqueue(ENTRY)
@@ -221,7 +221,7 @@ class LoginQueue(unittest.TestCase):
         mint = mock.Mock()
         self.tick(mint)
         mint.assert_not_called()
-        self.assertIn("interrupted", lq.view()["problems"][-1]["outcome"])
+        self.assertIn("interrupted", lq.view(AT_0805)["problems"][-1]["outcome"])
         self.assertEqual(lq.view()["queued"], [])
 
     def test_no_session_reports_error_and_keeps_queue(self):
@@ -380,6 +380,68 @@ class FindContactByPhone(unittest.TestCase):
     def test_no_match_is_none(self):
         self.assertIsNone(g.find_contact_by_phone(self.client({"contact": None}), "+12155550142"))
         self.assertIsNone(g.find_contact_by_phone(self.client({}), ""))
+
+
+class SiblingJoinsParentLogin(unittest.TestCase):
+    """A second child on one GHL contact joins the parent login of the child already enrolled
+    from that contact, even when the form's email differs (2026-10-26, Calloway Demo)."""
+    GID = "5fe5da2b-5766-4e03-84e8-eddebbbd74d6"
+    FAMILY = {"contact_id": "ghl1", "card_id": "ghl1#1", "parent_first": "Ana", "parent_last": "Lopez",
+              "child_first": "Juan", "email": "new-address@example.com", "phone": "+12155550120",
+              "location_id": LOC}
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        state = Path(self.tmp.name) / "kids.json"
+        state.write_text(json.dumps({"children": {"ghl1": "c0", "other": "c9"}}))
+        self.patch = mock.patch.object(g, "_FORM_CHILD_STATE", state)
+        self.patch.start()
+
+    def tearDown(self):
+        self.patch.stop()
+        self.tmp.cleanup()
+
+    def test_contact_in_doubt_never_links_by_sibling(self):
+        self.FAMILY = {**self.FAMILY, "review": [g.REVIEW_TAGS["contact-match-review"]]}
+        _result, child, read, _send = self.enroll({"id": "c0", "guardian_profile_id": self.GID})
+        read.assert_not_called()
+        self.assertEqual(child["guardian_email"], "new-address@example.com")
+
+    def enroll(self, sibling_row):
+        handler = object.__new__(connector.Handler)
+        handler._daycare_family_child_body = lambda _s, fam: {
+            "first_name": "Juan", "last_name": "Lopez", "location_id": LOC}
+        handler._daycare_child_save = mock.Mock(return_value={"ok": True, "child": {"id": "c1"}})
+        read = mock.Mock(side_effect=sibling_row) if isinstance(sibling_row, Exception) \
+            else mock.Mock(return_value=sibling_row)
+        with mock.patch.object(connector.daycare_supabase, "find_child_id", return_value=""), \
+             mock.patch.object(connector.daycare_supabase, "_ensure_location_record", read), \
+             mock.patch.object(connector.daycare_supabase, "at_location", mock.MagicMock()), \
+             mock.patch.object(g, "record_form_child"), \
+             mock.patch.object(g, "dismiss", return_value={"ok": True}), \
+             mock.patch.object(connector.daycare_replies, "send_manual") as send:
+            result = connector.Handler._daycare_ghl_enroll(handler, None, {"family": dict(self.FAMILY)})
+        return result, handler._daycare_child_save.call_args.args[1]["child"], read, send
+
+    def test_ledger_lists_only_this_contacts_other_cards(self):
+        self.assertEqual(g.sibling_form_children("ghl1#1"), ["c0"])
+        self.assertEqual(g.sibling_form_children("ghl1"), [])
+        self.assertEqual(g.sibling_form_children(""), [])
+
+    def test_sibling_links_to_existing_parent_no_email_no_pin(self):
+        result, child, read, send = self.enroll({"id": "c0", "guardian_profile_id": self.GID})
+        self.assertEqual(read.call_args.args[1:], ("children", "c0"))
+        self.assertEqual(child["guardian_profile_id"], self.GID)
+        self.assertNotIn("guardian_email", child)
+        self.assertTrue(result["already_linked"])
+        send.assert_not_called()
+
+    def test_sibling_gone_falls_back_to_email_login(self):
+        result, child, _read, _send = self.enroll(connector.daycare_supabase.DaycareError(404, "gone", "not_found"))
+        self.assertEqual(child["guardian_email"], "new-address@example.com")
+        self.assertTrue(child["guardian_link_only"])
+        self.assertNotIn("guardian_profile_id", child)
+        self.assertNotIn("already_linked", result)
 
 
 if __name__ == "__main__":

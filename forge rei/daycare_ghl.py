@@ -89,6 +89,17 @@ def form_child_id(contact_id: str | None) -> str:
         return _load_form_children().get(str(contact_id), "")
 
 
+def sibling_form_children(card_id: str | None) -> list[str]:
+    """Child rows already enrolled from the OTHER cards on the same GHL contact
+    ('abc' is child 0, 'abc#1'.. are siblings). [] when none."""
+    cid = card_contact_id(card_id)
+    if not cid:
+        return []
+    with _FORM_CHILD_LOCK:
+        kids = _load_form_children()
+    return [v for k, v in kids.items() if k != str(card_id) and card_contact_id(k) == cid]
+
+
 def record_form_child(contact_id: str, child_id: str) -> None:
     if not contact_id or not child_id:
         return

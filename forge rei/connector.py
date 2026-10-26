@@ -4582,7 +4582,15 @@ class Handler(BaseHTTPRequestHandler):
         # login are independent. save_child raises if guardian NAME is passed without an
         # email, so we attach the guardian block only when an email is present; otherwise
         # the child still enrolls (no login), and a login can be added later from here.
-        if (family.get("email") or "").strip():
+        # A NEW sibling on a contact whose other child is already enrolled joins THAT
+        # child's parent login (see _daycare_sibling_guardian) — no email match, no PIN.
+        # Not when the contact itself is in doubt (contact-match-review): two families may share it.
+        contact_doubt = any(str(note).startswith("contact") for note in family.get("review") or [])
+        sibling_guardian = "" if child_body["id"] or contact_doubt else self._daycare_sibling_guardian(
+            session, card_id, child_body.get("location_id"))
+        if sibling_guardian:
+            child_body["guardian_profile_id"] = sibling_guardian
+        elif (family.get("email") or "").strip():
             child_body.update({
                 "guardian_first_name": family.get("parent_first") or "",
                 "guardian_last_name": family.get("parent_last") or "",
@@ -4591,6 +4599,8 @@ class Handler(BaseHTTPRequestHandler):
                 "guardian_link_only": True,
             })
         result = self._daycare_child_save(session, {"child": child_body})
+        if sibling_guardian:
+            result["already_linked"] = True   # the card says: nothing new to send, Resend login if needed
         provision = result.get("provision") or {}
         if provision.get("pin") and not text_login:
             provision.pop("pin")   # start-date path: a fresh PIN is minted on the start day
@@ -4626,6 +4636,22 @@ class Handler(BaseHTTPRequestHandler):
             daycare_ghl.record_form_child(card_id, saved_id)
         result["dismissed"] = daycare_ghl.dismiss(card_id)
         return result
+
+    def _daycare_sibling_guardian(self, session, card_id, location_id):
+        """Parent login of a brother/sister already enrolled from this same GHL contact, at
+        THIS center. '' when none. One contact = one parent, so the new child joins that
+        login even when the form's email differs from the login's: ensure-guardian matches
+        by email and would mint a second "Name 2" login (seen 2026-10-26, Calloway Demo).
+        A sibling that moved or was removed falls back to the email match."""
+        for sibling_id in daycare_ghl.sibling_form_children(card_id):
+            try:
+                with daycare_supabase.at_location(session, location_id):
+                    row = daycare_supabase._ensure_location_record(session, "children", sibling_id)
+            except daycare_supabase.DaycareError:
+                continue
+            if row.get("guardian_profile_id"):
+                return str(row["guardian_profile_id"])
+        return ""
 
     def _daycare_resend_login(self, session, body):
         """Resend login (Parent Logins / App Tracking): fresh PIN + the GHL login text. The
