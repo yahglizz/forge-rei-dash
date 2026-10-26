@@ -13,9 +13,9 @@ plain-English reason and shown in view() for a human; nothing odd is ever guesse
     same contact's cards sit at different centers, or same child name + birth date on two contacts)
   * parent name too short to greet ("G", "I")
 
-Login text: records + logins are created now. The PIN text goes out only while
-FORGE_DAYCARE_AUTO_ENROLL_TEXT=1 (default 0: held, because the app's name+PIN sign-in
-is not open to real families yet). Held logins are handed to daycare_login_queue the
+Login text: records + logins are created now. The PIN text goes out when the family
+confirms by replying YES to the Family Contact Form text (tag family-confirmed), or for
+every held login while FORGE_DAYCARE_AUTO_ENROLL_TEXT=1 (default 0: otherwise held). Held logins are handed to daycare_login_queue the
 moment the knob flips on — that queue owns hours (8am–8:30pm ET), fresh PIN minting,
 never-two-PINs and opt-out/DND checks. No PIN is ever stored here.
 
@@ -49,6 +49,33 @@ JUNK = ("zz", "test", "example", "larrylop", "russellzep")
 
 def text_enabled() -> bool:
     return os.environ.get("FORGE_DAYCARE_AUTO_ENROLL_TEXT", "0") == "1"
+
+
+CONFIRMED_TAG = "family-confirmed"
+
+
+def _is_confirmed(client, contact_id) -> bool:
+    """True when the family replied YES to the confirmation text (daycare_family_confirm tags it).
+    A failed read counts as NOT confirmed: no PIN text on a guess."""
+    try:
+        data = client.get(f"/contacts/{contact_id}")
+        tags = (data.get("contact") or data or {}).get("tags") or []
+        return CONFIRMED_TAG in {str(t).lower() for t in tags}
+    except Exception:  # noqa: BLE001 — unknown = held
+        return False
+
+
+def release_confirmed(client, st: dict) -> int:
+    """Hand a held login to the queue once its family has confirmed by text (YES). The queue
+    still owns hours (8am-8:30pm ET), a fresh PIN, never-two-PINs and opt-out/DND. Returns
+    how many were released. Runs every tick while the global text knob is off."""
+    released = 0
+    for pid, hold in list((st.get("text_hold") or {}).items()):
+        if _is_confirmed(client, hold.get("contact_id")) \
+                and daycare_login_queue.enqueue(hold, reason="family-confirmed").get("ok"):
+            st["text_hold"].pop(pid)
+            released += 1
+    return released
 
 
 def _load() -> dict:
@@ -189,6 +216,8 @@ def run_once(client, session_fn, enroll_fn, now: float | None = None, dry_run: b
             for pid, hold in list(st["text_hold"].items()):
                 if daycare_login_queue.enqueue(hold, reason="auto-enroll").get("ok"):
                     st["text_hold"].pop(pid)
+        elif st.get("text_hold"):
+            summary["released"] = release_confirmed(client, st)
         st["held"] = summary["held"]
         st["last_run"] = now
         with _LOCK:

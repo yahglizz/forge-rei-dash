@@ -122,3 +122,33 @@ class RunOnceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConfirmGateTests(unittest.TestCase):
+    class Client:
+        def __init__(self, tags): self.tags = tags
+        def get(self, path, params=None): return {"contact": {"tags": self.tags}}
+
+    def hold(self):
+        return {"text_hold": {"p1": {"profile_id": "p1", "contact_id": "c1", "location_id": "L"}}}
+
+    def test_unconfirmed_family_stays_held(self):
+        st = self.hold()
+        with mock.patch.object(ae.daycare_login_queue, "enqueue") as enq:
+            self.assertEqual(ae.release_confirmed(self.Client(["family-confirm-pending"]), st), 0)
+        enq.assert_not_called()
+        self.assertIn("p1", st["text_hold"])
+
+    def test_confirmed_family_is_queued_once(self):
+        st = self.hold()
+        with mock.patch.object(ae.daycare_login_queue, "enqueue", return_value={"ok": True}) as enq:
+            self.assertEqual(ae.release_confirmed(self.Client(["Family-Confirmed"]), st), 1)
+        enq.assert_called_once()
+        self.assertEqual(st["text_hold"], {})
+
+    def test_read_failure_is_not_a_yes(self):
+        class Boom:
+            def get(self, *a, **k): raise OSError("x")
+        st = self.hold()
+        self.assertEqual(ae.release_confirmed(Boom(), st), 0)
+        self.assertIn("p1", st["text_hold"])
