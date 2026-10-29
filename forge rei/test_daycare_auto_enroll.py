@@ -132,6 +132,19 @@ class ConfirmGateTests(unittest.TestCase):
     def hold(self):
         return {"text_hold": {"p1": {"profile_id": "p1", "contact_id": "c1", "location_id": "L"}}}
 
+    def setUp(self):
+        patcher = mock.patch.dict(ae.os.environ, {"FORGE_DAYCARE_CONFIRM_TEXT": "1"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_confirm_knob_off_holds_even_a_yes(self):
+        st = self.hold()
+        with mock.patch.dict(ae.os.environ, {"FORGE_DAYCARE_CONFIRM_TEXT": "0"}), \
+                mock.patch.object(ae.daycare_login_queue, "enqueue") as enq:
+            self.assertEqual(ae.release_confirmed(self.Client(["family-confirmed"]), st), 0)
+        enq.assert_not_called()
+        self.assertIn("p1", st["text_hold"])
+
     def test_unconfirmed_family_stays_held(self):
         st = self.hold()
         with mock.patch.object(ae.daycare_login_queue, "enqueue") as enq:
