@@ -17,6 +17,7 @@ import re
 import secrets
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -954,6 +955,41 @@ def guardian_contact(session: Session, guardian_profile_id: Any) -> dict[str, An
         "email": guardian.get("auth_email"),
         "role": guardian.get("role"),
     }
+
+
+def login_slug(value: Any) -> str:
+    """The app's loginSlug (lib/login.ts + provision-user): what a parent types becomes
+    <slug>@<login domain>. Keep the three identical."""
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    text = re.sub(r"[\u0300-\u036f]", "", text).lower()
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+
+
+def login_check(session: Session, profile_id: Any, login_id: Any) -> str | None:
+    """Backend proof a parent login is whole, at the ACTIVE center. None = ready to text,
+    else a plain reason. It never signs in as the parent: a sign-in stamps last_sign_in_at,
+    and App Tracking would count a parent who never opened the app. The sign-in email itself
+    is service-role only; provision-user builds it from login_slug(login_id), so a login name
+    with a slug is the furthest a staff session can check it."""
+    if not is_uuid(profile_id):
+        return "no parent login id"
+    if not login_slug(login_id):
+        return "login name can't be typed in the app"
+    location = active_location(session)
+    rows = _rows(BRIDGE.rest(session, "GET", "profiles", query={
+        "id": f"eq.{profile_id}", "location_id": f"eq.{location}", "select": "id,role,active", "limit": "1"}))
+    if not rows:
+        return "parent login is not at this center"
+    if rows[0].get("role") != "parent":
+        return "login is not a parent login"
+    if rows[0].get("active") is False:
+        return "parent login is turned off"
+    kids = _rows(BRIDGE.rest(session, "GET", "children", query={
+        "guardian_profile_id": f"eq.{profile_id}", "location_id": f"eq.{location}",
+        "active": "eq.true", "select": "id", "limit": "1"}))
+    if not kids:
+        return "parent login is not linked to a child here"
+    return None
 
 
 def list_locations(session: Session) -> dict[str, Any]:

@@ -11,10 +11,11 @@ TODAY = date(2026, 10, 7)
 
 
 def card(cid="c1", first="Ava", last="Stone", dob="2022-03-01", loc="loc-1923-cecil-b-moore",
-         pf="Dana", pl="Stone", phone="+12155550123", email="d@x.com", enrolled=True, missing=None):
+         pf="Dana", pl="Stone", phone="+12155550123", email="d@x.com", enrolled=True, missing=None,
+         confirm="confirmed"):
     return {"contact_id": cid, "card_id": cid, "child_first": first, "child_last": last, "child_dob": dob,
             "location_tag": loc, "parent_first": pf, "parent_last": pl, "phone": phone, "email": email,
-            "enrolled": enrolled, "missing": missing or []}
+            "enrolled": enrolled, "missing": missing or [], "confirm_state": confirm}
 
 
 class ReviewTests(unittest.TestCase):
@@ -78,26 +79,62 @@ class RunOnceTests(unittest.TestCase):
             out = ae.run_once(object(), lambda: "sess", enroll)
         return out, q
 
-    def test_enrolls_ready_card_and_holds_text_by_default(self):
+    OK = staticmethod(lambda s, f, t: {"child": {"guardian_profile_id": "p1"},  # noqa: E731
+                                        "provision": {"texted": {"ok": True}}})
+
+    def test_form_alone_never_enrolls(self):
+        enroll = mock.Mock()
+        out, q = self._run([card()], enroll)          # YES in, no Create login click
+        enroll.assert_not_called()
+        q.assert_not_called()
+        self.assertEqual(out["enrolled"], [])
+
+    def test_click_without_yes_waits(self):
+        ae.approve("c1", "c1")
+        enroll = mock.Mock()
+        out, _ = self._run([card(confirm="pending")], enroll)
+        enroll.assert_not_called()
+        self.assertEqual((out["waiting_for_yes"], ae.view()["waiting_for_yes"]), (1, 1))
+
+    def test_click_plus_yes_enrolls_and_texts(self):
+        ae.approve("c1", "c1")
         calls = []
 
         def enroll(session, family, text_login):
             calls.append((family["location_id"], text_login))
-            return {"child": {"guardian_profile_id": "p1"}, "provision": {}}
+            return self.OK(session, family, text_login)
         out, q = self._run([card()], enroll)
         self.assertEqual(out["enrolled"], ["Ava"])
-        self.assertEqual(calls, [("44444444-4444-4444-4444-444444444444", False)])
-        self.assertEqual(ae.view()["waiting_for_text"], 1)
+        self.assertEqual(calls, [("44444444-4444-4444-4444-444444444444", True)])
+        self.assertEqual((ae.view()["waiting_for_yes"], ae.view()["waiting_for_text"]), (0, 0))
+        self.assertEqual(out["failed"], [])
         q.assert_not_called()
 
-    def test_text_knob_on_hands_held_logins_to_queue(self):
-        enroll = lambda s, f, t: {"child": {"guardian_profile_id": "p1"}, "provision": {"texted": {"queued": True}}}  # noqa: E731
-        self._run([card()], lambda s, f, t: {"child": {"guardian_profile_id": "p1"}, "provision": {}})
-        out, q = self._run([], enroll, text="1")
+    def test_click_during_a_run_is_kept(self):
+        ae.approve("c1", "c1")
+
+        def enroll(session, family, text_login):
+            ae.approve("c2", "c2")                    # owner taps another card mid-pass
+            return self.OK(session, family, text_login)
+        self._run([card()], enroll)
+        self.assertEqual(ae.approved_ids(), {"c2"})
+
+    def test_untexted_login_is_reported(self):
+        ae.approve("c1", "c1")
+        enroll = lambda s, f, t: {"child": {"guardian_profile_id": "p1"},  # noqa: E731
+                                  "provision": {"texted": {"ok": False, "error": "login check failed: x"}}}
+        out, _ = self._run([card()], enroll)
+        self.assertIn("PIN not texted", out["failed"][0]["error"])
+
+    def test_legacy_hold_released_by_text_knob(self):
+        ae._save({"text_hold": {"p9": {"profile_id": "p9", "contact_id": "c9", "location_id": "L"}}})
+        out, q = self._run([], mock.Mock(), text="1")
         q.assert_called_once()
         self.assertEqual(ae.view()["waiting_for_text"], 0)
 
     def test_failures_counted_and_give_up(self):
+        ae.approve("c1", "c1")
+
         def boom(s, f, t):
             raise RuntimeError("x")
         for _ in range(ae.MAX_TRIES):
@@ -106,7 +143,7 @@ class RunOnceTests(unittest.TestCase):
         out, _ = self._run([card()], boom)
         self.assertIn("gave up", out["failed"][0]["error"])
 
-    def test_held_cards_never_enrolled(self):
+    def test_held_cards_reported_not_enrolled_without_click(self):
         enroll = mock.Mock()
         out, _ = self._run([card(first="ZZTest")], enroll)
         enroll.assert_not_called()
@@ -114,6 +151,7 @@ class RunOnceTests(unittest.TestCase):
 
     def test_dry_run_changes_nothing(self):
         enroll = mock.Mock()
+        ae.approve("c1", "c1")
         with mock.patch.object(ae.daycare_ghl, "pending_families", return_value=[card()]):
             out = ae.run_once(object(), lambda: "s", enroll, dry_run=True)
         enroll.assert_not_called()

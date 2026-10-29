@@ -1,10 +1,15 @@
-"""daycare_auto_enroll.py — Family Contact Form -> parent app, hands-free.
+"""daycare_auto_enroll.py — Family Contact Form -> parent app, once the owner AND the family agree.
 
-A family that completes the Family Contact Form becomes a dashboard card. This loop turns
-every READY card into a real child row + parent login at the right center, with no click
-(owner decision 2026-10-07; supersedes the click-to-enroll gate for form families).
+A family that completes the Family Contact Form becomes a dashboard card. A card becomes a
+real child row + parent login + PIN text only when BOTH are true, in either order (owner
+decision 2026-10-29, spec Brand Kit docs/superpowers/specs/2026-10-29-login-click-plus-yes-design.md):
+  1. the owner tapped Create login on the card, and
+  2. the family replied YES to the Family Contact Form text (tag family-confirmed).
+Click after YES: connector enrolls + texts on the spot. Click before YES: approve() records
+the click and this loop finishes the job the tick after the YES lands. No click = nothing.
+(The 2026-10-07 hands-free enroll is retired: a form alone never makes a login now.)
 
-Guards — a card is only auto-enrolled when it is unambiguous. Anything odd is HELD with a
+Guards (review) — still computed so view() can show what looks odd on a card. Anything odd is HELD with a
 plain-English reason and shown in view() for a human; nothing odd is ever guessed:
   * not ready (missing email / birth date / parent name / center)
   * birth date implausible (future, or older than 13)
@@ -13,7 +18,8 @@ plain-English reason and shown in view() for a human; nothing odd is ever guesse
     same contact's cards sit at different centers, or same child name + birth date on two contacts)
   * parent name too short to greet ("G", "I")
 
-Login text: records + logins are created now. The PIN text is held. It goes out for every
+Legacy holds: logins made by the retired hands-free enroll before 2026-10-29 sit in text_hold.
+Their PIN text is held. It goes out for every
 held login while FORGE_DAYCARE_AUTO_ENROLL_TEXT=1 (default 0), or when the family replies YES
 to the Family Contact Form text (tag family-confirmed) while FORGE_DAYCARE_CONFIRM_TEXT=1
 (default 0: owner decision 2026-10-29, the owner sends PINs by hand). Held logins are handed to daycare_login_queue the
@@ -68,6 +74,32 @@ def _is_confirmed(client, contact_id) -> bool:
         return CONFIRMED_TAG in {str(t).lower() for t in tags}
     except Exception:  # noqa: BLE001 — unknown = held
         return False
+
+
+def is_confirmed(client, contact_id) -> bool:
+    return _is_confirmed(client, contact_id)
+
+
+def approve(card_id, contact_id, now: float | None = None) -> dict:
+    """The owner tapped Create login before the family's YES: remember the click.
+    Internal + reversible (local state only); the loop enrolls once YES lands."""
+    with _LOCK:
+        st = _load()
+        st.setdefault("approved", {})[str(card_id)] = {"contact_id": str(contact_id), "at": now or time.time()}
+        _save(st)
+    return {"approved": True, "waiting_for_yes": True}
+
+
+def approved_ids() -> set[str]:
+    with _LOCK:
+        return set(_load().get("approved") or {})
+
+
+def clear_approval(card_id) -> None:
+    with _LOCK:
+        st = _load()
+        if (st.get("approved") or {}).pop(str(card_id), None) is not None:
+            _save(st)
 
 
 def release_confirmed(client, st: dict) -> int:
@@ -174,8 +206,14 @@ def run_once(client, session_fn, enroll_fn, now: float | None = None, dry_run: b
     try:
         now = now or time.time()
         cards = [c for c in daycare_ghl.pending_families(client) if not daycare_ghl.is_dismissed(c.get("card_id"))]
-        ready, held = review(cards)
-        summary = {"ok": True, "ready": len(ready), "held": [
+        _, held = review(cards)
+        with _LOCK:
+            approved = dict(_load().get("approved") or {})
+        # Owner click + family YES. The click is the owner's judgment on this card, so the review
+        # guards (which only ever gated the retired hands-free path) don't block it, same as a
+        # click after YES; enroll itself still refuses missing data.
+        ready = [c for c in cards if str(c.get("card_id")) in approved and c.get("confirm_state") == "confirmed"]
+        summary = {"ok": True, "ready": len(ready), "waiting_for_yes": len(approved) - len(ready), "held": [
             {"child": f"{h.get('child_first')} {h.get('child_last') or ''}".strip(), "card_id": h.get("card_id"),
              "reasons": h["reasons"], "location": h.get("location_tag")}   # center tag (the board's center)
             for h in held], "enrolled": [], "failed": [], "text": text_enabled()}
@@ -185,6 +223,7 @@ def run_once(client, session_fn, enroll_fn, now: float | None = None, dry_run: b
         with _LOCK:
             st = _load()
         tries = st.setdefault("tries", {})
+        done_cids: set[str] = set()
         session = session_fn() if ready else None
         if ready and session is None:
             summary["ok"] = False
@@ -197,7 +236,7 @@ def run_once(client, session_fn, enroll_fn, now: float | None = None, dry_run: b
             family = dict(card)
             family["location_id"] = daycare_ghl.LOCATION_ID_BY_TAG.get(str(card.get("location_tag") or "").lower())
             try:
-                result = enroll_fn(session, family, text_enabled())
+                result = enroll_fn(session, family, True)
             except Exception as error:  # noqa: BLE001 — type only, never a token
                 tries[cid] = tries.get(cid, 0) + 1
                 summary["failed"].append({"card_id": cid, "error": f"{type(error).__name__}"})
@@ -211,14 +250,15 @@ def run_once(client, session_fn, enroll_fn, now: float | None = None, dry_run: b
             entry = {"card_id": cid, "child": card.get("child_first"), "location": card.get("location_tag"),
                      "at": now, "login_existed": bool(prov.get("existing")),
                      "texted": bool((prov.get("texted") or {}).get("ok")) or bool((prov.get("texted") or {}).get("queued"))}
-            if not text_enabled():
-                st.setdefault("text_hold", {})[str(child.get("guardian_profile_id"))] = {
-                    "profile_id": str(child.get("guardian_profile_id")), "contact_id": card.get("contact_id"),
-                    "location_id": family["location_id"], "parent_first": card.get("parent_first"),
-                    "child_first": card.get("child_first")}
+            done_cids.add(cid)
             st.setdefault("done", []).append(entry)
             st["done"] = st["done"][-DONE_KEEP:]
             summary["enrolled"].append(entry["child"])
+            texted = prov.get("texted") or {}
+            if prov.get("pinWithheld") is None and not entry["texted"] and texted.get("error"):
+                # Login made, PIN not texted (check failed / GHL refused): the card is gone, so say it
+                # loudly — the heartbeat turns this into an alert. Resend login re-issues it.
+                summary["failed"].append({"card_id": cid, "error": f"login made, PIN not texted: {texted['error']} — use Resend login"})
         # Text switch flipped on: hand every held login to the queue (it owns hours, PIN, opt-out).
         if text_enabled() and st.get("text_hold"):
             for pid, hold in list(st["text_hold"].items()):
@@ -229,6 +269,9 @@ def run_once(client, session_fn, enroll_fn, now: float | None = None, dry_run: b
         st["held"] = summary["held"]
         st["last_run"] = now
         with _LOCK:
+            # approve()/clear_approval() may have run during this pass: keep their writes,
+            # drop only the cards this pass enrolled.
+            st["approved"] = {k: v for k, v in (_load().get("approved") or {}).items() if k not in done_cids}
             _save(st)
         return summary
     finally:
@@ -239,7 +282,8 @@ def view() -> dict:
     with _LOCK:
         st = _load()
     return {"ok": True, "text_enabled": text_enabled(), "held": st.get("held") or [],
-            "waiting_for_text": len(st.get("text_hold") or {}), "recent": (st.get("done") or [])[-20:],
+            "waiting_for_text": len(st.get("text_hold") or {}),
+            "waiting_for_yes": len(st.get("approved") or {}), "recent": (st.get("done") or [])[-20:],
             "last_run": st.get("last_run")}
 
 

@@ -239,6 +239,25 @@ class LoginQueue(unittest.TestCase):
 import connector
 
 
+_PATCHES = []
+
+
+def setUpModule():
+    # Owner click + family YES (2026-10-29): these suites test the enroll/text core, so the
+    # family has replied YES and the new login passes its check unless a test says otherwise.
+    _PATCHES[:] = [mock.patch.object(connector.daycare_auto_enroll, "is_confirmed", return_value=True),
+                   mock.patch.object(connector.daycare_auto_enroll, "clear_approval"),
+                   mock.patch.object(connector, "_daycare_login_problem", return_value=None),
+                   mock.patch.object(connector.daycare_supabase, "login_check", return_value=None)]
+    for p in _PATCHES:
+        p.start()
+
+
+def tearDownModule():
+    for p in _PATCHES:
+        p.stop()
+
+
 class ConnectorLoginPieces(unittest.TestCase):
     def test_queue_mint_uses_signed_in_guard_unless_forced(self):
         reset = mock.Mock(return_value={"provision": {"pin": "1", "login_id": "x"}})

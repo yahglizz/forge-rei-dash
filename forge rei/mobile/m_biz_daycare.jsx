@@ -571,10 +571,11 @@ function MBDFamilies() {
     const child = f.child_name || "this child";
     const who = child + (f.parent_name ? " (parent " + f.parent_name + ")" : "") + (f.location_name ? " at " + f.location_name : "");
     const what = f.child_id ? who + " is already on the roster. Link/create the parent's app login and clear this card?" : "Enroll " + who + "?";
-    if (!window.confirm(what + "\n\nThis writes to the daycare roster, creates the parent's app login if an email is on file, and updates their GoHighLevel contact. A new login is texted to the parent through GoHighLevel (after 9pm it's queued for 8am).")) return;
+    if (!window.confirm(what + "\n\nThis writes to the daycare roster, creates the parent's app login if an email is on file, and updates their GoHighLevel contact. A new login is texted to the parent through GoHighLevel (after 9pm it's queued for 8am). If the family hasn't replied YES yet, this approves it and the login is made and texted when they do.")) return;
     setBusyId(f.card_id || f.contact_id); setNotice("");
     try {
       const r = await window.apiPostM("/api/daycare/ghl/enroll", { family: f });
+      if (r && r.waiting_for_yes) { setNotice(child + " approved — login is made and texted when the family replies YES."); inbox.refresh(); setBusyId(""); return; }
       if (r && r.provision) setCreds({ provision: r.provision, who: f.parent_name || child });
       setNotice(child + " enrolled." + (r && r.ghlSync && r.ghlSync.ok === false ? " GHL sync: " + (r.ghlSync.detail || "failed") + "." : ""));
       inbox.refresh();
@@ -588,6 +589,7 @@ function MBDFamilies() {
     <div className="mbd-row-main"><strong>{MBDName(f.child_name, "Student")}{f.parent_name ? " · " + f.parent_name : ""}</strong>
       <small>{[f.children_count > 1 ? "Child " + (f.child_index + 1) + "/" + f.children_count : "", f.location_name || f.location_tag, f.enrolled ? (f.child_id ? "On roster" : "Enrolled family") : "Inquiry",
         f.confirm_state === "confirmed" ? "Confirmed ✓" : f.confirm_state === "pending" ? (f.confirm_reply ? "Replied — check thread" : "Awaiting YES") : f.confirm_state === "no_reply" ? "No reply 48h+" : "",
+        f.approved ? "Approved — waiting for YES" : "",
         f.enrolled && f.missing && f.missing.length ? "Missing: " + f.missing.join(", ") : "",
         f.review && f.review.length ? "Check " + f.review.map((r) => r.split(" — ")[0]).join(", ") : ""].filter(Boolean).join(" · ")}</small></div>
     {f.phone && <a className="mbd-call" href={"tel:" + f.phone} aria-label="Call"><window.MIcons.Phone size={17} /></a>}

@@ -50,7 +50,7 @@ function DclPendingPanel({ families, activeLoc, onCreate, onDismiss, error, busy
       {dismissBtn(f)}
     </div>;
   return <div className="card card-pad dc-panel dcl-pending">
-    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Form kids are enrolled to the roster automatically — click to create the parent's app login</div></div><b>{enrolledFresh.length}</b></div>
+    <div className="dc-panel-head"><div><div className="card-title">From the Contact Form{centerName ? " · " + centerName : ""}</div><div className="faint">Tap Create login — the login is made and texted once the family has replied YES</div></div><b>{enrolledFresh.length}</b></div>
     {error && <div className="dc-form-hint" style={{ color: "#f28b82" }}>Couldn't load the newest submissions ({error.message || "connection error"}) — showing the last successful load. Refresh to retry.</div>}
     {enrolledFresh.length === 0
       ? <div className="dc-all-clear"><window.Icons.Check size={20} /><div><b>All caught up</b><span>{linked ? linked + " form families are already in the dashboard for this center." : "New form submissions for this center will show here to create a login."}</span></div></div>
@@ -58,7 +58,8 @@ function DclPendingPanel({ families, activeLoc, onCreate, onDismiss, error, busy
           <React.Fragment>
             {confirmChip(f)}
             {f.child_id && chip("Enrolled ✓", "#81c995", "rgba(129,201,149,.1)")}
-            <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} disabled={busyContact === key(f) || f.ready === false} title={f.ready === false ? "Missing: " + (f.missing || []).join(", ") : ""} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> {busyContact === key(f) ? "Creating…" : "Create login"}</button>
+            {f.approved && chip("Approved — waiting for YES", "#c58af9", "rgba(197,138,249,.1)", "You tapped Create login. The login is made and texted as soon as the family replies YES.")}
+            <button className="dc-primary" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }} disabled={busyContact === key(f) || f.ready === false} title={f.ready === false ? "Missing: " + (f.missing || []).join(", ") : ""} onClick={() => onCreate(f)}><window.Icons.Shield size={13} /> {busyContact === key(f) ? "Creating…" : f.approved ? "Approved ✓" : "Create login"}</button>
           </React.Fragment>))}</div>}
     {inquiries.length > 0 && <div className="dcl-inquiries" style={{ marginTop: "14px" }}>
       <div className="faint" style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: 500 }}><window.Icons.Bell size={13} /> New inquiries — not enrolled yet · no app login</div>
@@ -129,14 +130,15 @@ function DaycareParentLogins() {
     catch (error) { window.alert(error.message); }
   };
 
-  // One click does everything: creates the child (classroom auto-matched by the form's
-  // age-band tag), creates the guardian login when parent info is present, syncs GHL,
-  // and dismisses the card — no review form. The click itself is the approval (an
-  // explicit owner action on one already-consented family record).
+  // The click is the owner's approval. If the family already replied YES it does everything:
+  // creates the child (classroom auto-matched by the form's age-band tag), the guardian login,
+  // syncs GHL, texts the PIN and dismisses the card. No YES yet: the click is recorded and the
+  // box finishes the job when the YES lands (owner decision 2026-10-29).
   const createFromForm = async (family) => {
     setBusyContact(family.card_id || family.contact_id);
     try {
       const payload = await window.DcxRequest("/ghl/enroll", { body: { family } });
+      if (payload.waiting_for_yes) window.alert("Approved. The family hasn't replied YES yet — the login is made and texted as soon as they do (8am–9pm).");
       if (payload.already_linked) window.alert("This child is already linked to a parent login — nothing new to send. Use Resend login below if the parent needs their PIN.");
       if (payload.provision) setCredentials(payload.provision);
       childrenRes.refresh(); roomsRes.refresh(); pendingRes.refresh();

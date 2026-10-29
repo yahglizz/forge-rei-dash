@@ -3501,9 +3501,39 @@ def _daycare_start_mint(session, entry):
 
 
 
+def _daycare_add_intake(family, intake):
+    """Carry the GHL intake note's pickup people + freeform note onto the family (pickup_notes /
+    medical_notes), the bits the form keeps only in the Note."""
+    people = (intake or {}).get("authorized_pickup") or []
+    if people:
+        base = family.get("pickup_notes") or ""
+        family["pickup_notes"] = (
+            base + ("\n" if base else "") + "Authorized pickup:\n"
+            + "\n".join("  - " + p for p in people)).strip()
+    if (intake or {}).get("notes"):
+        family["medical_notes"] = intake["notes"]
+
+
+def _daycare_login_problem(session, provision, location_id):
+    """None = this new login is ready to text, else a plain reason. Read at the family's
+    center; a failed read is a problem too (never text a PIN on a guess)."""
+    try:
+        with daycare_supabase.at_location(session, location_id):
+            return daycare_supabase.login_check(session, provision.get("profile_id"), provision.get("login_id"))
+    except daycare_supabase.DaycareError as error:
+        return error.payload().get("error") or "login read failed"
+    except Exception as error:  # noqa: BLE001 — type only, never a token
+        return f"login read failed ({type(error).__name__})"
+
+
 def _daycare_auto_enroll(session, family, text_login):
-    """Auto-enroll lane: the same enroll core the Create login click runs. The core only
+    """Approved-and-confirmed lane (owner click + family YES): the same enroll core the Create
+    login click runs, with the intake note the click's card already carries. The core only
     calls sibling Handler helpers, so an un-served Handler instance is enough."""
+    try:
+        _daycare_add_intake(family, daycare_ghl.family_intake(DAYCARE_GHL, family.get("contact_id")))
+    except Exception:  # noqa: BLE001 — the note is a nice-to-have; the enroll still runs
+        pass
     return Handler._daycare_enroll_family(Handler.__new__(Handler), session, family, text_login=text_login)
 
 
@@ -3515,7 +3545,10 @@ def _daycare_queue_mint(session, entry):
         payload["only_if_never_signed_in"] = True
     try:
         with daycare_supabase.at_location(session, entry.get("location_id")):
-            return (daycare_supabase.reset_credentials(session, payload) or {}).get("provision") or {}
+            provision = (daycare_supabase.reset_credentials(session, payload) or {}).get("provision") or {}
+            problem = provision.get("pin") and daycare_supabase.login_check(
+                session, entry.get("profile_id"), provision.get("login_id"))
+            return {"error": f"login check failed: {problem}"} if problem else provision
     except daycare_supabase.DaycareError as error:
         message = error.payload().get("error") or "reset failed"
         return {"error": "already_signed_in" if message == "already_signed_in" else message}
@@ -4397,6 +4430,7 @@ class Handler(BaseHTTPRequestHandler):
         except daycare_supabase.DaycareError:
             pass
         families = daycare_ghl.pending_families(DAYCARE_GHL)
+        approved = daycare_auto_enroll.approved_ids()
         intakes = {}
         emails = set()
         try:
@@ -4423,6 +4457,7 @@ class Handler(BaseHTTPRequestHandler):
             # Per-child key: child 0 = contact_id (unchanged), sibling i = "contact_id#i".
             card_id = family.get("card_id") or family.get("contact_id")
             family["dismissed"] = daycare_ghl.is_dismissed(card_id)
+            family["approved"] = str(card_id) in approved   # Create login tapped, waiting for YES
             family["confirm_reply"] = (daycare_family_confirm.status(family.get("contact_id"))
                                        .get("reply") if family.get("confirm_state") in ("pending", "no_reply") else None)
             # For families the owner can still provision, read the GHL intake note for the
@@ -4435,15 +4470,7 @@ class Handler(BaseHTTPRequestHandler):
                 # One note read per contact, shared by every sibling card.
                 if family["contact_id"] not in intakes:
                     intakes[family["contact_id"]] = daycare_ghl.family_intake(DAYCARE_GHL, family["contact_id"])
-                intake = intakes[family["contact_id"]]
-                people = intake.get("authorized_pickup") or []
-                if people:
-                    base = family.get("pickup_notes") or ""
-                    family["pickup_notes"] = (
-                        base + ("\n" if base else "") + "Authorized pickup:\n"
-                        + "\n".join("  - " + p for p in people)).strip()
-                if intake.get("notes"):
-                    family["medical_notes"] = intake["notes"]
+                _daycare_add_intake(family, intakes[family["contact_id"]])
             family["child_id"] = daycare_ghl.form_child_id(card_id)
         return {"ok": True, "families": families,
                 "connected": bool(DAYCARE_GHL.configured),
@@ -4555,7 +4582,17 @@ class Handler(BaseHTTPRequestHandler):
         card so it drops out of the inbox once it's a real Supabase record.
         """
         family = body.get("family") if isinstance(body.get("family"), dict) else {}
-        return self._daycare_enroll_family(session, family)
+        # Owner decision 2026-10-29: a login is made + texted only after BOTH this click and the
+        # family's YES. YES is re-read from GHL (never the browser's card); no YES yet = record
+        # the click and let the auto-enroll loop finish it when the YES lands.
+        contact_id = str(family.get("contact_id") or "")
+        card_id = str(family.get("card_id") or contact_id)
+        if (contact_id and daycare_ghl.card_contact_id(card_id) == contact_id
+                and not daycare_auto_enroll.is_confirmed(DAYCARE_GHL, contact_id)):
+            return {"ok": True, **daycare_auto_enroll.approve(card_id, contact_id)}
+        result = self._daycare_enroll_family(session, family)
+        daycare_auto_enroll.clear_approval(card_id)
+        return result
 
     def _daycare_enroll_family(self, session, family, text_login=True, enrollment_date=None):
         """The enroll core. text_login=False + enrollment_date = the start-date confirm path
@@ -4623,12 +4660,16 @@ class Handler(BaseHTTPRequestHandler):
             # Reply-Desk draft for this parent stays open.
             # A failed text NEVER fails the enroll — the modal says share it in person.
             try:
-                sent = daycare_replies.send_manual(DAYCARE_GHL, contact_id, daycare_ghl.login_text(
-                    family.get("parent_first"), family.get("child_first") or child_body.get("first_name"),
-                    provision.get("login_id"), provision["pin"], child_body.get("location_id")),
-                    close_draft=False)
-                provision["texted"] = {"ok": bool(sent.get("ok")), "error": None if sent.get("ok")
-                                       else sent.get("error") or sent.get("detail") or "send failed"}
+                problem = _daycare_login_problem(session, provision, child_body.get("location_id"))
+                if problem:   # no PIN text for a login that isn't whole — the modal still shows it
+                    provision["texted"] = {"ok": False, "error": f"login check failed: {problem}"}
+                else:
+                    sent = daycare_replies.send_manual(DAYCARE_GHL, contact_id, daycare_ghl.login_text(
+                        family.get("parent_first"), family.get("child_first") or child_body.get("first_name"),
+                        provision.get("login_id"), provision["pin"], child_body.get("location_id")),
+                        close_draft=False)
+                    provision["texted"] = {"ok": bool(sent.get("ok")), "error": None if sent.get("ok")
+                                           else sent.get("error") or sent.get("detail") or "send failed"}
             except Exception as error:  # noqa: BLE001 — never leak a token, never fail the enroll
                 provision["texted"] = {"ok": False, "error": f"GHL send failed: {type(error).__name__}"}
         saved_id = ((result or {}).get("child") or {}).get("id")
@@ -4678,7 +4719,10 @@ class Handler(BaseHTTPRequestHandler):
                 daycare_login_queue.enqueue(entry, reason="resend after 9pm")
                 return {"ok": True, "queued": True}
             provision = (daycare_supabase.reset_credentials(session, {"profile_id": profile_id}) or {}).get("provision") or {}
-        if not contact_id:
+            problem = provision.get("pin") and daycare_supabase.login_check(session, profile_id, provision.get("login_id"))
+        if problem:
+            provision["texted"] = {"ok": False, "error": f"login check failed: {problem} — share the PIN in person"}
+        elif not contact_id:
             provision["texted"] = {"ok": False, "error": "No GHL contact with this parent's phone — share the PIN in person"}
         elif provision.get("pin"):
             try:
