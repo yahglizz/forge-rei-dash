@@ -144,8 +144,8 @@ def _flag(session, row, facts, out, bucket: str, note: str) -> None:
         _log.exception("could not flag invoice %s", row.get("invoice_id"))
 
 
-def _process_row(session, row, mode, ghl, out, facts, link_amount) -> None:
-    """Phase 2 for one owed row, OUTSIDE the center switch. `facts` / `link_amount` were read in phase 1
+def _process_row(session, row, mode, ghl, out, facts, pre) -> None:
+    """Phase 2 for one owed row, OUTSIDE the center switch. `facts` / `pre` were read in phase 1
     (an Exception in `facts` means that read failed)."""
     kind = row.get("kind")
     if kind == "staff_review":
@@ -182,7 +182,7 @@ def _process_row(session, row, mode, ghl, out, facts, link_amount) -> None:
 
     # The text and the Stripe page must show the SAME amount. A partial payment lowers the balance but
     # leaves the old Stripe invoice at the old amount, so a stale link is refreshed (live only) first.
-    stale = link_amount != facts["balance_cents"]          # unknown amount counts as stale
+    stale = pre["link_amount"] != facts["balance_cents"]   # unknown amount counts as stale
     link_send_id, message, refreshed = row.get("link_send_id"), None, None
     stale_note = None
     if stale and mode == "dry_run":                        # dry_run never touches Stripe or makes a link
@@ -190,6 +190,18 @@ def _process_row(session, row, mode, ghl, out, facts, link_amount) -> None:
         stale_note = ("Dry run: the saved pay link is stale (it charges a different amount); "
                       "a live run would refresh it first.")
     elif stale:
+        # Everything that can say "no" is checked BEFORE the irreversible Stripe step (it voids the old invoice).
+        if not (facts["guardian"].get("phone") or "").strip():
+            _flag(session, row, facts, out, "no_phone", "No phone number on file.")
+            return
+        if pre["family_busy"]:                             # this family already got a billing text today
+            _bump(out["skipped"], "already_sent_or_family_cap")
+            return
+        try:                                               # same guard as the owner's Send (race = two invoices)
+            release = bl.reserve_link(session, row["invoice_id"], recent=pre["recent_link"])
+        except bl.BillingLinkError:
+            _bump(out["skipped"], "link_busy")             # a link was just built/sent; the next tick decides
+            return
         try:
             refreshed = bl.create_link(session, facts, text_with(bl.PLACEHOLDER))
         except Exception as error:  # noqa: BLE001 — no text, flag it, keep going with the rest of the tick
@@ -198,6 +210,8 @@ def _process_row(session, row, mode, ghl, out, facts, link_amount) -> None:
             _flag(session, row, facts, out, "link_refresh_failed",
                   "Could not refresh the pay link, so no text was sent: " + str(detail))
             return
+        finally:
+            release()
         message, link_send_id = refreshed["final_text"], refreshed["send_id"]
     else:
         message = text_with(pay_link(row["token"]))
@@ -228,6 +242,8 @@ def _process_row(session, row, mode, ghl, out, facts, link_amount) -> None:
             # May have gone out: keep the row 'sent' (with the note) so no later tick can text twice.
             _record(session, rid, "sent", None, error.message[:300])
             out["warnings"].append(error.message)
+            if refreshed:
+                bl.arm_recent(row["invoice_id"])
         else:
             _record(session, rid, "failed", None, error.message[:300])
         if refreshed:
@@ -237,6 +253,7 @@ def _process_row(session, row, mode, ghl, out, facts, link_amount) -> None:
     _record(session, rid, "sent", delivered["message_id"], None)
     if refreshed:
         bl.mark_link(session, refreshed["send_id"], "sent", delivered["message_id"], None)
+        bl.arm_recent(row["invoice_id"])
     out["sent"] += 1
     if delivered.get("tag_warning"):
         out["warnings"].append(delivered["tag_warning"])
@@ -256,16 +273,22 @@ def _plan(session, location_id, as_of: date, mode: str, out: dict) -> dict:
     owed = _rpc(session, "billing_reminders_owed",
                 {"p_location": str(location_id), "p_today": as_of.isoformat()}, write=False)
     for row in (owed if isinstance(owed, list) else []):
-        facts, link_amount = None, None
+        facts, pre = None, {"link_amount": None, "recent_link": False, "family_busy": False}
         needs_facts = (row.get("kind") in TEMPLATES and not row.get("has_pending_payment"))
         if needs_facts:
             try:
                 facts = daycare_supabase.billing_invoice_facts(session, row["invoice_id"])
                 if row.get("has_link") and row.get("token"):
-                    link_amount = daycare_supabase.billing_link_amount(session, row.get("link_send_id"))
+                    pre["link_amount"] = daycare_supabase.billing_link_amount(session, row.get("link_send_id"))
+                    if mode == "live" and pre["link_amount"] != facts["balance_cents"]:
+                        # a Stripe refresh is coming: read what must veto it BEFORE any Stripe call
+                        pre["recent_link"] = daycare_supabase.billing_recent_send(
+                            session, row["invoice_id"], bl.RESEND_WINDOW)
+                        pre["family_busy"] = daycare_supabase.billing_reminder_family_busy(
+                            session, row.get("guardian_id"), as_of.isoformat())
             except Exception as error:  # noqa: BLE001 — surfaces as that one row's error in phase 2
                 facts = error
-        plan["rows"].append((row, facts, link_amount))
+        plan["rows"].append((row, facts, pre))
     return plan
 
 
@@ -298,9 +321,9 @@ def run_location(session, location_id, as_of: date, ghl, *, now: datetime | None
             plan = _plan(session, location_id, as_of, mode, out)
         if mode == "live":
             _refresh_delivery(session, plan["unchecked"], ghl)
-        for row, facts, link_amount in plan["rows"]:
+        for row, facts, pre in plan["rows"]:
             try:
-                _process_row(session, row, mode, ghl, out, facts, link_amount)
+                _process_row(session, row, mode, ghl, out, facts, pre)
             except Exception as error:  # noqa: BLE001 — one bad invoice never stops the rest
                 _log.exception("reminder row failed (invoice %s)", row.get("invoice_id"))
                 out["failed"] += 1

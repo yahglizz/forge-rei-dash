@@ -89,6 +89,7 @@ class FakeDB:
         self.rows = {}                 # (invoice, kind, due) -> {"id","status","guardian","date","message","error"}
         self.unchecked = []
         self.link_amount = 3000          # what the saved pay link's Stripe page charges
+        self.recent_link = False         # a link row created/sent/delivered < 120 s ago
         self.hosted_calls = []
         self.hosted_error = None
 
@@ -144,6 +145,8 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.db = FakeDB()
         self.ghl = FakeGHL()
+        bl._INFLIGHT.clear()
+        bl._RECENT.clear()
 
         self.depth = 0                 # how many center switches are open right now
         self.max_depth = 0
@@ -165,6 +168,12 @@ class Base(unittest.TestCase):
                               side_effect=lambda s, loc: self.db.unchecked),
             mock.patch.object(daycare_supabase, "at_location", at_location),
             mock.patch.object(daycare_supabase, "billing_link_amount", side_effect=lambda s, lid: self.db.link_amount),
+            mock.patch.object(daycare_supabase, "billing_recent_send",
+                              side_effect=lambda s, inv, secs=120: self.db.recent_link),
+            mock.patch.object(daycare_supabase, "billing_reminder_family_busy",
+                              side_effect=lambda s, gid, today: any(
+                                  r["guardian"] == gid and r["date"] == today and r["status"] in ("sending", "sent")
+                                  for r in self.db.rows.values())),
             mock.patch.object(stripe_io, "ensure_hosted_invoice", side_effect=self.db.hosted),
         ]
         for p in patches:
@@ -557,14 +566,82 @@ class StaleLink(Base):
         marks = [b for n, b in self.db.calls if n == "billing_mark_link_sent"]
         self.assertEqual("failed", marks[0]["p_status"])
 
-    def test_family_cap_after_a_refresh_does_not_leave_a_sent_link_row(self):
+    def test_family_cap_is_checked_before_stripe(self):
         self.stale()
         self.db.rows[("zz", "upcoming", "d")] = {"id": "r0", "status": "sent", "guardian": "g1", "date": "2026-11-03"}
         out = self.tick()
         self.assertEqual([], self.ghl.posts)
+        self.assertEqual([], self.db.hosted_calls)                         # Stripe never touched
+        self.assertNotIn("billing_create_link_send", self.db.names())
+        self.assertEqual(1, out["skipped"]["already_sent_or_family_cap"])
+
+    def test_claim_refusal_after_a_refresh_leaves_no_sent_link_row(self):
+        # the race the pre-check cannot see: another tick claimed the family between the read and the claim
+        self.stale()
+        self.db.rows[("zz", "upcoming", "d")] = {"id": "r0", "status": "sent", "guardian": "g1", "date": "2026-11-03"}
+        with mock.patch.object(daycare_supabase, "billing_reminder_family_busy", return_value=False):
+            out = self.tick()
+        self.assertEqual([], self.ghl.posts)
         self.assertEqual(1, out["skipped"]["already_sent_or_family_cap"])
         marks = [b for n, b in self.db.calls if n == "billing_mark_link_sent"]
         self.assertEqual("failed", marks[0]["p_status"])
+
+    def test_no_phone_is_caught_before_stripe(self):
+        self.stale()
+        self.db.facts["i1"]["guardian"]["phone"] = ""
+        out = self.tick()
+        self.assertEqual([], self.db.hosted_calls)
+        self.assertEqual(["i1"], out["flagged"])
+        self.assertEqual(1, out["skipped"]["no_phone"])
+        self.assertEqual("No phone number on file.", self.db.rows[("i1", "overdue_3", "2026-10-31")]["error"])
+
+    def test_a_link_built_in_the_last_two_minutes_vetoes_the_refresh(self):
+        self.stale()
+        self.db.recent_link = True                        # e.g. the owner just tapped Send
+        out = self.tick()
+        self.assertEqual([], self.db.hosted_calls)
+        self.assertEqual([], self.ghl.posts)
+        self.assertEqual(1, out["skipped"]["link_busy"])
+        self.assertEqual([], out["flagged"])              # not an error: the next tick decides
+        self.assertNotIn("billing_reminder_claim", self.db.names())
+
+    def test_a_link_build_in_flight_in_this_process_vetoes_the_refresh(self):
+        self.stale()
+        bl._INFLIGHT.add("i1")
+        out = self.tick()
+        self.assertEqual([], self.db.hosted_calls)
+        self.assertEqual(1, out["skipped"]["link_busy"])
+
+    def test_the_slot_is_released_after_success_and_after_failure(self):
+        self.stale()
+        self.tick()
+        self.assertNotIn("i1", bl._INFLIGHT)
+        self.assertIn("i1", bl._RECENT)                    # a text just went out: owner Send waits 120 s
+        bl._RECENT.clear()
+        self.db.rows.clear()
+        self.db.hosted_error = stripe_io.StripeError(502, "down", "upstream_unavailable")
+        self.tick()
+        self.assertNotIn("i1", bl._INFLIGHT)
+        self.assertNotIn("i1", bl._RECENT)
+
+    def test_an_owner_send_right_after_a_reminder_refresh_is_refused(self):
+        self.stale()
+        self.tick()
+        with self.assertRaises(bl.BillingLinkError) as cm:
+            bl.reserve_link(None, "i1", recent=False)
+        self.assertEqual(409, cm.exception.status)
+
+    def test_owner_send_and_reminder_share_one_guard(self):
+        self.assertIn("reserve_link", inspect.getsource(bl.send))
+        self.assertIn("reserve_link", inspect.getsource(rem._process_row))
+
+    def test_dry_run_does_not_reserve_or_read_the_veto_checks(self):
+        self.db.mode = "dry_run"
+        self.stale()
+        self.db.recent_link = True
+        out = self.tick()
+        self.assertEqual(1, out["dry_run"])                # dry_run ignores the live-only vetoes
+        self.assertEqual(set(), bl._INFLIGHT)
 
     def test_the_refresh_path_is_the_existing_one_not_a_copy(self):
         source = inspect.getsource(rem)
@@ -615,6 +692,21 @@ class CenterSwitch(Base):
             self.assertIn(name, outside, (name, log))
             self.assertNotIn(name, inside, (name, log))
         self.assertEqual(0, self.depth)
+
+    def test_veto_reads_happen_inside_the_switch_before_any_stripe_call(self):
+        log = []
+        self.db.link_amount = 2000
+        self.db.owed = [owed_row(kind="overdue_3", due="2026-10-31")]
+        self.db.facts["i1"] = facts(status="overdue", balance=3000, due_on="2026-10-31")
+        real_hosted = self.db.hosted
+        with mock.patch.object(daycare_supabase, "billing_recent_send",
+                               side_effect=lambda s, inv, secs=120: log.append(("recent", self.depth)) or False), \
+                mock.patch.object(daycare_supabase, "billing_reminder_family_busy",
+                                  side_effect=lambda s, g, d: log.append(("family", self.depth)) or False), \
+                mock.patch.object(stripe_io, "ensure_hosted_invoice",
+                                  side_effect=lambda c, l: log.append(("stripe", self.depth)) or real_hosted(c, l)):
+            self.tick()
+        self.assertEqual([("recent", 1), ("family", 1), ("stripe", 0)], log)
 
     def test_run_now_and_run_all_open_exactly_one_switch(self):
         self.db.owed = [owed_row(kind="due_today", due="2026-11-03")]

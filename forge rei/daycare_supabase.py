@@ -1886,6 +1886,21 @@ def billing_recent_send(session: Session, invoice_id: Any, seconds: int = 120) -
                "created_at": f"gte.{since}", "select": "id", "limit": "1"})))
 
 
+def billing_reminder_family_busy(session: Session, guardian_id: Any, today_iso: str) -> bool:
+    """True if this family already has a billing reminder 'sending'/'sent' for that ET day (the daily
+    cap). A pre-check so Stripe is not touched for a reminder the claim would refuse. Unreadable = False
+    (the claim RPC stays the authority)."""
+    if not is_uuid(guardian_id):
+        return False
+    try:
+        return bool(_rows(BRIDGE.rest(
+            session, "GET", "billing_reminders",
+            query={"guardian_id": f"eq.{guardian_id}", "local_send_date": f"eq.{today_iso}",
+                   "status": "in.(sending,sent)", "kind": "neq.staff_review", "select": "id", "limit": "1"})))
+    except DaycareError:
+        return False
+
+
 def billing_link_amount(session: Session, link_send_id: Any) -> int | None:
     """amount_cents quoted by one billing_link_sends row (what its Stripe page charges). None = unknown."""
     if not is_uuid(link_send_id):

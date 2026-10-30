@@ -150,19 +150,40 @@ def send(session, invoice_id, message, ghl) -> dict:
     if ghl is None or not getattr(ghl, "configured", False):
         raise BillingLinkError(503, "GoHighLevel is not connected, so the text cannot be sent.", "ghl_not_configured")
 
-    key = str(facts["invoice_id"])
-    # DB guard (survives restarts): a created/sent row younger than 120 s means a text may already be on its way.
-    if daycare_supabase.billing_recent_send(session, facts["invoice_id"], RESEND_WINDOW):
-        raise BillingLinkError(409, TOO_SOON, "recent_send")
-    with _LOCK:   # in-process guard: concurrent taps, and an UNKNOWN GHL outcome (row is 'failed' in the DB)
-        if key in _INFLIGHT or time.time() - _RECENT.get(key, 0) < RESEND_WINDOW:
-            raise BillingLinkError(409, TOO_SOON, "recent_send")
-        _INFLIGHT.add(key)
+    release = reserve_link(session, facts["invoice_id"])
     try:
         return _send_locked(session, facts, text, ghl)
     finally:
+        release()
+
+
+def reserve_link(session, invoice_id, recent: bool | None = None):
+    """The one guard in front of anything that builds a pay link for an invoice (owner send AND the
+    reminder refresh), so the two can never race into two Stripe invoices or two texts.
+    DB guard (survives restarts): a created/sent/delivered row younger than 120 s. In-process guard:
+    a concurrent build, and an UNKNOWN GHL outcome (that row is 'failed' in the DB).
+    `recent` lets a caller that already read the DB guard inside the right center pass the answer.
+    Raises BillingLinkError(409, TOO_SOON); returns a release() to call when the build is done."""
+    key = str(invoice_id)
+    if recent is None:
+        recent = daycare_supabase.billing_recent_send(session, invoice_id, RESEND_WINDOW)
+    if recent:
+        raise BillingLinkError(409, TOO_SOON, "recent_send")
+    with _LOCK:
+        if key in _INFLIGHT or time.time() - _RECENT.get(key, 0) < RESEND_WINDOW:
+            raise BillingLinkError(409, TOO_SOON, "recent_send")
+        _INFLIGHT.add(key)
+
+    def release():
         with _LOCK:
             _INFLIGHT.discard(key)
+    return release
+
+
+def arm_recent(invoice_id) -> None:
+    """Block a second link build for this invoice for the resend window (a text just went out)."""
+    with _LOCK:
+        _RECENT[str(invoice_id)] = time.time()
 
 
 def deliver_text(ghl, facts: dict, text: str, location_id) -> dict:
