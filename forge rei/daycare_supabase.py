@@ -1685,7 +1685,7 @@ def get_billing(session: Session) -> dict[str, Any]:
             "location_id": f"eq.{active_location(session)}",
             "role": "eq.parent",
             "active": "eq.true",
-            "select": "id,first_name,last_name,display_name,active",
+            "select": "id,first_name,last_name,display_name,active,role",
             "order": "first_name.asc,last_name.asc",
         },
     )
