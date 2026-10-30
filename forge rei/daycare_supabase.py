@@ -340,10 +340,11 @@ _AUTOADMIN_SID: str | None = None
 
 def clear_sessions() -> None:
     """Process-local invalidation (also used by focused tests)."""
-    global _AUTOADMIN_SID
+    global _AUTOADMIN_SID, _TESTCOPY_SID
     with _SESSION_LOCK:
         _SESSIONS.clear()
     _AUTOADMIN_SID = None
+    _TESTCOPY_SID = None
 
 
 def session_id_from_cookie(cookie_header: str | None) -> str | None:
@@ -425,6 +426,51 @@ def validate_write_request(headers: Any, client_ip: str | None = None, *, is_tls
     origin = str(headers.get("Origin", "")).strip().rstrip("/")
     if not origin or origin not in CONFIG.allowed_origins:
         raise DaycareError(403, "Request origin is not allowed", "origin_rejected")
+
+
+# --- Local TEST COPY auto sign-in (owner request 2026-10-29) ---------------------------------
+# With FORGE_DAYCARE_TEST_AUTOLOGIN=1 the connector signs the daycare bridge in as the QA Sandbox
+# admin from the app's own .env.local, so the owner can run the E2E without typing a PIN. Every
+# guard below must hold or the normal login screen stays. The live box never sets the variable.
+QA_SANDBOX_LOCATION_ID = "99999999-9999-9999-9999-999999999999"
+APP_ENV_LOCAL = Path.home() / "Desktop" / "the main daycare app" / ".env.local"
+_TESTCOPY_LOCK = threading.Lock()
+_TESTCOPY_SID: str | None = None
+_TESTCOPY_WARNED: set[str] = set()
+
+
+def testcopy_autologin_requested(env=None) -> bool:
+    return (env if env is not None else os.environ).get("FORGE_DAYCARE_TEST_AUTOLOGIN") == "1"
+
+
+def testcopy_refusal(env=None, config_location_id: str | None = None) -> str | None:
+    """Why the test-copy auto sign-in must NOT run (None = every pre-sign-in guard holds). Pure."""
+    env = env if env is not None else os.environ
+    if not testcopy_autologin_requested(env):
+        return "FORGE_DAYCARE_TEST_AUTOLOGIN is not 1"
+    if (env.get("FORGE_HOST") or "127.0.0.1").strip() != "127.0.0.1":
+        return "FORGE_HOST is not 127.0.0.1"
+    if (env.get("FORGE_MARCUS") or "").strip():
+        return "FORGE_MARCUS is set (this is the live box)"
+    if config_location_id is not None and str(config_location_id).lower() != QA_SANDBOX_LOCATION_ID:
+        return "DAYCARE_SUPABASE_LOCATION_ID is not the QA Sandbox"
+    return None
+
+
+def _testcopy_credentials(path: Path | None = None) -> tuple[str, str] | None:
+    """(login_id, pin) from NEXT_PUBLIC_TEST_LOGIN_ADMIN, parsed like the app's one-tap card:
+    'LOGINID:PIN', split on the first ':'. Never logged."""
+    values = _read_env((path or APP_ENV_LOCAL,))
+    raw = str(values.get("NEXT_PUBLIC_TEST_LOGIN_ADMIN") or "")
+    login_id, _, pin = raw.partition(":")
+    login_id, pin = login_id.strip(), pin.strip()
+    return (login_id, pin) if LOGIN_ID_RE.fullmatch(login_id) and 6 <= len(pin) <= 72 else None
+
+
+def _testcopy_warn(reason: str) -> None:
+    if reason not in _TESTCOPY_WARNED:
+        _TESTCOPY_WARNED.add(reason)
+        print(f"[daycare] test-copy autologin refused: {reason}. Normal login screen stays.", flush=True)
 
 
 class SupabaseBridge:
@@ -780,6 +826,12 @@ class SupabaseBridge:
         loopback-peer requirement above is deliberately kept even then.
         """
         global _AUTOADMIN_SID
+        if testcopy_autologin_requested():
+            # Test copy: ONLY the QA Sandbox session below. Never fall through to the normal
+            # auto-admin, whose account belongs to a real center.
+            if not is_loopback(client_ip) or (headers is not None and _is_proxied(headers)):
+                return None
+            return self.testcopy_session()
         if not self.config.autoadmin or not is_loopback(client_ip):
             return None
         if (headers is not None and _is_proxied(headers)
@@ -803,6 +855,54 @@ class SupabaseBridge:
                 return None
             _AUTOADMIN_SID = session.sid
             return session
+
+    def testcopy_session(self) -> Session | None:
+        """The test-copy auto session (see testcopy_refusal). Signs in through the same
+        ``login`` the Management sign-in form uses, then proves the account is an admin who
+        can see ONLY the QA Sandbox; otherwise logs it out and returns None. Cached; re-signs
+        when the cached session is gone or expired. Never raises, never prints credentials."""
+        global _TESTCOPY_SID
+        reason = testcopy_refusal(config_location_id=self.config.location_id)
+        if reason:
+            _testcopy_warn(reason)
+            return None
+        with _TESTCOPY_LOCK:
+            now = time.time()
+            with _SESSION_LOCK:
+                existing = _SESSIONS.get(_TESTCOPY_SID or "")
+            if existing is not None and now < existing.absolute_expires_at and now < existing.idle_expires_at:
+                return existing
+            creds = _testcopy_credentials()
+            if creds is None:
+                _testcopy_warn("NEXT_PUBLIC_TEST_LOGIN_ADMIN missing or not LOGINID:PIN in the app's .env.local")
+                return None
+            try:
+                session, _profile = self.login(creds[0], creds[1])
+            except DaycareError as error:
+                _testcopy_warn(f"sign-in failed ({error.code})")
+                return None
+            problem = self._testcopy_verify(session)
+            if problem:
+                self.logout(session.sid)
+                _testcopy_warn(problem)
+                return None
+            _TESTCOPY_SID = session.sid
+            return session
+
+    def _testcopy_verify(self, session: Session) -> str | None:
+        profile = session.profile or {}
+        if profile.get("role") != "admin":
+            return "the account is not an admin"
+        seen = {str(profile.get("location_id") or ""), str(profile.get("active_location_id") or "")}
+        try:
+            seen |= {str(row.get("id")) for row in _rows(
+                self.rest(session, "GET", "locations", query={"select": "id"}))}
+        except DaycareError:
+            return "could not list the account's centers"
+        seen.discard("")
+        if seen != {QA_SANDBOX_LOCATION_ID}:
+            return "the account can see a center other than the QA Sandbox"
+        return None
 
     def _fetch_profile(self, session: Session, profile_id: str) -> dict[str, Any]:
         rows = self.rest(

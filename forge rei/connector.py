@@ -6094,6 +6094,9 @@ def main():
     else:
         print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS!=1) — UI/proxy only")
     _start_portal_server()  # public-safe client portal (only if FORGE_PORTAL_PORT set)
+    if daycare_supabase.testcopy_autologin_requested():   # local test copy only; guards live in daycare_supabase
+        _signed = daycare_supabase.BRIDGE.testcopy_session() is not None
+        print("   Daycare test-copy autologin: " + ("signed in as the QA Sandbox admin" if _signed else "REFUSED (warning above)"))
     print(f"   binding {HOST}:{PORT}")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 
