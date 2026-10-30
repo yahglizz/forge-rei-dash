@@ -234,6 +234,8 @@ def add_family_tags(client, contact_id: str, location_id=None) -> str | None:
     ADDITIVE only: POST /contacts/{id}/tags adds and keeps every other tag (an upsert with `tags`
     would REPLACE them all). Adds `daycare family`, plus `entity-amt` for A Mother's Touch (1923).
     Returns None on success, or a plain warning — a tag failure must never block the text."""
+    if not contact_id or str(contact_id) == "None":
+        return "No GoHighLevel contact to tag."   # never POST /contacts/None/tags
     tags = [FAMILY_TAG]
     if str(location_id or "").startswith(AMT_LOCATION_PREFIX):
         tags.append("entity-amt")

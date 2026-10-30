@@ -790,6 +790,26 @@ class FamilyTags(unittest.TestCase):
         self.assertTrue(out["ok"])
         self.assertIn("/conversations/messages", self.paths(ghl))
 
+    def test_blast_tag_failure_shows_in_the_report_note(self):
+        import connector
+        ghl = FakeGHL(existing="c9", fail_tags=True)
+        with mock.patch.object(connector, "DAYCARE_GHL", ghl), \
+                mock.patch.object(daycare_ghl, "ensure_contact", return_value="c9"):
+            out = connector._daycare_blast_transport({"name": "Dana", "phone": "+15555550100"}, "hi")
+        self.assertTrue(out["ok"])
+        self.assertIn("daycare family", out["note"])
+        ghl_ok = FakeGHL(existing="c9")
+        with mock.patch.object(connector, "DAYCARE_GHL", ghl_ok), \
+                mock.patch.object(daycare_ghl, "ensure_contact", return_value="c9"):
+            self.assertEqual({"ok": True, "note": ""},
+                             connector._daycare_blast_transport({"name": "Dana", "phone": "+15555550100"}, "hi"))
+
+    def test_no_contact_id_means_no_tag_call(self):
+        for empty in (None, "", "None"):
+            ghl = FakeGHL()
+            self.assertTrue(daycare_ghl.add_family_tags(ghl, empty, AMT))      # returns a warning
+            self.assertEqual([], ghl.posts)
+
 
 class Routes(unittest.TestCase):
     def test_routes_registered(self):
