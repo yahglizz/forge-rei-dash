@@ -4381,6 +4381,11 @@ class Handler(BaseHTTPRequestHandler):
                 400, "Request body must be a JSON object", "validation_error")
         return body
 
+    def _daycare_stripe_status(self, session, invoice_id):
+        """Stripe invoice status with the key of the invoice's own center (QA Sandbox -> test key)."""
+        ctx = daycare_supabase.stripe_invoice_context(session, invoice_id) or {}
+        return stripe_io.invoice_status(ctx.get("invoice_id"), ctx.get("location_id"))
+
     def _daycare_stripe_sync_payment(self, session, body):
         """Pull a Stripe invoice's paid status into the Supabase ledger (manual sync).
 
@@ -4388,7 +4393,8 @@ class Handler(BaseHTTPRequestHandler):
         same paid invoice never double-record.
         """
         ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
-        invoice = stripe_io.find_invoice(str(ctx["invoice_id"]))
+        invoice = stripe_io.find_invoice(
+            str(ctx["invoice_id"]), stripe_io.key_for_location(ctx.get("location_id")))
         if not invoice:
             return {"ok": True, "sent": False, "synced": False,
                     "detail": "No Stripe invoice exists yet for this record."}
@@ -5179,8 +5185,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/adops/bus": lambda session: agent_bus.recent(30),
             "/api/daycare/billing/timeline": lambda session: daycare_billing_link.timeline(
                 session, q.get("invoice_id", [None])[0], DAYCARE_GHL),
-            "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
-                (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
+            "/api/daycare/stripe/status": lambda session: self._daycare_stripe_status(
+                session, q.get("invoice_id", [None])[0]),
             "/api/daycare/locations": lambda session: daycare_supabase.list_locations(session),
             "/api/daycare/ghl/health": lambda session: daycare_ghl.health(DAYCARE_GHL),
             "/api/daycare/ghl/pending-families": lambda session: self._daycare_pending_families(session),

@@ -12,6 +12,7 @@ only thing that texts a parent. No "Reply STOP" line, ever (owner decision 2026-
 
 from __future__ import annotations
 
+import logging
 import re
 import threading
 import time
@@ -21,9 +22,12 @@ import daycare_ghl
 import daycare_supabase
 import stripe_io
 
+_log = logging.getLogger("daycare_billing_link")
 PLACEHOLDER = "{{PAY_URL}}"
 MAX_MESSAGE = 640
 RESEND_WINDOW = 120   # seconds; contract change 1
+PENDING_WARNING = "A payment is processing for this invoice."
+PENDING_REFUSAL = "A payment is processing for this invoice. Wait for it to clear before sending a link."
 TOO_SOON = "A link was just sent for this invoice. Check the Timeline before sending again."
 _INFLIGHT: set[str] = set()
 _RECENT: dict[str, float] = {}
@@ -77,6 +81,8 @@ def compose_text(facts: dict, today: date | None = None) -> tuple[str, list[str]
     greet = f"Hi {parent}" if parent else "Hi there"
     text = (f"{greet}, this is {brand}. {whose} has ${_money(facts['balance_cents'])} left"
             f"{_due_phrase(facts.get('due_on'), today)}. Pay securely here: {PLACEHOLDER}")
+    if facts.get("has_pending_payment"):
+        warnings.append(PENDING_WARNING)
     if not (facts.get("guardian") or {}).get("phone"):
         warnings.append("No phone number on file for this parent; Send will be refused.")
     return text, warnings
@@ -136,6 +142,8 @@ def send(session, invoice_id, message, ghl) -> dict:
     """Owner's tap. Order: validate everything -> Stripe link -> DB row -> text -> mark sent."""
     text = validate_message(message)
     facts = _facts_or_refuse(session, invoice_id)
+    if facts.get("has_pending_payment"):
+        raise BillingLinkError(409, PENDING_REFUSAL, "payment_processing")
     phone = (facts["guardian"].get("phone") or "").strip()
     if not phone:
         raise BillingLinkError(400, "This parent has no phone number on file.", "no_phone")
@@ -181,7 +189,8 @@ def _send_locked(session, facts, text, ghl) -> dict:
             daycare_supabase.billing_rpc(session, "billing_mark_link_sent", {
                 "p_id": send_id, "p_status": status, "p_ghl_message_id": mid, "p_error": err})
             return True
-        except daycare_supabase.DaycareError:
+        except Exception:  # noqa: BLE001 — the text already went out (or failed); never crash the response
+            _log.exception("billing_mark_link_sent failed for send %s", send_id)
             return False
 
     child = facts.get("child") or {}
@@ -222,11 +231,12 @@ _GHL_TO_DELIVERY = {"delivered": "delivered", "read": "delivered", "opened": "de
 
 
 def _refresh_delivery(session, invoice_id, ghl) -> None:
-    """Best-effort: ask GHL what happened to texts still marked 'sent'. Never raises."""
+    """Best-effort: ask GHL what happened to texts still 'sent' (or still 'created' with a GHL
+    message id, i.e. the mark call was lost). Never raises."""
     if ghl is None or not getattr(ghl, "configured", False):
         return
     try:
-        rows = daycare_supabase.billing_send_rows(session, invoice_id, "sent")
+        rows = daycare_supabase.billing_send_rows(session, invoice_id, ("created", "sent"))
     except daycare_supabase.DaycareError:
         return
     now = time.time()

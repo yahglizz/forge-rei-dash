@@ -1,6 +1,7 @@
 """Billing P0 (Stream D): per-center Stripe key, hosted invoice without Stripe email,
 pay-link text for the REMAINING balance, GHL child-named contact, send/timeline guards.
 All HTTP mocked; run: python3 -m unittest test_billing_link  (from `forge rei/`)."""
+import importlib
 import os
 import unittest
 import urllib.error
@@ -11,6 +12,14 @@ import daycare_billing_link as bl
 import daycare_ghl
 import daycare_supabase
 import stripe_io
+
+
+
+def setUpModule():
+    # Script-style tests (test_stripe_invoice, test_stripe_links) overwrite stripe_io functions at
+    # import time. Restore the real module so these tests never depend on import order.
+    importlib.reload(stripe_io)
+
 
 QA = "99999999-9999-9999-9999-999999999999"
 ATOB = "11111111-1111-1111-1111-111111111111"
@@ -513,7 +522,7 @@ class ChangeOne(unittest.TestCase):
         with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest):
             self.assertTrue(daycare_supabase.billing_recent_send(None, INV, 120))
         self.assertEqual("billing_link_sends", seen["resource"])
-        self.assertEqual("in.(created,sent)", seen["query"]["status"])
+        self.assertEqual("in.(created,sent,delivered)", seen["query"]["status"])
         self.assertTrue(seen["query"]["created_at"].startswith("gte.20"))
         with mock.patch.object(daycare_supabase.BRIDGE, "rest", return_value=[]):
             self.assertFalse(daycare_supabase.billing_recent_send(None, INV, 120))
@@ -563,6 +572,116 @@ class ChangeOne(unittest.TestCase):
         self.assertEqual("ghl_send", cm.exception.code)
         out = self.run_send(FakeGHL(existing="c9"))              # nothing went out the first time
         self.assertEqual("sent", out["status"])
+
+
+class FollowUps(unittest.TestCase):
+    """Verifier follow-ups: pending payment block, mark() never crashes, created-row refresh, per-center sync key."""
+
+    def setUp(self):
+        bl._RECENT.clear()
+        bl._INFLIGHT.clear()
+        bl._REFRESHED.clear()
+
+    def test_pending_payment_warns_in_compose_and_refuses_send(self):
+        f = facts(has_pending_payment=True)
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=f):
+            out = bl.compose(None, INV)
+            self.assertIn("A payment is processing for this invoice.", out["warnings"])
+            self.assertEqual(2500, out["facts"]["balance_cents"])        # balance math untouched
+            stripe = FakeStripe()
+            with mock.patch.object(stripe_io, "_req", stripe), \
+                    mock.patch.object(daycare_supabase, "billing_recent_send", return_value=False):
+                with self.assertRaises(bl.BillingLinkError) as cm:
+                    bl.send(None, INV, "Hi {{PAY_URL}}", FakeGHL(existing="c9"))
+        self.assertEqual((409, "A payment is processing for this invoice. Wait for it to clear before sending a link."),
+                         (cm.exception.status, cm.exception.message))
+        self.assertEqual([], stripe.calls)
+
+    def test_pending_flag_from_payments_but_balance_ignores_pending(self):
+        inv = {"id": INV, "invoice_number": "I", "amount": "100.00", "status": "due", "guardian_id": "g1",
+               "location_id": ATOB, "children": {"id": "c", "first_name": "Maya", "last_name": "S"},
+               "profiles": {"id": "g1", "first_name": "Dana", "display_name": "Dana"},
+               "payments": [{"amount": "40.00", "status": "pending"}]}
+
+        def rest(session, method, resource, **kw):
+            return [inv] if resource == "invoices" else []
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest), \
+                mock.patch.object(daycare_supabase, "_merge_contacts", lambda s, p: None), \
+                mock.patch.object(daycare_supabase, "active_location", return_value=ATOB):
+            f = daycare_supabase.billing_invoice_facts(None, INV)
+        self.assertEqual((True, 10000), (f["has_pending_payment"], f["balance_cents"]))
+
+    def test_mark_failure_of_any_kind_does_not_crash_the_response(self):
+        def rpc(session, name, body, write=True):
+            if name == "billing_create_link_send":
+                return [{"id": "s1", "token": "T", "pay_url": "https://p/T", "message": "Hi https://p/T"}]
+            raise RuntimeError("db down")                                  # not a DaycareError
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=facts()), \
+                mock.patch.object(daycare_supabase, "billing_recent_send", return_value=False), \
+                mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc), \
+                mock.patch.object(stripe_io, "_req", FakeStripe()), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"):
+            out = bl.send(None, INV, "Hi {{PAY_URL}}", FakeGHL(existing="c9"))
+        self.assertTrue(out["ok"])
+        self.assertIn("warning", out)
+
+    def test_timeline_refresh_asks_for_created_and_sent_rows(self):
+        seen = {}
+
+        def rows(session, invoice_id, statuses=("sent",)):
+            seen["statuses"] = tuple(statuses)
+            return [{"id": "s1", "ghl_message_id": "m1"}, {"id": "s2", "ghl_message_id": None}]
+        calls = []
+
+        def rpc(session, name, body, write=True):
+            calls.append((name, body))
+            return {"invoice": {}, "sends": [], "payments": [], "alerts": []}
+        with mock.patch.object(daycare_supabase, "billing_send_rows", side_effect=rows), \
+                mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc):
+            bl.timeline(None, INV, FakeGHL())
+        self.assertEqual(("created", "sent"), seen["statuses"])
+        self.assertEqual([("billing_set_link_delivery", {"p_id": "s1", "p_status": "delivered"})], calls[:1])
+        self.assertEqual(1, len([c for c in calls if c[0] == "billing_set_link_delivery"]))   # no message id -> skipped
+
+    def test_send_rows_query_uses_status_list(self):
+        seen = {}
+
+        def rest(session, method, resource, query=None, **kw):
+            seen.update(query)
+            return []
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest):
+            daycare_supabase.billing_send_rows(None, INV, ("created", "sent"))
+        self.assertEqual("in.(created,sent)", seen["status"])
+
+    def test_invoice_status_uses_the_invoices_own_center_key(self):
+        keys = []
+
+        def fake(method, path, params=None, key=None):
+            keys.append(key)
+            return {"data": []}
+        with mock.patch.object(stripe_io, "_req", fake), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc") as kfl:
+            out = stripe_io.invoice_status(INV, QA)
+        kfl.assert_called_once_with(QA)
+        self.assertEqual(["sk_test_abc"], keys)
+        self.assertEqual((True, False), (out["configured"], out["sent"]))
+
+    def test_invoice_status_test_key_missing_reports_unconfigured(self):
+        with mock.patch.dict(os.environ, {"STRIPE_SECRET_KEY__DAYCARE_TEST": ""}), \
+                mock.patch.object(daycare_supabase, "_read_env", return_value={}):
+            self.assertEqual({"ok": True, "configured": False}, stripe_io.invoice_status(INV, QA))
+
+    def test_sync_payment_looks_up_with_the_center_key(self):
+        import connector
+        seen = {}
+        ctx = {"invoice_id": INV, "location_id": QA}
+        with mock.patch.object(daycare_supabase, "stripe_invoice_context", return_value=ctx), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"), \
+                mock.patch.object(stripe_io, "find_invoice",
+                                  side_effect=lambda i, key=None: seen.update(key=key)):
+            out = connector.Handler._daycare_stripe_sync_payment(object.__new__(connector.Handler), None, {"invoice_id": INV})
+        self.assertEqual("sk_test_abc", seen["key"])
+        self.assertFalse(out["synced"])
 
 
 class Routes(unittest.TestCase):

@@ -384,10 +384,18 @@ def ensure_hosted_invoice(ctx: dict, location_id) -> dict:
             "amount_cents": balance}
 
 
-def invoice_status(daycare_invoice_id: str) -> dict:
-    if not configured():
+def invoice_status(daycare_invoice_id: str, location_id=None) -> dict:
+    key = None
+    if location_id:
+        try:
+            key = key_for_location(location_id)
+        except StripeError as error:
+            if error.code != "not_configured":
+                raise
+            return {"ok": True, "configured": False}
+    elif not configured():
         return {"ok": True, "configured": False}
-    invoice = find_invoice(str(daycare_invoice_id))
+    invoice = find_invoice(str(daycare_invoice_id), **_kw(key))
     if not invoice:
         return {"ok": True, "configured": True, "sent": False}
     return {"ok": True, "configured": True, "sent": True, **_public(invoice)}

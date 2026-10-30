@@ -1709,6 +1709,9 @@ def billing_invoice_facts(session: Session, invoice_id: Any) -> dict[str, Any]:
     amount_cents = _cents(invoice.get("amount"))
     paid_cents = sum(_cents(p.get("amount")) for p in (invoice.get("payments") or [])
                      if (p.get("status") or "succeeded") == "succeeded")
+    # A pending (bank) payment is not in the balance (Stream A's RPC needs amount - succeeded),
+    # but a pay link now could double-collect it, so the send path refuses while one is open.
+    has_pending = any((p.get("status") or "") == "pending" for p in (invoice.get("payments") or []))
 
     known: list[str] = []
     try:   # billing_link_sends exists once the billing P0 migration is applied
@@ -1739,6 +1742,7 @@ def billing_invoice_facts(session: Session, invoice_id: Any) -> dict[str, Any]:
         "amount_cents": amount_cents,
         "paid_cents": paid_cents,
         "balance_cents": max(0, amount_cents - paid_cents),
+        "has_pending_payment": has_pending,
         "guardian": {
             "id": guardian.get("id") or invoice.get("guardian_id"),
             "name": gname or "Family",
@@ -1760,16 +1764,16 @@ def billing_recent_send(session: Session, invoice_id: Any, seconds: int = 120) -
     since = datetime.fromtimestamp(time.time() - seconds, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return bool(_rows(BRIDGE.rest(
         session, "GET", "billing_link_sends",
-        query={"invoice_id": f"eq.{inv_id}", "status": "in.(created,sent)",
+        query={"invoice_id": f"eq.{inv_id}", "status": "in.(created,sent,delivered)",
                "created_at": f"gte.{since}", "select": "id", "limit": "1"})))
 
 
-def billing_send_rows(session: Session, invoice_id: Any, status: str) -> list[dict[str, Any]]:
-    """billing_link_sends rows of one invoice in one status (id, ghl_message_id) — management SELECT."""
+def billing_send_rows(session: Session, invoice_id: Any, statuses=("sent",)) -> list[dict[str, Any]]:
+    """billing_link_sends rows of one invoice in the given statuses (id, ghl_message_id) — management SELECT."""
     inv_id = require_uuid(invoice_id, "invoice_id")
     return _rows(BRIDGE.rest(
         session, "GET", "billing_link_sends",
-        query={"invoice_id": f"eq.{inv_id}", "status": f"eq.{status}",
+        query={"invoice_id": f"eq.{inv_id}", "status": f"in.({','.join(statuses)})",
                "select": "id,ghl_message_id", "order": "created_at.desc", "limit": "5"}))
 
 
