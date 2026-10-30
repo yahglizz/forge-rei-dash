@@ -443,11 +443,11 @@ class OverdueFlip(Base):
         self.db.owed = []
         self.tick()
         self.assertEqual(["billing_mark_overdue", "billing_reminders_owed"], self.db.names())
-        self.assertEqual({"p_today": "2026-11-03"}, self.db.calls[0][1])
+        self.assertEqual({"p_today": "2026-11-03", "p_location": QA}, self.db.calls[0][1])
 
     def test_run_now_with_a_future_as_of_flips_for_that_date(self):
         out = self.tick(as_of=date(2026, 11, 10))
-        self.assertEqual({"p_today": "2026-11-10"}, self.db.calls[0][1])
+        self.assertEqual({"p_today": "2026-11-10", "p_location": QA}, self.db.calls[0][1])
         self.assertEqual("billing_mark_overdue", self.db.names()[0])
         self.assertEqual(0, out["marked_overdue"])
 
@@ -724,6 +724,31 @@ class CenterSwitch(Base):
         self.assertEqual(0, self.depth)
         self.assertTrue(rem._TICK_LOCK.acquire(blocking=False))     # and the tick lock too
         rem._TICK_LOCK.release()
+
+    def flips(self):
+        return [b for n, b in self.db.calls if n == "billing_mark_overdue"]
+
+    def test_location_is_always_passed_to_the_flip(self):
+        self.tick(loc=ATOB)
+        self.assertEqual([{"p_today": "2026-11-03", "p_location": ATOB}], self.flips())
+
+    def test_run_now_passes_the_qa_location_even_for_a_simulated_date(self):
+        rem.run_now(None, {"location_id": QA, "as_of": "2026-11-10"}, self.ghl, now=AT_10AM)
+        self.assertEqual([{"p_today": "2026-11-10", "p_location": QA}], self.flips())
+
+    def test_box_loop_passes_each_centers_own_location(self):
+        locs = {"locations": [{"id": ATOB}, {"id": ATOB2}, {"id": AMT}]}
+        with mock.patch.object(daycare_supabase, "list_locations", return_value=locs):
+            rem.run_all(lambda: object(), self.ghl, now=AT_10AM)
+        self.assertEqual([ATOB, ATOB2, QA], [b["p_location"] for b in self.flips()])    # AMT never; QA added
+        for b in self.flips():
+            self.assertEqual("2026-11-03", b["p_today"])
+
+    def test_no_call_left_with_the_one_argument_signature(self):
+        source = inspect.getsource(rem)
+        calls = [m.start() for m in re.finditer(r'_rpc\(session, "billing_mark_overdue"', source)]
+        self.assertEqual(1, len(calls))
+        self.assertIn('"p_location"', source[calls[0]:calls[0] + 160])
 
 
 class OverdueFlipScope(Base):

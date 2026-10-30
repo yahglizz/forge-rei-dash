@@ -315,9 +315,11 @@ def run_location(session, location_id, as_of: date, ghl, *, now: datetime | None
                 return out            # off / unreadable: no flip, no owed query, nothing
             if mode == "live" and (ghl is None or not getattr(ghl, "configured", False)):
                 return {**out, "ok": False, "detail": "GoHighLevel is not connected, so no reminder was sent."}
-            # Flip due -> overdue for as_of before computing what is owed. The database scopes it to centers
-            # whose switch is on (never 4444) and where the caller manages them.
-            out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {"p_today": as_of.isoformat()}))
+            # Flip due -> overdue for THIS center as of as_of, before computing what is owed. p_location scopes
+            # it (and the database still requires the switch on, never 4444, caller manages), so a QA run-now
+            # with a simulated date cannot move another center.
+            out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {
+                "p_today": as_of.isoformat(), "p_location": str(location_id)}))
             plan = _plan(session, location_id, as_of, mode, out)
         if mode == "live":
             _refresh_delivery(session, plan["unchecked"], ghl)
