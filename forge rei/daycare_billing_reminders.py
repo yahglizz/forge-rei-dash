@@ -112,14 +112,10 @@ def _record(session, rid, status, message_id=None, error=None) -> None:
         _log.exception("billing_reminder_result failed for %s", rid)
 
 
-def _refresh_delivery(session, location_id, ghl) -> None:
+def _refresh_delivery(session, rows, ghl) -> None:
     """Best-effort: a reminder GHL reports as undelivered/failed gets the carrier note on its row.
     Status stays 'sent' on purpose — flipping it to 'failed' would let the next tick text a dead
-    number again. Never raises."""
-    try:
-        rows = daycare_supabase.billing_reminder_unchecked(session, location_id)
-    except daycare_supabase.DaycareError:
-        return
+    number again. `rows` were read inside the center switch; the GHL calls happen outside it. Never raises."""
     for row in rows:
         try:
             data = ghl.get(f"/conversations/messages/{row['ghl_message_id']}")
@@ -148,7 +144,9 @@ def _flag(session, row, facts, out, bucket: str, note: str) -> None:
         _log.exception("could not flag invoice %s", row.get("invoice_id"))
 
 
-def _process_row(session, row, mode, ghl, out) -> None:
+def _process_row(session, row, mode, ghl, out, facts, link_amount) -> None:
+    """Phase 2 for one owed row, OUTSIDE the center switch. `facts` / `link_amount` were read in phase 1
+    (an Exception in `facts` means that read failed)."""
     kind = row.get("kind")
     if kind == "staff_review":
         if mode != "live":
@@ -163,7 +161,8 @@ def _process_row(session, row, mode, ghl, out) -> None:
     if row.get("has_pending_payment"):
         _bump(out["skipped"], "payment_processing")
         return
-    facts = daycare_supabase.billing_invoice_facts(session, row["invoice_id"])
+    if isinstance(facts, Exception):
+        raise facts
     if facts.get("status") in ("void", "paid", "draft") or facts["balance_cents"] <= 0:
         _bump(out["skipped"], "closed")
         return
@@ -183,7 +182,6 @@ def _process_row(session, row, mode, ghl, out) -> None:
 
     # The text and the Stripe page must show the SAME amount. A partial payment lowers the balance but
     # leaves the old Stripe invoice at the old amount, so a stale link is refreshed (live only) first.
-    link_amount = daycare_supabase.billing_link_amount(session, row.get("link_send_id"))
     stale = link_amount != facts["balance_cents"]          # unknown amount counts as stale
     link_send_id, message, refreshed = row.get("link_send_id"), None, None
     stale_note = None
@@ -244,8 +242,36 @@ def _process_row(session, row, mode, ghl, out) -> None:
         out["warnings"].append(delivered["tag_warning"])
 
 
+def _plan(session, location_id, as_of: date, mode: str, out: dict) -> dict:
+    """PHASE 1 — every read that depends on the session's active center (RLS my_location()):
+    the delivery-check candidates and each owed invoice's facts + saved-link amount. Runs inside
+    at_location and does no network call to GHL or Stripe, so the center switch (a process-wide lock
+    on a profile shared with the dashboard) is held for a few quick reads only."""
+    plan = {"unchecked": [], "rows": []}
+    if mode == "live":
+        try:
+            plan["unchecked"] = daycare_supabase.billing_reminder_unchecked(session, location_id)
+        except daycare_supabase.DaycareError:
+            pass
+    owed = _rpc(session, "billing_reminders_owed",
+                {"p_location": str(location_id), "p_today": as_of.isoformat()}, write=False)
+    for row in (owed if isinstance(owed, list) else []):
+        facts, link_amount = None, None
+        needs_facts = (row.get("kind") in TEMPLATES and not row.get("has_pending_payment"))
+        if needs_facts:
+            try:
+                facts = daycare_supabase.billing_invoice_facts(session, row["invoice_id"])
+                if row.get("has_link") and row.get("token"):
+                    link_amount = daycare_supabase.billing_link_amount(session, row.get("link_send_id"))
+            except Exception as error:  # noqa: BLE001 — surfaces as that one row's error in phase 2
+                facts = error
+        plan["rows"].append((row, facts, link_amount))
+    return plan
+
+
 def run_location(session, location_id, as_of: date, ghl, *, now: datetime | None = None) -> dict:
-    """One tick for ONE center (the session must already stand in it). Never raises for a bad row."""
+    """One tick for ONE center. Stands in the center only for the phase-1 reads; Stripe, GHL and the
+    claim/result writes (membership-checked RPCs that name the center) run outside the switch."""
     now = now or datetime.now(_ET)
     out = {"ok": True, "location_id": str(location_id), "as_of": as_of.isoformat(), "mode": None,
            "sent": 0, "dry_run": 0, "failed": 0, "reviews": 0, "skipped": {}, "flagged": [], "warnings": []}
@@ -259,22 +285,22 @@ def run_location(session, location_id, as_of: date, ghl, *, now: datetime | None
     if not _TICK_LOCK.acquire(blocking=False):
         return {**out, "ok": False, "detail": "A reminder run is already in progress."}
     try:
-        # Flip due -> overdue for as_of first (the database scopes it to centers with reminders on,
-        # never 4444, and only where the caller manages them).
-        out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {"p_today": as_of.isoformat()}))
-        mode = daycare_supabase.billing_reminder_mode(session, location_id)
-        out["mode"] = mode
-        if mode not in MODES_THAT_ACT:
-            return out
-        if mode == "live":
-            if ghl is None or not getattr(ghl, "configured", False):
+        with daycare_supabase.at_location(session, location_id):
+            mode = daycare_supabase.billing_reminder_mode(session, location_id)
+            out["mode"] = mode
+            if mode not in MODES_THAT_ACT:
+                return out            # off / unreadable: no flip, no owed query, nothing
+            if mode == "live" and (ghl is None or not getattr(ghl, "configured", False)):
                 return {**out, "ok": False, "detail": "GoHighLevel is not connected, so no reminder was sent."}
-            _refresh_delivery(session, location_id, ghl)
-        owed = _rpc(session, "billing_reminders_owed",
-                    {"p_location": str(location_id), "p_today": as_of.isoformat()}, write=False)
-        for row in (owed if isinstance(owed, list) else []):
+            # Flip due -> overdue for as_of before computing what is owed. The database scopes it to centers
+            # whose switch is on (never 4444) and where the caller manages them.
+            out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {"p_today": as_of.isoformat()}))
+            plan = _plan(session, location_id, as_of, mode, out)
+        if mode == "live":
+            _refresh_delivery(session, plan["unchecked"], ghl)
+        for row, facts, link_amount in plan["rows"]:
             try:
-                _process_row(session, row, mode, ghl, out)
+                _process_row(session, row, mode, ghl, out, facts, link_amount)
             except Exception as error:  # noqa: BLE001 — one bad invoice never stops the rest
                 _log.exception("reminder row failed (invoice %s)", row.get("invoice_id"))
                 out["failed"] += 1
@@ -301,8 +327,7 @@ def run_now(session, body, ghl, *, now: datetime | None = None) -> dict:
             raise bl.BillingLinkError(400, "as_of must be a date like 2026-11-03.", "validation_error") from None
         if abs((as_of - now.astimezone(_ET).date()).days) > 400:
             raise bl.BillingLinkError(400, "as_of is too far from today.", "validation_error")
-    with daycare_supabase.at_location(session, QA_LOCATION_ID):
-        return run_location(session, QA_LOCATION_ID, as_of, ghl, now=now)
+    return run_location(session, QA_LOCATION_ID, as_of, ghl, now=now)
 
 
 def run_all(session_fn, ghl, *, now: datetime | None = None) -> dict:
@@ -323,8 +348,7 @@ def run_all(session_fn, ghl, *, now: datetime | None = None) -> dict:
         if _is_amt(loc):
             continue
         try:
-            with daycare_supabase.at_location(session, loc):
-                results.append(run_location(session, loc, today, ghl, now=now))
+            results.append(run_location(session, loc, today, ghl, now=now))
         except Exception as error:  # noqa: BLE001 — a center we cannot stand in (or a failure) never stops the others
             errors += 1
             _log.warning("reminder tick skipped %s: %s", loc, type(error).__name__)

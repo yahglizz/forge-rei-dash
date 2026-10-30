@@ -145,9 +145,17 @@ class Base(unittest.TestCase):
         self.db = FakeDB()
         self.ghl = FakeGHL()
 
+        self.depth = 0                 # how many center switches are open right now
+        self.max_depth = 0
+
         @contextmanager
         def at_location(session, loc):
-            yield
+            self.depth += 1
+            self.max_depth = max(self.max_depth, self.depth)
+            try:
+                yield
+            finally:
+                self.depth -= 1
         patches = [
             mock.patch.object(daycare_supabase, "billing_rpc", side_effect=self.db.rpc),
             mock.patch.object(daycare_supabase, "billing_reminder_mode", side_effect=lambda s, loc: self.db.mode),
@@ -565,6 +573,81 @@ class StaleLink(Base):
         self.assertNotIn("billing_create_link_send", source)
         self.assertIn("ensure_hosted_invoice", inspect.getsource(bl.create_link))
         self.assertIn("billing_create_link_send", inspect.getsource(bl.create_link))
+
+
+class CenterSwitch(Base):
+    """The center switch (a process-wide lock on a profile shared with the dashboard) is held for the
+    phase-1 reads only; Stripe, GHL and the claim/result writes happen after it is released."""
+
+    def test_network_and_writes_run_outside_the_switch_reads_run_inside(self):
+        log = []
+        real_rpc, real_hosted = self.db.rpc, self.db.hosted
+        self.db.link_amount = 2000                       # stale -> exercises the Stripe refresh too
+        self.db.owed = [owed_row(kind="overdue_3", due="2026-10-31")]
+        self.db.facts["i1"] = facts(status="overdue", balance=3000, due_on="2026-10-31")
+
+        def rpc(session, name, body, write=True):
+            log.append((name, self.depth))
+            return real_rpc(session, name, body, write)
+
+        def hosted(ctx, loc):
+            log.append(("stripe", self.depth))
+            return real_hosted(ctx, loc)
+        real_post = self.ghl.post
+
+        def post(path, body, retries=2):
+            log.append(("ghl " + path, self.depth))
+            return real_post(path, body, retries)
+        self.ghl.post = post
+        with mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc), \
+                mock.patch.object(stripe_io, "ensure_hosted_invoice", side_effect=hosted), \
+                mock.patch.object(daycare_supabase, "billing_invoice_facts",
+                                  side_effect=lambda s, inv: log.append(("facts", self.depth)) or self.db.facts[inv]), \
+                mock.patch.object(daycare_supabase, "billing_link_amount",
+                                  side_effect=lambda s, lid: log.append(("link_amount", self.depth)) or 2000):
+            out = self.tick()
+        self.assertEqual(1, out["sent"])
+        inside = {n for n, d in log if d > 0}
+        outside = {n for n, d in log if d == 0}
+        self.assertTrue({"facts", "link_amount", "billing_reminders_owed", "billing_mark_overdue"} <= inside, log)
+        for name in ("stripe", "billing_create_link_send", "billing_reminder_claim", "billing_reminder_result",
+                     "ghl /conversations/messages", "ghl /contacts/c9/tags", "billing_mark_link_sent"):
+            self.assertIn(name, outside, (name, log))
+            self.assertNotIn(name, inside, (name, log))
+        self.assertEqual(0, self.depth)
+
+    def test_run_now_and_run_all_open_exactly_one_switch(self):
+        self.db.owed = [owed_row(kind="due_today", due="2026-11-03")]
+        rem.run_now(None, {"location_id": QA, "as_of": "2026-11-03"}, self.ghl, now=AT_10AM)
+        self.assertEqual(1, self.max_depth)
+        self.max_depth = 0
+        with mock.patch.object(daycare_supabase, "list_locations", return_value={"locations": [{"id": ATOB}]}):
+            rem.run_all(lambda: object(), self.ghl, now=AT_10AM)
+        self.assertEqual(1, self.max_depth)
+
+    def test_switch_is_released_even_when_a_read_fails(self):
+        with mock.patch.object(daycare_supabase, "billing_reminder_mode", side_effect=RuntimeError("db")):
+            with self.assertRaises(RuntimeError):
+                self.tick()
+        self.assertEqual(0, self.depth)
+        self.assertTrue(rem._TICK_LOCK.acquire(blocking=False))     # and the tick lock too
+        rem._TICK_LOCK.release()
+
+
+class OverdueFlipScope(Base):
+    def test_no_flip_when_the_center_is_off_or_unreadable(self):
+        for mode in ("off", "", "weird"):
+            self.db.mode = mode
+            self.db.calls.clear()
+            self.tick()
+            self.assertNotIn("billing_mark_overdue", self.db.names(), mode)
+
+    def test_flip_runs_for_dry_run_and_live_before_the_owed_query(self):
+        for mode in ("dry_run", "live"):
+            self.db.mode = mode
+            self.db.calls.clear()
+            self.tick()
+            self.assertEqual(["billing_mark_overdue", "billing_reminders_owed"], self.db.names(), mode)
 
 
 class RunNow(Base):
