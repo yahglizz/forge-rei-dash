@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 import daycare_billing_link as bl
@@ -132,17 +132,18 @@ def _refresh_delivery(session, location_id, ghl) -> None:
             continue
 
 
-def _flag_no_link(session, row, facts, out) -> None:
-    """No pay link on file: no text, the invoice is flagged (a failed reminder row + the run result)."""
-    _bump(out["skipped"], "no_link")
+def _flag(session, row, facts, out, bucket: str, note: str) -> None:
+    """No text for this invoice: count it, flag it, and keep the reason on a failed reminder row
+    (so the Timeline shows why). Best effort; never raises."""
+    _bump(out["skipped"], bucket)
     out["flagged"].append(str(row["invoice_id"]))
     try:
         rid = _claim_id(_rpc(session, "billing_reminder_claim", {
             "p_invoice": row["invoice_id"], "p_kind": row["kind"], "p_due_on": row["due_on"],
             "p_today": out["as_of"], "p_amount_cents": facts["balance_cents"],
-            "p_message": "(no text: no pay link on file)", "p_link_send_id": None}))
+            "p_message": "(no text sent)", "p_link_send_id": row.get("link_send_id")}))
         if rid:
-            _record(session, rid, "failed", None, "No pay link on file. Send one from the Billing tab first.")
+            _record(session, rid, "failed", None, note[:300])
     except Exception:  # noqa: BLE001
         _log.exception("could not flag invoice %s", row.get("invoice_id"))
 
@@ -170,26 +171,56 @@ def _process_row(session, row, mode, ghl, out) -> None:
         _bump(out["skipped"], "payment_processing")
         return
     if not (row.get("has_link") and row.get("token")):
-        _flag_no_link(session, row, facts, out)
+        _flag(session, row, facts, out, "no_link", "No pay link on file. Send one from the Billing tab first.")
         return
 
     brand = daycare_ghl._brand_link(facts["location_id"])[0]
     child = "" if facts.get("child_ambiguous") else (facts.get("child") or {}).get("first_name", "")
-    message = compose(kind, parent=(facts["guardian"].get("first_name") or ""), child=child, brand=brand,
-                      amount_cents=facts["balance_cents"], due_on=row["due_on"], link=pay_link(row["token"]))
+
+    def text_with(link):
+        return compose(kind, parent=(facts["guardian"].get("first_name") or ""), child=child, brand=brand,
+                       amount_cents=facts["balance_cents"], due_on=row["due_on"], link=link)
+
+    # The text and the Stripe page must show the SAME amount. A partial payment lowers the balance but
+    # leaves the old Stripe invoice at the old amount, so a stale link is refreshed (live only) first.
+    link_amount = daycare_supabase.billing_link_amount(session, row.get("link_send_id"))
+    stale = link_amount != facts["balance_cents"]          # unknown amount counts as stale
+    link_send_id, message, refreshed = row.get("link_send_id"), None, None
+    stale_note = None
+    if stale and mode == "dry_run":                        # dry_run never touches Stripe or makes a link
+        message = text_with(pay_link(row["token"]))
+        stale_note = ("Dry run: the saved pay link is stale (it charges a different amount); "
+                      "a live run would refresh it first.")
+    elif stale:
+        try:
+            refreshed = bl.create_link(session, facts, text_with(bl.PLACEHOLDER))
+        except Exception as error:  # noqa: BLE001 — no text, flag it, keep going with the rest of the tick
+            detail = getattr(error, "message", None) or "Stripe or the database refused the request."
+            _log.warning("pay-link refresh failed for %s: %s", row.get("invoice_id"), type(error).__name__)
+            _flag(session, row, facts, out, "link_refresh_failed",
+                  "Could not refresh the pay link, so no text was sent: " + str(detail))
+            return
+        message, link_send_id = refreshed["final_text"], refreshed["send_id"]
+    else:
+        message = text_with(pay_link(row["token"]))
+
     rid = _claim_id(_rpc(session, "billing_reminder_claim", {
         "p_invoice": row["invoice_id"], "p_kind": kind, "p_due_on": row["due_on"], "p_today": out["as_of"],
         "p_amount_cents": facts["balance_cents"], "p_message": message,
-        "p_link_send_id": row.get("link_send_id")}))
+        "p_link_send_id": link_send_id}))
     if not rid:                    # already sent, or this family already got a billing text today
         _bump(out["skipped"], "already_sent_or_family_cap")
+        if refreshed:
+            bl.mark_link(session, refreshed["send_id"], "failed", None, "Reminder not sent (already sent or family cap).")
         return
     if mode == "dry_run":
-        _record(session, rid, "dry_run")
+        _record(session, rid, "dry_run", None, stale_note)
         out["dry_run"] += 1
         return
     if not (facts["guardian"].get("phone") or "").strip():
         _record(session, rid, "failed", None, "No phone number on file.")
+        if refreshed:
+            bl.mark_link(session, refreshed["send_id"], "failed", None, "No phone number on file.")
         out["failed"] += 1
         return
     try:
@@ -201,9 +232,13 @@ def _process_row(session, row, mode, ghl, out) -> None:
             out["warnings"].append(error.message)
         else:
             _record(session, rid, "failed", None, error.message[:300])
+        if refreshed:
+            bl.mark_link(session, refreshed["send_id"], "failed", None, error.message[:300])
         out["failed"] += 1
         return
     _record(session, rid, "sent", delivered["message_id"], None)
+    if refreshed:
+        bl.mark_link(session, refreshed["send_id"], "sent", delivered["message_id"], None)
     out["sent"] += 1
     if delivered.get("tag_warning"):
         out["warnings"].append(delivered["tag_warning"])
@@ -224,12 +259,9 @@ def run_location(session, location_id, as_of: date, ghl, *, now: datetime | None
     if not _TICK_LOCK.acquire(blocking=False):
         return {**out, "ok": False, "detail": "A reminder run is already in progress."}
     try:
-        # Flip due -> overdue first. The function is global (no location argument), so a SIMULATED
-        # date (run-now with as_of != today) never calls it: that would mark real centers overdue early.
-        if as_of == now.astimezone(_ET).date():
-            out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {"p_today": as_of.isoformat()}))
-        else:
-            out["marked_overdue"] = "skipped (simulated date)"
+        # Flip due -> overdue for as_of first (the database scopes it to centers with reminders on,
+        # never 4444, and only where the caller manages them).
+        out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {"p_today": as_of.isoformat()}))
         mode = daycare_supabase.billing_reminder_mode(session, location_id)
         out["mode"] = mode
         if mode not in MODES_THAT_ACT:

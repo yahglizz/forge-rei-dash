@@ -192,15 +192,17 @@ def deliver_text(ghl, facts: dict, text: str, location_id) -> dict:
     return {"message_id": sent.get("messageId"), "tag_warning": tag_warning}
 
 
-def _send_locked(session, facts, text, ghl) -> dict:
-    location_id = facts["location_id"]
+def create_link(session, facts: dict, text: str) -> dict:
+    """The existing link path: Stripe hosted invoice for the CURRENT balance (ensure_hosted_invoice)
+    + a billing_link_sends row (billing_create_link_send; `text` carries {{PAY_URL}}, the RPC fills it).
+    Returns {"send_id", "pay_url", "final_text"}. Raises on any failure; texts nothing."""
     hosted = stripe_io.ensure_hosted_invoice({
         "invoice_id": facts["invoice_id"], "invoice_number": facts["invoice_number"],
         "balance_cents": facts["balance_cents"], "paid_cents": facts["paid_cents"],
         "due_on": facts["due_on"], "description": facts.get("description"),
         "guardian": facts["guardian"],
         "known_stripe_invoice_ids": facts.get("known_stripe_invoice_ids") or [],
-    }, location_id)
+    }, facts["location_id"])
 
     row = _rpc_row(daycare_supabase.billing_rpc(session, "billing_create_link_send", {
         "p_invoice": facts["invoice_id"], "p_hosted_url": hosted["hosted_url"],
@@ -210,15 +212,26 @@ def _send_locked(session, facts, text, ghl) -> dict:
     send_id, pay_url, final_text = row.get("id"), row.get("pay_url"), row.get("message")
     if not (send_id and pay_url and final_text) or PLACEHOLDER in final_text:
         raise BillingLinkError(502, "The pay link could not be saved, so nothing was texted.", "rpc_bad_shape")
+    return {"send_id": send_id, "pay_url": pay_url, "final_text": final_text}
+
+
+def mark_link(session, send_id, status, mid=None, err=None) -> bool:
+    try:
+        daycare_supabase.billing_rpc(session, "billing_mark_link_sent", {
+            "p_id": send_id, "p_status": status, "p_ghl_message_id": mid, "p_error": err})
+        return True
+    except Exception:  # noqa: BLE001 — the text already went out (or failed); never crash the response
+        _log.exception("billing_mark_link_sent failed for send %s", send_id)
+        return False
+
+
+def _send_locked(session, facts, text, ghl) -> dict:
+    location_id = facts["location_id"]
+    created = create_link(session, facts, text)
+    send_id, pay_url, final_text = created["send_id"], created["pay_url"], created["final_text"]
 
     def mark(status, mid=None, err=None):
-        try:
-            daycare_supabase.billing_rpc(session, "billing_mark_link_sent", {
-                "p_id": send_id, "p_status": status, "p_ghl_message_id": mid, "p_error": err})
-            return True
-        except Exception:  # noqa: BLE001 — the text already went out (or failed); never crash the response
-            _log.exception("billing_mark_link_sent failed for send %s", send_id)
-            return False
+        return mark_link(session, send_id, status, mid, err)
 
     try:
         delivered = deliver_text(ghl, facts, final_text, location_id)

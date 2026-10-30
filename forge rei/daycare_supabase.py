@@ -1886,6 +1886,19 @@ def billing_recent_send(session: Session, invoice_id: Any, seconds: int = 120) -
                "created_at": f"gte.{since}", "select": "id", "limit": "1"})))
 
 
+def billing_link_amount(session: Session, link_send_id: Any) -> int | None:
+    """amount_cents quoted by one billing_link_sends row (what its Stripe page charges). None = unknown."""
+    if not is_uuid(link_send_id):
+        return None
+    try:
+        rows = _rows(BRIDGE.rest(
+            session, "GET", "billing_link_sends",
+            query={"id": f"eq.{link_send_id}", "select": "amount_cents", "limit": "1"}))
+        return int(rows[0]["amount_cents"]) if rows else None
+    except (DaycareError, KeyError, TypeError, ValueError):
+        return None
+
+
 def billing_reminder_mode(session: Session, location_id: Any) -> str:
     """billing_settings.reminder_mode for one center. Anything unreadable = 'off' (fail closed)."""
     loc = require_uuid(location_id, "location_id")

@@ -13,6 +13,7 @@ import daycare_billing_link as bl
 import daycare_billing_reminders as rem
 import daycare_ghl
 import daycare_supabase
+import stripe_io
 
 ET = ZoneInfo("America/New_York")
 QA = "99999999-9999-9999-9999-999999999999"
@@ -87,6 +88,9 @@ class FakeDB:
         self.calls = []
         self.rows = {}                 # (invoice, kind, due) -> {"id","status","guardian","date","message","error"}
         self.unchecked = []
+        self.link_amount = 3000          # what the saved pay link's Stripe page charges
+        self.hosted_calls = []
+        self.hosted_error = None
 
     def rpc(self, session, name, body, write=True):
         self.calls.append((name, body))
@@ -114,7 +118,20 @@ class FakeDB:
             return None
         if name == "billing_reminder_staff_review":
             return None
+        if name == "billing_create_link_send":
+            url = "https://www.atouchofblessing.com/pay/NEWTOK"
+            return [{"id": "ls2", "token": "NEWTOK", "pay_url": url,
+                     "message": body["p_message"].replace("{{PAY_URL}}", url)}]
+        if name == "billing_mark_link_sent":
+            return None
         raise AssertionError(name)
+
+    def hosted(self, ctx, location_id):
+        self.hosted_calls.append((ctx, location_id))
+        if self.hosted_error:
+            raise self.hosted_error
+        return {"ok": True, "stripe_invoice_id": "in_new", "hosted_url": "https://invoice.stripe.com/i/new",
+                "livemode": False, "amount_cents": ctx["balance_cents"], "reused": False, "voided": ["in_old"]}
 
     def names(self):
         return [n for n, _ in self.calls]
@@ -139,6 +156,8 @@ class Base(unittest.TestCase):
             mock.patch.object(daycare_supabase, "billing_reminder_unchecked",
                               side_effect=lambda s, loc: self.db.unchecked),
             mock.patch.object(daycare_supabase, "at_location", at_location),
+            mock.patch.object(daycare_supabase, "billing_link_amount", side_effect=lambda s, lid: self.db.link_amount),
+            mock.patch.object(stripe_io, "ensure_hosted_invoice", side_effect=self.db.hosted),
         ]
         for p in patches:
             p.start()
@@ -278,6 +297,7 @@ class Sending(Base):
         self.db.owed = [owed_row(kind="overdue_3", due="2026-10-31")]
         self.db.facts["i1"] = facts(status="overdue", balance=2000, paid_cents=1000, amount_cents=3000,
                                     due_on="2026-10-31")
+        self.db.link_amount = 2000                      # the link was already refreshed to the balance
         self.tick(as_of=date(2026, 11, 3))
         self.assertIn("Maya's balance of $20.00 from Oct 31 is still open", self.ghl.texts()[0])
         claim = [b for n, b in self.db.calls if n == "billing_reminder_claim"][0]
@@ -402,17 +422,149 @@ class Modes(Base):
 
 
 class OverdueFlip(Base):
-    def test_real_today_flips_before_owed(self):
+    def test_flips_before_owed_for_as_of(self):
         self.db.owed = []
         self.tick()
         self.assertEqual(["billing_mark_overdue", "billing_reminders_owed"], self.db.names())
         self.assertEqual({"p_today": "2026-11-03"}, self.db.calls[0][1])
 
-    def test_simulated_date_never_flips_global_status(self):
+    def test_run_now_with_a_future_as_of_flips_for_that_date(self):
         out = self.tick(as_of=date(2026, 11, 10))
-        self.assertNotIn("billing_mark_overdue", self.db.names())
-        self.assertIn("simulated", out["marked_overdue"])
-        self.assertEqual("2026-11-10", self.db.calls[0][1]["p_today"])      # but owed still uses as_of
+        self.assertEqual({"p_today": "2026-11-10"}, self.db.calls[0][1])
+        self.assertEqual("billing_mark_overdue", self.db.names()[0])
+        self.assertEqual(0, out["marked_overdue"])
+
+
+class StaleLink(Base):
+    """The text and the Stripe page must show the same amount."""
+
+    def stale(self, balance=2000, link=3000, kind="overdue_3", due="2026-10-31"):
+        self.db.owed = [owed_row(kind=kind, due=due)]
+        self.db.facts["i1"] = facts(status="overdue", balance=balance, paid_cents=3000 - balance,
+                                    amount_cents=3000, due_on=due)
+        self.db.link_amount = link
+
+    def test_matching_amount_reuses_the_link_and_never_calls_stripe(self):
+        self.stale(balance=3000, link=3000)
+        self.tick()
+        self.assertEqual([], self.db.hosted_calls)
+        self.assertNotIn("billing_create_link_send", self.db.names())
+        self.assertIn("/pay/TOK123", self.ghl.texts()[0])
+
+    def test_mismatch_refreshes_through_the_existing_path_and_uses_the_new_token(self):
+        self.stale()
+        out = self.tick()
+        # Stripe invoice built for the CURRENT balance, then the link row for exactly that amount
+        ctx, loc = self.db.hosted_calls[0]
+        self.assertEqual((2000, QA), (ctx["balance_cents"], loc))
+        create = [b for n, b in self.db.calls if n == "billing_create_link_send"][0]
+        self.assertEqual(2000, create["p_amount_cents"])
+        self.assertIn("{{PAY_URL}}", create["p_message"])
+        # the text carries the NEW token and the new amount; the old token is gone
+        text = self.ghl.texts()[0]
+        self.assertIn("https://www.atouchofblessing.com/pay/NEWTOK", text)
+        self.assertNotIn("TOK123", text)
+        self.assertIn("$20.00", text)
+        claim = [b for n, b in self.db.calls if n == "billing_reminder_claim"][0]
+        self.assertEqual((2000, "ls2", text), (claim["p_amount_cents"], claim["p_link_send_id"], claim["p_message"]))
+        # quoted amount == link row amount == claim amount, and the link row is marked sent with the GHL id
+        self.assertEqual(create["p_amount_cents"], claim["p_amount_cents"])
+        marks = [b for n, b in self.db.calls if n == "billing_mark_link_sent"]
+        self.assertEqual([("ls2", "sent")], [(m["p_id"], m["p_status"]) for m in marks])
+        self.assertTrue(marks[0]["p_ghl_message_id"])
+        self.assertEqual((1, 0), (out["sent"], out["failed"]))
+        # refresh happens BEFORE the claim
+        names = self.db.names()
+        self.assertLess(names.index("billing_create_link_send"), names.index("billing_reminder_claim"))
+
+    def test_unknown_link_amount_counts_as_stale(self):
+        self.stale(balance=3000, link=None)
+        self.tick()
+        self.assertEqual(1, len(self.db.hosted_calls))
+
+    def test_refresh_failure_sends_nothing_stores_the_error_flags_and_the_tick_continues(self):
+        self.stale()
+        self.db.owed.append(owed_row("i2", kind="due_today", due="2026-11-03", guardian_id="g2", token="T2"))
+        self.db.facts["i2"] = facts("i2", guardian={"id": "g2", "name": "Lee Park", "first_name": "Lee",
+                                                      "phone": "+15555550111"})
+        calls = {"n": 0}
+
+        def hosted(ctx, loc):
+            calls["n"] += 1
+            if ctx["invoice_id"] == "i1":
+                raise stripe_io.StripeError(502, "Stripe is temporarily unavailable", "upstream_unavailable")
+            return {"stripe_invoice_id": "x", "hosted_url": "u", "livemode": False}
+        self.db.link_amount = 3000
+        with mock.patch.object(stripe_io, "ensure_hosted_invoice", side_effect=hosted):
+            # i2's balance (3000) equals the link amount, so only i1 needs Stripe and it fails
+            out = self.tick()
+        self.assertEqual(["i1"], out["flagged"])
+        self.assertEqual(1, out["skipped"]["link_refresh_failed"])
+        row = self.db.rows[("i1", "overdue_3", "2026-10-31")]
+        self.assertEqual("failed", row["status"])
+        self.assertIn("Could not refresh the pay link", row["error"])
+        self.assertIn("Stripe is temporarily unavailable", row["error"])
+        self.assertNotIn("billing_create_link_send", self.db.names())       # no link row for a failed refresh
+        self.assertEqual(1, out["sent"])                                     # the other family still got its text
+        self.assertEqual(1, len(self.ghl.texts()))
+        self.assertIn("Hi Lee,", self.ghl.texts()[0])
+
+    def test_database_failure_during_refresh_is_handled_the_same_way(self):
+        self.stale()
+        real = self.db.rpc
+
+        def rpc(session, name, body, write=True):
+            if name == "billing_create_link_send":
+                raise daycare_supabase.DaycareError(409, "x", "conflict")
+            return real(session, name, body, write)
+        with mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc):
+            out = self.tick()
+        self.assertEqual([], self.ghl.posts)
+        self.assertEqual(["i1"], out["flagged"])
+
+    def test_dry_run_never_touches_stripe_or_makes_a_link(self):
+        self.db.mode = "dry_run"
+        self.stale()
+        out = self.tick()
+        self.assertEqual([], self.db.hosted_calls)
+        self.assertNotIn("billing_create_link_send", self.db.names())
+        self.assertNotIn("billing_mark_link_sent", self.db.names())
+        self.assertEqual([], self.ghl.posts)
+        self.assertEqual(1, out["dry_run"])
+        row = self.db.rows[("i1", "overdue_3", "2026-10-31")]
+        self.assertEqual("dry_run", row["status"])
+        self.assertIn("stale", row["error"])
+        self.assertIn("$20.00", row["message"])
+
+    def test_dry_run_with_a_matching_link_has_no_note(self):
+        self.db.mode = "dry_run"
+        self.stale(balance=3000, link=3000)
+        self.tick()
+        self.assertIsNone(list(self.db.rows.values())[0]["error"])
+
+    def test_failed_text_after_a_refresh_marks_the_new_link_failed(self):
+        self.stale()
+        out = self.tick(ghl=FakeGHL(fail_send=urllib.error.HTTPError("u", 400, "bad", {}, None)))
+        self.assertEqual(1, out["failed"])
+        marks = [b for n, b in self.db.calls if n == "billing_mark_link_sent"]
+        self.assertEqual("failed", marks[0]["p_status"])
+
+    def test_family_cap_after_a_refresh_does_not_leave_a_sent_link_row(self):
+        self.stale()
+        self.db.rows[("zz", "upcoming", "d")] = {"id": "r0", "status": "sent", "guardian": "g1", "date": "2026-11-03"}
+        out = self.tick()
+        self.assertEqual([], self.ghl.posts)
+        self.assertEqual(1, out["skipped"]["already_sent_or_family_cap"])
+        marks = [b for n, b in self.db.calls if n == "billing_mark_link_sent"]
+        self.assertEqual("failed", marks[0]["p_status"])
+
+    def test_the_refresh_path_is_the_existing_one_not_a_copy(self):
+        source = inspect.getsource(rem)
+        self.assertIn("bl.create_link", source)
+        self.assertNotIn("ensure_hosted_invoice", source)
+        self.assertNotIn("billing_create_link_send", source)
+        self.assertIn("ensure_hosted_invoice", inspect.getsource(bl.create_link))
+        self.assertIn("billing_create_link_send", inspect.getsource(bl.create_link))
 
 
 class RunNow(Base):
