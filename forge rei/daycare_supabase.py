@@ -25,7 +25,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any
@@ -1609,6 +1609,125 @@ def stripe_invoice_context(session: Session, invoice_id: Any) -> dict[str, Any]:
             "phone": guardian.get("phone"),
         },
     }
+
+
+# --- Billing P0: pay-link helpers (read-only facts + the billing_* RPC wrapper) -------------
+
+def _cents(value: Any) -> int:
+    """numeric(10,2) dollars -> whole cents, no float drift."""
+    try:
+        return int((Decimal(str(value or 0)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def billing_rpc(session: Session, name: str, body: dict[str, Any], *, write: bool = True) -> Any:
+    """Call one billing_* RPC as the signed-in owner. Only the contract's names pass."""
+    if name not in _BILLING_RPCS:
+        raise DaycareError(500, "Invalid internal daycare operation", "internal_error")
+    return BRIDGE.rpc(session, name, body, surface_errors=True, write=write)
+
+
+_BILLING_RPCS = frozenset({
+    "billing_create_link_send", "billing_mark_link_sent",
+    "billing_set_link_delivery", "billing_invoice_timeline",
+})
+
+
+def billing_invoice_facts(session: Session, invoice_id: Any) -> dict[str, Any]:
+    """Everything the pay-link text needs, from the database only (RLS-scoped, active center).
+
+    balance = invoice amount minus payments that SUCCEEDED (pending/failed never count).
+    Child = the invoice's own child; else the guardian's linked children (one -> that child;
+    several -> ambiguous, the text then names no child).
+    """
+    inv_id = require_uuid(invoice_id, "invoice_id")
+    rows = _rows(BRIDGE.rest(
+        session, "GET", "invoices",
+        query={
+            "id": f"eq.{inv_id}",
+            "location_id": f"eq.{active_location(session)}",
+            "select": (
+                "id,invoice_number,amount,description,due_on,status,guardian_id,child_id,location_id,"
+                "children(id,first_name,last_name),"
+                "profiles!invoices_guardian_id_fkey(id,display_name,first_name,last_name),"
+                "payments(amount,status)"
+            ),
+            "limit": "1",
+        },
+    ))
+    if not rows:
+        raise DaycareError(404, "Invoice not found", "not_found")
+    invoice = rows[0]
+    guardian = invoice.get("profiles") or {}
+    _merge_contacts(session, [guardian])
+    gname = guardian.get("display_name") or " ".join(
+        v for v in (guardian.get("first_name"), guardian.get("last_name")) if v) or ""
+    parent_first = (guardian.get("first_name") or (gname.split(" ")[0] if gname else "") or "").strip()
+
+    child = invoice.get("children") or None
+    ambiguous = False
+    if not child and (guardian.get("id") or invoice.get("guardian_id")):
+        linked = _rows(BRIDGE.rest(
+            session, "GET", "children",
+            query={
+                "guardian_profile_id": f"eq.{guardian.get('id') or invoice.get('guardian_id')}",
+                "location_id": f"eq.{active_location(session)}",
+                "active": "eq.true",
+                "select": "id,first_name,last_name",
+                "order": "first_name.asc",
+                "limit": "10",
+            },
+        ))
+        if len(linked) == 1:
+            child = linked[0]
+        elif linked:
+            ambiguous = True
+            child = linked[0]          # contact identity only; the text names no child
+    amount_cents = _cents(invoice.get("amount"))
+    paid_cents = sum(_cents(p.get("amount")) for p in (invoice.get("payments") or [])
+                     if (p.get("status") or "succeeded") == "succeeded")
+
+    known: list[str] = []
+    try:   # billing_link_sends exists once the billing P0 migration is applied
+        known = [str(r["stripe_invoice_id"]) for r in _rows(BRIDGE.rest(
+            session, "GET", "billing_link_sends",
+            query={"invoice_id": f"eq.{inv_id}", "select": "stripe_invoice_id",
+                   "order": "created_at.desc", "limit": "5"})) if r.get("stripe_invoice_id")]
+    except DaycareError:
+        known = []
+
+    return {
+        "invoice_id": invoice.get("id"),
+        "invoice_number": invoice.get("invoice_number"),
+        "description": invoice.get("description"),
+        "due_on": invoice.get("due_on"),
+        "status": invoice.get("status"),
+        "location_id": invoice.get("location_id") or active_location(session),
+        "amount_cents": amount_cents,
+        "paid_cents": paid_cents,
+        "balance_cents": max(0, amount_cents - paid_cents),
+        "guardian": {
+            "id": guardian.get("id") or invoice.get("guardian_id"),
+            "name": gname or "Family",
+            "first_name": parent_first,
+            "email": guardian.get("auth_email"),
+            "phone": guardian.get("phone"),
+        },
+        "child": ({"id": child.get("id"), "first_name": (child.get("first_name") or "").strip(),
+                   "last_name": (child.get("last_name") or "").strip()} if child else None),
+        "child_ambiguous": ambiguous,
+        "known_stripe_invoice_ids": known,
+    }
+
+
+def billing_send_rows(session: Session, invoice_id: Any, status: str) -> list[dict[str, Any]]:
+    """billing_link_sends rows of one invoice in one status (id, ghl_message_id) — management SELECT."""
+    inv_id = require_uuid(invoice_id, "invoice_id")
+    return _rows(BRIDGE.rest(
+        session, "GET", "billing_link_sends",
+        query={"invoice_id": f"eq.{inv_id}", "status": f"eq.{status}",
+               "select": "id,ghl_message_id", "order": "created_at.desc", "limit": "5"}))
 
 
 def get_payroll(session: Session) -> dict[str, Any]:

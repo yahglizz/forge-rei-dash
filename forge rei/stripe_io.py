@@ -18,8 +18,10 @@ No secret is ever returned to the browser.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
+from datetime import date, datetime, timezone
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -39,14 +41,46 @@ class StripeError(Exception):
         self.code = code
 
 
-def _secret_key() -> str:
-    key = os.environ.get("STRIPE_SECRET_KEY", "")
+def _env_key(name: str) -> str:
+    key = os.environ.get(name, "")
     if not key:
         try:
-            key = daycare_supabase._read_env().get("STRIPE_SECRET_KEY", "") or ""
+            key = daycare_supabase._read_env().get(name, "") or ""
         except Exception:  # noqa: BLE001
             key = ""
     return key.strip()
+
+
+def _secret_key() -> str:
+    return _env_key("STRIPE_SECRET_KEY")
+
+
+# The QA Sandbox center is the ONLY place Stripe test mode is allowed (billing P0 contract).
+QA_LOCATION_ID = "99999999-9999-9999-9999-999999999999"
+_TEST_PREFIXES = ("sk_test_", "rk_test_")
+_log = logging.getLogger("stripe_io")
+
+
+def is_test_key(key: str) -> bool:
+    return str(key or "").startswith(_TEST_PREFIXES)
+
+
+def key_for_location(location_id) -> str:
+    """The Stripe key for one daycare center. Fail closed: a missing key, a test key in the live
+    slot, or a live key in the test slot raises — it never falls back to the other mode."""
+    if str(location_id or "").strip().lower() == QA_LOCATION_ID:
+        key = _env_key("STRIPE_SECRET_KEY__DAYCARE_TEST")
+        if not key:
+            raise StripeError(503, "The Stripe test key is not set for the QA Sandbox", "not_configured")
+        if not is_test_key(key):
+            raise StripeError(503, "The QA Sandbox Stripe key is not a test key, so it was refused", "key_mismatch")
+        return key
+    key = _secret_key()
+    if not key:
+        raise StripeError(503, "Stripe is not configured", "not_configured")
+    if is_test_key(key):
+        raise StripeError(503, "The live Stripe key is a test key, so it was refused", "key_mismatch")
+    return key
 
 
 def configured() -> bool:
@@ -134,37 +168,42 @@ def _real_email(email: str | None) -> str | None:
     return email
 
 
-def _find_customer(guardian_id: str) -> str | None:
+def _find_customer(guardian_id: str, key: str | None = None) -> str | None:
     try:
         result = _req("GET", "/customers/search", {
             "query": f"metadata['daycare_guardian_id']:'{guardian_id}'",
             "limit": 1,
-        })
+        }, **_kw(key))
     except StripeError:
         return None
     rows = result.get("data") or []
     return rows[0]["id"] if rows else None
 
 
-def _ensure_customer(guardian_id: str, name: str, email: str | None) -> str:
-    existing = _find_customer(guardian_id)
+def _kw(key: str | None) -> dict:
+    """Pass `key=` to _req only when a per-center key was chosen (default callers unchanged)."""
+    return {"key": key} if key else {}
+
+
+def _ensure_customer(guardian_id: str, name: str, email: str | None, key: str | None = None) -> str:
+    existing = _find_customer(guardian_id, key)
     if existing:
         return existing
     payload: dict = {"name": name or "Family", "metadata": {"daycare_guardian_id": guardian_id}}
     real = _real_email(email)
     if real:
         payload["email"] = real
-    created = _req("POST", "/customers", payload)
+    created = _req("POST", "/customers", payload, **_kw(key))
     return created["id"]
 
 
-def find_invoice(daycare_invoice_id: str) -> dict | None:
+def find_invoice(daycare_invoice_id: str, key: str | None = None) -> dict | None:
     """Return the Stripe invoice previously created for a daycare invoice, if any."""
     try:
         result = _req("GET", "/invoices/search", {
             "query": f"metadata['daycare_invoice_id']:'{daycare_invoice_id}'",
             "limit": 1,
-        })
+        }, **_kw(key))
     except StripeError:
         return None
     rows = result.get("data") or []
@@ -189,8 +228,16 @@ def send_invoice(ctx: dict) -> dict:
 
     ctx: {invoice_id, invoice_number, amount, description, due_on, location_id,
           guardian:{id, name, email}}
+    The key follows ctx.location_id (QA Sandbox -> test key, every other center -> live key).
     """
-    if not configured():
+    location_id = ctx.get("location_id")
+    try:
+        key = key_for_location(location_id) if location_id else None
+    except StripeError as error:
+        if error.code != "not_configured":
+            raise
+        return {"ok": False, "configured": False, "detail": error.message}
+    if not key and not configured():
         return {"ok": False, "configured": False,
                 "detail": "Add STRIPE_SECRET_KEY to daycare.env to send via Stripe."}
     guardian = ctx.get("guardian") or {}
@@ -198,19 +245,19 @@ def send_invoice(ctx: dict) -> dict:
     if amount <= 0:
         raise StripeError(400, "Invoice amount must be positive", "validation_error")
 
-    existing = find_invoice(str(ctx.get("invoice_id")))
+    existing = find_invoice(str(ctx.get("invoice_id")), **_kw(key))
     if existing and existing.get("status") in ("open", "paid"):
         return {"ok": True, "reused": True, **_public(existing)}
 
     customer_id = _ensure_customer(
-        str(guardian.get("id") or ""), guardian.get("name") or "Family", guardian.get("email"))
+        str(guardian.get("id") or ""), guardian.get("name") or "Family", guardian.get("email"), key)
 
     _req("POST", "/invoiceitems", {
         "customer": customer_id,
         "amount": amount,
         "currency": "usd",
         "description": ctx.get("description") or ctx.get("invoice_number") or "Daycare invoice",
-    })
+    }, **_kw(key))
     invoice = _req("POST", "/invoices", {
         "customer": customer_id,
         "collection_method": "send_invoice",
@@ -224,11 +271,117 @@ def send_invoice(ctx: dict) -> dict:
             "daycare_invoice_number": str(ctx.get("invoice_number") or ""),
             "location_id": str(ctx.get("location_id") or ""),
         },
-    })
+    }, **_kw(key))
     invoice_id = invoice["id"]
-    _req("POST", f"/invoices/{invoice_id}/finalize", {})
-    sent = _req("POST", f"/invoices/{invoice_id}/send", {})
+    _req("POST", f"/invoices/{invoice_id}/finalize", {}, **_kw(key))
+    sent = _req("POST", f"/invoices/{invoice_id}/send", {}, **_kw(key))
     return {"ok": True, "reused": False, **_public(sent)}
+
+
+def _due_epoch(due_on) -> int | None:
+    """Stripe due_date (unix seconds) for a future YYYY-MM-DD, else None (use days_until_due)."""
+    try:
+        day = date.fromisoformat(str(due_on)[:10])
+    except ValueError:
+        return None
+    stamp = int(datetime(day.year, day.month, day.day, 23, 0, tzinfo=timezone.utc).timestamp())
+    return stamp if stamp > time.time() + 3600 else None
+
+
+def ensure_hosted_invoice(ctx: dict, location_id) -> dict:
+    """Get or create a FINALIZED Stripe invoice for the REMAINING balance. Never calls /send,
+    so Stripe never emails the family — only the owner's text carries the link.
+
+    ctx: {invoice_id, invoice_number, balance_cents, paid_cents, due_on, description,
+          guardian:{id, name, email}, known_stripe_invoice_ids:[...]}
+    Reuses the open Stripe invoice when its amount equals the balance; an open one with a
+    different amount is voided and replaced (logged). Returns
+    {ok, stripe_invoice_id, hosted_url, livemode, amount_cents, reused, voided:[ids]}.
+    """
+    key = key_for_location(location_id)
+    balance = int(ctx.get("balance_cents") or 0)
+    if balance <= 0:
+        raise StripeError(400, "There is no balance left to pay on this invoice", "validation_error")
+    daycare_id = str(ctx.get("invoice_id") or "")
+    guardian = ctx.get("guardian") or {}
+
+    # Candidates: ids this app stored (read-your-write, no search lag) + Stripe's metadata search.
+    # ponytail: search lags ~1 min; a first call that died between Stripe and our DB could still
+    # double-create on an immediate retry. Upgrade: Idempotency-Key on POST /invoices.
+    seen: dict[str, dict] = {}
+    for known in ctx.get("known_stripe_invoice_ids") or []:
+        try:
+            row = _req("GET", f"/invoices/{known}", None, key=key)
+        except StripeError:
+            continue
+        seen[row.get("id")] = row
+    found = find_invoice(daycare_id, key)
+    if found:
+        seen.setdefault(found.get("id"), found)
+    mine = [r for r in seen.values()
+            if (r.get("metadata") or {}).get("daycare_invoice_id") == daycare_id]
+
+    stripe_paid = sum(int(r.get("amount_paid") or 0) for r in mine if r.get("status") == "paid")
+    if stripe_paid > int(ctx.get("paid_cents") or 0):
+        raise StripeError(409, "Stripe shows a payment that is not recorded on this invoice yet. "
+                               "Sync the payment first.", "payment_not_synced")
+
+    voided: list[str] = []
+    for row in mine:
+        status = row.get("status")
+        if status == "open":
+            if int(row.get("amount_due") or 0) == balance and row.get("hosted_invoice_url"):
+                return {"ok": True, "reused": True, "voided": voided,
+                        "stripe_invoice_id": row["id"], "hosted_url": row["hosted_invoice_url"],
+                        "livemode": bool(row.get("livemode", not is_test_key(key))),
+                        "amount_cents": balance}
+            _req("POST", f"/invoices/{row['id']}/void", {}, key=key)
+            voided.append(row["id"])
+            _log.info("voided stale Stripe invoice %s for %s (due %s, balance now %s)",
+                      row["id"], daycare_id, row.get("amount_due"), balance)
+        elif status == "draft":
+            _req("DELETE", f"/invoices/{row['id']}", None, key=key)
+
+    customer_id = next((r.get("customer") for r in mine if isinstance(r.get("customer"), str)), None) \
+        or _ensure_customer(str(guardian.get("id") or ""), guardian.get("name") or "Family",
+                            guardian.get("email"), key)
+    number = str(ctx.get("invoice_number") or "Daycare invoice")
+    params = {
+        "customer": customer_id,
+        "collection_method": "send_invoice",
+        "auto_advance": False,
+        "pending_invoice_items_behavior": "exclude",   # only the item attached below
+        "description": str(ctx.get("description") or number)[:300],
+        "metadata": {
+            "daycare_invoice_id": daycare_id,
+            "daycare_invoice_number": number,
+            "location_id": str(location_id or ""),
+        },
+    }
+    due = _due_epoch(ctx.get("due_on"))
+    if due:
+        params["due_date"] = due
+    else:
+        params["days_until_due"] = 7
+    invoice = _req("POST", "/invoices", params, key=key)
+    try:
+        _req("POST", "/invoiceitems", {
+            "customer": customer_id, "invoice": invoice["id"], "amount": balance,
+            "currency": "usd", "description": f"{number} balance",
+        }, key=key)
+        final = _req("POST", f"/invoices/{invoice['id']}/finalize", {}, key=key)
+    except StripeError:
+        try:
+            _req("DELETE", f"/invoices/{invoice['id']}", None, key=key)
+        except StripeError:
+            pass
+        raise
+    url = final.get("hosted_invoice_url")
+    if not url:
+        raise StripeError(502, "Stripe did not return a payment link", "no_hosted_url")
+    return {"ok": True, "reused": False, "voided": voided, "stripe_invoice_id": final.get("id") or invoice["id"],
+            "hosted_url": url, "livemode": bool(final.get("livemode", not is_test_key(key))),
+            "amount_cents": balance}
 
 
 def invoice_status(daycare_invoice_id: str) -> dict:

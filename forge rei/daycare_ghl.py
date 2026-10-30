@@ -197,6 +197,36 @@ def ensure_contact(client, *, name: str, phone: str, email: str | None = None) -
     return contact.get("id") or created.get("id")
 
 
+def ensure_family_contact(client, *, phone: str, child_first: str = "", child_last: str = "",
+                          parent_name: str = "", email: str | None = None) -> str:
+    """GHL contact for a family: found by exact phone first; created only if truly missing.
+
+    A created contact follows the house identity rule — the CHILD's name is the contact
+    (firstName/lastName), the parent's name rides in the parent_name custom field. Never
+    changes an existing contact.
+    """
+    existing = find_contact_by_phone(client, phone)
+    if existing:
+        return existing
+    body = {"locationId": client.location_id, "phone": _digits(phone),
+            "firstName": (child_first or parent_name or "Family").strip()[:60],
+            "lastName": (child_last or "").strip()[:60]}
+    if child_first and parent_name:
+        body["customFields"] = [{"id": CF_PARENT_NAME, "field_value": parent_name.strip()[:120]}]
+    if email and "@" in email and not email.lower().endswith("@login.blessings.app"):
+        body["email"] = email
+    try:
+        created = client.post("/contacts/", body)
+    except urllib.error.HTTPError as error:
+        if error.code in (400, 409):
+            duplicate = _duplicate_contact_id(error)
+            if duplicate:
+                return duplicate
+        raise
+    contact = created.get("contact", created) if isinstance(created, dict) else {}
+    return contact.get("id") or created.get("id")
+
+
 def _get_or_create_conversation(client, contact_id: str) -> str | None:
     data = client.get("/conversations/search",
                       {"locationId": client.location_id, "contactId": contact_id})

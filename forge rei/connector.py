@@ -1098,6 +1098,7 @@ import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad 
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import daycare_ads_tg  # noqa: E402 — Solomon · Ads Telegram approval cards (optimize / create / launch taps)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
+import daycare_billing_link  # noqa: E402 — billing P0: owner texts a Stripe pay link for the remaining balance
 import gmail_io  # noqa: E402 — daycare Gmail, read-only + daycare-only (2026-10-18; the box's Gmail path)
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
@@ -4477,40 +4478,13 @@ class Handler(BaseHTTPRequestHandler):
                 "active_location_id": active}
 
     def _daycare_ghl_text_invoice(self, session, body):
-        """Text a family their invoice / payment link via the daycare GHL account.
+        """Text a family their invoice via the daycare GHL account (owner-initiated, one text).
 
-        Owner-initiated (the console button IS the approval gate). Sends the Stripe
-        hosted payment link when the invoice was sent through Stripe, otherwise a
-        plain balance reminder. Never autonomous.
+        Billing P0 fix: names the right center (1923 = A Mother's Touch), quotes the REMAINING
+        balance, texts the child-named contact, and only adds a Stripe link when an open Stripe
+        invoice for exactly that balance exists. Never autonomous.
         """
-        ctx = daycare_supabase.stripe_invoice_context(session, body.get("invoice_id"))
-        guardian = ctx.get("guardian") or {}
-        phone = guardian.get("phone")
-        if not phone:
-            return {"ok": False, "detail": "This family has no phone number on file."}
-        link = ""
-        try:
-            invoice = stripe_io.find_invoice(str(ctx["invoice_id"])) if stripe_io.configured() else None
-            if invoice:
-                link = invoice.get("hosted_invoice_url") or ""
-        except Exception:  # noqa: BLE001 — a missing link must not block the text
-            link = ""
-        custom = (body.get("message") or "").strip()
-        if custom:
-            message = custom + (("\n\nPay here: " + link) if link else "")
-        else:
-            amount = "$" + format(float(ctx.get("amount") or 0), ".2f")
-            number = ctx.get("invoice_number") or "your invoice"
-            message = (f"Hi {guardian.get('name','')}, this is A Touch of Blessings. "
-                       f"{number} for {amount} is ready.")
-            if link:
-                message += " Pay securely here: " + link
-        contact_id = daycare_ghl.ensure_contact(
-            DAYCARE_GHL, name=guardian.get("name") or "Family",
-            phone=phone, email=guardian.get("email"))
-        if not contact_id:
-            return {"ok": False, "detail": "Could not create a GHL contact for this family."}
-        return daycare_ghl.send_sms(DAYCARE_GHL, contact_id=contact_id, message=message)
+        return daycare_billing_link.legacy_text(session, body, DAYCARE_GHL)
 
     # ---- Family blast (SMS to parents' phones, outside the app) --------------
     # The connector owns the Supabase session, so it assembles the audience and
@@ -4910,6 +4884,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/media/sign-upload", "/api/daycare/location/switch",
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
+                "/api/daycare/billing/link/compose", "/api/daycare/billing/link/send",
                 "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply", "/api/daycare/ghl/tag",
                 "/api/daycare/guardian/resend-login", "/api/daycare/login-queue/run",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
@@ -5027,6 +5002,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = self._daycare_stripe_sync_payment(session, body)
             elif path == "/api/daycare/ghl/text-invoice":
                 result = self._daycare_ghl_text_invoice(session, body)
+            # --- Billing P0: pay link. compose = draft only; send = the owner's tap (the only text). ---
+            elif path == "/api/daycare/billing/link/compose":
+                result = daycare_billing_link.compose(session, body.get("invoice_id"))
+            elif path == "/api/daycare/billing/link/send":
+                result = daycare_billing_link.send(session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL)
             elif path == "/api/daycare/ghl/dismiss":
                 # Owner marks a Contact-Form inbox entry as reviewed — internal +
                 # reversible (undo just re-adds it), no approval gate (rule 2).
@@ -5116,14 +5096,21 @@ class Handler(BaseHTTPRequestHandler):
                 result,
                 headers=({"Set-Cookie": set_cookie} if set_cookie else None),
             )
+        except daycare_billing_link.BillingLinkError as error:
+            return self._send_json(error.payload(), error.status)
         except daycare_supabase.DaycareError as error:
             headers = None
             if error.status == 401:
                 headers = {"Set-Cookie": daycare_supabase.expired_session_cookie()}
-            return self._send_json(error.payload(), error.status, headers=headers)
+            payload = error.payload()
+            if path.startswith("/api/daycare/billing/"):
+                payload["detail"] = error.message       # billing-p0 contract: { ok:false, detail }
+            return self._send_json(payload, error.status, headers=headers)
         except stripe_io.StripeError as error:
-            return self._send_json(
-                {"ok": False, "error": error.message, "code": error.code}, error.status)
+            payload = {"ok": False, "error": error.message, "code": error.code}
+            if path.startswith("/api/daycare/billing/"):
+                payload["detail"] = error.message
+            return self._send_json(payload, error.status)
         except Exception:  # never leak tokens, credentials, PII, or upstream bodies
             return self._send_json(
                 {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
@@ -5190,6 +5177,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/adops/overview": lambda session: SOLOMON.adops_view(),
             "/api/daycare/adops/brief": lambda session: SOLOMON.adops_view(),
             "/api/daycare/adops/bus": lambda session: agent_bus.recent(30),
+            "/api/daycare/billing/timeline": lambda session: daycare_billing_link.timeline(
+                session, q.get("invoice_id", [None])[0], DAYCARE_GHL),
             "/api/daycare/stripe/status": lambda session: stripe_io.invoice_status(
                 (daycare_supabase.stripe_invoice_context(session, q.get("invoice_id", [None])[0]) or {}).get("invoice_id")),
             "/api/daycare/locations": lambda session: daycare_supabase.list_locations(session),
@@ -5293,14 +5282,21 @@ class Handler(BaseHTTPRequestHandler):
                 handlers[path](session),
                 headers=({"Set-Cookie": set_cookie} if set_cookie else None),
             )
+        except daycare_billing_link.BillingLinkError as error:
+            return self._send_json(error.payload(), error.status)
         except daycare_supabase.DaycareError as error:
             headers = None
             if error.status == 401:
                 headers = {"Set-Cookie": daycare_supabase.expired_session_cookie()}
-            return self._send_json(error.payload(), error.status, headers=headers)
+            payload = error.payload()
+            if path.startswith("/api/daycare/billing/"):
+                payload["detail"] = error.message       # billing-p0 contract: { ok:false, detail }
+            return self._send_json(payload, error.status, headers=headers)
         except stripe_io.StripeError as error:
-            return self._send_json(
-                {"ok": False, "error": error.message, "code": error.code}, error.status)
+            payload = {"ok": False, "error": error.message, "code": error.code}
+            if path.startswith("/api/daycare/billing/"):
+                payload["detail"] = error.message
+            return self._send_json(payload, error.status)
         except Exception:  # never leak tokens, credentials, PII, or upstream bodies
             return self._send_json(
                 {"ok": False, "error": "Daycare request failed", "code": "internal_error"}, 500)
