@@ -1007,3 +1007,5 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .dcf-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 10px 18px; border-radius: 99px; color: #03231f; background: #2DD4BF; box-shadow: 0 8px 30px rgba(0,0,0,.4); }
 .dcf-sent.dc-finance-status { color: #5eead4; background: rgba(45,212,191,.12); }
 .dcf-list { display: grid; gap: 4px; }.dcf-list > div { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 8px 0; border-bottom: 1px solid var(--border); color: var(--text-2); font-size: 11px; }
+
+.dcf-toast.dcf-toast-warn { background: #f6c979; max-width: min(560px,92vw); border-radius: 14px; text-align: center; }
