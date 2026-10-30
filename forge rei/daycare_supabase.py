@@ -1636,6 +1636,20 @@ def get_notifications(session: Session) -> dict[str, Any]:
     return {"ok": True, "notifications": _rows(rows)}
 
 
+def _attach_needs_review(session: Session, invoices: list[dict[str, Any]]) -> None:
+    """invoice["needs_review"] = True when a staff_review reminder row exists (one select per center)."""
+    flagged: set[str] = set()
+    try:
+        flagged = {str(r.get("invoice_id")) for r in _rows(BRIDGE.rest(
+            session, "GET", "billing_reminders",
+            query={"location_id": f"eq.{active_location(session)}", "kind": "eq.staff_review",
+                   "select": "invoice_id", "limit": "5000"}))}
+    except DaycareError:
+        pass
+    for invoice in invoices:
+        invoice["needs_review"] = str(invoice.get("id")) in flagged
+
+
 def _attach_link_status(session: Session, invoices: list[dict[str, Any]]) -> None:
     """invoice["link"] = newest billing_link_sends row's status fields, or None. ONE select for the
     whole center (RLS-scoped), grouped here — no per-invoice query. A failed read (table not
@@ -1677,6 +1691,7 @@ def get_billing(session: Session) -> dict[str, Any]:
             invoice["guardian_name"] = guardian.get("display_name") or " ".join(
                 value for value in (guardian.get("first_name"), guardian.get("last_name")) if value)
     _attach_link_status(session, invoices)
+    _attach_needs_review(session, invoices)
     guardians = BRIDGE.rest(
         session,
         "GET",
@@ -1753,6 +1768,9 @@ def billing_rpc(session: Session, name: str, body: dict[str, Any], *, write: boo
 _BILLING_RPCS = frozenset({
     "billing_create_link_send", "billing_mark_link_sent",
     "billing_set_link_delivery", "billing_invoice_timeline",
+    # overdue reminders (billing P2 slice)
+    "billing_reminders_owed", "billing_reminder_claim", "billing_reminder_result",
+    "billing_reminder_staff_review", "billing_mark_overdue",
 })
 
 
@@ -1866,6 +1884,44 @@ def billing_recent_send(session: Session, invoice_id: Any, seconds: int = 120) -
         session, "GET", "billing_link_sends",
         query={"invoice_id": f"eq.{inv_id}", "status": "in.(created,sent,delivered)",
                "created_at": f"gte.{since}", "select": "id", "limit": "1"})))
+
+
+def billing_reminder_mode(session: Session, location_id: Any) -> str:
+    """billing_settings.reminder_mode for one center. Anything unreadable = 'off' (fail closed)."""
+    loc = require_uuid(location_id, "location_id")
+    try:
+        rows = _rows(BRIDGE.rest(
+            session, "GET", "billing_settings",
+            query={"location_id": f"eq.{loc}", "select": "reminder_mode", "limit": "1"}))
+    except DaycareError:
+        return "off"
+    mode = str((rows[0] if rows else {}).get("reminder_mode") or "off").lower()
+    return mode if mode in ("off", "dry_run", "live") else "off"
+
+
+def billing_reminder_unchecked(session: Session, location_id: Any, hours: int = 48) -> list[dict[str, Any]]:
+    """Recent 'sent' reminders with a GHL message id and no note yet (candidates for a delivery check)."""
+    loc = require_uuid(location_id, "location_id")
+    since = datetime.fromtimestamp(time.time() - hours * 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return _rows(BRIDGE.rest(
+        session, "GET", "billing_reminders",
+        query={"location_id": f"eq.{loc}", "status": "eq.sent", "ghl_message_id": "not.is.null",
+               "error": "is.null", "sent_at": f"gte.{since}", "select": "id,ghl_message_id",
+               "order": "sent_at.desc", "limit": "20"}))
+
+
+def billing_reminder_rows(session: Session, invoice_id: Any) -> list[dict[str, Any]]:
+    """Reminder history of one invoice for the Timeline (management SELECT). Unreadable = []."""
+    inv_id = require_uuid(invoice_id, "invoice_id")
+    try:
+        return [{k: r.get(k) for k in ("kind", "status", "sent_at", "amount_cents", "error")}
+                for r in _rows(BRIDGE.rest(
+                    session, "GET", "billing_reminders",
+                    query={"invoice_id": f"eq.{inv_id}",
+                           "select": "kind,status,sent_at,amount_cents,error,created_at",
+                           "order": "created_at.asc", "limit": "50"}))]
+    except DaycareError:
+        return []
 
 
 def billing_send_rows(session: Session, invoice_id: Any, statuses=("sent",)) -> list[dict[str, Any]]:

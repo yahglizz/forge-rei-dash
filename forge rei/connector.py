@@ -1099,6 +1099,7 @@ import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimize
 import daycare_ads_tg  # noqa: E402 — Solomon · Ads Telegram approval cards (optimize / create / launch taps)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
 import daycare_billing_link  # noqa: E402 — billing P0: owner texts a Stripe pay link for the remaining balance
+import daycare_billing_reminders  # noqa: E402 — overdue reminders: box tick + QA-only run-now
 import gmail_io  # noqa: E402 — daycare Gmail, read-only + daycare-only (2026-10-18; the box's Gmail path)
 import daycare_ghl  # noqa: E402 — daycare GoHighLevel family messaging (owner-initiated)
 import daycare_login_queue  # noqa: E402 — after-hours parent login texts (spec 2026-10-06)
@@ -4893,6 +4894,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
                 "/api/daycare/billing/link/compose", "/api/daycare/billing/link/send",
+                "/api/daycare/billing/reminders/run",
                 "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply", "/api/daycare/ghl/tag",
                 "/api/daycare/guardian/resend-login", "/api/daycare/login-queue/run",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
@@ -5015,6 +5017,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = daycare_billing_link.compose(session, body.get("invoice_id"))
             elif path == "/api/daycare/billing/link/send":
                 result = daycare_billing_link.send(session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL)
+            elif path == "/api/daycare/billing/reminders/run":      # QA Sandbox only; real centers refused inside
+                result = daycare_billing_reminders.run_now(session, body, DAYCARE_GHL)
             elif path == "/api/daycare/ghl/dismiss":
                 # Owner marks a Contact-Form inbox entry as reviewed — internal +
                 # reversible (undo just re-adds it), no approval gate (rule 2).
@@ -5999,6 +6003,15 @@ def main():
                              daemon=True, name="daycare_login_queue").start()
         else:
             forge_heartbeat.retire("daycare_login_queue")
+        # Billing · Overdue reminders: hourly, 9am-8pm ET, per-center reminder_mode (off by default in the
+        # database; only the QA Sandbox is live). FORGE_DAYCARE_BILLING_REMINDERS=0 = loop off.
+        if os.environ.get("FORGE_DAYCARE_BILLING_REMINDERS", "1") != "0":
+            print("   Billing · Overdue reminders: hourly tick, 9am-8pm ET, per-center switch")
+            threading.Thread(target=daycare_billing_reminders.run_forever,
+                             args=(_daycare_start_session, DAYCARE_GHL),
+                             daemon=True, name="daycare_billing_reminders").start()
+        else:
+            forge_heartbeat.retire("daycare_billing_reminders")
         # Solomon · Auto-enroll: every READY Family Contact Form card becomes a child + parent
         # login at its center, no click (owner decision 2026-10-07). Odd cards are held with a
         # reason. PIN texts wait on FORGE_DAYCARE_AUTO_ENROLL_TEXT=1. FORGE_DAYCARE_AUTO_ENROLL=0 = off.

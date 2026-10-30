@@ -165,6 +165,33 @@ def send(session, invoice_id, message, ghl) -> dict:
             _INFLIGHT.discard(key)
 
 
+def deliver_text(ghl, facts: dict, text: str, location_id) -> dict:
+    """THE one GHL text path for billing (pay-link send, legacy text, overdue reminders):
+    child-named contact by phone -> additive family tag (a tag failure only warns) -> SMS.
+    Returns {"message_id", "tag_warning"}; raises BillingLinkError (ghl_contact | ghl_send |
+    ghl_send_unknown). Never leaks upstream bodies."""
+    child = facts.get("child") or {}
+    phone = (facts["guardian"].get("phone") or "").strip()
+    try:
+        contact_id = daycare_ghl.ensure_family_contact(
+            ghl, phone=phone, child_first=child.get("first_name", ""), child_last=child.get("last_name", ""),
+            parent_name=facts["guardian"].get("name", ""), email=facts["guardian"].get("email"))
+        if not contact_id:
+            raise BillingLinkError(502, "Could not find or create the family's GoHighLevel contact.", "ghl_contact")
+        tag_warning = daycare_ghl.add_family_tags(ghl, contact_id, location_id)   # before the text; never blocks it
+        sent = daycare_ghl.send_sms(ghl, contact_id=contact_id, message=text)
+        if not sent.get("ok"):
+            raise BillingLinkError(502, sent.get("detail") or "GoHighLevel did not accept the text.", "ghl_send")
+    except BillingLinkError:
+        raise
+    except Exception as error:  # noqa: BLE001
+        unknown = type(error).__name__ == "GHLSendUnknown"
+        note = ("Unknown whether the text went out. Check the GoHighLevel conversation before sending again."
+                if unknown else "GoHighLevel rejected the text (check the contact: opted out, no phone, or Do Not Disturb).")
+        raise BillingLinkError(502, note, "ghl_send_unknown" if unknown else "ghl_send") from None
+    return {"message_id": sent.get("messageId"), "tag_warning": tag_warning}
+
+
 def _send_locked(session, facts, text, ghl) -> dict:
     location_id = facts["location_id"]
     hosted = stripe_io.ensure_hosted_invoice({
@@ -193,31 +220,15 @@ def _send_locked(session, facts, text, ghl) -> dict:
             _log.exception("billing_mark_link_sent failed for send %s", send_id)
             return False
 
-    child = facts.get("child") or {}
-    phone = (facts["guardian"].get("phone") or "").strip()
-    tag_warning = None
     try:
-        contact_id = daycare_ghl.ensure_family_contact(
-            ghl, phone=phone, child_first=child.get("first_name", ""), child_last=child.get("last_name", ""),
-            parent_name=facts["guardian"].get("name", ""), email=facts["guardian"].get("email"))
-        if not contact_id:
-            raise BillingLinkError(502, "Could not find or create the family's GoHighLevel contact.", "ghl_contact")
-        tag_warning = daycare_ghl.add_family_tags(ghl, contact_id, location_id)   # before the text; never blocks it
-        sent = daycare_ghl.send_sms(ghl, contact_id=contact_id, message=final_text)
-        if not sent.get("ok"):
-            raise BillingLinkError(502, sent.get("detail") or "GoHighLevel did not accept the text.", "ghl_send")
+        delivered = deliver_text(ghl, facts, final_text, location_id)
     except BillingLinkError as error:
         mark("failed", None, error.message[:300])
-        raise
-    except Exception as error:  # noqa: BLE001 — never leak upstream bodies; keep the owner informed
-        unknown = type(error).__name__ == "GHLSendUnknown"
-        note = ("Unknown whether the text went out. Check the GoHighLevel conversation before sending again."
-                if unknown else "GoHighLevel rejected the text (check the contact: opted out, no phone, or Do Not Disturb).")
-        mark("failed", None, note)
-        if unknown:   # the text may have gone out: block a blind retry for the window
+        if error.code == "ghl_send_unknown":   # the text may have gone out: block a blind retry for the window
             with _LOCK:
                 _RECENT[str(facts["invoice_id"])] = time.time()
-        raise BillingLinkError(502, note, "ghl_send_unknown" if unknown else "ghl_send") from None
+        raise
+    sent, tag_warning = {"messageId": delivered["message_id"]}, delivered["tag_warning"]
 
     marked = mark("sent", sent.get("messageId"), None)
     out = {"ok": True, "send_id": send_id, "status": "sent", "pay_url": pay_url, "sent_message": final_text}
@@ -267,6 +278,8 @@ def timeline(session, invoice_id, ghl) -> dict:
     data = result if isinstance(result, dict) else (_rpc_row(result) or {})
     if "billing_invoice_timeline" in data and isinstance(data["billing_invoice_timeline"], dict):
         data = data["billing_invoice_timeline"]      # PostgREST wraps a scalar jsonb return
+    if "reminders" not in data:                       # overdue reminders: kind/status/sent_at/amount_cents/error
+        data = {**data, "reminders": daycare_supabase.billing_reminder_rows(session, inv_id)}
     return {"ok": True, **data}
 
 
