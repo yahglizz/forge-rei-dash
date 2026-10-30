@@ -6,8 +6,10 @@ Three calls, all behind the signed-in dashboard session (contract: billing-p0 CO
   send(session, invoice_id, message, ghl) -> Stripe hosted invoice + DB log + GHL text
   timeline(session, invoice_id, ghl)      -> refresh delivery status, then the DB timeline
 
-Propose -> review -> execute: nothing here runs on a loop. `send` is the owner's tap and is the
-only thing that texts a parent. No "Reply STOP" line, ever (owner decision 2026-10-07).
+Propose -> review -> execute: `send` is the owner's tap. The only other thing that texts a parent
+through this path is `daycare_billing_reminders` (overdue reminders), and only for centers whose
+`reminder_mode` is on (QA Sandbox today; every real center is off). Both call `deliver_text`.
+No "Reply STOP" line, ever (owner decision 2026-10-07).
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+import urllib.error
 import time
 from datetime import date, datetime
 
@@ -193,23 +196,32 @@ def deliver_text(ghl, facts: dict, text: str, location_id) -> dict:
     ghl_send_unknown). Never leaks upstream bodies."""
     child = facts.get("child") or {}
     phone = (facts["guardian"].get("phone") or "").strip()
+    # Stage 1 — find/create the contact and tag it. Nothing has been texted yet, so ANY failure here is definite.
     try:
         contact_id = daycare_ghl.ensure_family_contact(
             ghl, phone=phone, child_first=child.get("first_name", ""), child_last=child.get("last_name", ""),
             parent_name=facts["guardian"].get("name", ""), email=facts["guardian"].get("email"))
-        if not contact_id:
-            raise BillingLinkError(502, "Could not find or create the family's GoHighLevel contact.", "ghl_contact")
-        tag_warning = daycare_ghl.add_family_tags(ghl, contact_id, location_id)   # before the text; never blocks it
+    except Exception:  # noqa: BLE001
+        contact_id = None
+    if not contact_id:
+        raise BillingLinkError(502, "Could not find or create the family's GoHighLevel contact.", "ghl_contact")
+    tag_warning = daycare_ghl.add_family_tags(ghl, contact_id, location_id)   # before the text; never blocks it
+    # Stage 2 — the text. Only a plain HTTP 4xx (GHL refused it) is a DEFINITE failure that is safe to retry.
+    # Anything else — timeout, 5xx, a 2xx whose body cannot be read, a dropped connection — may have been
+    # accepted, so it is UNKNOWN and is never blindly retried (a retry could text the parent twice).
+    try:
         sent = daycare_ghl.send_sms(ghl, contact_id=contact_id, message=text)
-        if not sent.get("ok"):
-            raise BillingLinkError(502, sent.get("detail") or "GoHighLevel did not accept the text.", "ghl_send")
-    except BillingLinkError:
-        raise
     except Exception as error:  # noqa: BLE001
-        unknown = type(error).__name__ == "GHLSendUnknown"
-        note = ("Unknown whether the text went out. Check the GoHighLevel conversation before sending again."
-                if unknown else "GoHighLevel rejected the text (check the contact: opted out, no phone, or Do Not Disturb).")
-        raise BillingLinkError(502, note, "ghl_send_unknown" if unknown else "ghl_send") from None
+        definite = isinstance(error, urllib.error.HTTPError) and 400 <= int(error.code) < 500
+        note = ("GoHighLevel rejected the text (check the contact: opted out, no phone, or Do Not Disturb)."
+                if definite else
+                "Unknown whether the text went out. Check the GoHighLevel conversation before sending again.")
+        raise BillingLinkError(502, note, "ghl_send" if definite else "ghl_send_unknown") from None
+    if not isinstance(sent, dict):
+        raise BillingLinkError(502, "Unknown whether the text went out. Check the GoHighLevel conversation "
+                                    "before sending again.", "ghl_send_unknown")
+    if not sent.get("ok"):
+        raise BillingLinkError(502, sent.get("detail") or "GoHighLevel did not accept the text.", "ghl_send")
     return {"message_id": sent.get("messageId"), "tag_warning": tag_warning}
 
 

@@ -1637,17 +1637,26 @@ def get_notifications(session: Session) -> dict[str, Any]:
 
 
 def _attach_needs_review(session: Session, invoices: list[dict[str, Any]]) -> None:
-    """invoice["needs_review"] = True when a staff_review reminder row exists (one select per center)."""
-    flagged: set[str] = set()
+    """invoice["needs_review"] = a staff_review reminder row exists; invoice["reminder_failed"] = a reminder
+    row is 'failed' right now (no link, no phone, or a failed pay-link refresh; a later success replaces the
+    row). One select per center. Unreadable = both False."""
+    review: set[str] = set()
+    failed: set[str] = set()
     try:
-        flagged = {str(r.get("invoice_id")) for r in _rows(BRIDGE.rest(
-            session, "GET", "billing_reminders",
-            query={"location_id": f"eq.{active_location(session)}", "kind": "eq.staff_review",
-                   "select": "invoice_id", "limit": "5000"}))}
+        for r in _rows(BRIDGE.rest(
+                session, "GET", "billing_reminders",
+                query={"location_id": f"eq.{active_location(session)}",
+                       "or": "(kind.eq.staff_review,status.eq.failed)",
+                       "select": "invoice_id,kind,status", "limit": "5000"})):
+            if r.get("kind") == "staff_review":
+                review.add(str(r.get("invoice_id")))
+            if r.get("status") == "failed":
+                failed.add(str(r.get("invoice_id")))
     except DaycareError:
         pass
     for invoice in invoices:
-        invoice["needs_review"] = str(invoice.get("id")) in flagged
+        invoice["needs_review"] = str(invoice.get("id")) in review
+        invoice["reminder_failed"] = str(invoice.get("id")) in failed
 
 
 def _attach_link_status(session: Session, invoices: list[dict[str, Any]]) -> None:

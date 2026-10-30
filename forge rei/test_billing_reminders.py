@@ -98,7 +98,7 @@ class FakeDB:
         if name == "billing_mark_overdue":
             return 0
         if name == "billing_reminders_owed":
-            return list(self.owed)
+            return [] if self.mode == "off" else list(self.owed)         # the database returns nothing for an off center
         if name == "billing_reminder_claim":
             key = (body["p_invoice"], body["p_kind"], body["p_due_on"])
             row = self.rows.get(key)
@@ -400,7 +400,8 @@ class Sending(Base):
         ghl.configured = False
         out = self.tick(ghl=ghl)
         self.assertFalse(out["ok"])
-        self.assertNotIn("billing_reminders_owed", self.db.names())
+        self.assertNotIn("billing_reminder_claim", self.db.names())
+        self.assertEqual([], ghl.posts)
 
 
 class Modes(Base):
@@ -419,13 +420,20 @@ class Modes(Base):
         self.tick()
         self.assertNotIn("billing_reminder_staff_review", self.db.names())
 
-    def test_off_or_unreadable_switch_does_nothing(self):
-        for mode in ("off", "weird", ""):
+    def test_off_center_never_enters_the_center_or_sends(self):
+        self.db.mode = "off"
+        self.db.owed = [owed_row()]
+        self.tick()
+        self.assertEqual(0, self.max_depth)                  # the shared profile's active center is never touched
+        self.assertNotIn("billing_reminder_claim", self.db.names())
+        self.assertEqual([], self.ghl.posts)
+
+    def test_unreadable_switch_with_rows_owed_does_nothing(self):
+        self.db.owed = [owed_row()]
+        for mode in ("", "weird"):
             self.db.mode = mode
             self.db.calls.clear()
-            self.db.owed = [owed_row()]
             self.tick()
-            self.assertNotIn("billing_reminders_owed", self.db.names())
             self.assertNotIn("billing_reminder_claim", self.db.names())
         self.assertEqual([], self.ghl.posts)
 
@@ -686,8 +694,9 @@ class CenterSwitch(Base):
         self.assertEqual(1, out["sent"])
         inside = {n for n, d in log if d > 0}
         outside = {n for n, d in log if d == 0}
-        self.assertTrue({"facts", "link_amount", "billing_reminders_owed", "billing_mark_overdue"} <= inside, log)
-        for name in ("stripe", "billing_create_link_send", "billing_reminder_claim", "billing_reminder_result",
+        self.assertEqual({"facts", "link_amount"}, inside, log)               # the only reads that need the switch
+        for name in ("billing_mark_overdue", "billing_reminders_owed", "stripe", "billing_create_link_send",
+                     "billing_reminder_claim", "billing_reminder_result",
                      "ghl /conversations/messages", "ghl /contacts/c9/tags", "billing_mark_link_sent"):
             self.assertIn(name, outside, (name, log))
             self.assertNotIn(name, inside, (name, log))
@@ -718,6 +727,7 @@ class CenterSwitch(Base):
         self.assertEqual(1, self.max_depth)
 
     def test_switch_is_released_even_when_a_read_fails(self):
+        self.db.owed = [owed_row()]
         with mock.patch.object(daycare_supabase, "billing_reminder_mode", side_effect=RuntimeError("db")):
             with self.assertRaises(RuntimeError):
                 self.tick()
@@ -752,19 +762,282 @@ class CenterSwitch(Base):
 
 
 class OverdueFlipScope(Base):
-    def test_no_flip_when_the_center_is_off_or_unreadable(self):
-        for mode in ("off", "", "weird"):
+    def test_flip_and_owed_run_outside_the_switch_and_nothing_owed_means_no_switch(self):
+        for mode in ("off", "dry_run", "live"):
             self.db.mode = mode
             self.db.calls.clear()
+            self.db.owed = []
             self.tick()
-            self.assertNotIn("billing_mark_overdue", self.db.names(), mode)
+            self.assertEqual(["billing_mark_overdue", "billing_reminders_owed"], self.db.names(), mode)
+            self.assertEqual(0, self.max_depth, mode)
 
     def test_flip_runs_for_dry_run_and_live_before_the_owed_query(self):
         for mode in ("dry_run", "live"):
             self.db.mode = mode
             self.db.calls.clear()
+            self.db.owed = [owed_row()]
             self.tick()
-            self.assertEqual(["billing_mark_overdue", "billing_reminders_owed"], self.db.names(), mode)
+            self.assertEqual(["billing_mark_overdue", "billing_reminders_owed"], self.db.names()[:2], mode)
+
+
+class SameFamilyTwoStaleInvoices(Base):
+    """Fix 1: a family's second stale invoice must not reach Stripe (it voids a live link) when the
+    first one already claimed the family's text for the day."""
+
+    def setUp(self):
+        super().setUp()
+        self.db.owed = [owed_row("A", kind="overdue_1", due="2026-11-02"),
+                        owed_row("B", kind="overdue_1", due="2026-11-02")]
+        for inv in ("A", "B"):
+            self.db.facts[inv] = facts(inv, status="overdue", balance=2000, due_on="2026-11-02")
+        self.db.link_amount = 3000                       # both saved links are stale
+
+    def test_only_the_first_invoice_goes_to_stripe(self):
+        out = self.tick()
+        self.assertEqual(["A"], [c[0]["invoice_id"] for c in self.db.hosted_calls])
+        self.assertEqual(1, len(self.ghl.texts()))
+        self.assertEqual(1, out["skipped"]["already_sent_or_family_cap"])
+        marks = [b for n, b in self.db.calls if n == "billing_mark_link_sent"]
+        self.assertEqual(1, len(marks))                  # B never got a link row either
+
+    def test_different_families_each_refresh(self):
+        self.db.owed[1]["guardian_id"] = "g2"
+        self.db.facts["B"] = facts("B", status="overdue", balance=2000, due_on="2026-11-02",
+                                   guardian={"id": "g2", "name": "Lee Park", "first_name": "Lee",
+                                             "phone": "+15555550111"})
+        out = self.tick()
+        self.assertEqual(2, out["sent"])
+        self.assertEqual(["A", "B"], sorted(c[0]["invoice_id"] for c in self.db.hosted_calls))
+
+    def test_a_flagged_invoice_does_not_use_up_the_familys_slot(self):
+        self.db.owed[0] = owed_row("A", kind="overdue_1", due="2026-11-02", has_link=False, token=None, link_send_id=None)
+        out = self.tick()
+        self.assertEqual(["A"], out["flagged"])
+        self.assertEqual(["B"], [c[0]["invoice_id"] for c in self.db.hosted_calls])
+        self.assertEqual(1, out["sent"])
+
+
+class Resp:
+    def __init__(self, body):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return self.body
+
+
+class Unknown2xx(Base):
+    """Fix 3: only a plain HTTP 4xx is a definite refusal. Everything else may have been accepted."""
+
+    def real_client(self, send_body=b"<html>gateway ok</html>", sends=None):
+        import connector
+
+        def urlopen(req, timeout=30):
+            if req.full_url.endswith("/conversations/messages"):
+                if sends is not None:
+                    sends.append(req.full_url)
+                return Resp(send_body)
+            return Resp(b'{"conversations": [{"id": "c1"}], "contact": {"id": "c9"}, "id": "x"}')
+        patcher = mock.patch("urllib.request.urlopen", urlopen)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return connector.GHLClient({"GHL_API_KEY": "k", "GHL_LOCATION_ID": "L"})
+
+    def test_accepted_but_unreadable_body_is_unknown_and_never_sent_twice(self):
+        sends = []
+        client = self.real_client(sends=sends)
+        self.db.owed = [owed_row()]
+        with mock.patch.object(daycare_ghl, "find_contact_by_phone", return_value="c9"):
+            self.tick(ghl=client)
+            row = dict(self.db.rows[("i1", "upcoming", "2026-11-06")])
+            self.tick(ghl=client)
+        self.assertEqual("sent", row["status"])                  # held, with a note
+        self.assertIn("Unknown whether", row["error"])
+        self.assertEqual(1, len(sends))                          # the second tick did NOT text again
+
+    def test_classification_table(self):
+        def classify(error):
+            ghl = FakeGHL(fail_send=error)
+            with self.assertRaises(bl.BillingLinkError) as cm:
+                bl.deliver_text(ghl, facts(), "hi", QA)
+            return cm.exception.code
+        http = lambda code: urllib.error.HTTPError("u", code, "x", {}, None)
+        self.assertEqual("ghl_send", classify(http(400)))
+        self.assertEqual("ghl_send", classify(http(429)))
+        self.assertEqual("ghl_send_unknown", classify(http(500)))
+        self.assertEqual("ghl_send_unknown", classify(http(302)))
+        self.assertEqual("ghl_send_unknown", classify(ValueError("bad json")))
+        self.assertEqual("ghl_send_unknown", classify(urllib.error.URLError("reset")))
+        self.assertEqual("ghl_send_unknown", classify(TimeoutError()))
+        self.assertEqual("ghl_send_unknown", classify(RuntimeError("HTTP 400 DND")))     # not an HTTPError
+
+    def test_a_non_dict_send_result_is_unknown(self):
+        with mock.patch.object(daycare_ghl, "send_sms", return_value=["weird"]), \
+                self.assertRaises(bl.BillingLinkError) as cm:
+            bl.deliver_text(FakeGHL(), facts(), "hi", QA)
+        self.assertEqual("ghl_send_unknown", cm.exception.code)
+
+    def test_failing_before_the_text_is_always_definite(self):
+        for error in (RuntimeError("down"), urllib.error.URLError("dns")):
+            with mock.patch.object(daycare_ghl, "ensure_family_contact", side_effect=error), \
+                    self.assertRaises(bl.BillingLinkError) as cm:
+                bl.deliver_text(FakeGHL(), facts(), "hi", QA)
+            self.assertEqual("ghl_contact", cm.exception.code)
+
+    def test_owner_send_with_an_unreadable_2xx_is_unknown_blocks_retry_and_marks_failed(self):
+        bl._RECENT.clear()
+        bl._INFLIGHT.clear()
+        rpcs = []
+
+        def rpc(session, name, body, write=True):
+            rpcs.append((name, body))
+            if name == "billing_create_link_send":
+                return [{"id": "s1", "token": "T", "pay_url": "https://p/T", "message": "Hi https://p/T"}]
+        client = self.real_client()
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=facts("i1")), \
+                mock.patch.object(daycare_supabase, "billing_recent_send", return_value=False), \
+                mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc), \
+                mock.patch.object(stripe_io, "ensure_hosted_invoice", side_effect=self.db.hosted), \
+                mock.patch.object(daycare_ghl, "find_contact_by_phone", return_value="c9"):
+            with self.assertRaises(bl.BillingLinkError) as cm:
+                bl.send(None, "i1", "Hi {{PAY_URL}}", client)
+            self.assertEqual("ghl_send_unknown", cm.exception.code)
+            self.assertEqual("failed", [b for n, b in rpcs if n == "billing_mark_link_sent"][0]["p_status"])
+            with self.assertRaises(bl.BillingLinkError) as again:      # an immediate retry is refused
+                bl.send(None, "i1", "Hi {{PAY_URL}}", client)
+            self.assertEqual(409, again.exception.status)
+
+    def test_owner_send_definite_400_can_retry_at_once(self):
+        bl._RECENT.clear()
+        bl._INFLIGHT.clear()
+
+        def rpc(session, name, body, write=True):
+            if name == "billing_create_link_send":
+                return [{"id": "s1", "token": "T", "pay_url": "https://p/T", "message": "Hi https://p/T"}]
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=facts("i1")), \
+                mock.patch.object(daycare_supabase, "billing_recent_send", return_value=False), \
+                mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc), \
+                mock.patch.object(stripe_io, "ensure_hosted_invoice", side_effect=self.db.hosted):
+            with self.assertRaises(bl.BillingLinkError) as cm:
+                bl.send(None, "i1", "Hi {{PAY_URL}}",
+                        FakeGHL(fail_send=urllib.error.HTTPError("u", 400, "x", {}, None)))
+            self.assertEqual("ghl_send", cm.exception.code)
+            self.assertEqual("sent", bl.send(None, "i1", "Hi {{PAY_URL}}", FakeGHL())["status"])
+
+
+class FlagsUnderTheCap(Base):
+    """Fix 4: no-link / no-phone flags are written even when a sibling invoice texts the same family."""
+
+    def test_no_link_flag_row_is_written_even_though_a_sibling_texts_first_in_the_list(self):
+        self.db.owed = [owed_row("A"), owed_row("B", has_link=False, token=None, link_send_id=None)]
+        self.db.facts["A"] = facts("A")
+        self.db.facts["B"] = facts("B")
+        out = self.tick()
+        self.assertEqual(["B"], out["flagged"])
+        self.assertEqual({"A": "sent", "B": "failed"}, {k[0]: v["status"] for k, v in self.db.rows.items()})
+        self.assertIn("No pay link", self.db.rows[("B", "upcoming", "2026-11-06")]["error"])
+        self.assertEqual(1, len(self.ghl.texts()))
+
+    def test_no_phone_flag_row_is_written_and_nothing_is_texted(self):
+        self.db.owed = [owed_row("A"), owed_row("B")]
+        self.db.facts["A"] = facts("A")
+        self.db.facts["B"] = facts("B", guardian={"id": "g1", "name": "Dana Smith", "first_name": "Dana", "phone": ""})
+        out = self.tick()
+        self.assertIn("B", out["flagged"])
+        self.assertEqual("failed", self.db.rows[("B", "upcoming", "2026-11-06")]["status"])
+
+    def test_flag_rows_go_first_in_the_order_of_work(self):
+        self.db.owed = [owed_row("A"), owed_row("B", has_link=False, token=None, link_send_id=None)]
+        self.db.facts["A"] = facts("A")
+        self.db.facts["B"] = facts("B")
+        self.tick()
+        claims = [b["p_invoice"] for n, b in self.db.calls if n == "billing_reminder_claim"]
+        self.assertEqual(["B", "A"], claims)
+
+    def test_refresh_failure_row_is_written(self):
+        self.db.owed = [owed_row("A", kind="overdue_1", due="2026-11-02")]
+        self.db.facts["A"] = facts("A", status="overdue", balance=2000, due_on="2026-11-02")
+        self.db.link_amount = 3000
+        self.db.hosted_error = stripe_io.StripeError(502, "Stripe is temporarily unavailable", "x")
+        self.tick()
+        self.assertEqual("failed", self.db.rows[("A", "overdue_1", "2026-11-02")]["status"])
+
+
+class TickLog(unittest.TestCase):
+    def test_line_reports_counts_flags_and_failures(self):
+        line = rem.tick_line({"ok": True, "errors": 1, "results": [
+            {"location_id": QA, "mode": "live", "sent": 2, "failed": 1, "flagged": ["i1"], "warnings": []},
+            {"location_id": ATOB, "mode": "off"}]})
+        self.assertIn("[billing_reminders] tick:", line)
+        self.assertIn("99999999 mode=live", line)
+        self.assertIn("'sent': 2", line)
+        self.assertIn("flagged=1", line)
+        self.assertIn("1 center(s) skipped", line)
+        self.assertNotIn("11111111", line)                  # an idle center adds nothing
+
+    def test_quiet_when_nothing_happened_or_window_closed(self):
+        self.assertEqual("", rem.tick_line({"ok": True, "skipped_window": True}))
+        self.assertEqual("", rem.tick_line({"ok": True, "results": [{"location_id": QA, "mode": "off"}], "errors": 0}))
+
+    def test_failed_tick_is_reported(self):
+        self.assertIn("tick failed: no daycare session", rem.tick_line({"ok": False, "error": "no daycare session"}))
+
+    def test_loop_prints_the_line(self):
+        class Stop(Exception):
+            pass
+        printed = []
+        import forge_heartbeat
+        import forge_ops
+        with mock.patch.object(rem, "run_all", return_value={"ok": True, "errors": 0, "results": [
+                    {"location_id": QA, "mode": "live", "sent": 1}]}), \
+                mock.patch.object(rem.time, "sleep", side_effect=Stop()), \
+                mock.patch.object(forge_ops, "paused", return_value=False), \
+                mock.patch.object(forge_heartbeat, "beat"), \
+                mock.patch("builtins.print", side_effect=lambda *a, **k: printed.append(a[0])):
+            with self.assertRaises(Stop):
+                rem.run_forever(lambda: None, FakeGHL(), interval=1)
+        self.assertTrue(any("[billing_reminders] tick:" in str(p) for p in printed))
+
+
+class OffCenterNeverSwitches(Base):
+    """Fix 2: the hourly tick must not move the shared admin profile's active center for a center
+    that is off or has nothing owed."""
+
+    def test_run_all_over_off_centers_never_opens_a_switch(self):
+        self.db.mode = "off"
+        locs = {"locations": [{"id": ATOB}, {"id": ATOB2}, {"id": AMT}]}
+        with mock.patch.object(daycare_supabase, "list_locations", return_value=locs):
+            out = rem.run_all(lambda: object(), self.ghl, now=AT_10AM)
+        self.assertEqual(0, self.max_depth)
+        self.assertEqual(0, out["errors"])
+        self.assertEqual(3, len([n for n in self.db.names() if n == "billing_reminders_owed"]))   # ATOB, ATOB2, QA
+        self.assertEqual([], self.ghl.posts)
+
+    def test_only_the_center_with_rows_is_entered(self):
+        entered = []
+
+        @contextmanager
+        def at_location(session, loc):
+            entered.append(loc)
+            yield
+        real = self.db.rpc
+
+        def rpc(session, name, body, write=True):
+            if name == "billing_reminders_owed":
+                self.db.calls.append((name, body))
+                return [owed_row(loc=body["p_location"])] if body["p_location"] == QA else []
+            return real(session, name, body, write)
+        locs = {"locations": [{"id": ATOB}, {"id": ATOB2}]}
+        with mock.patch.object(daycare_supabase, "list_locations", return_value=locs), \
+                mock.patch.object(daycare_supabase, "at_location", at_location), \
+                mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc):
+            rem.run_all(lambda: object(), self.ghl, now=AT_10AM)
+        self.assertEqual([QA], entered)
 
 
 class RunNow(Base):
@@ -818,6 +1091,7 @@ class RunNow(Base):
 
 class Delivery(Base):
     def test_undelivered_reminder_gets_a_carrier_note_but_stays_sent(self):
+        self.db.owed = [owed_row()]
         self.db.unchecked = [{"id": "r9", "ghl_message_id": "m9"}]
         self.db.rows[("x", "upcoming", "d")] = {"id": "r9", "status": "sent", "guardian": "g1", "date": "d"}
         self.tick(ghl=FakeGHL(message_status="undelivered"))
@@ -826,9 +1100,10 @@ class Delivery(Base):
         self.assertIn("undelivered", res["p_error"])
 
     def test_delivered_reminder_writes_nothing(self):
+        self.db.owed = [owed_row()]
         self.db.unchecked = [{"id": "r9", "ghl_message_id": "m9"}]
         self.tick(ghl=FakeGHL(message_status="delivered"))
-        self.assertNotIn("billing_reminder_result", self.db.names())
+        self.assertEqual([], [b for n, b in self.db.calls if n == "billing_reminder_result" and b["p_id"] == "r9"])
 
 
 class Loop(Base):
@@ -909,17 +1184,34 @@ class Reads(unittest.TestCase):
         self.assertEqual([{"kind": "x"}], out["reminders"])
         reader.assert_not_called()
 
-    def test_billing_list_marks_needs_review(self):
-        def rest(session, method, resource, **kw):
+    def test_billing_list_marks_needs_review_and_reminder_failed(self):
+        queries = []
+
+        def rest(session, method, resource, query=None, **kw):
             if resource == "invoices":
-                return [{"id": "i1"}, {"id": "i2"}]
+                return [{"id": "i1"}, {"id": "i2"}, {"id": "i3"}]
             if resource == "billing_reminders":
-                return [{"invoice_id": "i2"}]
+                queries.append(query)
+                return [{"invoice_id": "i2", "kind": "staff_review", "status": "sent"},
+                        {"invoice_id": "i3", "kind": "overdue_1", "status": "failed"}]
             return []
         with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest), \
                 mock.patch.object(daycare_supabase, "active_location", return_value=ATOB):
             out = daycare_supabase.get_billing(None)
-        self.assertEqual({"i1": False, "i2": True}, {i["id"]: i["needs_review"] for i in out["invoices"]})
+        by = {i["id"]: (i["needs_review"], i["reminder_failed"]) for i in out["invoices"]}
+        self.assertEqual({"i1": (False, False), "i2": (True, False), "i3": (False, True)}, by)
+        self.assertEqual(1, len(queries))                    # one select for both flags
+        self.assertEqual("(kind.eq.staff_review,status.eq.failed)", queries[0]["or"])
+
+    def test_billing_list_flags_default_false_when_unreadable(self):
+        def rest(session, method, resource, **kw):
+            if resource == "billing_reminders":
+                raise daycare_supabase.DaycareError(403, "x")
+            return [{"id": "i1"}] if resource == "invoices" else []
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest), \
+                mock.patch.object(daycare_supabase, "active_location", return_value=ATOB):
+            inv = daycare_supabase.get_billing(None)["invoices"][0]
+        self.assertEqual((False, False), (inv["needs_review"], inv["reminder_failed"]))
 
     def test_reminder_mode_fails_closed(self):
         with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=daycare_supabase.DaycareError(403, "x")):

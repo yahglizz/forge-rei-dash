@@ -144,9 +144,10 @@ def _flag(session, row, facts, out, bucket: str, note: str) -> None:
         _log.exception("could not flag invoice %s", row.get("invoice_id"))
 
 
-def _process_row(session, row, mode, ghl, out, facts, pre) -> None:
+def _process_row(session, row, mode, ghl, out, facts, pre, claimed) -> None:
     """Phase 2 for one owed row, OUTSIDE the center switch. `facts` / `pre` were read in phase 1
-    (an Exception in `facts` means that read failed)."""
+    (an Exception in `facts` means that read failed). `claimed` = guardian ids that already got a claim in
+    THIS tick (the daily cap, known before Stripe is touched)."""
     kind = row.get("kind")
     if kind == "staff_review":
         if mode != "live":
@@ -172,6 +173,9 @@ def _process_row(session, row, mode, ghl, out, facts, pre) -> None:
     if not (row.get("has_link") and row.get("token")):
         _flag(session, row, facts, out, "no_link", "No pay link on file. Send one from the Billing tab first.")
         return
+    if mode == "live" and not (facts["guardian"].get("phone") or "").strip():
+        _flag(session, row, facts, out, "no_phone", "No phone number on file.")
+        return
 
     brand = daycare_ghl._brand_link(facts["location_id"])[0]
     child = "" if facts.get("child_ambiguous") else (facts.get("child") or {}).get("first_name", "")
@@ -191,10 +195,7 @@ def _process_row(session, row, mode, ghl, out, facts, pre) -> None:
                       "a live run would refresh it first.")
     elif stale:
         # Everything that can say "no" is checked BEFORE the irreversible Stripe step (it voids the old invoice).
-        if not (facts["guardian"].get("phone") or "").strip():
-            _flag(session, row, facts, out, "no_phone", "No phone number on file.")
-            return
-        if pre["family_busy"]:                             # this family already got a billing text today
+        if pre["family_busy"] or str(row.get("guardian_id")) in claimed:   # family already has today's text
             _bump(out["skipped"], "already_sent_or_family_cap")
             return
         try:                                               # same guard as the owner's Send (race = two invoices)
@@ -229,12 +230,7 @@ def _process_row(session, row, mode, ghl, out, facts, pre) -> None:
         _record(session, rid, "dry_run", None, stale_note)
         out["dry_run"] += 1
         return
-    if not (facts["guardian"].get("phone") or "").strip():
-        _record(session, rid, "failed", None, "No phone number on file.")
-        if refreshed:
-            bl.mark_link(session, refreshed["send_id"], "failed", None, "No phone number on file.")
-        out["failed"] += 1
-        return
+    claimed.add(str(row.get("guardian_id")))              # this family's one text for today is now spoken for
     try:
         delivered = bl.deliver_text(ghl, facts, message, facts["location_id"])
     except bl.BillingLinkError as error:
@@ -259,20 +255,19 @@ def _process_row(session, row, mode, ghl, out, facts, pre) -> None:
         out["warnings"].append(delivered["tag_warning"])
 
 
-def _plan(session, location_id, as_of: date, mode: str, out: dict) -> dict:
+def _plan(session, location_id, as_of: date, mode: str, owed: list) -> dict:
     """PHASE 1 — every read that depends on the session's active center (RLS my_location()):
     the delivery-check candidates and each owed invoice's facts + saved-link amount. Runs inside
     at_location and does no network call to GHL or Stripe, so the center switch (a process-wide lock
-    on a profile shared with the dashboard) is held for a few quick reads only."""
+    on a profile shared with the dashboard) is held for a few quick reads only. Only entered when the
+    database says something is owed."""
     plan = {"unchecked": [], "rows": []}
     if mode == "live":
         try:
             plan["unchecked"] = daycare_supabase.billing_reminder_unchecked(session, location_id)
         except daycare_supabase.DaycareError:
             pass
-    owed = _rpc(session, "billing_reminders_owed",
-                {"p_location": str(location_id), "p_today": as_of.isoformat()}, write=False)
-    for row in (owed if isinstance(owed, list) else []):
+    for row in owed:
         facts, pre = None, {"link_amount": None, "recent_link": False, "family_busy": False}
         needs_facts = (row.get("kind") in TEMPLATES and not row.get("has_pending_payment"))
         if needs_facts:
@@ -289,7 +284,19 @@ def _plan(session, location_id, as_of: date, mode: str, out: dict) -> dict:
             except Exception as error:  # noqa: BLE001 — surfaces as that one row's error in phase 2
                 facts = error
         plan["rows"].append((row, facts, pre))
+    # Rows that will only WRITE a flag (no link / no phone) go first: their claim must land before any
+    # sibling invoice claims the family's one text for the day, or the daily cap would swallow the flag.
+    plan["rows"].sort(key=lambda item: 0 if _will_flag(item, mode) else 1)
     return plan
+
+
+def _will_flag(item, mode) -> bool:
+    row, facts, _pre = item
+    if row.get("kind") not in TEMPLATES or row.get("has_pending_payment") or not isinstance(facts, dict):
+        return False
+    if not (row.get("has_link") and row.get("token")):
+        return True
+    return mode == "live" and not (facts["guardian"].get("phone") or "").strip()
 
 
 def run_location(session, location_id, as_of: date, ghl, *, now: datetime | None = None) -> dict:
@@ -308,24 +315,29 @@ def run_location(session, location_id, as_of: date, ghl, *, now: datetime | None
     if not _TICK_LOCK.acquire(blocking=False):
         return {**out, "ok": False, "detail": "A reminder run is already in progress."}
     try:
+        # These two RPCs name the center and check membership, so they run WITHOUT standing in it. A center
+        # that is off (or has nothing owed) therefore never touches the shared admin profile's active center.
+        out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {
+            "p_today": as_of.isoformat(), "p_location": str(location_id)}))
+        owed = _rpc(session, "billing_reminders_owed",
+                    {"p_location": str(location_id), "p_today": as_of.isoformat()}, write=False)
+        owed = owed if isinstance(owed, list) else []
+        if not owed:
+            return out
         with daycare_supabase.at_location(session, location_id):
             mode = daycare_supabase.billing_reminder_mode(session, location_id)
             out["mode"] = mode
             if mode not in MODES_THAT_ACT:
-                return out            # off / unreadable: no flip, no owed query, nothing
+                return out            # unreadable switch counts as off: nothing happens
             if mode == "live" and (ghl is None or not getattr(ghl, "configured", False)):
                 return {**out, "ok": False, "detail": "GoHighLevel is not connected, so no reminder was sent."}
-            # Flip due -> overdue for THIS center as of as_of, before computing what is owed. p_location scopes
-            # it (and the database still requires the switch on, never 4444, caller manages), so a QA run-now
-            # with a simulated date cannot move another center.
-            out["marked_overdue"] = _first(_rpc(session, "billing_mark_overdue", {
-                "p_today": as_of.isoformat(), "p_location": str(location_id)}))
-            plan = _plan(session, location_id, as_of, mode, out)
+            plan = _plan(session, location_id, as_of, mode, owed)
         if mode == "live":
             _refresh_delivery(session, plan["unchecked"], ghl)
+        claimed: set = set()
         for row, facts, pre in plan["rows"]:
             try:
-                _process_row(session, row, mode, ghl, out, facts, pre)
+                _process_row(session, row, mode, ghl, out, facts, pre, claimed)
             except Exception as error:  # noqa: BLE001 — one bad invoice never stops the rest
                 _log.exception("reminder row failed (invoice %s)", row.get("invoice_id"))
                 out["failed"] += 1
@@ -380,6 +392,24 @@ def run_all(session_fn, ghl, *, now: datetime | None = None) -> dict:
     return {"ok": True, "results": results, "errors": errors}
 
 
+def tick_line(summary: dict) -> str:
+    """One log line for a box tick (nothing when the window is closed or nothing happened)."""
+    if summary.get("skipped_window"):
+        return ""
+    if not summary.get("ok", True):
+        return "[billing_reminders] tick failed: " + str(summary.get("error") or summary.get("detail") or "unknown")
+    parts = []
+    for result in summary.get("results") or []:
+        counts = {k: result.get(k) for k in ("sent", "dry_run", "failed", "reviews") if result.get(k)}
+        if counts or result.get("flagged") or result.get("warnings"):
+            parts.append(f"{str(result.get('location_id'))[:8]} mode={result.get('mode')} {counts}"
+                         + (f" flagged={len(result['flagged'])}" if result.get("flagged") else "")
+                         + (f" warnings={len(result['warnings'])}" if result.get("warnings") else ""))
+    if summary.get("errors"):
+        parts.append(f"{summary['errors']} center(s) skipped")
+    return ("[billing_reminders] tick: " + "; ".join(parts)) if parts else ""
+
+
 def run_forever(session_fn, ghl, interval: int = INTERVAL):
     """Box loop (thread `daycare_billing_reminders`, FORGE_MARCUS=1 only): hourly, in-window only."""
     import forge_heartbeat
@@ -390,6 +420,9 @@ def run_forever(session_fn, ghl, interval: int = INTERVAL):
             if not forge_ops.paused():
                 summary = run_all(session_fn, ghl)
                 err = summary.get("error") or (f"{summary['errors']} center(s) skipped" if summary.get("errors") else None)
+                line = tick_line(summary)
+                if line:
+                    print(line, flush=True)
         except Exception as error:  # noqa: BLE001 — one failure never kills the loop
             err = type(error).__name__
         forge_heartbeat.beat("daycare_billing_reminders", interval, "Billing · Overdue reminders", error=err)
