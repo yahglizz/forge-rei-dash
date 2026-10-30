@@ -195,12 +195,14 @@ def _send_locked(session, facts, text, ghl) -> dict:
 
     child = facts.get("child") or {}
     phone = (facts["guardian"].get("phone") or "").strip()
+    tag_warning = None
     try:
         contact_id = daycare_ghl.ensure_family_contact(
             ghl, phone=phone, child_first=child.get("first_name", ""), child_last=child.get("last_name", ""),
             parent_name=facts["guardian"].get("name", ""), email=facts["guardian"].get("email"))
         if not contact_id:
             raise BillingLinkError(502, "Could not find or create the family's GoHighLevel contact.", "ghl_contact")
+        tag_warning = daycare_ghl.add_family_tags(ghl, contact_id, location_id)   # before the text; never blocks it
         sent = daycare_ghl.send_sms(ghl, contact_id=contact_id, message=final_text)
         if not sent.get("ok"):
             raise BillingLinkError(502, sent.get("detail") or "GoHighLevel did not accept the text.", "ghl_send")
@@ -219,8 +221,9 @@ def _send_locked(session, facts, text, ghl) -> dict:
 
     marked = mark("sent", sent.get("messageId"), None)
     out = {"ok": True, "send_id": send_id, "status": "sent", "pay_url": pay_url, "sent_message": final_text}
-    if not marked:
-        out["warning"] = "The text went out, but the send log could not be updated."
+    warnings = [w for w in (tag_warning, None if marked else "The text went out, but the send log could not be updated.") if w]
+    if warnings:
+        out["warning"] = " ".join(warnings)
     with _LOCK:
         _RECENT[str(facts["invoice_id"])] = time.time()
     return out
@@ -295,4 +298,8 @@ def legacy_text(session, body, ghl) -> dict:
         parent_name=facts["guardian"].get("name", ""), email=facts["guardian"].get("email"))
     if not contact_id:
         return {"ok": False, "detail": "Could not create a GHL contact for this family."}
-    return daycare_ghl.send_sms(ghl, contact_id=contact_id, message=message)
+    tag_warning = daycare_ghl.add_family_tags(ghl, contact_id, facts["location_id"])
+    result = daycare_ghl.send_sms(ghl, contact_id=contact_id, message=message)
+    if tag_warning and isinstance(result, dict):
+        result["warning"] = tag_warning
+    return result

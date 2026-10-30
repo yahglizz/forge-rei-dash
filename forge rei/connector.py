@@ -1157,6 +1157,7 @@ def _daycare_blast_transport(recipient, text):
         phone=recipient.get("phone"), email=recipient.get("email"))
     if not contact_id:
         return {"ok": False, "note": "could not resolve a GHL contact"}
+    daycare_ghl.add_family_tags(DAYCARE_GHL, contact_id, recipient.get("locationId"))   # additive; a failure never blocks the text
     result = daycare_ghl.send_sms(DAYCARE_GHL, contact_id=contact_id, message=text)
     if not result.get("ok"):
         return {"ok": False, "note": result.get("detail") or "send failed"}

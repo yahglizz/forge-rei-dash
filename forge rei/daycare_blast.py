@@ -297,14 +297,14 @@ def cancel_blast(blast_id, *, location_id=None) -> dict:
         return {"ok": True, "blast": record}
 
 
-def _send_one(recipient) -> dict:
+def _send_one(recipient, location_id=None) -> dict:
     if not (recipient.get("phone") or "").strip():
         return {"ok": False, "skipped": True, "note": "no phone on file"}
     if _TRANSPORT is None:
         return {"ok": True, "stub": True,
                 "note": "stub: would text %s" % recipient.get("phone")}
     try:
-        result = _TRANSPORT(recipient, recipient.get("text") or "")
+        result = _TRANSPORT(dict(recipient, locationId=location_id), recipient.get("text") or "")
     except Exception as error:  # noqa: BLE001 — one bad number must not kill the blast
         return {"ok": False, "note": str(error) or "send failed"}
     return result if isinstance(result, dict) else {"ok": False, "note": "bad transport result"}
@@ -338,7 +338,7 @@ def send_blast(blast_id, *, location_id=None, throttle=0.25) -> dict:
                 recipient["note"] = "opted out"
                 skipped += 1
                 continue
-            result = _send_one(recipient)
+            result = _send_one(recipient, record.get("locationId"))
             if result.get("ok"):
                 recipient["status"] = "stub-sent" if result.get("stub") else "sent"
                 recipient["sentAt"] = _now()

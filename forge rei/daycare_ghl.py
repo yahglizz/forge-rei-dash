@@ -227,6 +227,25 @@ def ensure_family_contact(client, *, phone: str, child_first: str = "", child_la
     return contact.get("id") or created.get("id")
 
 
+def add_family_tags(client, contact_id: str, location_id=None) -> str | None:
+    """Mark a contact as a daycare family BEFORE we text it, so the GHL Conversation AI bot (which
+    skips `daycare family` / `entity-amt`) never drafts a reply to a parent's answer.
+
+    ADDITIVE only: POST /contacts/{id}/tags adds and keeps every other tag (an upsert with `tags`
+    would REPLACE them all). Adds `daycare family`, plus `entity-amt` for A Mother's Touch (1923).
+    Returns None on success, or a plain warning — a tag failure must never block the text."""
+    tags = [FAMILY_TAG]
+    if str(location_id or "").startswith(AMT_LOCATION_PREFIX):
+        tags.append("entity-amt")
+    try:
+        client.post(f"/contacts/{contact_id}/tags", {"tags": tags})
+        return None
+    except Exception as error:  # noqa: BLE001
+        print(f"[daycare_ghl] tag add failed for contact {contact_id}: {type(error).__name__}", flush=True)
+        return ("Could not tag the family's GoHighLevel contact, so the chat bot may answer if the "
+                "parent replies. Tag it 'daycare family' by hand.")
+
+
 def _get_or_create_conversation(client, contact_id: str) -> str | None:
     data = client.get("/conversations/search",
                       {"locationId": client.location_id, "contactId": contact_id})

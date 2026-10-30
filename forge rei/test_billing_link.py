@@ -257,8 +257,8 @@ class FakeGHL:
     configured = True
     location_id = "LOC"
 
-    def __init__(self, existing=None, fail_send=None):
-        self.existing, self.fail_send, self.posts, self.gets = existing, fail_send, [], []
+    def __init__(self, existing=None, fail_send=None, fail_tags=False):
+        self.existing, self.fail_send, self.fail_tags, self.posts, self.gets = existing, fail_send, fail_tags, [], []
 
     def get(self, path, params=None, retries=3):
         self.gets.append((path, params))
@@ -272,6 +272,8 @@ class FakeGHL:
 
     def post(self, path, body, retries=2):
         self.posts.append((path, body))
+        if path.endswith("/tags") and self.fail_tags:
+            raise urllib.error.HTTPError("u", 500, "boom", {}, None)
         if path == "/contacts/":
             return {"contact": {"id": "newc"}}
         if path == "/conversations/messages":
@@ -682,6 +684,111 @@ class FollowUps(unittest.TestCase):
             out = connector.Handler._daycare_stripe_sync_payment(object.__new__(connector.Handler), None, {"invoice_id": INV})
         self.assertEqual("sk_test_abc", seen["key"])
         self.assertFalse(out["synced"])
+
+
+class FamilyTags(unittest.TestCase):
+    """The GHL chat bot skips `daycare family` / `entity-amt`: tag (additively) BEFORE texting."""
+
+    def setUp(self):
+        bl._RECENT.clear()
+        bl._INFLIGHT.clear()
+
+    def rpc(self, session, name, body, write=True):
+        if name == "billing_create_link_send":
+            return [{"id": "s1", "token": "T", "pay_url": "https://p/T", "message": "Hi https://p/T"}]
+
+    def send(self, ghl, f=None):
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=f or facts()), \
+                mock.patch.object(daycare_supabase, "billing_recent_send", return_value=False), \
+                mock.patch.object(daycare_supabase, "billing_rpc", side_effect=self.rpc), \
+                mock.patch.object(stripe_io, "_req", FakeStripe()), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"):
+            return bl.send(None, INV, "Hi {{PAY_URL}}", ghl)
+
+    def paths(self, ghl):
+        return [p for p, _ in ghl.posts]
+
+    def test_atob_family_tagged_once_additively_before_the_text(self):
+        ghl = FakeGHL(existing="c9")
+        out = self.send(ghl)
+        tag_posts = [(p, b) for p, b in ghl.posts if p.endswith("/tags")]
+        self.assertEqual([("/contacts/c9/tags", {"tags": ["daycare family"]})], tag_posts)
+        self.assertLess(self.paths(ghl).index("/contacts/c9/tags"), self.paths(ghl).index("/conversations/messages"))
+        self.assertNotIn("/contacts/", self.paths(ghl))            # no upsert that could replace tags
+        self.assertNotIn("warning", out)
+
+    def test_amt_adds_entity_amt(self):
+        ghl = FakeGHL(existing="c9")
+        self.send(ghl, facts(location_id=AMT))
+        self.assertEqual([{"tags": ["daycare family", "entity-amt"]}],
+                         [b for p, b in ghl.posts if p.endswith("/tags")])
+
+    def test_qa_and_921_get_no_entity_tag(self):
+        for loc in (QA, ATOB):
+            ghl = FakeGHL(existing="c9")
+            bl._RECENT.clear()
+            self.send(ghl, facts(location_id=loc))
+            self.assertEqual([{"tags": ["daycare family"]}], [b for p, b in ghl.posts if p.endswith("/tags")])
+
+    def test_tag_failure_does_not_block_the_text_and_warns(self):
+        ghl = FakeGHL(existing="c9", fail_tags=True)
+        out = self.send(ghl)
+        self.assertIn("/conversations/messages", self.paths(ghl))
+        self.assertEqual("sent", out["status"])
+        self.assertIn("daycare family", out["warning"])
+
+    def test_new_contact_is_created_untagged_then_tagged_additively(self):
+        ghl = FakeGHL()                                           # phone not found -> contact created as 'newc'
+        self.send(ghl)
+        create = [b for p, b in ghl.posts if p == "/contacts/"][0]
+        self.assertNotIn("tags", create)                          # creation never carries a tags list
+        self.assertIn("/contacts/newc/tags", self.paths(ghl))
+
+    def test_legacy_text_invoice_tags_too(self):
+        ghl = FakeGHL(existing="c9")
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=facts(location_id=AMT)), \
+                mock.patch.object(stripe_io, "find_invoice", return_value=None), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"):
+            out = bl.legacy_text(None, {"invoice_id": INV}, ghl)
+        self.assertTrue(out["ok"])
+        self.assertEqual([{"tags": ["daycare family", "entity-amt"]}],
+                         [b for p, b in ghl.posts if p.endswith("/tags")])
+
+    def test_legacy_text_tag_failure_still_sends(self):
+        ghl = FakeGHL(existing="c9", fail_tags=True)
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=facts()), \
+                mock.patch.object(stripe_io, "find_invoice", return_value=None), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"):
+            out = bl.legacy_text(None, {"invoice_id": INV}, ghl)
+        self.assertTrue(out["ok"])
+        self.assertIn("warning", out)
+
+    def test_blast_transport_tags_by_the_blasts_center(self):
+        import connector
+        import daycare_blast
+        seen = []
+        ghl = FakeGHL(existing="c9")
+        old = daycare_blast._TRANSPORT
+        self.addCleanup(setattr, daycare_blast, "_TRANSPORT", old)
+        daycare_blast.register_transport(lambda rec, text: seen.append(rec) or {"ok": True})
+        daycare_blast._send_one({"phone": "+15555550100", "text": "hi"}, AMT)
+        self.assertEqual(AMT, seen[0]["locationId"])                # the blast's center reaches the transport
+        with mock.patch.object(connector, "DAYCARE_GHL", ghl), \
+                mock.patch.object(daycare_ghl, "ensure_contact", return_value="c9"):
+            out = connector._daycare_blast_transport({"name": "Dana", "phone": "+15555550100", "locationId": AMT}, "hi")
+        self.assertTrue(out["ok"])
+        self.assertEqual([{"tags": ["daycare family", "entity-amt"]}],
+                         [b for p, b in ghl.posts if p.endswith("/tags")])
+        self.assertLess(self.paths(ghl).index("/contacts/c9/tags"), self.paths(ghl).index("/conversations/messages"))
+
+    def test_blast_tag_failure_still_texts(self):
+        import connector
+        ghl = FakeGHL(existing="c9", fail_tags=True)
+        with mock.patch.object(connector, "DAYCARE_GHL", ghl), \
+                mock.patch.object(daycare_ghl, "ensure_contact", return_value="c9"):
+            out = connector._daycare_blast_transport({"name": "Dana", "phone": "+15555550100"}, "hi")
+        self.assertTrue(out["ok"])
+        self.assertIn("/conversations/messages", self.paths(ghl))
 
 
 class Routes(unittest.TestCase):
