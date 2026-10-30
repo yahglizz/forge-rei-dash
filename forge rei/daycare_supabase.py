@@ -1536,6 +1536,27 @@ def get_notifications(session: Session) -> dict[str, Any]:
     return {"ok": True, "notifications": _rows(rows)}
 
 
+def _attach_link_status(session: Session, invoices: list[dict[str, Any]]) -> None:
+    """invoice["link"] = newest billing_link_sends row's status fields, or None. ONE select for the
+    whole center (RLS-scoped), grouped here — no per-invoice query. A failed read (table not
+    migrated yet) leaves every link None; it never breaks the billing list."""
+    newest: dict[str, dict[str, Any]] = {}
+    try:
+        rows = _rows(BRIDGE.rest(
+            session, "GET", "billing_link_sends",
+            query={"location_id": f"eq.{active_location(session)}",
+                   "select": "invoice_id,status,sent_at,opened_at,open_count,paid_at,created_at",
+                   "order": "created_at.desc", "limit": "5000"}))
+    except DaycareError:
+        rows = []
+    for row in rows:                       # newest first: keep the first row seen per invoice
+        newest.setdefault(str(row.get("invoice_id")), row)
+    for invoice in invoices:
+        row = newest.get(str(invoice.get("id")))
+        invoice["link"] = ({k: row.get(k) for k in ("status", "sent_at", "opened_at", "open_count", "paid_at")}
+                           if row else None)
+
+
 def get_billing(session: Session) -> dict[str, Any]:
     rows = BRIDGE.rest(
         session,
@@ -1555,6 +1576,7 @@ def get_billing(session: Session) -> dict[str, Any]:
             invoice["guardian"] = guardian
             invoice["guardian_name"] = guardian.get("display_name") or " ".join(
                 value for value in (guardian.get("first_name"), guardian.get("last_name")) if value)
+    _attach_link_status(session, invoices)
     guardians = BRIDGE.rest(
         session,
         "GET",
@@ -1697,13 +1719,23 @@ def billing_invoice_facts(session: Session, invoice_id: Any) -> dict[str, Any]:
     except DaycareError:
         known = []
 
+    loc_id = invoice.get("location_id") or active_location(session)
+    center_name = ""
+    try:
+        center_name = str((_rows(BRIDGE.rest(
+            session, "GET", "locations",
+            query={"id": f"eq.{loc_id}", "select": "name", "limit": "1"})) or [{}])[0].get("name") or "")
+    except DaycareError:
+        center_name = ""
+
     return {
         "invoice_id": invoice.get("id"),
+        "center_name": center_name,
         "invoice_number": invoice.get("invoice_number"),
         "description": invoice.get("description"),
         "due_on": invoice.get("due_on"),
         "status": invoice.get("status"),
-        "location_id": invoice.get("location_id") or active_location(session),
+        "location_id": loc_id,
         "amount_cents": amount_cents,
         "paid_cents": paid_cents,
         "balance_cents": max(0, amount_cents - paid_cents),
@@ -1719,6 +1751,17 @@ def billing_invoice_facts(session: Session, invoice_id: Any) -> dict[str, Any]:
         "child_ambiguous": ambiguous,
         "known_stripe_invoice_ids": known,
     }
+
+
+def billing_recent_send(session: Session, invoice_id: Any, seconds: int = 120) -> bool:
+    """True if this invoice has a billing_link_sends row in created/sent younger than `seconds`.
+    Fails closed: a read error propagates, so no send goes out on a guess."""
+    inv_id = require_uuid(invoice_id, "invoice_id")
+    since = datetime.fromtimestamp(time.time() - seconds, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return bool(_rows(BRIDGE.rest(
+        session, "GET", "billing_link_sends",
+        query={"invoice_id": f"eq.{inv_id}", "status": "in.(created,sent)",
+               "created_at": f"gte.{since}", "select": "id", "limit": "1"})))
 
 
 def billing_send_rows(session: Session, invoice_id: Any, status: str) -> list[dict[str, Any]]:

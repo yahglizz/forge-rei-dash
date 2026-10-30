@@ -23,7 +23,8 @@ import stripe_io
 
 PLACEHOLDER = "{{PAY_URL}}"
 MAX_MESSAGE = 640
-_DOUBLE_TAP_SECONDS = 20
+RESEND_WINDOW = 120   # seconds; contract change 1
+TOO_SOON = "A link was just sent for this invoice. Check the Timeline before sending again."
 _INFLIGHT: set[str] = set()
 _RECENT: dict[str, float] = {}
 _LOCK = threading.Lock()
@@ -106,6 +107,7 @@ def compose(session, invoice_id) -> dict:
             "due_on": facts.get("due_on"),
             "invoice_number": facts.get("invoice_number"),
             "brand": daycare_ghl._brand_link(facts.get("location_id"))[0],
+            "center_name": facts.get("center_name") or "",
             "livemode": str(facts.get("location_id")).lower() != stripe_io.QA_LOCATION_ID,
         },
         "warnings": warnings,
@@ -141,9 +143,12 @@ def send(session, invoice_id, message, ghl) -> dict:
         raise BillingLinkError(503, "GoHighLevel is not connected, so the text cannot be sent.", "ghl_not_configured")
 
     key = str(facts["invoice_id"])
-    with _LOCK:
-        if key in _INFLIGHT or time.time() - _RECENT.get(key, 0) < _DOUBLE_TAP_SECONDS:
-            raise BillingLinkError(429, "A pay link for this invoice was just sent. Wait a moment before sending again.", "duplicate_tap")
+    # DB guard (survives restarts): a created/sent row younger than 120 s means a text may already be on its way.
+    if daycare_supabase.billing_recent_send(session, facts["invoice_id"], RESEND_WINDOW):
+        raise BillingLinkError(409, TOO_SOON, "recent_send")
+    with _LOCK:   # in-process guard: concurrent taps, and an UNKNOWN GHL outcome (row is 'failed' in the DB)
+        if key in _INFLIGHT or time.time() - _RECENT.get(key, 0) < RESEND_WINDOW:
+            raise BillingLinkError(409, TOO_SOON, "recent_send")
         _INFLIGHT.add(key)
     try:
         return _send_locked(session, facts, text, ghl)
@@ -198,6 +203,9 @@ def _send_locked(session, facts, text, ghl) -> dict:
         note = ("Unknown whether the text went out. Check the GoHighLevel conversation before sending again."
                 if unknown else "GoHighLevel rejected the text (check the contact: opted out, no phone, or Do Not Disturb).")
         mark("failed", None, note)
+        if unknown:   # the text may have gone out: block a blind retry for the window
+            with _LOCK:
+                _RECENT[str(facts["invoice_id"])] = time.time()
         raise BillingLinkError(502, note, "ghl_send_unknown" if unknown else "ghl_send") from None
 
     marked = mark("sent", sent.get("messageId"), None)

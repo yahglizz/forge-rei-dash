@@ -294,6 +294,7 @@ class SendFlow(unittest.TestCase):
         bl._RECENT.clear()
         bl._INFLIGHT.clear()
         self.rpcs = []
+        self.recent = False
         self.stripe = FakeStripe()
 
     def rpc(self, session, name, body, write=True):
@@ -308,6 +309,7 @@ class SendFlow(unittest.TestCase):
         ghl = ghl or FakeGHL(existing="c9")
         with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=f or facts()), \
                 mock.patch.object(daycare_supabase, "billing_rpc", side_effect=self.rpc), \
+                mock.patch.object(daycare_supabase, "billing_recent_send", return_value=self.recent), \
                 mock.patch.object(stripe_io, "_req", self.stripe), \
                 mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"):
             return bl.send(None, INV, message or "Hi Dana. Pay: {{PAY_URL}}", ghl), ghl
@@ -366,7 +368,7 @@ class SendFlow(unittest.TestCase):
         self.run_send()
         with self.assertRaises(bl.BillingLinkError) as cm:
             self.run_send()
-        self.assertEqual(429, cm.exception.status)
+        self.assertEqual((409, bl.TOO_SOON), (cm.exception.status, cm.exception.message))
 
     def test_qa_message_names_atob_and_amt_message_names_amt(self):
         msg, _ = bl.compose_text(facts(location_id=AMT), TODAY)
@@ -382,6 +384,8 @@ class Facts(unittest.TestCase):
                 return linked or []
             if resource == "billing_link_sends":
                 return [{"stripe_invoice_id": "in_1"}]
+            if resource == "locations":
+                return [{"name": "921 N 18th"}]
             raise AssertionError(resource)
         with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest), \
                 mock.patch.object(daycare_supabase, "_merge_contacts", lambda s, p: p[0].update(phone="+1555")), \
@@ -404,6 +408,7 @@ class Facts(unittest.TestCase):
         self.assertEqual(["in_1"], f["known_stripe_invoice_ids"])
         self.assertEqual("Dana", f["guardian"]["first_name"])
         self.assertEqual("Maya", f["child"]["first_name"])
+        self.assertEqual("921 N 18th", f["center_name"])
 
     def test_child_from_single_linked_child(self):
         f = self.facts_from(self.inv(children=None, child_id=None),
@@ -448,6 +453,116 @@ class Timeline(unittest.TestCase):
                 mock.patch.object(daycare_supabase, "billing_rpc",
                                   return_value={"invoice": {}, "sends": [], "payments": [], "alerts": []}):
             self.assertTrue(bl.timeline(None, INV, Boom())["ok"])
+
+
+class ChangeOne(unittest.TestCase):
+    """Contract change 1: link status on the billing list, center_name, 120 s resend guard."""
+
+    def setUp(self):
+        bl._RECENT.clear()
+        bl._INFLIGHT.clear()
+
+    def test_billing_list_gets_newest_link_per_invoice_in_one_query(self):
+        calls = []
+        link_rows = [  # newest first, as asked
+            {"invoice_id": "i1", "status": "delivered", "sent_at": "t3", "opened_at": "t4", "open_count": 2,
+             "paid_at": None, "created_at": "t3"},
+            {"invoice_id": "i1", "status": "failed", "sent_at": None, "opened_at": None, "open_count": 0,
+             "paid_at": None, "created_at": "t1"},
+        ]
+
+        def rest(session, method, resource, **kw):
+            calls.append(resource)
+            if resource == "invoices":
+                return [{"id": "i1"}, {"id": "i2"}]
+            if resource == "billing_link_sends":
+                return link_rows
+            return []
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest), \
+                mock.patch.object(daycare_supabase, "active_location", return_value=ATOB):
+            out = daycare_supabase.get_billing(None)
+        by = {i["id"]: i for i in out["invoices"]}
+        self.assertEqual({"status": "delivered", "sent_at": "t3", "opened_at": "t4", "open_count": 2,
+                          "paid_at": None}, by["i1"]["link"])
+        self.assertIsNone(by["i2"]["link"])
+        self.assertEqual(1, calls.count("billing_link_sends"))        # no N+1
+
+    def test_billing_list_survives_missing_link_table(self):
+        def rest(session, method, resource, **kw):
+            if resource == "billing_link_sends":
+                raise daycare_supabase.DaycareError(404, "x", "not_found")
+            return [{"id": "i1"}] if resource == "invoices" else []
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest), \
+                mock.patch.object(daycare_supabase, "active_location", return_value=ATOB):
+            out = daycare_supabase.get_billing(None)
+        self.assertIsNone(out["invoices"][0]["link"])
+
+    def test_compose_facts_have_center_name(self):
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts",
+                               return_value=facts(center_name="921 N 18th")):
+            out = bl.compose(None, INV)
+        self.assertEqual(("A Touch of Blessings", "921 N 18th"),
+                         (out["facts"]["brand"], out["facts"]["center_name"]))
+
+    def test_recent_send_query_asks_created_or_sent_since_cutoff(self):
+        seen = {}
+
+        def rest(session, method, resource, query=None, **kw):
+            seen.update(resource=resource, query=query)
+            return [{"id": "x"}]
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest):
+            self.assertTrue(daycare_supabase.billing_recent_send(None, INV, 120))
+        self.assertEqual("billing_link_sends", seen["resource"])
+        self.assertEqual("in.(created,sent)", seen["query"]["status"])
+        self.assertTrue(seen["query"]["created_at"].startswith("gte.20"))
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", return_value=[]):
+            self.assertFalse(daycare_supabase.billing_recent_send(None, INV, 120))
+
+    def run_send(self, ghl, recent=False, rpc=None):
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=facts()), \
+                mock.patch.object(daycare_supabase, "billing_recent_send", return_value=recent), \
+                mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc or self.rpc), \
+                mock.patch.object(stripe_io, "_req", FakeStripe()), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"):
+            return bl.send(None, INV, "Hi {{PAY_URL}}", ghl)
+
+    def rpc(self, session, name, body, write=True):
+        if name == "billing_create_link_send":
+            return [{"id": "s1", "token": "T", "pay_url": "https://p/T", "message": "Hi https://p/T"}]
+
+    def test_recent_row_blocks_with_409_before_stripe_or_ghl(self):
+        ghl = FakeGHL(existing="c9")
+        stripe = FakeStripe()
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts", return_value=facts()), \
+                mock.patch.object(daycare_supabase, "billing_recent_send", return_value=True), \
+                mock.patch.object(daycare_supabase, "billing_rpc") as rpc, \
+                mock.patch.object(stripe_io, "_req", stripe):
+            with self.assertRaises(bl.BillingLinkError) as cm:
+                bl.send(None, INV, "Hi {{PAY_URL}}", ghl)
+        self.assertEqual((409, bl.TOO_SOON), (cm.exception.status, cm.exception.message))
+        self.assertEqual(({"ok": False, "detail": bl.TOO_SOON}),
+                         {k: cm.exception.payload()[k] for k in ("ok", "detail")})
+        self.assertEqual(([], [], []), (stripe.calls, ghl.posts, rpc.mock_calls))
+
+    def test_unknown_ghl_outcome_cannot_be_blindly_retried(self):
+        class GHLSendUnknown(RuntimeError):
+            pass
+        with self.assertRaises(bl.BillingLinkError) as cm:
+            self.run_send(FakeGHL(existing="c9", fail_send=GHLSendUnknown("timeout")))
+        self.assertEqual(502, cm.exception.status)
+        ghl2 = FakeGHL(existing="c9")
+        with self.assertRaises(bl.BillingLinkError) as cm:      # retry right away: DB says 'failed', memory says wait
+            self.run_send(ghl2)
+        self.assertEqual(409, cm.exception.status)
+        self.assertEqual([], ghl2.posts)
+
+    def test_definite_ghl_rejection_can_be_retried_at_once(self):
+        err = urllib.error.HTTPError("u", 400, "bad", {}, None)
+        with self.assertRaises(bl.BillingLinkError) as cm:
+            self.run_send(FakeGHL(existing="c9", fail_send=err))
+        self.assertEqual("ghl_send", cm.exception.code)
+        out = self.run_send(FakeGHL(existing="c9"))              # nothing went out the first time
+        self.assertEqual("sent", out["status"])
 
 
 class Routes(unittest.TestCase):
