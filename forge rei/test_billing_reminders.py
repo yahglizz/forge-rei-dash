@@ -16,6 +16,7 @@ import daycare_supabase
 import stripe_io
 
 ET = ZoneInfo("America/New_York")
+REAL_FAMILY_BUSY = daycare_supabase.billing_reminder_family_busy      # Base patches the module attribute per test
 QA = "99999999-9999-9999-9999-999999999999"
 ATOB = "11111111-1111-1111-1111-111111111111"
 ATOB2 = "22222222-2222-2222-2222-222222222222"
@@ -90,6 +91,7 @@ class FakeDB:
         self.unchecked = []
         self.link_amount = 3000          # what the saved pay link's Stripe page charges
         self.recent_link = False         # a link row created/sent/delivered < 120 s ago
+        self.link_sent_today = False     # the owner's pay-link text for this family went out today (ET)
         self.hosted_calls = []
         self.hosted_error = None
 
@@ -171,7 +173,7 @@ class Base(unittest.TestCase):
             mock.patch.object(daycare_supabase, "billing_recent_send",
                               side_effect=lambda s, inv, secs=120: self.db.recent_link),
             mock.patch.object(daycare_supabase, "billing_reminder_family_busy",
-                              side_effect=lambda s, gid, today: any(
+                              side_effect=lambda s, gid, today: self.db.link_sent_today or any(
                                   r["guardian"] == gid and r["date"] == today and r["status"] in ("sending", "sent")
                                   for r in self.db.rows.values())),
             mock.patch.object(stripe_io, "ensure_hosted_invoice", side_effect=self.db.hosted),
@@ -1038,6 +1040,110 @@ class OffCenterNeverSwitches(Base):
                 mock.patch.object(daycare_supabase, "billing_rpc", side_effect=rpc):
             rem.run_all(lambda: object(), self.ghl, now=AT_10AM)
         self.assertEqual([QA], entered)
+
+
+class LinkSendCountsAsTodaysText(Base):
+    """The claim refuses when the family has a billing_link_sends row with sent_at on p_today (ET). The
+    pre-Stripe check must see the same thing, or a stale link is refreshed (old one voided) for nothing."""
+
+    def stale(self):
+        self.db.owed = [owed_row(kind="overdue_3", due="2026-10-31")]
+        self.db.facts["i1"] = facts(status="overdue", balance=2000, paid_cents=1000, due_on="2026-10-31")
+        self.db.link_amount = 3000
+
+    def test_an_owner_link_text_today_vetoes_the_refresh_before_stripe(self):
+        self.stale()
+        self.db.link_sent_today = True
+        out = self.tick()
+        self.assertEqual([], self.db.hosted_calls)
+        self.assertNotIn("billing_create_link_send", self.db.names())
+        self.assertNotIn("billing_reminder_claim", self.db.names())
+        self.assertEqual([], self.ghl.posts)
+        self.assertEqual(1, out["skipped"]["already_sent_or_family_cap"])
+
+    def test_no_link_text_today_refreshes_as_before(self):
+        self.stale()
+        out = self.tick()
+        self.assertEqual(1, out["sent"])
+
+    def test_the_check_is_asked_for_the_simulated_date(self):
+        asked = []
+        self.stale()
+        with mock.patch.object(daycare_supabase, "billing_reminder_family_busy",
+                               side_effect=lambda s, g, today: asked.append((g, today)) or False):
+            self.tick(as_of=date(2026, 11, 10))
+        self.assertEqual([("g1", "2026-11-10")], asked)
+
+    def test_reader_checks_both_rules_with_eastern_day_bounds(self):
+        queries = []
+
+        def rest(session, method, resource, query=None, **kw):
+            queries.append((resource, query))
+            return []
+        guardian = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest):
+            self.assertFalse(REAL_FAMILY_BUSY(None, guardian, "2026-11-03"))
+        self.assertEqual(["billing_reminders", "billing_link_sends"], [r for r, _ in queries])
+        link_query = queries[1][1]
+        self.assertEqual(guardian and f"eq.{guardian}", link_query["guardian_id"])
+        self.assertEqual(["gte.2026-11-03T05:00:00Z", "lt.2026-11-04T05:00:00Z"], link_query["sent_at"])   # EST day
+
+    def test_day_bounds_follow_daylight_saving(self):
+        seen = []
+
+        def rest(session, method, resource, query=None, **kw):
+            if resource == "billing_link_sends":
+                seen.append(query["sent_at"])
+            return []
+        guardian = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest):
+            REAL_FAMILY_BUSY(None, guardian, "2026-10-31")    # EDT (UTC-4)
+            REAL_FAMILY_BUSY(None, guardian, "2026-11-01")    # the 25-hour fall-back day
+        self.assertEqual(["gte.2026-10-31T04:00:00Z", "lt.2026-11-01T04:00:00Z"], seen[0])
+        self.assertEqual(["gte.2026-11-01T04:00:00Z", "lt.2026-11-02T05:00:00Z"], seen[1])
+
+    def test_either_rule_alone_is_enough(self):
+        guardian = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        for hit in ("billing_reminders", "billing_link_sends"):
+            def rest(session, method, resource, query=None, hit=hit, **kw):
+                return [{"id": "x"}] if resource == hit else []
+            with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=rest):
+                self.assertTrue(REAL_FAMILY_BUSY(None, guardian, "2026-11-03"), hit)
+
+    def test_unreadable_halves_and_bad_inputs_are_not_busy(self):
+        guardian = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", side_effect=daycare_supabase.DaycareError(403, "x")):
+            self.assertFalse(REAL_FAMILY_BUSY(None, guardian, "2026-11-03"))
+        with mock.patch.object(daycare_supabase.BRIDGE, "rest", return_value=[]):
+            self.assertFalse(REAL_FAMILY_BUSY(None, "not-a-uuid", "2026-11-03"))
+            self.assertFalse(REAL_FAMILY_BUSY(None, guardian, "garbage"))
+
+
+class StaffReviewForAnyFamily(Base):
+    """A +7 day staff_review row has no parent text, so it works for a family with no link, no phone,
+    no usable facts - e.g. an autopay family whose charge was declined."""
+
+    def test_staff_review_needs_no_link_no_phone_and_reads_no_facts(self):
+        self.db.owed = [owed_row(kind="staff_review", due="2026-10-27", has_link=False, token=None, link_send_id=None)]
+        with mock.patch.object(daycare_supabase, "billing_invoice_facts") as read:
+            out = self.tick()
+        read.assert_not_called()
+        self.assertEqual((1, 0, []), (out["reviews"], out["sent"], out["flagged"]))
+        self.assertEqual([], self.ghl.posts)
+        self.assertNotIn("billing_reminder_claim", self.db.names())
+        self.assertEqual(1, self.db.names().count("billing_reminder_staff_review"))
+
+    def test_staff_review_with_a_pending_payment_still_goes_to_the_owner(self):
+        self.db.owed = [owed_row(kind="staff_review", due="2026-10-27", has_pending_payment=True)]
+        out = self.tick()
+        self.assertEqual(1, out["reviews"])
+        self.assertEqual([], self.ghl.posts)
+
+    def test_flag_rows_carry_no_pay_link_text_so_they_never_count_as_send_attempts(self):
+        self.db.owed = [owed_row(has_link=False, token=None, link_send_id=None)]
+        self.tick()
+        claim = [b for n, b in self.db.calls if n == "billing_reminder_claim"][0]
+        self.assertNotIn("/pay/", claim["p_message"])
 
 
 class RunNow(Base):

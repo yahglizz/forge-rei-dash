@@ -1896,16 +1896,36 @@ def billing_recent_send(session: Session, invoice_id: Any, seconds: int = 120) -
 
 
 def billing_reminder_family_busy(session: Session, guardian_id: Any, today_iso: str) -> bool:
-    """True if this family already has a billing reminder 'sending'/'sent' for that ET day (the daily
-    cap). A pre-check so Stripe is not touched for a reminder the claim would refuse. Unreadable = False
-    (the claim RPC stays the authority)."""
+    """True if the family already used up its one billing text for that ET day, by EITHER rule the
+    claim RPC applies: a reminder 'sending'/'sent' that day (the daily cap), or a pay-link text the
+    owner sent that day (billing_link_sends.sent_at, taken in America/New_York like the SQL does, for
+    the date passed in so a simulated as_of behaves like that day). A pre-check so Stripe is not touched
+    for a reminder the claim would refuse. Each unreadable half counts as 'not busy' (the claim stays
+    the authority)."""
     if not is_uuid(guardian_id):
         return False
     try:
+        if _rows(BRIDGE.rest(
+                session, "GET", "billing_reminders",
+                query={"guardian_id": f"eq.{guardian_id}", "local_send_date": f"eq.{today_iso}",
+                       "status": "in.(sending,sent)", "kind": "neq.staff_review", "select": "id", "limit": "1"})):
+            return True
+    except DaycareError:
+        pass
+    try:
+        day = date.fromisoformat(str(today_iso)[:10])
+    except ValueError:
+        return False
+    utc = timezone.utc
+    start = datetime(day.year, day.month, day.day, tzinfo=_ET).astimezone(utc)
+    end_day = day + timedelta(days=1)
+    end = datetime(end_day.year, end_day.month, end_day.day, tzinfo=_ET).astimezone(utc)
+    try:
         return bool(_rows(BRIDGE.rest(
-            session, "GET", "billing_reminders",
-            query={"guardian_id": f"eq.{guardian_id}", "local_send_date": f"eq.{today_iso}",
-                   "status": "in.(sending,sent)", "kind": "neq.staff_review", "select": "id", "limit": "1"})))
+            session, "GET", "billing_link_sends",
+            query={"guardian_id": f"eq.{guardian_id}",
+                   "sent_at": [f"gte.{start:%Y-%m-%dT%H:%M:%SZ}", f"lt.{end:%Y-%m-%dT%H:%M:%SZ}"],
+                   "select": "id", "limit": "1"})))
     except DaycareError:
         return False
 
