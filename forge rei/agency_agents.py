@@ -294,6 +294,27 @@ def _site_build_methodology():
         return cached[1] if cached else ""
 
 
+_IGTOOLS_CACHE = {}  # (mtime, text) for the agency Instagram tools floor
+
+
+def _instagram_tools():
+    """The agency-Instagram tools + account rules (agency-instagram-tools.md) — a STABLE
+    floor so Dyson/Eco know which Instagram tools exist and which Meta ids are the agency's
+    (never the daycare's). Isolated from _load_skills so learn() can never rewrite it.
+    mtime-cached. Returns "" if absent."""
+    try:
+        for d in SEED_SKILLS_DIRS:
+            p = d / "agency-instagram-tools.md"
+            if p.is_file():
+                sig = p.stat().st_mtime
+                if _IGTOOLS_CACHE.get("t", (None,))[0] != sig:
+                    _IGTOOLS_CACHE["t"] = (sig, p.read_text(errors="ignore"))
+                return _IGTOOLS_CACHE["t"][1]
+    except Exception:
+        pass
+    return _IGTOOLS_CACHE.get("t", (None, ""))[1]
+
+
 def _skills_block(agent_id):
     """NORTH STAR (the cross-business constitution) + the CREED (agency evidence
     discipline) + the MARKETING METHODOLOGY (Corey-Haines floor) + the learned playbook,
@@ -337,6 +358,10 @@ def _skills_block(agent_id):
                 "\n\n=== AD COPY FRAMEWORK — Four Triggers (a stable floor for writing ad "
                 "concepts; apply it, the creed still outranks it) ===\n" + adcopy[:5000]
             )
+    ig = _instagram_tools()
+    adcopy_block += (
+        "\n\n=== AGENCY INSTAGRAM TOOLS (what you can run + whose accounts; a stable floor, "
+        "the creed still outranks it) ===\n" + ig[:4500] if ig else "")
     skills = _load_skills(agent_id)
     if skills:
         return ns + creed + method_block + sitebuild_block + adcopy_block + (

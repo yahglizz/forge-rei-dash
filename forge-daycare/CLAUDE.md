@@ -25,6 +25,14 @@ over HTTP); `config/daycare.env.example` is the committed template.
 - **Secrets** — real values only in `config/daycare.env`, never in this
   folder's markdown, never in `NORTH_STAR.md` (which lists env var NAMES only).
 
+## Meta accounts: daycare only
+
+The daycare's Meta ad account is `act_1175564690150627`, Page `939494549239823`, Instagram
+`@atouchofblessing2.3` (`17841436257715501`; page-backed identity `17841439350588476`). The agency
+(ClientForge / Forge Labs) has its OWN ad account `act_2344043939684594`, on the same Pipeboard login.
+The two never mix: always pass the exact `account_id`, never a default, and never use agency ids or the
+Metricool brand `forgelabsx` here. Full table + rules: `../docs/META_ACCOUNTS.md`.
+
 ## Where the agent playbooks actually are
 
 This folder holds no playbook of its own — Solomon/Nora/Nova's seed skills

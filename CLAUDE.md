@@ -39,6 +39,17 @@ Active: Agency, Wholesale, Daycare.
 
 - **REI (wholesale):** Dashboard, Leads, Conversations, Pipeline, Agents, Brain, etc.
 - **Agency (ClientForge):** Clients, Edit Requests, Agents, Ads, Social, Approvals, Brain.
+  - **Agency Instagram toolkit (2026-10-31).** `@forgelabsphiladelphia` only. The vendored MIT
+    `instagram-agent-skill` lives in `forge-agency/instagram/` (13 `/ig-*` skills + 5 stdlib tools; source/commit/local
+    changes in its `VENDOR.md`; agency voice in `voice.md`, many answers still Unknown). `forge rei/agency_instagram.py`
+    runs the tools (`hook`, `beats`, `caption`, `humanize`, `detect`, `swipe`) as subprocesses: `GET /api/agency/instagram`
+    (status, pinned agency ids), `POST /api/agency/instagram/tool` (read-only), `POST /api/agency/instagram/draft`
+    (humanize + lint, saves an Instagram **draft** only; refuses text naming the daycare). Social tab → Instagram →
+    "Instagram Studio". Dyson and Eco learn it from the stable floor `forge-agency/skills/agency-instagram-tools.md`
+    (`agency_agents._instagram_tools`, not reachable by `learn()`). Nothing posts: Ready → Approval Center → Metricool
+    stays the owner's tap (rule 2). **Publishing is OFF until** Instagram is linked in Metricool brand `forgelabsx`
+    (TikTok only on 2026-10-31) and `METRICOOL_USER_TOKEN` is set. Does not touch `agency_social.py`
+    (`daycare_growth.py` reuses it). Account ids + never-mix rules: `docs/META_ACCOUNTS.md`. Test: `test_agency_instagram.py`.
 - **Daycare:** Dashboard, Solomon, Children, Billing, Growth, Brain, etc. (§10)
 - **Dropship (FORGE Dropship):** Dashboard, Agents (Midas), Products,
   Orders, Inventory, Suppliers, Ads & Creative, Customers, Analytics, Brain, Settings.
@@ -715,8 +726,12 @@ key on the box. New migrations go in BOTH migration folders.
   endpoint (stdlib, no MCP client; Pipeboard owns the Meta login + refresh) — it wins over `META_ACCESS_TOKEN`
   when keyed. READ-ONLY (insights/campaigns/account health); payloads carry `via:"pipeboard"` + `dateRange`; a
   rejection is cached 15 min and reads `auth_error`. Launch/activate/budget are NOT in it (rule 2).
-  Self-check: `python3 pipeboard_io.py`; test: `test_pipeboard_io.py`. The Pipeboard login currently carries ONE
-  ad account — the daycare's `act_1175564690150627`; the agency has none yet.
+  Self-check: `python3 pipeboard_io.py`; test: `test_pipeboard_io.py`. The Pipeboard login carries TWO ad accounts
+  (2026-10-31): the daycare's `act_1175564690150627` and the agency's `act_2344043939684594` (`ClienForgePhiladelphia`).
+  **They are two businesses and must never conflict: always pass the exact `account_id`, never a default. The agency
+  has its own Instagram `@forgelabsphiladelphia` (`17841464279234508`) and no Facebook Page yet; never borrow the
+  daycare's Page `939494549239823` / IG. Full table + rules:
+  `docs/META_ACCOUNTS.md`.**
   **Agency side (2026-10-18):** `/api/agency/ads|ads/accounts|eco` (+ `eco/generate`) go through
   `agency_ads.agency_account` — an ALLOWLIST, fail-closed: only canonical ids (`canon()`: digits after `act_`) from the
   agency's own `META_AD_ACCOUNT_MAP`, minus the daycare's, are read; any other `account`/`client`/default, or unresolvable

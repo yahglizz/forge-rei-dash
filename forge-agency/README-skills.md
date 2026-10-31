@@ -12,6 +12,13 @@ agents:
 - `skills/agency-skills-backlog.md` — brainstormed roadmap of future capabilities
   for both agents.
 
+**Loaded into both agents as a stable floor (learn() cannot rewrite it):**
+
+- `skills/agency-instagram-tools.md` — the agency Instagram tools
+  (`/api/agency/instagram/*`), the agency's own Meta ids, and the rules (nothing posts,
+  humanize first, never the daycare's account). The tools and 13 `/ig-*` skills live in
+  `../instagram/` (see its `VENDOR.md`).
+
 **Operator-facing (not loaded into Dyson/Eco prompts — prospecting isn't their job):**
 
 - **`skills/agency-offer-sheet.md` — the offer and its price. SINGLE SOURCE OF

@@ -12,8 +12,10 @@ forge rei dash/
    ├─ config/
    │  ├─ agency.env           <- REAL keys (private, never committed/served)
    │  └─ agency.env.example   <- template; copy values into agency.env
+   ├─ skills/                 <- seed playbooks + floors (incl. agency-instagram-tools.md)
+   ├─ instagram/              <- vendored instagram-agent-skill, AGENCY Instagram only (VENDOR.md, voice.md)
    ├─ scripts/                <- agency-only scripts (empty for now)
-   └─ data/                   <- agency-only data files (empty for now)
+   └─ data/                   <- agency-only data files (data/instagram/ = runtime swipe/log/plan notes)
 ```
 
 ## Where the app reads these keys

@@ -1086,6 +1086,7 @@ import agency_eco  # noqa: E402
 import agency_approvals_io  # noqa: E402
 import agency_agents  # noqa: E402
 import agency_social  # noqa: E402
+import agency_instagram  # noqa: E402
 import agency_deploy  # noqa: E402
 import agency_build_studio  # noqa: E402 — Blueprint Studio: idea -> build-ready plan (propose-only)
 import agency_calls  # noqa: E402
@@ -2925,6 +2926,11 @@ def api_agency_social_analytics(q):
     return agency_social.analytics((q.get("network", [None]) or [None])[0])
 
 
+# Agency Instagram toolkit (@forgelabsphiladelphia) — vendored instagram-agent-skill.
+def api_agency_instagram(_q):
+    return agency_instagram.status()
+
+
 # --- Deploy status (M4 — agency_deploy owned by Lane E) ----------------------
 def api_agency_deploy_status(q):
     client_id = (q.get("clientId", [None]) or [None])[0]
@@ -3084,6 +3090,7 @@ ROUTES = {
     "/api/agency/social/besttime": api_agency_social_besttime,
     "/api/agency/social/posts": api_agency_social_posts,
     "/api/agency/social/analytics": api_agency_social_analytics,
+    "/api/agency/instagram": api_agency_instagram,
     "/api/agency/deploy/status": api_agency_deploy_status,
     "/api/agency/settings": api_agency_settings,
     "/api/agency/billing/link": api_agency_billing,
@@ -3133,7 +3140,7 @@ NO_CACHE = {"/api/stripe/status", "/api/sync", "/api/health", "/api/system/healt
             "/api/agency/agents", "/api/agency/agents/history",
             "/api/agency/agents/tasks", "/api/agency/social",
             "/api/agency/social/besttime", "/api/agency/social/posts",
-            "/api/agency/social/analytics", "/api/agency/ghl/tags",
+            "/api/agency/social/analytics", "/api/agency/instagram", "/api/agency/ghl/tags",
             "/api/agency/deploy/status", "/api/agency/settings",
             "/api/scout/summary", "/api/scout/leads", "/api/scout/pipeline",
             "/api/scout/overview", "/api/scout/audit", "/api/bus",
@@ -3731,6 +3738,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/agency/social/post/save",
                                    "/api/agency/social/post/status",
                                    "/api/agency/social/post/delete",
+                                   "/api/agency/instagram/tool",
+                                   "/api/agency/instagram/draft",
                                    "/api/agency/settings/save",
                                    "/api/agency/eco/competitor",
                                    "/api/agency/client/login",
@@ -4117,6 +4126,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = agency_social.set_status(body.get("id"), body.get("status"))
             elif parsed.path == "/api/agency/social/post/delete":
                 result = agency_social.delete_post(body.get("id"))
+            elif parsed.path == "/api/agency/instagram/tool":
+                result = agency_instagram.run_tool(body.get("tool"), body.get("text"), body)
+            elif parsed.path == "/api/agency/instagram/draft":
+                result = agency_instagram.save_draft(body.get("text"), body.get("keywords") or "")
             elif parsed.path == "/api/agency/settings/save":
                 result = agency_io.save_settings(body.get("settings") or body)
             elif parsed.path == "/api/agency/eco/competitor":
