@@ -276,7 +276,7 @@ function DtrTourControl(props) {
     } catch (error) { setNote(error.message); } finally { setBusy(false); }
   };
   const confirmAsk = "Confirm this tour for " + date + " at " + time + "?\n\nThe family gets the Tour Check-in text on the tour day, and it goes on the calendar within 15 minutes.";
-  return <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+  return <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexBasis: open ? "100%" : "auto" }}>
     {!open ? <div style={{ display: "flex", gap: 8 }}>
       <button className="link" disabled={busy} onClick={() => setOpen(true)}>{booked ? "Move tour" : "Book tour"}</button>
       {booked && <button className="link" disabled={busy} onClick={() => send("/tour/cancel", {}, "Cancel this tour? It comes off the calendar within 15 minutes.")}>Cancel tour</button>}
@@ -339,7 +339,7 @@ function DldLeadDesk() {
         : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>Nothing waiting on you</b><span>No unanswered replies, overdue call tasks or call-me requests.</span></div></div>}
       {leads.length > 0 && <details style={{ marginTop: 12 }}><summary className="faint" style={{ cursor: "pointer" }}>All leads ({leads.length}) — mark a stage (internal only) · Book tour updates GHL and texts the family on the tour day</summary>
         {dldNote && <div className="dc-error-text" role="alert">{dldNote}</div>}
-        <div className="dc-alert-list">{leads.map((lead) => <div key={lead.contactId} style={{ alignItems: "center", flexWrap: "wrap" }}><span className={"dc-severity " + (lead.reasons && lead.reasons.length ? "warning" : "info")}/><div style={{ flex: 1 }}><b>{DldWho(lead)} · {lead.center}</b><small>{DLD_STAGE_LABEL[lead.stage] || lead.stage} · from {DLD_SOURCE_LABEL[lead.stageSource] || "GHL activity"}</small></div><select aria-label="Mark stage" value={lead.localStage || ""} disabled={dldBusy === lead.contactId} onChange={(event) => dldMark(lead.contactId, event.target.value)}><option value="">Auto</option>{DLD_PIPELINE.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><DtrTourControl lead={lead} onDone={desk.refresh}/></div>)}</div>
+        <div className="dc-alert-list">{leads.map((lead) => <div key={lead.contactId} style={{ alignItems: "center", flexWrap: "wrap" }}><span className={"dc-severity " + (lead.reasons && lead.reasons.length ? "warning" : "info")}/><div style={{ flex: 1 }}><b>{DldWho(lead)} · {lead.center}</b><small>{DLD_STAGE_LABEL[lead.stage] || lead.stage} · from {DLD_SOURCE_LABEL[lead.stageSource] || "GHL activity"}</small></div><select aria-label="Mark stage" style={{ flex: "0 0 110px" }} value={lead.localStage || ""} disabled={dldBusy === lead.contactId} onChange={(event) => dldMark(lead.contactId, event.target.value)}><option value="">Auto</option>{DLD_PIPELINE.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><DtrTourControl lead={lead} onDone={desk.refresh}/></div>)}</div>
       </details>}
     </>}
   </div>;
