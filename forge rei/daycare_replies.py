@@ -111,11 +111,17 @@ def _is_keyword(body):
     return w in KEYWORDS
 
 
+_DND_OFF = {"inactive", "", "none", "null"}
+
+
 def _dnd(contact):
     """GHL refuses a text on the contact-wide DND or on the SMS channel's own flag. A carrier
-    rejection (Twilio 30006) sets only the channel flag, so both have to be read."""
-    sms = (contact.get("dndSettings") or {}).get("SMS") or {}
-    return bool(contact.get("dnd")) or sms.get("status") == "active"
+    rejection (Twilio 30006) or a STOP keyword sets only the channel flag, so both have to be
+    read. Fails closed like full_leads_audit.dnd_sms_entry: an unknown status counts as blocked."""
+    ds = contact.get("dndSettings")
+    sms = (ds.get("SMS") or ds.get("sms")) if isinstance(ds, dict) else None
+    status = sms.get("status") if isinstance(sms, dict) else sms
+    return bool(contact.get("dnd")) or str(status or "").strip().lower() not in _DND_OFF
 
 
 def gate(contact, messages, now):

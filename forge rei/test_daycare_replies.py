@@ -27,6 +27,10 @@ def test_channel_dnd():
     assert dr._dnd({"dnd": True}) is True
     assert dr._dnd({"dnd": False, "dndSettings": {"SMS": {"status": "inactive"}, "Call": {"status": "active"}}}) is False
     assert dr._dnd({}) is False
+    assert dr._dnd({"dndSettings": {"SMS": {"status": "permanent", "message": "STOP_KEYWORD"}}}) is True
+    assert dr._dnd({"dndSettings": {"sms": {"status": "active"}}}) is True
+    assert dr._dnd({"dndSettings": {"SMS": "active"}}) is True
+    assert dr._dnd({"dndSettings": "garbage"}) is False
     parent = [msg(1, "inbound", "hi do you have infant openings?", 30 * MIN)]
     assert g(parent, blocked) == (False, "dnd")
 
