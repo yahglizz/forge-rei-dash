@@ -860,6 +860,20 @@ key on the box. New migrations go in BOTH migration folders.
   built; turning it on is an operator decision. Pending drafts = Solomon's approval queue on
   the Agent Control Center + one APPROVE row each in Owner Actions; the brief reads them as
   `replyDesk`; spend bills to `solomon`. Card: `agents/daycare/solomon.md` §10 (Leads lane §11).
+- **Solomon · Calendar — tours + first days → one Google calendar (2026-10-31).**
+  `daycare_calendar.py` + `google_cal_io.py` (thread `daycare_calendar`, 15 min, box only, zero Claude,
+  `FORGE_DAYCARE_CALENDAR=0` retires it). Computed, not scheduled: each tick compares the wanted events to
+  the ledger `marcus_state/daycare_calendar.json`. Tours come from GHL (tag `tour-scheduled` + Tour Date, Tour
+  Time, Tour Location); first days from Starts (confirmed, or the Add to calendar tap). One calendar
+  (`GOOGLE_CAL_ID`), tagged `[921]` / `[2318]` / `[1923 AMT]` with a color per center. **QA mode is the default:**
+  until the owner sets `FORGE_DAYCARE_CAL_QA=0` it touches only `zz-calendar-qa` contacts and `GOOGLE_CAL_ID_QA`,
+  and the tap refuses real families. **Confirm tour** (Lead Desk) writes the GHL fields, which arms the published
+  Tour Check-in SMS: that tap is its approval. 1923 tours are off until that text has an A Mother's Touch version.
+  Token `GOOGLE_CAL_REFRESH_YAHJAIR` (scope `calendar.events`) can edit every yahjair@ calendar, so
+  `google_cal_io` refuses any other calendar id and any guest. A service account cannot write here (Workspace
+  blocks outside editors). Never add a guest, phone, email, last name, note or payment type to an event. A failed
+  read never removes an event; center is never guessed; names are stripped 7 days after the event. Spec: Brand Kit
+  `docs/google-calendar/`. Tests: `test_google_cal_io.py`, `test_daycare_calendar.py`.
 - **Solomon · Starts — start date → confirm → start-day app login (2026-09-29).**
   `daycare_starts.py` (thread `daycare_starts`, 15 min, zero Claude, `FORGE_DAYCARE_STARTS=0`
   retires it) reads new-signup GHL threads, pulls the agreed start date out of the texts (form

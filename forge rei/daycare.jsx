@@ -251,6 +251,59 @@ function DldWho(lead) {
   return child.length >= 2 ? child + "'s family" : "New family";
 }
 
+// --- CALENDAR --- Solomon · Calendar (daycare_calendar.py). Confirm tour writes the GHL tour fields + tag:
+// the event follows within 15 min, and the published Tour Check-in text goes to the family.
+const DTR_CENTERS = [["loc-921-n-18th", "921 N 18th"], ["loc-2318-cecil-b-moore", "2318 Cecil B. Moore"]];
+
+function DtrTourControl(props) {
+  const lead = props.lead;
+  const known = DTR_CENTERS.some(([tag]) => tag === lead.centerTag);
+  const booked = lead.tagStage === "TOUR_BOOKED";
+  const [open, setOpen] = useStateDcx(false);
+  const [date, setDate] = useStateDcx("");
+  const [time, setTime] = useStateDcx("10:00");
+  const [center, setCenter] = useStateDcx(known ? lead.centerTag : "");
+  const [busy, setBusy] = useStateDcx(false);
+  const [note, setNote] = useStateDcx("");
+  if (lead.centerTag === "loc-1923-cecil-b-moore") return null;
+  const send = async (path, body, ask) => {
+    if (!window.confirm(ask)) return;
+    setBusy(true); setNote("");
+    try {
+      const res = await DcxRequest(path, { body: { contact_id: lead.contactId, ...body } });
+      if (res.ok === false) setNote(res.error || "Could not save.");
+      else { setOpen(false); props.onDone(); }
+    } catch (error) { setNote(error.message); } finally { setBusy(false); }
+  };
+  const confirmAsk = "Confirm this tour for " + date + " at " + time + "?\n\nThe family gets the Tour Check-in text on the tour day, and it goes on the calendar within 15 minutes.";
+  return <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+    {!open ? <div style={{ display: "flex", gap: 8 }}>
+      <button className="link" disabled={busy} onClick={() => setOpen(true)}>{booked ? "Move tour" : "Book tour"}</button>
+      {booked && <button className="link" disabled={busy} onClick={() => send("/tour/cancel", {}, "Cancel this tour? It comes off the calendar within 15 minutes.")}>Cancel tour</button>}
+    </div> : <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+      <input type="date" aria-label="Tour date" value={date} onChange={(event) => setDate(event.target.value)}/>
+      <input type="time" aria-label="Tour time" step="1800" value={time} onChange={(event) => setTime(event.target.value)}/>
+      {!known && <select aria-label="Tour center" value={center} onChange={(event) => setCenter(event.target.value)}><option value="">Center</option>{DTR_CENTERS.map(([tag, label]) => <option key={tag} value={tag}>{label}</option>)}</select>}
+      <button className="dc-primary" disabled={busy || !date || !time || !center} onClick={() => send("/tour/confirm", { date, time, center }, confirmAsk)}>{busy ? "Saving…" : "Confirm tour"}</button>
+      <button className="link" disabled={busy} onClick={() => setOpen(false)}>Close</button>
+    </div>}
+    {note && <small className="dc-error-text" role="alert">{note}</small>}
+  </div>;
+}
+
+function DcsCalendarStatus() {
+  const res = DcxUseResource("/calendar", null, 60000);
+  const data = res.data && !Array.isArray(res.data) ? res.data : {};
+  const held = data.held || [];
+  if (res.loading || res.error || (!data.error && !held.length && data.mode !== "qa")) return null;
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head"><div><div className="card-title">Google Calendar</div><div className="faint">{data.mode === "qa" ? "QA mode · only test contacts · " : ""}{data.events || 0} event(s) on the calendar{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div></div>
+    {data.error && <div className="dc-error-text" role="alert">{data.error}</div>}
+    {held.length > 0 && <div className="dc-alert-list">{held.map((row) => <div key={row.kind + row.contactId}><span className="dc-severity warning"/><div><b>{row.who}</b><small>{row.reason}</small></div></div>)}</div>}
+  </div>;
+}
+// --- /CALENDAR ---
+
 function DldLeadDesk() {
   const desk = DcxUseResource("/leads", null, 60000);
   const [dldBusy, setDldBusy] = useStateDcx("");
@@ -286,7 +339,7 @@ function DldLeadDesk() {
         : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>Nothing waiting on you</b><span>No unanswered replies, overdue call tasks or call-me requests.</span></div></div>}
       {leads.length > 0 && <details style={{ marginTop: 12 }}><summary className="faint" style={{ cursor: "pointer" }}>All leads ({leads.length}) — mark tour / application / enrolled / lost · internal only, never sent to GHL or the family</summary>
         {dldNote && <div className="dc-error-text" role="alert">{dldNote}</div>}
-        <div className="dc-alert-list">{leads.map((lead) => <div key={lead.contactId} style={{ alignItems: "center" }}><span className={"dc-severity " + (lead.reasons && lead.reasons.length ? "warning" : "info")}/><div style={{ flex: 1 }}><b>{DldWho(lead)} · {lead.center}</b><small>{DLD_STAGE_LABEL[lead.stage] || lead.stage} · from {DLD_SOURCE_LABEL[lead.stageSource] || "GHL activity"}</small></div><select aria-label="Mark stage" value={lead.localStage || ""} disabled={dldBusy === lead.contactId} onChange={(event) => dldMark(lead.contactId, event.target.value)}><option value="">Auto</option>{DLD_PIPELINE.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>)}</div>
+        <div className="dc-alert-list">{leads.map((lead) => <div key={lead.contactId} style={{ alignItems: "center" }}><span className={"dc-severity " + (lead.reasons && lead.reasons.length ? "warning" : "info")}/><div style={{ flex: 1 }}><b>{DldWho(lead)} · {lead.center}</b><small>{DLD_STAGE_LABEL[lead.stage] || lead.stage} · from {DLD_SOURCE_LABEL[lead.stageSource] || "GHL activity"}</small></div><select aria-label="Mark stage" value={lead.localStage || ""} disabled={dldBusy === lead.contactId} onChange={(event) => dldMark(lead.contactId, event.target.value)}><option value="">Auto</option>{DLD_PIPELINE.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><DtrTourControl lead={lead} onDone={desk.refresh}/></div>)}</div>
       </details>}
     </>}
   </div>;
@@ -342,6 +395,7 @@ function DstRow(props) {
           : <input key={key} type={type} placeholder={label} aria-label={label} value={extras[key] || ""} onChange={(event) => setExtras({ ...extras, [key]: event.target.value })}/>; })}
         <button className="dc-primary" disabled={Boolean(busy) || !date} onClick={() => call("confirm", { start_date: date, extras }, confirmAsk)}>{busy === "confirm" ? "Confirming…" : "Confirm start date"}</button>
         {date !== r.startDate && <button className="dc-outline" disabled={Boolean(busy)} onClick={() => call("date", { start_date: date })}>Save date only</button>}
+        <button className="dc-outline" disabled={Boolean(busy)} onClick={() => call("calendar", { on: !r.calendarAt })}>{r.calendarAt ? "On calendar · remove" : "Add to calendar"}</button>
         <button className="link" disabled={Boolean(busy)} onClick={() => call("dismiss", {}, "Not a start date? It drops off this list.")}>Not a start date</button>
       </div>}
       {r.status === "confirmed" && <div style={{ marginTop: 6 }}><button className="link" disabled={Boolean(busy)} onClick={() => call("date", { start_date: r.startDate }, "Undo the confirm? Nothing will be texted until you confirm again.")}>Undo confirm</button></div>}
@@ -446,6 +500,7 @@ function DaycareDashboard() {
     <div className="dc-kpi-grid"><DcxKpi label="Enrolled" value={enrolled} sub={Math.max(0, capacity - enrolled) + " of " + capacity + " spots open"} icon="Children"/><DcxKpi label="Checked In" value={checkedIn} sub="live attendance" icon="Attendance" color="#22C55E"/><DcxKpi label="Active Staff" value={staff} sub="center team" icon="Staff" color="#8B5CF6"/><DcxKpi label="Balances Due" value={DcxMoney(amountDue)} sub={invoicesDue + " open invoices"} icon="Billing" color={invoicesDue ? "#F4B860" : "#22C55E"}/><DcxKpi label="Unread" value={unread} sub="family + team messages" icon="Bell" color={unread ? "#38BDF8" : "#22C55E"}/><DcxKpi label="Open Alerts" value={alerts.length} sub="items needing review" icon="Bell" color={alerts.length ? "#F4B860" : "#22C55E"}/></div>
     <DbdBoard/>{/* --- BOARD --- */}
     <DstStartDates/>{/* --- STARTS --- */}
+    <DcsCalendarStatus/>{/* --- CALENDAR --- */}
     <DldLeadDesk/>{/* --- WP-E --- */}
     {window.DcaAdsCard && <window.DcaAdsCard/>}{/* --- ENROLLMENT ADS (Pipeboard) --- */}
     {window.DcaAdGenCard && <window.DcaAdGenCard/>}{/* --- AD GENERATOR --- */}

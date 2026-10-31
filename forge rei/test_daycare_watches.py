@@ -111,7 +111,9 @@ FEED = {"ok": True, "kind": "daycare_ads_feed", "configured": True, "fetchedAt":
 HEALTH = {"loops": [{"loop": "daycare_leads", "label": "Solomon · Leads", "status": "red", "ageSec": 4000,
                      "lastError": "GHL 500"}, {"loop": "scout", "label": "Scout", "status": "red"}],
           "redLoops": ["daycare_leads", "scout"], "ai": {"ok": False, "reason": "credit balance too low"}}
+CALENDAR = {"ok": True, "mode": "live", "lastRunAt": MS - 60000, "error": None, "events": 2, "failed": 0, "held": []}
 FIX = {"/api/daycare/mail": MAIL, "/api/daycare/leads": LEADS, "/api/daycare/starts": STARTS,
+       "/api/daycare/calendar": CALENDAR,
        "/api/daycare/auto-enroll": HELD, "/api/daycare/ghl/enrolled-audit": AUDIT, "/api/daycare/locations": LOCS,
        "/api/daycare/ads/feed": FEED, "/api/daycare/social": {"ok": True, "configured": False},
        "/api/system/health": HEALTH, "/api/stripe/status": {"configured": True, "ok": False, "detail": "Invalid API key"},
@@ -199,6 +201,21 @@ def test_enrollment_stale_desk_is_unknown():
     assert not any(i["key"].startswith(("lead:", "leads:", "tagdrift:")) for i in items), items
     assert st["ok"] is False and st["sources"]["lead:"] is False and st["sources"]["tagdrift:"] is False
     assert st["sources"]["start:"] is True and "Lead Desk" in st["error"] and "GHL 500" in st["error"], st
+
+
+def test_enrollment_calendar_problems():
+    bad = dict(CALENDAR, failed=2, error="2 calendar event(s) could not be updated",
+               held=[{"kind": "tour", "contactId": "c9", "who": "Zuri D.", "reason": "needs exactly one center tag"}])
+    items, st = w.watch_enrollment(make_get({"/api/daycare/calendar": bad}), NOW)
+    k = keys(items)
+    assert "cal:held:c9" in k and "Zuri D." in k["cal:held:c9"]["title"], sorted(k)
+    assert "center tag" in k["cal:held:c9"]["why"] and k["cal:held:c9"]["severity"] == "high"
+    assert "cal:failed" in k and "2 event" in k["cal:failed"]["title"], sorted(k)
+
+
+def test_enrollment_calendar_unread_is_unknown():
+    items, st = w.watch_enrollment(make_get({"/api/daycare/calendar": {"ok": False, "error": "down"}}), NOW)
+    assert st["sources"]["cal:"] is False and "Calendar" in st["error"], st
 
 
 def test_billing():

@@ -308,6 +308,24 @@ def watch_enrollment(get, now):
                               "evidence": ev, "link": {"kind": "family", "ref": cid}})
     else:
         errs.append("Starts: " + _err(starts, "start dates") if _bad(starts) else "Starts: sweep has not run")
+    cal = get("/api/daycare/calendar")
+    # `error` here is the lane's own report, not a failed read: the held + failed rows still count.
+    src["cal:"] = ok = isinstance(cal, dict) and cal.get("ok") is not False and bool(cal.get("lastRunAt"))
+    if ok:
+        ev = {"source": "Solomon · Calendar (GHL tours + Starts)", "window": f"tick {_et(cal['lastRunAt'] / 1000)}",
+              "fetchedAt": cal["lastRunAt"]}
+        for h in cal.get("held") or []:
+            items.append({"key": f"cal:held:{h.get('contactId')}", "title": f"Not on the calendar — {h.get('who')}",
+                          "why": f"Calendar held this {'tour' if h.get('kind') == 'tour' else 'first day'}: "
+                                 f"{h.get('reason')}. Fix it in GHL; the calendar updates on its own.",
+                          "severity": "high", "owner": "owner", "center": "all", "evidence": ev,
+                          "link": {"kind": "family", "ref": str(h.get("contactId"))}})
+        if cal.get("failed"):
+            items.append({"key": "cal:failed", "title": f"Google Calendar: {cal['failed']} event(s) not updated",
+                          "why": daycare_board._clip(cal.get("error") or "Writes keep failing.", 200),
+                          "severity": "high", "owner": "owner", "center": "all", "evidence": ev})
+    else:
+        errs.append("Calendar: " + _err(cal, "calendar"))
     held = get("/api/daycare/auto-enroll")
     src["held:"] = ok = not _bad(held) and bool(held.get("last_run"))
     if ok:

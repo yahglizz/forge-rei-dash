@@ -311,7 +311,7 @@ def _apply(entries, contact, found, now):
     # sent after it with a different date reopens — even if it was swept after their tap.
     if found["at"] is None or found["at"] <= (e.get("ownerSawAt") or 0):
         return False              # older (or form) evidence never overrides the owner
-    e.update(fresh, status="proposed", proposedAt=_ms(now), tries=0,
+    e.update(fresh, status="proposed", proposedAt=_ms(now), tries=0, calendarAt=None,
              reopened=status in ("confirmed", "dismissed"))
     return True
 
@@ -435,6 +435,17 @@ def set_date(contact_id, value, now=None, client=None):
     if client is not None and getattr(client, "configured", False):
         _patch(cid, ghlError=_ghl_mark(client, cid, got.isoformat(), TAG_PROPOSED, drop=(TAG_CONFIRMED,)))
     return {"ok": True, "start": e}
+
+
+def set_calendar(contact_id, on, now=None):
+    """Owner's Add to calendar tap: daycare_calendar shows this date as a first day. Sets one
+    field and nothing else: no enrollment, no login, no text. A date moved in the thread clears it."""
+    now = now or time.time()
+    e = _patch_if(str(contact_id or ""), lambda x: x.get("status") != "dismissed",
+                  calendarAt=_ms(now) if on else None)
+    if e is None:
+        return {"ok": False, "error": "no start date on file for that family"}
+    return {"ok": True}
 
 
 def dismiss(contact_id, now=None, client=None):

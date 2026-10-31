@@ -1110,6 +1110,7 @@ import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated,
 # --- WP-E ---
 import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead visibility, no Claude)
 import daycare_starts  # noqa: E402 — Solomon · Starts: agreed start date → confirm → start-day login
+import daycare_calendar  # noqa: E402 — Solomon · Calendar: tours + first days → Google Calendar
 import daycare_replies  # noqa: E402 — Solomon family-comms: drafts parent replies, owner sends
 # --- /WP-E ---
 import daycare_board  # noqa: E402 — Solomon's Command Board (state file; spec 2026-10-18 orchestrator)
@@ -1933,7 +1934,7 @@ _WATCHDOG_STATE = {}   # loop -> last status we alerted on (transition-based ded
 # Loop-down / recovered alerts go to the owning business's own Telegram chat, not HQ
 # (2026-09-30: Solomon's lanes were spamming the main chat). Unlisted loops stay in HQ.
 _WATCHDOG_BIZ = {"solomon": "daycare", "daycare_replies": "daycare", "daycare_ads": "daycare",
-                 "daycare_leads": "daycare", "daycare_starts": "daycare",
+                 "daycare_leads": "daycare", "daycare_starts": "daycare", "daycare_calendar": "daycare",
                  "scout": "wholesale", "atlas": "wholesale", "followup": "wholesale",
                  "marcus_sms": "wholesale", "contract": "wholesale", "midas": "dropship"}
 # HQ keeps only system-level alerts: the Anthropic credits/auth alert (hits every business),
@@ -4899,6 +4900,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/guardian/resend-login", "/api/daycare/login-queue/run",
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
                 "/api/daycare/starts/confirm", "/api/daycare/starts/date", "/api/daycare/starts/dismiss",
+                "/api/daycare/starts/calendar", "/api/daycare/tour/confirm", "/api/daycare/tour/cancel",
+                "/api/daycare/calendar/run",
                 "/api/daycare/replies/run", "/api/daycare/replies/approve",
                 "/api/daycare/replies/dismiss",
                 "/api/daycare/board/run", "/api/daycare/board/snooze", "/api/daycare/board/done",
@@ -5049,6 +5052,17 @@ class Handler(BaseHTTPRequestHandler):
                                                  client=DAYCARE_GHL)
             elif path == "/api/daycare/starts/dismiss":
                 result = daycare_starts.dismiss(body.get("contact_id"), client=DAYCARE_GHL)
+            # Solomon · Calendar: the calendar tap is one local flag. Confirm tour writes GHL fields +
+            # tag, which arms the published Tour Check-in SMS: that tap IS the approval for it.
+            elif path == "/api/daycare/starts/calendar":
+                result = daycare_starts.set_calendar(body.get("contact_id"), bool(body.get("on")))
+            elif path == "/api/daycare/tour/confirm":
+                result = daycare_calendar.confirm_tour(DAYCARE_GHL, body.get("contact_id"), body.get("date"),
+                                                       body.get("time"), body.get("center"))
+            elif path == "/api/daycare/tour/cancel":
+                result = daycare_calendar.cancel_tour(DAYCARE_GHL, body.get("contact_id"))
+            elif path == "/api/daycare/calendar/run":
+                result = daycare_calendar.run_now(DAYCARE_GHL)
             # Reply desk: run = draft-only sweep (sends nothing); approve IS the owner's
             # send tap (rule 2) and re-checks the live thread first; dismiss is internal.
             elif path == "/api/daycare/replies/run":
@@ -5206,6 +5220,7 @@ class Handler(BaseHTTPRequestHandler):
             # --- WP-E --- Lead Desk: served from state, no GHL call on the request path.
             "/api/daycare/leads": lambda session: daycare_leads.view(),
             "/api/daycare/starts": lambda session: daycare_starts.view(),
+            "/api/daycare/calendar": lambda session: daycare_calendar.view(),
             "/api/daycare/replies": lambda session: daycare_replies.view(),
             # --- /WP-E ---
             # Messages tab: live daycare GHL threads (GET only on the request path).
@@ -5973,6 +5988,14 @@ def main():
                              daemon=True, name="daycare_starts").start()
         else:
             forge_heartbeat.retire("daycare_starts")
+        # Solomon · Calendar: tours + first days → one Google calendar. Zero Claude. QA mode until
+        # FORGE_DAYCARE_CAL_QA=0 (owner). FORGE_DAYCARE_CALENDAR=0 = off.
+        if os.environ.get("FORGE_DAYCARE_CALENDAR", "1") != "0":
+            print(f"   Solomon · Calendar: Google Calendar mirror every {daycare_calendar.INTERVAL // 60} min")
+            threading.Thread(target=daycare_calendar.run_forever, args=(DAYCARE_GHL,),
+                             daemon=True, name="daycare_calendar").start()
+        else:
+            forge_heartbeat.retire("daycare_calendar")
         # Daycare Reply Desk (Solomon family-comms): drafts replies to parent texts every
         # 5 min, yielding to GHL automations. Draft-only — the owner's tap sends.
         # FORGE_DAYCARE_REPLIES=0 switches it off.

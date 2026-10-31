@@ -235,6 +235,48 @@ class StartDateTests(unittest.TestCase):
         self.assertEqual((out, sent), ([], []))
         self.assertEqual(ds.view(now)["starts"][0]["status"], "failed")
 
+    def _proposed(self, now):
+        ds._save({"entries": {"c1": {"contactId": "c1", "status": "proposed", "startDate": "2026-10-12",
+                                     "evidenceAt": 1, "tries": 0}}})
+
+    def test_calendar_tap_sets_only_the_calendar_flag(self):
+        now = ts(2026, 10, 1)
+        self._proposed(now)
+        self.assertTrue(ds.set_calendar("c1", True, now=now)["ok"])
+        row = ds._load()["entries"]["c1"]
+        self.assertEqual(row["calendarAt"], int(now * 1000))
+        self.assertEqual(row["status"], "proposed")
+        self.assertNotIn("childId", row)
+
+    def test_calendar_tap_can_be_undone(self):
+        now = ts(2026, 10, 1)
+        self._proposed(now)
+        ds.set_calendar("c1", True, now=now)
+        ds.set_calendar("c1", False, now=now)
+        self.assertFalse(ds._load()["entries"]["c1"].get("calendarAt"))
+
+    def test_calendar_tap_needs_a_known_family(self):
+        self.assertFalse(ds.set_calendar("nobody", True)["ok"])
+
+    def test_calendar_tap_is_kept_when_the_owner_moves_the_date(self):
+        now = ts(2026, 10, 1)
+        self._proposed(now)
+        ds.set_calendar("c1", True, now=now)
+        ds.set_date("c1", "2026-10-14", now=now)
+        self.assertTrue(ds._load()["entries"]["c1"].get("calendarAt"))
+
+    def test_date_moved_in_thread_clears_the_calendar_tap(self):
+        now = ts(2026, 10, 1)
+        ghl = FakeGHL({"c1": contact("c1")}, {"c1": thread(("start 10/12", now - 60))})
+        ds.sweep(ghl, now)
+        ds.set_calendar("c1", True, now=now + 70)
+        later = now + 3600
+        ghl.threads["c1"] = thread(("start 10/12", now - 60), ("sorry can her first day be 10/14 instead", later))
+        ds.sweep(ghl, later + 60)
+        row = ds._load()["entries"]["c1"]
+        self.assertEqual(row["startDate"], "2026-10-14")
+        self.assertFalse(row.get("calendarAt"))
+
     def test_date_moved_in_thread_after_confirm_reopens(self):
         now = ts(2026, 10, 3)
         ghl = self._confirmed(now)
