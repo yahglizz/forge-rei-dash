@@ -181,10 +181,12 @@ def _title(center, word, fam, age):
     return f"{center['tag']} {word}: {name}" + (f" ({age})" if age else "")
 
 
-def _describe(location, contact_id, fam):
+def _describe(location, contact_id, fam, cf):
     lines = []
+    # With neither name field, _family_from_contact takes the contact name as the parent's, and
+    # since 2026-07-21 that name is the child's: no line beats a child's full name as "Parent".
     parent = _clean(fam.get("parent_name"), 60)
-    if parent:
+    if parent and (cf.get(daycare_ghl.CF_PARENT_NAME) or cf.get(daycare_ghl.CF_CHILD_NAME)):
         lines.append(f"Parent: {parent}")
     lines.append(f"GHL: https://app.gohighlevel.com/v2/location/{location}/contacts/detail/{contact_id}")
     lines.append("Auto-filled. Change it in the dashboard, not here.")
@@ -207,7 +209,7 @@ def _tour_event(location, contact_id, fam, cf, loc, day):
     age = _age(cf, day)
     clock = parse_clock(cf.get(CF_TOUR_TIME))
     start, end = _timed(day, *clock) if clock else _all_day(day)
-    return {"summary": _title(center, "Tour" if clock else "Tour: time not set", fam, age), "description": _describe(location, contact_id, fam), "location": center["address"],
+    return {"summary": _title(center, "Tour" if clock else "Tour: time not set", fam, age), "description": _describe(location, contact_id, fam, cf), "location": center["address"],
             "colorId": center["color"], "start": start, "end": end}, bool(clock)
 
 
@@ -215,7 +217,7 @@ def _first_day_event(location, contact_id, fam, cf, loc, day):
     center = CENTERS[loc]
     start, end = _all_day(day)
     return {"summary": _title(center, "First day", fam, _age(cf, day)),
-            "description": _describe(location, contact_id, fam), "location": center["address"],
+            "description": _describe(location, contact_id, fam, cf), "location": center["address"],
             "colorId": center["color"], "start": start, "end": end, "transparency": "transparent"}
 
 
@@ -319,13 +321,20 @@ def _first_days(client, entries, ledger, qa, qa_ids, today, cal):
         if row.get("hash") and row.get("source") == source:
             keep.add(key)
             continue
-        contact = _contact(client, contact_id)
-        fam = daycare_ghl._family_from_contact(contact)
-        if not qa and (QA_TAG in _tags(contact) or _is_test(fam)):
+        try:
+            contact = _contact(client, contact_id)
+        except Exception as e:  # noqa: BLE001 — one deleted contact never blocks the other families
+            _hold(held, "first", contact_id, {}, f"GHL read failed: {type(e).__name__}")
+            keep.add(key)
             continue
-        # A confirm set the real center. A tap only has tags, and Starts picks the first of several.
-        loc = TAG_BY_LOCATION_ID.get(entry.get("locationId")) if status in START_STATUSES else ""
-        loc = loc or _one_center(_tags(contact))
+        tags = _tags(contact)
+        fam = daycare_ghl._family_from_contact(contact)
+        if not qa and (QA_TAG in tags or _is_test(fam)):
+            continue
+        # A confirm can set the real center, but Starts takes the first of several tags: then it is a guess.
+        several = sum(t.startswith("loc-") for t in tags) > 1
+        loc = TAG_BY_LOCATION_ID.get(entry.get("locationId")) if status in START_STATUSES and not several else ""
+        loc = loc or _one_center(tags)
         if not loc:
             _hold(held, "first", contact_id, fam, "needs exactly one center tag")
             keep.add(key)
@@ -337,7 +346,12 @@ def _first_days(client, entries, ledger, qa, qa_ids, today, cal):
 
 def _still_booked(client, contact_id):
     """A tour missing from the search is re-read first: only a clean read removes an event."""
-    tags = _tags(_contact(client, contact_id))
+    try:
+        tags = _tags(_contact(client, contact_id))
+    except Exception as e:
+        if getattr(e, "code", None) in (400, 404):   # GHL answers 400 for a deleted contact
+            return False
+        raise
     return TAG_SCHEDULED in tags and TAG_CANCELED not in tags
 
 
@@ -368,9 +382,10 @@ def _notify(text, key):
         pass
 
 
-def _apply(client, st, wanted, keep, clean, today):
+def _apply(client, st, wanted, keep, clean, today, cal):
     """Run the writes. Returns (writes used, auth error or None, read error or None)."""
     ledger, writes, read_err = st["events"], 0, None
+    known = set(gcal.calendars().values())
     for key, want in wanted.items():
         row = ledger.get(key)
         if writes >= MAX_WRITES:
@@ -378,6 +393,7 @@ def _apply(client, st, wanted, keep, clean, today):
         if want["when"] < today.isoformat():
             continue                              # past: never created, never moved
         if row and row.get("hash") == _hash(want["cal"], want["body"]):
+            row["source"] = want.get("source")    # same event, new status: nothing left to re-read
             continue
         writes += 1
         try:
@@ -393,15 +409,16 @@ def _apply(client, st, wanted, keep, clean, today):
         if writes >= MAX_WRITES:
             break
         kind = key.split("|")[0]
-        if key in wanted or key in keep or kind not in clean or row.get("when", "") < today.isoformat():
+        # A row from the other mode is out of this tick's sight: QA mode never removes a live event.
+        if (key in wanted or key in keep or kind not in clean or row.get("cal") != cal
+                or row.get("when", "") < today.isoformat()):
             continue
         contact_id = key.split("|", 1)[1]
         writes += 1
         try:
             if kind == "tour" and _still_booked(client, contact_id):
                 continue
-            if row.get("hash"):
-                gcal.remove(row.get("cal"), event_id(key))
+            gcal.remove(row.get("cal"), event_id(key))   # no hash too: a timed-out create may have landed
             ledger.pop(key)
         except CalAuthError:
             _save(st)
@@ -413,20 +430,28 @@ def _apply(client, st, wanted, keep, clean, today):
         _save(st)
     scrub_before = (today - timedelta(days=SCRUB_AFTER_DAYS)).isoformat()
     forget_before = (today - timedelta(days=FORGET_AFTER_DAYS)).isoformat()
+    yesterday = (today - timedelta(days=1)).isoformat()
     for key, row in list(ledger.items()):
         if writes >= MAX_WRITES:
             break
         when = row.get("when", "")
+        if row.get("cal") not in known:           # a retired calendar: nothing left to write to
+            ledger.pop(key)
+            continue
         if row.get("scrubbed"):
             if when < forget_before:
                 ledger.pop(key)
             continue
-        if not row.get("hash") or when > scrub_before:
+        if when > (scrub_before if row.get("hash") else yesterday):
             continue
         writes += 1
         try:
-            gcal.put_event(row.get("cal"), event_id(key), _scrub_body(row))
-            row.update(scrubbed=True, tries=0, error=None)
+            if row.get("hash"):
+                gcal.put_event(row.get("cal"), event_id(key), _scrub_body(row))
+                row.update(scrubbed=True, tries=0, error=None)
+            else:                                 # never confirmed written, and its day has passed
+                gcal.remove(row.get("cal"), event_id(key))
+                ledger.pop(key)
         except CalAuthError:
             _save(st)
             return writes, "Google calendar login rejected: re-consent needed", read_err
@@ -464,7 +489,7 @@ def _tick(client, now):
             except Exception as e:  # noqa: BLE001 — a failed half writes and removes nothing
                 errors.append(f"{kind} read failed: {type(e).__name__}")
     st["held"] = held + [h for h in st.get("held") or [] if h.get("kind") not in clean]
-    _, auth_err, read_err = _apply(client, st, wanted, keep, clean, today)
+    _, auth_err, read_err = _apply(client, st, wanted, keep, clean, today, cal)
     errors += [e for e in (auth_err, read_err) if e]
     failed = [r for r in st["events"].values() if r.get("tries", 0) >= FAIL_TRIES]
     if failed:
@@ -485,11 +510,6 @@ def tick(client, now=None):
         return _tick(client, now or time.time())
     finally:
         _RUN.release()
-
-
-def run_now(client):
-    """POST /api/daycare/calendar/run: one tick on demand, in whichever mode is set."""
-    return {"ok": True, "error": tick(client), **view()}
 
 
 def view(now=None):
@@ -543,7 +563,8 @@ def confirm_tour(client, contact_id, day, clock, center_tag, now=None):
         return {"ok": False, "error": err}
     tags = _tags(contact)
     locs = [t for t in tags if t.startswith("loc-")]
-    if locs and locs != [center_tag]:
+    entities = [t for t in tags if t.startswith("entity-")]
+    if (locs and locs != [center_tag]) or (entities and entities != [center["entity"]]):
         return {"ok": False, "error": "this family is tagged for another center: fix it in GHL first"}
     text = (f"{tour_day:%A}, {tour_day:%B} {tour_day.day} at "
             f"{hour % 12 or 12}:{minute:02d} {'PM' if hour >= 12 else 'AM'} ET")
@@ -565,7 +586,8 @@ def confirm_tour(client, contact_id, day, clock, center_tag, now=None):
 
 
 def cancel_tour(client, contact_id):
-    """The owner's Cancel tour tap. The next tick removes the event; the tag stops the check-in text."""
+    """The owner's Cancel tour tap. The next tick removes the event. The check-in text's date trigger
+    has never fired for real, so the tag and the blank date each stop it."""
     contact, err = _tap_contact(client, contact_id)
     if err:
         return {"ok": False, "error": err}
@@ -573,10 +595,22 @@ def cancel_tour(client, contact_id):
     try:
         client.delete(f"/contacts/{cid}/tags", {"tags": [TAG_SCHEDULED]})
         client.post(f"/contacts/{cid}/tags", {"tags": [TAG_CANCELED]})
+        client.put(f"/contacts/{cid}", {"customFields": [{"id": CF_TOUR_DATE, "field_value": ""}]})
     except Exception as e:  # noqa: BLE001
         code = getattr(e, "code", None)
         return {"ok": False, "error": f"GHL update failed: {type(e).__name__}{f' {code}' if code else ''}"}
     return {"ok": True}
+
+
+def set_first_day(client, contact_id, on):
+    """The owner's Add to calendar tap. In QA mode a real family is refused: the flag would sit
+    unseen, then post by itself on the switch to real mode. Taking it off is always safe."""
+    if on and qa_mode():
+        _, err = _tap_contact(client, contact_id)
+        if err:
+            return {"ok": False, "error": err}
+    import daycare_starts
+    return daycare_starts.set_calendar(contact_id, on)
 
 
 def run_forever(client):

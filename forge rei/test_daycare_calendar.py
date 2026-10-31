@@ -5,6 +5,7 @@ import os
 import tempfile
 import time
 import unittest
+import urllib.error
 from datetime import date, datetime
 from pathlib import Path
 from unittest import mock
@@ -54,7 +55,10 @@ class FakeGHL:
     def get(self, endpoint, params=None, retries=3):
         if self.fail_reads:
             raise OSError("ghl down")
-        return {"contact": self.contacts[endpoint.split("/")[2]]}
+        cid = endpoint.split("/")[2]
+        if cid not in self.contacts:      # what GHL really answers for a deleted contact
+            raise urllib.error.HTTPError(endpoint, 400, "Bad Request", {}, None)
+        return {"contact": self.contacts[cid]}
 
     def put(self, endpoint, body, retries=2):
         self.puts.append((endpoint, body))
@@ -70,6 +74,9 @@ class FakeGHL:
 class FakeGoogle:
     def __init__(self):
         self.events, self.writes, self.fail = {}, 0, None
+
+    def calendars(self):
+        return {"live": LIVE, "qa": QA}
 
     def put_event(self, cal, eid, body):
         if self.fail:
@@ -305,6 +312,55 @@ class Lifecycle(Base):
         self.assertEqual(self.google.writes, before)
 
 
+class TourEdges(Base):
+    def booked(self, cid="c1"):
+        ghl = FakeGHL(contact(cid=cid))
+        self.run_tick(ghl)
+        return ghl
+
+    def test_deleted_contact_has_its_tour_removed_without_an_error(self):
+        ghl = self.booked()
+        del ghl.contacts["c1"]
+        self.assertIsNone(self.run_tick(ghl))
+        self.assertEqual(self.events(), [])
+
+    def test_a_timed_out_create_is_still_removed_on_cancel(self):
+        ghl = FakeGHL(contact())
+        self.google.fail = google_cal_io.CalError("Calendar unreachable: TimeoutError")
+        self.run_tick(ghl)                        # Google kept the event, we saw a timeout
+        self.google.fail = None
+        self.google.events[(LIVE, dc.event_id("tour|c1"))] = {"summary": "landed anyway"}
+        ghl.contacts["c1"]["tags"] = ["tour-canceled", "loc-921-n-18th"]
+        self.run_tick(ghl)
+        self.assertEqual(self.events(), [])
+        self.assertEqual(dc._load()["events"], {})
+
+    def test_a_row_that_never_wrote_clears_once_its_day_passes(self):
+        ghl = FakeGHL(contact())
+        self.google.fail = google_cal_io.CalError("down")
+        for _ in range(3):
+            self.run_tick(ghl)
+        self.assertEqual(dc.view(NOW)["failed"], 1)
+        self.google.fail = None
+        self.assertIsNone(self.run_tick(ghl, now=NOW + 10 * 86400))
+        self.assertEqual(dc.view(NOW)["failed"], 0)
+        self.assertEqual(dc._load()["events"], {})
+
+    def test_a_row_on_a_retired_calendar_leaves_the_ledger(self):
+        self.booked()
+        st = dc._load()
+        st["events"]["tour|c1"].update(cal="retired@group.calendar.google.com", tries=3)
+        dc._save(st)
+        self.assertIsNone(self.run_tick(FakeGHL(), now=NOW + 10 * 86400))
+        self.assertEqual(dc._load()["events"], {})
+
+    def test_contact_with_no_parent_or_child_field_gets_no_parent_line(self):
+        c = contact(parent="", child="Zuri Davis")
+        c["customFields"] = [f for f in c["customFields"] if f["id"] != daycare_ghl.CF_CHILD_NAME]
+        self.run_tick(FakeGHL(c))
+        self.assertNotIn("Parent:", self.only()["description"])
+
+
 class Failures(Base):
     def test_google_outage_retries_and_recovers(self):
         ghl = FakeGHL(contact())
@@ -369,6 +425,25 @@ class QaMode(Base):
         self.assertFalse(dc.cancel_tour(ghl, "c1")["ok"])
         self.assertEqual(ghl.deletes, [])
 
+    def test_add_to_calendar_refuses_a_real_family(self):
+        ghl = FakeGHL(contact(tags=("loc-921-n-18th",), day="", time_text="", where=""))
+        with mock.patch("daycare_starts.set_calendar") as flag:
+            out = dc.set_first_day(ghl, "c1", True)
+        self.assertFalse(out["ok"])
+        flag.assert_not_called()
+
+    def test_add_to_calendar_takes_a_qa_contact_and_removing_is_always_allowed(self):
+        ghl = FakeGHL(contact(tags=("loc-921-n-18th", dc.QA_TAG), day="", time_text="", where=""))
+        with mock.patch("daycare_starts.set_calendar", return_value={"ok": True}) as flag:
+            self.assertTrue(dc.set_first_day(ghl, "c1", True)["ok"])
+            self.assertTrue(dc.set_first_day(FakeGHL(), "c1", False)["ok"])
+        self.assertEqual(flag.call_count, 2)
+
+    def test_real_mode_add_to_calendar_needs_no_ghl_read(self):
+        self.env["FORGE_DAYCARE_CAL_QA"] = "0"
+        with mock.patch("daycare_starts.set_calendar", return_value={"ok": True}):
+            self.assertTrue(dc.set_first_day(None, "c1", True)["ok"])
+
     def test_real_mode_skips_zz_children(self):
         self.env["FORGE_DAYCARE_CAL_QA"] = "0"
         self.run_tick(FakeGHL(contact(child="ZZTest Child")))
@@ -410,9 +485,16 @@ class FirstDays(Base):
         self.assertEqual(self.events(), [])
         self.assertEqual(len(dc.view(NOW)["held"]), 1)
 
-    def test_confirmed_center_wins_over_messy_tags(self):
-        self.entry(locationId=daycare_ghl.LOCATION_ID_BY_TAG["loc-2318-cecil-b-moore"])
+    def test_confirmed_with_two_center_tags_is_held(self):
+        # Starts takes the first of several tags, so the confirmed center can be that guess.
+        self.entry(locationId=daycare_ghl.LOCATION_ID_BY_TAG["loc-1923-cecil-b-moore"])
         self.run_tick(self.ghl(tags=("loc-921-n-18th", "loc-1923-cecil-b-moore")))
+        self.assertEqual(self.events(), [])
+        self.assertEqual(len(dc.view(NOW)["held"]), 1)
+
+    def test_confirmed_center_wins_over_one_tag(self):
+        self.entry(locationId=daycare_ghl.LOCATION_ID_BY_TAG["loc-2318-cecil-b-moore"])
+        self.run_tick(self.ghl(tags=("loc-921-n-18th",)))
         self.assertTrue(self.only()["summary"].startswith("[2318] "))
 
     def test_1923_uses_its_own_tag_and_never_the_other_brand(self):
@@ -461,6 +543,34 @@ class FirstDays(Base):
         self.run_tick(ghl)
         self.run_tick(ghl)
         self.assertEqual(len(reads), 1)
+
+    def test_same_body_new_status_stops_reading_ghl(self):
+        self.entry(status="proposed", calendarAt=1)
+        ghl = self.ghl()
+        self.run_tick(ghl)
+        self.entry(status="confirmed")
+        self.run_tick(ghl)                        # source changed, body did not
+        reads = []
+        real = ghl.get
+        ghl.get = lambda e, params=None, retries=3: (reads.append(e), real(e))[1]
+        self.run_tick(ghl)
+        self.assertEqual(reads, [])
+
+    def test_qa_mode_never_touches_a_live_event(self):
+        self.entry()
+        self.run_tick(self.ghl())
+        self.assertEqual(len(self.events()), 1)
+        self.env["FORGE_DAYCARE_CAL_QA"] = "1"
+        self.run_tick(self.ghl())
+        self.assertEqual(len(self.events()), 1)
+        self.assertEqual(self.google.writes, 1)
+
+    def test_one_deleted_family_does_not_block_the_others(self):
+        self.entry()
+        self.starts["gone"] = {**self.starts["c1"], "contactId": "gone"}
+        self.run_tick(self.ghl())
+        self.assertEqual(len(self.events()), 1)
+        self.assertEqual([h["contactId"] for h in dc.view(NOW)["held"]], ["gone"])
 
 
 class ConfirmTour(Base):
@@ -523,6 +633,18 @@ class ConfirmTour(Base):
         self.assertTrue(dc.cancel_tour(ghl, "c1")["ok"])
         self.assertNotIn("tour-scheduled", ghl.contacts["c1"]["tags"])
         self.assertIn("tour-canceled", ghl.contacts["c1"]["tags"])
+
+    def test_cancel_blanks_the_date_the_check_in_text_runs_on(self):
+        ghl = self.lead(tags=("tour-scheduled", "loc-921-n-18th"))
+        dc.cancel_tour(ghl, "c1")
+        fields = ghl.puts[-1][1]["customFields"]
+        self.assertEqual(fields, [{"id": dc.CF_TOUR_DATE, "field_value": ""}])
+
+    def test_tap_refuses_the_other_brand_when_only_the_entity_tag_is_set(self):
+        ghl = self.lead(tags=("tour-requested", "entity-amt"))
+        out = dc.confirm_tour(ghl, "c1", "2026-11-04", "10:00", "loc-921-n-18th", now=NOW)
+        self.assertFalse(out["ok"])
+        self.assertEqual((ghl.puts, ghl.posts), ([], []))
 
 
 class View(Base):

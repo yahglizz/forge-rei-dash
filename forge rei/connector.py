@@ -4901,7 +4901,6 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/leads/stage",  # W2-5 Lead Desk local stage mark
                 "/api/daycare/starts/confirm", "/api/daycare/starts/date", "/api/daycare/starts/dismiss",
                 "/api/daycare/starts/calendar", "/api/daycare/tour/confirm", "/api/daycare/tour/cancel",
-                "/api/daycare/calendar/run",
                 "/api/daycare/replies/run", "/api/daycare/replies/approve",
                 "/api/daycare/replies/dismiss",
                 "/api/daycare/board/run", "/api/daycare/board/snooze", "/api/daycare/board/done",
@@ -5055,14 +5054,12 @@ class Handler(BaseHTTPRequestHandler):
             # Solomon · Calendar: the calendar tap is one local flag. Confirm tour writes GHL fields +
             # tag, which arms the published Tour Check-in SMS: that tap IS the approval for it.
             elif path == "/api/daycare/starts/calendar":
-                result = daycare_starts.set_calendar(body.get("contact_id"), bool(body.get("on")))
+                result = daycare_calendar.set_first_day(DAYCARE_GHL, body.get("contact_id"), bool(body.get("on")))
             elif path == "/api/daycare/tour/confirm":
                 result = daycare_calendar.confirm_tour(DAYCARE_GHL, body.get("contact_id"), body.get("date"),
                                                        body.get("time"), body.get("center"))
             elif path == "/api/daycare/tour/cancel":
                 result = daycare_calendar.cancel_tour(DAYCARE_GHL, body.get("contact_id"))
-            elif path == "/api/daycare/calendar/run":
-                result = daycare_calendar.run_now(DAYCARE_GHL)
             # Reply desk: run = draft-only sweep (sends nothing); approve IS the owner's
             # send tap (rule 2) and re-checks the live thread first; dismiss is internal.
             elif path == "/api/daycare/replies/run":
