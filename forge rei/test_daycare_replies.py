@@ -19,6 +19,18 @@ def g(msgs, contact=None):
     return dr.gate(contact or {}, msgs, NOW)
 
 
+def test_channel_dnd():
+    """A carrier rejection (Twilio 30006) sets only dndSettings.SMS. GHL then refuses the send,
+    so the gate must see it too or the owner gets "result unknown" instead of the reason."""
+    blocked = {"dnd": None, "dndSettings": {"SMS": {"status": "active", "message": "TWILIO_ERROR_CODE: 30006"}}}
+    assert dr._dnd(blocked) is True
+    assert dr._dnd({"dnd": True}) is True
+    assert dr._dnd({"dnd": False, "dndSettings": {"SMS": {"status": "inactive"}, "Call": {"status": "active"}}}) is False
+    assert dr._dnd({}) is False
+    parent = [msg(1, "inbound", "hi do you have infant openings?", 30 * MIN)]
+    assert g(parent, blocked) == (False, "dnd")
+
+
 def test_gate():
     parent = [msg(1, "inbound", "hi do you have infant openings?", 30 * MIN)]
     assert g(parent) == (True, None)
@@ -177,6 +189,7 @@ def test_ai_down_stops_sweep():
 
 if __name__ == "__main__":
     os.environ.setdefault("FORGE_ACTION_LOG", str(Path(tempfile.mkdtemp()) / "a.jsonl"))
+    test_channel_dnd()
     test_gate()
     test_flags()
     test_sweep_and_approve()

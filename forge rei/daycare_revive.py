@@ -174,7 +174,7 @@ def _live(client, cid, now):
     if not ev or any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in ev):
         return None
     contact = daycare_replies._contact(client, cid)
-    if contact.get("dnd"):
+    if daycare_replies._dnd(contact):
         return None
     return conv, ev, contact
 

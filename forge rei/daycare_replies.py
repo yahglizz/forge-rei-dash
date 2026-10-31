@@ -111,6 +111,13 @@ def _is_keyword(body):
     return w in KEYWORDS
 
 
+def _dnd(contact):
+    """GHL refuses a text on the contact-wide DND or on the SMS channel's own flag. A carrier
+    rejection (Twilio 30006) sets only the channel flag, so both have to be read."""
+    sms = (contact.get("dndSettings") or {}).get("SMS") or {}
+    return bool(contact.get("dnd")) or sms.get("status") == "active"
+
+
 def gate(contact, messages, now):
     """Pure: does this thread owe a human reply right now? -> (True, None) or
     (False, code). Every False is a hold — the next sweep re-checks. `contact` may be {}
@@ -134,7 +141,7 @@ def gate(contact, messages, now):
     if ftags & {"family-confirm-pending", "family-confirmed"} \
             and daycare_family_confirm.classify(last["body"]) == "yes":
         return False, "family_confirm"
-    if contact.get("dnd"):
+    if _dnd(contact):
         return False, "dnd"
     age = now - last["t"]
     if age < GRACE_SEC:
@@ -234,7 +241,7 @@ def auto_send(client, now=None):
         if sum(1 for t in log if t["cid"] == cid) >= AUTO_PER_CONTACT:
             continue
         ct = _contact(client, cid)
-        if ct.get("dnd"):
+        if _dnd(ct):
             continue
         res = approve(client, cid, now=now, auto=True)
         if res.get("ok"):
@@ -630,7 +637,7 @@ def thread(client, contact_id, now=None):
     label, brand = _center({str(t).strip().lower() for t in contact.get("tags") or []})
     opted = any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in msgs)
     block = ("parent opted out" if opted
-             else "on Do Not Disturb in GHL" if contact.get("dnd")
+             else "on Do Not Disturb in GHL" if _dnd(contact)
              else None if daycare_leads.in_hours(now)
              else "outside the 8am–9pm ET texting window")
     d = (_load().get("drafts") or {}).get(cid)
@@ -656,7 +663,7 @@ def send_block(client, contact_id, now=None):
     ev = _events(daycare_leads._messages(client, daycare_leads._conversation(client, cid)))
     if any(e["dir"] == "inbound" and seller_classify.is_opt_out(e["body"]) for e in ev):
         return "parent opted out — not sent"
-    if _contact(client, cid).get("dnd"):
+    if _dnd(_contact(client, cid)):
         return "contact is on Do Not Disturb in GHL — not sent"
     return None
 
