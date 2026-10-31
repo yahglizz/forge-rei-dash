@@ -2856,9 +2856,16 @@ def api_agency_ads(q):
     account = (q.get("account", [None]) or [None])[0]
     client = (q.get("client", [None]) or [None])[0]
     days = _qint(q, "days", 7)
+    one = lambda k: (q.get(k, [None]) or [None])[0] or None   # noqa: E731
     # Agency side: the shared Pipeboard account is the DAYCARE's -> the no-account shape, never
     # the daycare's figures (its own reads go through /api/daycare/ads under daycare creds).
-    return agency_ads.agency_analytics(account=account, client=client, days=days)
+    # preset / since+until = Meta's date picker (ads_range.py), resolved in the ad account's timezone.
+    try:
+        return agency_ads.agency_analytics(account=account, client=client, days=days,
+                                           preset=one("preset"), since=one("since"), until=one("until"))
+    except ValueError as e:     # bad range: say so, never a 500 or a silent default
+        return {"dataSource": "range_error", "rangeError": str(e), "totals": {}, "campaigns": [],
+                "topAds": [], "weakAds": [], "days": days}
 
 
 def api_agency_ads_accounts(_q):

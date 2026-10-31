@@ -303,8 +303,9 @@ def test_daycare_account_labeled_not_agency():
              agency_ads._daycare_ids, os.environ.pop("META_AD_ACCOUNT_MAP", None))
     read = []
     pb.configured, pb.auth_dead = (lambda: True), (lambda: False)
-    pb.analytics = lambda acct, days: read.append(acct) or {
+    pb.analytics = lambda acct, days, rng=None: read.append(acct) or {
         "totals": {"spend": 289.2, "leads": 11, "cpl": 26.29, "roas": 0}, "dataSource": "live"}
+    saved_meta, pb.account_meta = pb.account_meta, (lambda a: {"tz": None, "created": None})   # no network in tests
     agency_ads._daycare_ids = lambda: ({"1175564690150627"}, True)
     try:
         pb.default_account = lambda: "act_1175564690150627"
@@ -358,6 +359,7 @@ def test_daycare_account_labeled_not_agency():
         assert agency_ads.agency_account("act_555") == ("mock", None)
     finally:
         pb.configured, pb.default_account, pb.auth_dead, pb.analytics, agency_ads._daycare_ids = saved[:5]
+        pb.account_meta = saved_meta
         os.environ.pop("META_AD_ACCOUNT_MAP", None)
         if saved[5] is not None:
             os.environ["META_AD_ACCOUNT_MAP"] = saved[5]

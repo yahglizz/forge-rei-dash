@@ -244,11 +244,13 @@ def _action(row: dict, *types: str) -> int:
     return 0
 
 
-def analytics(account_id: str, days: int = 7) -> dict:
+def analytics(account_id: str, days: int = 7, rng: dict | None = None) -> dict:
     """Live analytics in the exact shape agency_ads._live_analytics returns, so the Ads UI,
-    Eco and Solomon read it unchanged. Raises PipeboardError on any failure."""
+    Eco and Solomon read it unchanged. `rng` = an ads_range.resolve() window (the Meta picker);
+    omitted -> the last `days` complete days. Raises PipeboardError on any failure."""
     import agency_ads
-    rng = agency_ads._date_range(days)
+    rng = rng or agency_ads._date_range(days)
+    days = rng.get("days", days)
     rows = insights(account_id, rng["since"], rng["until"], "ad")
     try:
         status = {str(c.get("id")): str(c.get("status") or "").lower() for c in campaigns(account_id)}
@@ -301,6 +303,24 @@ def lead_count(row: dict) -> int:
 
 def account_info(account_id: str) -> dict:
     return call("get_account_info", {"account_id": account_id})
+
+
+_META: dict = {}               # acct -> (expires, {"tz", "created"}); an account's zone barely changes
+
+
+def account_meta(account_id: str) -> dict:
+    """{"tz": IANA name|None, "created": YYYY-MM-DD|None} for ads_range (the account's own "today").
+    Cached 1 h; never raises (unknown tz -> ads_range falls back to FORGE_TZ_OFFSET, said out loud)."""
+    hit = _META.get(account_id)
+    if hit and hit[0] > time.time():
+        return hit[1]
+    try:
+        d = call("get_account_info", {"account_id": account_id, "fields": "timezone_name,created_time"})
+        meta = {"tz": d.get("timezone_name") or None, "created": (d.get("created_time") or "")[:10] or None}
+    except Exception:  # noqa: BLE001
+        return {"tz": None, "created": None}           # not cached: retry on the next read
+    _META[account_id] = (time.time() + 3600, meta)
+    return meta
 
 
 def daily_ad_rows(account_id: str, since: str, until: str) -> list[dict]:

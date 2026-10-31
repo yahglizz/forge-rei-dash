@@ -181,10 +181,15 @@ def _metrics(row):
 def _date_range(days):
     """The window a metric covers: the `days` full days before today (Meta's
     last_Nd semantics). Sent to Meta as time_range, so the label IS the query."""
-    today = datetime.date.today()
-    return {"days": days,
-            "since": (today - datetime.timedelta(days=days)).isoformat(),
-            "until": (today - datetime.timedelta(days=1)).isoformat()}
+    try:                       # "today" = the ad account's day, never the server's (the box runs UTC,
+        import ads_range       # so after ~8pm Eastern the server is already "tomorrow")
+        r = ads_range.resolve(days=days)
+        return {"days": days, "since": r["since"], "until": r["until"]}
+    except Exception:  # noqa: BLE001 — bad `days` etc.: keep the old server-date window
+        today = datetime.date.today()
+        return {"days": days,
+                "since": (today - datetime.timedelta(days=days)).isoformat(),
+                "until": (today - datetime.timedelta(days=1)).isoformat()}
 
 
 def _data_source(conn):
@@ -487,13 +492,13 @@ def no_account_shape(days=7):
             "connection": {**connection(), "noAgencyAccount": True, "todo": NO_ACCOUNT_NOTE}}
 
 
-def agency_analytics(account=None, client=None, days=7):
+def agency_analytics(account=None, client=None, days=7, preset=None, since=None, until=None):
     st, acct = agency_account(account, client)
     if st == "mock":
         return analytics(account=account, client=client, days=days)
     if st == "none":
         return no_account_shape(days)
-    return analytics(account=acct, days=days)
+    return analytics(account=acct, days=days, preset=preset, since=since, until=until)
 
 
 def agency_accounts():
@@ -564,13 +569,21 @@ def accounts():
     return {"accounts": _ACCOUNTS, "connection": connection()}
 
 
-def analytics(account=None, client=None, days=7):
-    """Aggregate analytics. Live when Pipeboard or META_ACCESS_TOKEN is present; mock fallback."""
+def analytics(account=None, client=None, days=7, preset=None, since=None, until=None):
+    """Aggregate analytics. Live when Pipeboard or META_ACCESS_TOKEN is present; mock fallback.
+    preset/since/until = Meta's date picker (ads_range.py), resolved in the AD ACCOUNT's timezone.
+    Raises ValueError on a bad range (the route turns it into a message). Pipeboard path only."""
     if pipeboard_io.configured():
         acct_id = account or _pb_map().get(client) or pipeboard_io.default_account()
         if acct_id and not pipeboard_io.auth_dead():
+            import ads_range
+            meta = pipeboard_io.account_meta(acct_id)
+            rng = ads_range.resolve(preset, since, until, tz_name=meta.get("tz"), earliest=meta.get("created"),
+                                    days=days if not (preset or since or until) else None)   # may raise ValueError
             try:
-                out = pipeboard_io.analytics(acct_id, days)
+                out = pipeboard_io.analytics(acct_id, days, rng)
+                out["accountToday"] = ads_range.account_today(meta.get("tz"))[0].isoformat()
+                out["accountTz"] = meta.get("tz")
                 out["connection"] = connection()
                 if owner_of(acct_id):          # label it honestly; it is not agency data
                     out.update(accountOwner="daycare", ownerNote=DAYCARE_OWNER_NOTE)
