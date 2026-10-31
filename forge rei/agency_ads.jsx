@@ -189,9 +189,25 @@ function AgencyAds() {
     if (!selectedAcct && accounts.length) setSelectedAcct(accounts[0].id);
   }, [accounts, selectedAcct]);
 
-  // analytics — path is keyed on the account so it auto-refetches on change
-  const analyticsPath = selectedAcct ? `/api/agency/ads?account=${selectedAcct}` : `/api/agency/ads`;
+  // date range — Meta's own picker (shared with the daycare Ads tab: DcaRangePicker + ads_range.py).
+  // Dates are resolved by the BACKEND in the ad account's timezone; the choice is remembered.
+  const [range, setRangeAd] = useStateAd(() => {
+    const saved = window.DcaLsGet ? window.DcaLsGet("agency_ads_range_v1", null) : null;
+    return saved && saved.preset ? saved : { preset: "last_7d", since: null, until: null, compare: false };
+  });
+  const setRange = (r) => { setRangeAd(r); if (window.DcaLsSet) window.DcaLsSet("agency_ads_range_v1", r); };
+
+  // analytics — path is keyed on the account + range so it auto-refetches on change
+  const rangeQ = window.DcaRangeQuery ? window.DcaRangeQuery(range).replace(/&compare=1$/, "") : "days=7";
+  const analyticsPath = `/api/agency/ads?${selectedAcct ? `account=${selectedAcct}&` : ""}${rangeQ}`;
   const { data, loading, error, refresh } = window.useApi(analyticsPath, { interval: 30000 });
+  const dr = (data && data.dateRange) || {};
+  const todayAd = (data && data.accountToday) || (window.DcaIso
+    ? window.DcaIso(new Date(Date.now() - new Date().getTimezoneOffset() * 60000)) : "");
+  const fresh = dr.preset === range.preset && (range.preset !== "custom" || (dr.since === range.since && dr.until === range.until));
+  const guess = range.preset === "custom" ? [range.since, range.until]
+    : (window.DcaResolve && todayAd ? window.DcaResolve(range.preset, todayAd) : [null, null]);
+  const shownRange = { ...range, since: fresh ? dr.since : guess[0], until: fresh ? dr.until : guess[1] };
 
   const live = !!(data && data.dataSource === "live");
   // The shared Pipeboard account is the DAYCARE's: the server sends the no-account shape instead of
@@ -256,9 +272,16 @@ function AgencyAds() {
         <button className="tab" onClick={refresh} style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Icons.Activity size={14} /> Refresh
         </button>
+        {window.DcaRangePicker && todayAd && (
+          <div style={{ minWidth: 260 }}>
+            <window.DcaRangePicker value={shownRange} today={todayAd} tz={dr.tz || data?.accountTz || ""} onChange={setRange} />
+          </div>
+        )}
         {acctName && <span className="faint" style={{ fontSize: 12, marginLeft: "auto" }}>
-          {acctName}{data && data.days ? ` · last ${data.days} days` : ""}</span>}
+          {acctName}{dr.label ? ` · ${dr.label}` : (data && data.days ? ` · ${data.days} days` : "")}
+          {dr.partialToday ? " · today is partial" : ""}</span>}
       </div>
+      {data && data.rangeError && <div style={{ color: "var(--red)", fontSize: 12.5 }}>Date range: {data.rangeError}</div>}
 
       {error && <window.ErrorRow error={error} onRetry={refresh} />}
       {loading && !data && <window.LoadingRow label="Loading Meta Ads analytics…" />}

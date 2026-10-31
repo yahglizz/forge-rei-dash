@@ -737,6 +737,13 @@ key on the box. New migrations go in BOTH migration folders.
   agency's own `META_AD_ACCOUNT_MAP`, minus the daycare's, are read; any other `account`/`client`/default, or unresolvable
   daycare ownership, returns the no-account shape (`dataSource:"no_account"`, empty totals, "No agency ad account connected") and the
   Agency Ads/Eco tabs show that empty state; `/api/daycare/ads` and Solomon's reads (daycare creds) are untouched.
+  **Agency Ads timeline = Meta's picker (2026-10-31).** `/api/agency/ads?preset=…|since=&until=` resolves through
+  `ads_range.py` in the AD ACCOUNT's timezone (`pipeboard_io.account_meta`, cached 1 h), same as the daycare feed; the
+  Ads tab reuses the daycare's `DcaRangePicker` (exported on `window`, choice remembered per browser). The legacy
+  `?days=N` path and `agency_ads._date_range` now use the account's day too, not the server's (the box runs UTC: after
+  ~8pm Eastern the server clock is already tomorrow and every window shifted a day). A bad range returns
+  `dataSource:"range_error"` + `rangeError`, never a silent default. Response adds `accountToday`, `accountTz`.
+  Pipeboard path only (the Graph-token fallback ignores presets). Test: `test_agency_ads_range.py`.
   **Meta-exact reads + live agent packet (2026-10-17).** `ads_range.py` is the ONE range resolver (Meta picker
   presets: today … last_30d … this/last week (Sun–Sat), this/last month, maximum; "last N days" = N complete days
   ending yesterday; "today" = the ad ACCOUNT's day via `get_account_info.timezone_name`, cached 1 h, fallback

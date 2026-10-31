@@ -663,4 +663,6 @@ function DaycareGrowth() {
 }
 
 Object.assign(window, { DaycareGrowth, DaycareAds, DcaAdsCard, DcaRangePicker, DaycareSocial, DaycareAdsAuto,
-  DaycareNova, DcaNovaCard });
+  DaycareNova, DcaNovaCard,
+  // shared with the agency Ads tab (agency_ads.jsx): the ONE Meta-style picker + its helpers
+  DcaResolve, DcaRangeQuery, DcaLsGet, DcaLsSet, DcaIso });
