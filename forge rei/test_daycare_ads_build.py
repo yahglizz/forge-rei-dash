@@ -169,8 +169,8 @@ class Build(BuildBase):
         self.assertIn("get_ads", reads_after)                                    # verify after create
         cr = self.args("create_ad_creative")
         self.assertEqual((cr["page_id"], cr["instagram_actor_id"], cr["link_url"], cr["url_tags"]),
-                         ("939494549239823", "17841439350588476", "https://www.atouchofblessing.com/",
-                          "utm_source=facebook&utm_medium=paid_social"))
+                         ("939494549239823", "17841436257715501", "https://www.atouchofblessing.com/",
+                          "utm_source=facebook&utm_medium=paid_social"))   # real @atouchofblessing2.3, not the template's Page-backed id
         self.assertEqual((cr["image_hash"], cr["call_to_action_type"], cr["ai_media"]), ("H1", "CONTACT_US", True))
         self.assertNotIn("lead_gen_form_id", cr)
         ad = self.args("create_ad")
@@ -325,6 +325,26 @@ class LaunchAfterBuild(BuildBase):
             c2 = tg._new("concept", "i1", imageUrl="u", title="T")
             tg.h_build(c2["id"])
         self.assertIn("build stopped (RuntimeError)", self.sent[-1][1]["text"])
+
+
+class TemplateIdentity(unittest.TestCase):
+    """A Build puts new ads under the real Instagram account, even when the template ad carries the
+    old Page-backed identity (17841439350588476). Added 2026-10-31 with the ad identity switch."""
+
+    def test_our_page_gets_the_real_account(self):
+        self.assertEqual(studio._template(WEB_CREATIVE)["instagram"], "17841436257715501")
+
+    def test_creative_with_no_identity_gets_it_too(self):
+        cr = {"object_story_spec": {"page_id": studio.PAGE_ID}}
+        self.assertEqual(studio._template(cr)["instagram"], "17841436257715501")
+
+    def test_another_page_keeps_its_own_identity(self):
+        cr = {"object_story_spec": {"page_id": "111", "instagram_user_id": "999"}}
+        self.assertEqual(studio._template(cr)["instagram"], "999")       # never cross brands
+
+    def test_empty_override_falls_back_to_the_template(self):
+        with mock.patch.object(studio, "IG_ACTOR", ""):
+            self.assertEqual(studio._template(WEB_CREATIVE)["instagram"], "17841439350588476")
 
 
 if __name__ == "__main__":

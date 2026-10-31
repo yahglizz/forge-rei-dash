@@ -58,6 +58,11 @@ _LOCK = threading.Lock()
 AD_ACCOUNT = os.environ.get("DAYCARE_AD_ACCOUNT", "act_1175564690150627")
 PAGE_ID = os.environ.get("DAYCARE_PAGE_ID", "939494549239823")
 TOUR_LINK = os.environ.get("DAYCARE_TOUR_LINK", "https://atouchofblessing.com")
+# The real Instagram account the ads run under: @atouchofblessing2.3, assigned to the ad account 2026-10-31.
+# Ads built before that carry the Page-backed identity (17841439350588476), and _template() copies the identity
+# from the best ad — so without this a Build would quietly revert to the shadow profile. Set DAYCARE_IG_ID=""
+# to fall back to copying the template ad's identity.
+IG_ACTOR = os.environ.get("DAYCARE_IG_ID", "17841436257715501")
 
 # Higgsfield defaults from the runbook's model table (§67-96).
 HIGGSFIELD_MODEL = os.environ.get("HIGGSFIELD_MODEL", "gpt_image_2")
@@ -712,8 +717,11 @@ def _template(cr):
     link = ld.get("link") or ""
     if not link or "fb.me" in link:     # instant-form ads carry a placeholder; Meta still wants a URL
         link = next((u.get("website_url") for u in afs.get("link_urls") or [] if u.get("website_url")), "") or TOUR_LINK
-    return {"page_id": str(oss.get("page_id") or ""),
-            "instagram": str(oss.get("instagram_user_id") or cr.get("instagram_user_id") or ""),
+    page_id = str(oss.get("page_id") or "")
+    instagram = str(oss.get("instagram_user_id") or cr.get("instagram_user_id") or "")
+    if IG_ACTOR and page_id == PAGE_ID:     # our Page only — never put the real account on another brand's Page
+        instagram = IG_ACTOR
+    return {"page_id": page_id, "instagram": instagram,
             "link": link, "url_tags": cr.get("url_tags") or "",
             "lead_form": str((cta.get("value") or {}).get("lead_gen_form_id") or ""),
             "cta": cta.get("type") or next(iter(afs.get("call_to_action_types") or []), "")}
