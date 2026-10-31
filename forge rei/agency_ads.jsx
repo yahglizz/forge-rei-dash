@@ -36,9 +36,11 @@ function AdConnectionCard({ connection }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>Meta Ads — connected</div>
           <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
-            {isLive
-              ? "Live data via META_ACCESS_TOKEN — real spend and performance numbers."
-              : "Access token detected via environment (META_ACCESS_TOKEN)."}
+            {conn.via === "pipeboard"
+              ? "Live data via Pipeboard (the agency ad account only) — real spend and performance numbers."
+              : isLive
+                ? "Live data via META_ACCESS_TOKEN — real spend and performance numbers."
+                : "Access token detected via environment (META_ACCESS_TOKEN)."}
           </div>
         </div>
         <window.AgUI.Badge status={isLive ? "active" : "paused"} map={AD_STATUS} />
