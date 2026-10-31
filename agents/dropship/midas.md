@@ -100,3 +100,13 @@ curl -s localhost:7799/api/dropship/director/status | jq '{aiReady,topSkills,bri
 curl -s localhost:7799/api/businesses | jq .
 ```
 Heartbeat `midas` reads retired while `FORGE_DROPSHIP_BRIEF=0`.
+
+## 10. Keys, MCPs and task file
+
+This card is the agent's canonical task file; runtime prompts still load skills from `forge-dropship/skills/` — doc pointer only.
+
+Midas is archived but kept ready: nothing is deleted, and Reactivate in Mission Control brings him back. Table with statuses: [ENV-MAP, Midas](../ENV-MAP.md#midas-dropship--archived-kept-ready-for-reactivation). Names only, values live in `~/.agent-keys/master.env`.
+
+- Claude key: `DROPSHIP_ANTHROPIC_API_KEY` → `ANTHROPIC_API_KEY` → agency → wholesale (no dropship label in STATUS.md; fallbacks OK).
+- Fix before reactivating: `SHOPIFY_ADMIN_TOKEN` FAIL; `WINNINGHUNTER_API_KEY`, `EVERBEE_CLIENT_ID`, `EVERBEE_CLIENT_SECRET` EMPTY; Meta token has no dropship label (both labelled tokens FAIL). `AUTODS_API_KEY`, `GETHOOKED_API_KEY`, `HIGGSFIELD_API_KEY` are UNTESTED; `APIFY_TOKEN` is OK.
+- Suggested MCPs (not read from code): Shopify, GetHookd, Apify, Higgsfield, Meta Ads (read), n8n.

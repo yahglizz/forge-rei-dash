@@ -1,6 +1,6 @@
 # Orion — Chief of Staff (cross-business CEO brief)
 
-> Code refs are relative to `forge rei/` unless they start with `forge-`. Verified against code 2026-09-22.
+> Code refs are relative to `forge rei/` unless they start with `forge-`. Verified against code 2026-09-22; Telegram routing, scheduled-brief gate and the `connector.py` cites re-checked 2026-10-31 (other line cites not re-checked).
 
 ## 1. Identity
 
@@ -8,7 +8,7 @@
 |---|---|
 | Business | Cross-business · hub id `orion` · emoji 🧭 · roster business `cross` |
 | Job | Reads what every agent produced and writes the daily "attack today" brief: one focus, one idea, ranked priorities. Proposes only. Also answers chat for the daily brief / recap ([briefs](briefs.md)). |
-| Engine | `forge rei/mission_control_agent.py` → `OrionEngine` (`mission_control_agent.py:72`), built `connector.py:1067` as `ORION` |
+| Engine | `forge rei/mission_control_agent.py` → `OrionEngine` (`mission_control_agent.py:72`), built `connector.py:1144` as `ORION` |
 | Seed folder | `forge-mission/skills/` (`orion-playbook.md`) |
 
 ## 2. Triggers
@@ -17,16 +17,16 @@
 
 | Field | Value |
 |---|---|
-| Thread | `brief` (`connector.py:5177`) → `_brief_scheduler_forever` (`:2112`) → `_maybe_ceo_brief` (`:2088`) → `ORION.maybe_daily()` |
-| Gate | `FORGE_MARCUS` != `0` (scheduler returns immediately otherwise); never retired |
+| Thread | `brief` (`connector.py:6116`) → `_brief_scheduler_forever` (`:2301`) → `_maybe_ceo_brief` (`:2271`) → `ORION.maybe_daily()` |
+| Gate | `FORGE_MARCUS` != `0` (scheduler returns immediately otherwise) **and** `FORGE_BRIEFS=1` (`BRIEFS_ON`, `connector.py:2298`, **default off** since the 2026-09-30 cut); the thread itself stays up for the git-sync watchdog |
 | Hour | `FORGE_MISSION_BRIEF_HOUR`, default 7, in fixed offset `FORGE_TZ_OFFSET` (default −4) |
 | Check tick | `FORGE_BRIEF_CHECK_SEC` 300 (min 60), 90 s startup delay |
 | Clock-out | whole scheduler tick skipped on `forge_ops.paused()` |
 | Once/day | `last_build_day` set only on success — a failure retries next tick |
 | Telegram push | `FORGE_MISSION_BRIEF_TELEGRAM=1` (default 0), dedupe `ceo_brief:<date>` |
-| Heartbeat | `daily_brief` (shared with the briefs) |
+| Heartbeat | `daily_brief` (shared with the briefs; reads "briefs off · sync watchdog" while `FORGE_BRIEFS` is off) |
 
-**Telegram:** **no `/orion` command and no name trigger** (`telegram_io.py:670-683`). Orion can never be the active Telegram agent, so `/task` cannot reach him from Telegram.
+**Telegram:** `/orion` and the trigger word (`orion, …` / `orion: …` / `orion — …`) switch the chat to Orion (`_AGENT_ALIASES` `telegram_io.py:778`, `_AGENT_TRIGGER` `:787`). He is the default agent of the HQ chat (`_default_agent`, `telegram_io.py:1226`) and works only there: in a bound business chat the switch is refused with a pointer to HQ (`telegram_io.py:1087`). Chat runs through `telegram_agent.chat` (HQ scope: health, API cost, what's down). `/task <title>` while Orion is active files it with `agents_hub.send_task("orion", …)` (`telegram_io.py:1118`); the scheduled brief still does not read tasks.
 
 **HTTP** (private network + Host + same-origin POST)
 
@@ -61,8 +61,8 @@ Read-only, propose only; every recommendation must trace to a signal an agent re
 
 ## 7. Chat & tasks
 
-- `/api/hub/chat {agentId:"orion"}` (dashboard/Agent Control Center only) → `_director_chat` with `_DIRECTOR["cross"]` (`agents_hub.py:284`): NORTH_STAR as brief → latest brief → `eng._playbook()[:4000]` → `open_tasks_block("orion")` (includes tasks filed for `briefs`) → `caveman.block()`.
-- Tasks: `/api/hub/task {agentId:"orion"}`; visible only in chat — the scheduled brief does not read tasks.
+- `/api/hub/chat {agentId:"orion"}` (dashboard and Agent Control Center; the HQ Telegram chat uses `telegram_agent.chat` instead) → `_director_chat` with `_DIRECTOR["cross"]` (`agents_hub.py:284`): NORTH_STAR as brief → latest brief → `eng._playbook()[:4000]` → `open_tasks_block("orion")` (includes tasks filed for `briefs`) → `caveman.block()`.
+- Tasks: `/api/hub/task {agentId:"orion"}` or Telegram `/task` in the HQ chat; visible only in chat — the scheduled brief does not read tasks.
 - **Live data (2026-10-18):** `_director_chat` runs `dash_live.ask` — read-only `api_get`/`route_help` over the HQ scope **plus all four business scopes** (`dash_live.businesses`), ≤4 tool turns, no writes. Placement: cross-business surfaces (Mission Control, Agent Control Center) + every workspace's Agent Office floor, where his check-in/plan/chat cover that floor's agent only; a workspace hub/mobile portal or a bound Telegram business chat refuses him with a pointer to HQ. Knob `FORGE_CHAT_LIVE=0`.
 
 ## 8. Cost
@@ -76,3 +76,13 @@ curl -s localhost:7799/api/mission-control/brief | jq '{generatedAt,briefCount,e
 curl -s localhost:7799/api/mission-control/brief/overview | jq 'keys'
 curl -s localhost:7799/api/agents/registry | jq '.agents[]|select(.id=="orion")|{status,lastSuccessAt,lastError}'
 ```
+
+## 10. Keys, MCPs and task file
+
+This card is the agent's canonical task file; runtime prompts still load skills from `forge-mission/skills/` — doc pointer only.
+
+Head agent over Marcus, Dyson, Solomon and Midas: reads their state, proposes assignments, cannot send or spend. Table: [ENV-MAP, Orion](../ENV-MAP.md#orion-head-agent-cross-business).
+
+- Key chain: `MISSION_ANTHROPIC_API_KEY` → `ANTHROPIC_API_KEY` → agency → Midas → review (wholesale) key. master.env: no mission label; fallbacks `ANTHROPIC_API_KEY__AGENCY` and `__WHOLESALE` are OK.
+- Other names: `TELEGRAM_BOT_TOKEN` (OK), `TELEGRAM_CHAT_ID` (CONFIG), `TELEGRAM_ALLOWED_IDS` (EMPTY, not blocking). Knobs: `FORGE_MISSION_BRIEF_HOUR`, `FORGE_MISSION_LEARN_EVERY`, `FORGE_TZ_OFFSET`, `FORGE_MISSION_BRIEF_TELEGRAM`, `FORGE_BRIEFS`.
+- Suggested MCPs (not read from code): brain, scheduled-tasks, Vercel (runtime logs).

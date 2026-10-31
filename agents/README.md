@@ -9,8 +9,22 @@
 
 One card per agent/worker, filed by business. Every card has the same 9 sections:
 Identity · Triggers · Reads · Outputs · Autonomy & gates · Self-improvement · Chat & tasks ·
-Cost · Verify it's alive. Code refs are relative to `forge rei/`. Last verified against code
-2026-09-22 (daycare lanes 2026-09-24).
+Cost · Verify it's alive. The main-agent cards (Marcus, Dyson, Eco, Midas, Orion) add a tenth,
+**Keys, MCPs and task file**. Code refs are relative to `forge rei/`. Last verified against code
+2026-09-22 (daycare lanes 2026-09-24; Dyson, Eco and Orion re-checked 2026-10-31).
+
+**Head agent.** Orion is the head agent over Marcus, Dyson, Solomon and Midas. He reads what they
+report, flags what is stuck and proposes assignments the owner approves. He proposes only: he cannot
+send a message, spend, launch or write to a live system. On Telegram he is the default agent of the HQ
+chat (`/orion`, `orion, …`) and is refused in the business chats; elsewhere he lives on cross-business
+surfaces (Mission Control, Agent Control Center, HQ chat). Card: [orion](cross-business/orion.md).
+
+**Midas is archived but kept ready.** Nothing about him is deleted: Reactivate in Mission Control
+brings him back. His card and keys stay current so reactivation is not a rebuild.
+
+**Keys and MCPs.** Each main-agent card's section 10 is that agent's canonical task file, and the
+per-agent env var names, key statuses and suggested MCPs are in one place: [ENV-MAP](ENV-MAP.md).
+Names only; values live in `~/.agent-keys/master.env`, never in the repo.
 
 **These cards are documentation, not behavior.** Editing one changes nothing at runtime. What
 agents actually load: creed (`forge-*/skills/<business>-evidence-discipline.md`, human-only,
@@ -37,6 +51,7 @@ they keep their own thread + heartbeat but report on the owner's row, card and c
 | Solomon · Replies ‡ | Daycare | [solomon §10](daycare/solomon.md) | `forge rei/daycare_replies.py` | thread `daycare_replies`, 60 s | — (ask Solomon) | lane of `solomon` | drafts; owner taps send — opt-in `FORGE_DAYCARE_REPLY_AUTO=1` auto-sends clean lead answers |
 | Solomon · Leads ‡ | Daycare | [solomon §11](daycare/solomon.md) | `forge rei/daycare_leads.py` | thread `daycare_leads`, 900 s | outbound only | lane of `solomon` | GET-only, $0 |
 | Solomon · Starts ‡ | Daycare | [solomon §12](daycare/solomon.md) | `forge rei/daycare_starts.py` | thread `daycare_starts`, 900 s | outbound only | lane of `solomon` | owner Confirm sends the day-one login |
+| Solomon · Calendar ‡ | Daycare | [solomon §18](daycare/solomon.md) | `forge rei/daycare_calendar.py` | thread `daycare_calendar`, 900 s | outbound only | lane of `solomon` | $0 Claude; QA mode default; writes one Google calendar, emails the owner |
 | Midas | Dropship (archived) | [midas](dropship/midas.md) | `forge rei/dropship_director.py` | thread `midas` — **off** (`FORGE_DROPSHIP_BRIEF=0`) | `/midas`, `midas, …` | `midas` | read + propose only |
 | Orion | Cross | [orion](cross-business/orion.md) | `forge rei/mission_control_agent.py` | none (scheduled briefs off) | `/orion`, `orion, …` — default in HQ | `orion` | read + propose only |
 | Daily brief | System | [daily-brief](cross-business/daily-brief.md) | `forge rei/daily_brief.py` | off (`FORGE_BRIEFS=0`) | outbound only | `briefs` → Orion | operator Telegram only, $0 |
@@ -86,7 +101,7 @@ Not documented as agents (no brain, no agent role): `do_today` (thread `do_today
 | `atlas` | hardcoded 900; `FORGE_PREP_AUTO` (1) | `atlas` |
 | `solomon` | hardcoded 900 tick; `FORGE_SOLOMON_BRIEF_EVERY_H` (24) | `solomon` |
 | `daycare_leads` (Solomon · Leads) | `FORGE_DAYCARE_LEADS` (1), `FORGE_DAYCARE_LEADS_INTERVAL` (900) | `daycare_leads` |
-| `daycare_replies` (Solomon · Replies) | `FORGE_DAYCARE_REPLIES` (1), `FORGE_DAYCARE_REPLIES_INTERVAL` (300) | `daycare_replies` |
+| `daycare_replies` (Solomon · Replies) | `FORGE_DAYCARE_REPLIES` (1), `FORGE_DAYCARE_REPLIES_INTERVAL` (60) | `daycare_replies` |
 | `midas` | `FORGE_DROPSHIP_BRIEF` (**0 = off**) | `midas` (retired) |
 | `do_today` | `FORGE_TODAY_LOOP` (**0 = off**) | `do_today` (retired) |
 | `brief` | `FORGE_BRIEF_CHECK_SEC` (300): daily brief, recap, Orion, sync monitor | `daily_brief` |
@@ -106,9 +121,9 @@ review (days=1), dyson, eco · `forge-review.timer` Mon 08:00 → `/api/review/r
 | Follow-up drafts a bump | `autopilot.maybe_send` |
 | Any bus message | notifiers `telegram_io.on_bus_message` (`connector.py:1236`) + `skill_forge.on_bus_message` (`:2198`) |
 
-### 3. Telegram routing — exact precedence (`telegram_io._handle_message`, `telegram_io.py:810`)
+### 3. Telegram routing — exact precedence (`telegram_io._handle_message`, `telegram_io.py:932`)
 
-0. Auth: sender id must be `TELEGRAM_CHAT_ID` or in `TELEGRAM_ALLOWED_IDS` (`_msg_authorized`, `:777`). Button taps use the two-factor `_authorized(from_id, chat_id)` (`:92`).
+0. Auth: sender id must be `TELEGRAM_CHAT_ID` or in `TELEGRAM_ALLOWED_IDS` (`_msg_authorized`, `:899`). Button taps use the two-factor `_authorized(from_id, chat_id)` (`:92`).
 1. Quick-tap keyboard labels → mapped to their command (`_KEYBOARD_MAP`).
 2. `/start` `/help` · `/menu` · `/menu off` · `/whoami` · `/agents`.
 3. `/ace` or `/ace <mode>` (`:856`).
@@ -117,13 +132,15 @@ review (days=1), dyson, eco · `forge-review.timer` Mon 08:00 → `/api/review/r
    - ops slash commands (`_CMD_RE`, `:742`): `/today /done /hot /sweep /screen /find /text /send /checkback /proposals /report /directives /orders /ops /autopilot /prep /pause /resume /clockin /clockout /clock` → consumed;
    - any other `/…` falls through;
    - **plain text → `_command_intent`** = regex `_rule_intent`, then a Claude `_intent` classifier (`:774`). If it maps to an action (text a seller, screen, sweep…), it is consumed. Anything classed as chat falls through.
-5. Agent slash alias `/scout /marcus /atlas /dyson /eco /solomon /midas` → switches the chat's active agent (`_AGENT_ALIASES`, `:670`).
-6. Name trigger (`_AGENT_TRIGGER`, `:679`): the name as FIRST word followed by `,` or `:` (spaces optional) or a spaced dash `—`/`–`/`-` — or the bare name alone. "I told marcus to call" does not trigger.
+5. Agent slash alias `/scout /marcus /atlas /dyson /eco /solomon /midas /orion` → switches the chat's active agent (`_AGENT_ALIASES`, `:778`). `/orion` works only in the HQ chat; a business chat refuses it and stays with its partner (`:1087`).
+6. Name trigger (`_AGENT_TRIGGER`, `:787`, includes `orion`): the name as FIRST word followed by `,` or `:` (spaces optional) or a spaced dash `—`/`–`/`-` — or the bare name alone. "I told marcus to call" does not trigger.
 7. `/task <title>` → files for the **active** agent (default `marcus`). Non-agency → `agents_hub.send_task` + answered in chat; Dyson/Eco → `agency_agents.send_task` (Agency board only).
 8. Anything else → chat with the active agent (in-memory session per chat id; history from `agents_history`).
 
-Chat backends: Scout/Marcus/Atlas → `agents_chat.chat` (commands off); Solomon/Midas →
-`agents_hub.chat`; Dyson/Eco → `agency_agents.chat` (`connector.py:2324-2369`). Orion,
+Chat backends: every active-agent turn runs `telegram_agent.chat` first (the tool-using business
+partner, `telegram_io._partner_turn`, `:1169`). Only if that raises does the older text-only brain
+answer: Scout/Marcus/Atlas → `agents_chat.chat` (commands off); Solomon/Midas → `agents_hub.chat`;
+Dyson/Eco → `agency_agents.chat` (`connector.py:2548-2593`). Orion is reachable in the HQ chat only.
 Follow-up, ACE, Autopilot and the briefs are **not** reachable as Telegram chat agents.
 
 ### 4. Dashboard / HTTP
@@ -172,7 +189,7 @@ threads (`daycare_replies`, `daycare_leads`) to `solomon`; else `operator`. So: 
 Docs-only pass — none of these were fixed.
 
 **Doc claims that don't match code**
-1. `CLAUDE.md` §9 says "`/task orion …` still reaches them" (Orion and the briefs). False: `/task` always files for the active Telegram agent (`telegram_io.py:919-934`) and there is no `/orion` alias or trigger word (`telegram_io.py:670-683`). Orion is reachable only from the dashboard.
+1. `CLAUDE.md` §9 says "`/task orion …` still reaches them" (Orion and the briefs). Partly stale, **re-checked 2026-10-31**: `/task` files for the *active* Telegram agent (`telegram_io.py:1118`), and `/orion` plus the `orion` trigger word do exist (`telegram_io.py:778-790`). So `/task` reaches Orion only after switching to him, and only in the HQ chat. It never reaches the briefs (they are not Telegram agents). The earlier claim that Orion is dashboard-only was wrong.
 2. `CLAUDE.md` §9 Agent Office: (the old "twelve agents as pixel characters" wording; the pixel view is gone — the 3D office shows 7 active-floor agents + Orion) and "`analyze`/`build_brief` for the dropship four". The floor has 7 agents (`agent_office.py:37-46`) and every task runs through `agents_hub.chat` (`agent_office.py:284-295`).
 3. `CLAUDE.md` §4a/§10: Solomon has 5 top skills, not 4 — `solomon-systems-craft.md` is also loaded (`daycare_director.py:228-230`). And "one brief, one Claude call": a brief is 2 calls (competitor read `agency_eco.py:382` + brief `daycare_director.py:615`).
 4. `CLAUDE.md` §4a table: the wholesale creed file lives only in `forge-scout/skills/`, not `forge-marcus/skills/` (still loads — `agent_creed` searches both).
@@ -185,7 +202,7 @@ Docs-only pass — none of these were fixed.
 **Trigger / behavior gotchas in code**
 
 10. Telegram name triggers run AFTER the ops router's plain-English intent classifier (`telegram_ops.py:871-874`), so "solomon, …" first costs a Claude intent call (bucket `telegram`) and could be consumed as an ops action.
-11. `cost_tracker.AGENT_THREADS` lists `dyson` and `eco`, but no thread has those names; screening, ACE, skill_forge, style, review and all learn curls bill to `operator` (`connector.py:1248`, `:2189`).
+11. `cost_tracker.AGENT_THREADS` lists `dyson` and `eco`, but no scheduled thread has those names (since 2026-09-29 Telegram partner turns do run on threads named for the agent, so those bill to it); screening, ACE, skill_forge, style, review and all learn curls bill to `operator` (`connector.py:1248`, `:2189`).
 12. Telegram `/task` for Dyson/Eco skips the hub task store (`telegram_io.py:937-948`), so it never shows in the Agent Control Center task counts; `/api/hub/task` writes both.
 13. Solomon and Midas mark `all` broadcasts read for every agent (`agent_bus.inbox` includes `all`, `agent_bus.py:122`; `mark_read` is global). Marcus's `directive` messages to `scout` (`marcus_lead.py:120`) and Solomon's delegations to billing/staffing/compliance are never read by anyone.
 14. Atlas chat always says "(prep data unavailable)" — it slices the dict returned by `list_all()` (`agents_chat.py:266-272`, `deal_prep.py:576`).

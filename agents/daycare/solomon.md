@@ -1,19 +1,24 @@
 # Solomon — Executive Director (the daycare's one agent)
 
-> Code refs are relative to `forge rei/` unless they start with `forge-`. Verified against code 2026-09-24.
+> Code refs are relative to `forge rei/` unless they start with `forge-`. Sections 1–9 and the Replies lane (§10) were re-checked against code 2026-10-31 (line numbers and the fixes listed in that day's change note below); §11–§17 keep their earlier verification date and each states its own. §18 (Calendar) and §19 (keys) were written from code 2026-10-31.
 
-Solomon is the daycare's ONE agent. He owns three lanes, each with its own loop, heartbeat
+Solomon is the daycare's ONE agent. He owns several lanes, each with its own loop, heartbeat
 and state file — one identity, one Agent Control Center row, one chat:
 
 | Lane | Engine | Loop / heartbeat | What it does | Section |
 |---|---|---|---|---|
-| **Brief** (director) | `forge rei/daycare_director.py` | `solomon`, 900 s tick, brief 24 h | the ranked operating brief | §1–9 |
-| **Solomon · Replies** (the Reply Desk) | `forge rei/daycare_replies.py` | `daycare_replies`, 300 s | drafts every parent text-back; the owner taps send | §10 |
+| **Brief** (director) | `forge rei/daycare_director.py` | `solomon`, 900 s tick, brief 24 h — **OFF by default** (`FORGE_SOLOMON_BRIEF=1` turns it on); on-demand brief + chat work either way | the ranked operating brief | §1–9 |
+| **Solomon · Replies** (the Reply Desk) | `forge rei/daycare_replies.py` | `daycare_replies`, 60 s | drafts every parent text-back; the owner taps send | §10 |
 | **Solomon · Leads** (the Lead Desk) | `forge rei/daycare_leads.py` | `daycare_leads`, 900 s | GET-only enrollment-lead sweep, $0 | §11 |
+| **Solomon · Starts** | `forge rei/daycare_starts.py` | `daycare_starts`, 900 s | start dates → owner confirm → start-day app login, $0 Claude | §12 |
+| **Solomon · Ads** | `forge rei/daycare_ads_autopilot.py` | `daycare_ads`, wakes 15 min, one cycle per day | daily Meta ad optimizer + creative loop (shadow by default) | §13 |
+| **Solomon · Revive** | `forge rei/daycare_revive.py` | rides the `daycare_replies` thread | win-back drafts for quiet leads | §14 |
+| **Solomon · Orchestrator** | `forge rei/solomon_orchestrator.py` | `solomon_orchestrator`, 300 s wake — **OFF by default** (`FORGE_SOLOMON_ORCH=1`) | keeps the Command Board current, $0 Claude | §17 |
+| **Solomon · Calendar** | `forge rei/daycare_calendar.py` (+ `forge rei/google_cal_io.py`) | `daycare_calendar`, 900 s | tours + first days → one Google calendar, $0 Claude, **QA mode by default** | §18 |
 
-The lanes report to him: `reply_desk_state()` / `lead_desk_state()` (`daycare_director.py:123`/`:146`)
+The lanes report to him: `reply_desk_state()` / `lead_desk_state()` (`daycare_director.py:142`/`:165`)
 feed the brief (`replyDesk` / `leadDesk`), his chat (`agents_hub._lanes_block`) and his registry
-row. Until 2026-09-24 the Reply Desk had its own roster row (`daycare_replies`) and the Lead Desk
+row (the Calendar lane is the exception: see §18). Until 2026-09-24 the Reply Desk had its own roster row (`daycare_replies`) and the Lead Desk
 its own card; both were folded in here.
 
 ## 1. Identity
@@ -22,7 +27,7 @@ its own card; both were folded in here.
 |---|---|
 | Business | Daycare (A Touch of Blessings) · hub id `solomon` · emoji 🏛️ |
 | Job | **Daycare orchestrator (owner, 2026-10-18: Gmail, GHL, ads, billing, social, roster — growth stays first; spec `docs/superpowers/specs/2026-10-18-solomon-daycare-orchestrator-design.md`).** History: 2026-09-30 made him growth director only ("paperwork/compliance/billing/staff admin are not his lane") — reversed; the creed/top-skill wording change is owner-approved separately. Writes ONE ranked growth brief: Attention Now, Enrollment, Growth economics (`money`), Capacity to enroll (`people`), Seats (`roster`), Keep + refer (`followUps`), Campaign health, Competitor read, Creative, Delegations. Absorbed Nora + Nova (2026-07-25), then the Reply Desk + Lead Desk as his Replies + Leads lanes (2026-09-24). |
-| Engine | `forge rei/daycare_director.py` → `SolomonEngine` (`daycare_director.py:235`), connector global `SOLOMON` |
+| Engine | `forge rei/daycare_director.py` → `SolomonEngine` (`daycare_director.py:393`), connector global `SOLOMON` |
 | Seed folder | `forge-solomon/` (skills in `forge-solomon/skills/`) |
 
 ## 2. Triggers
@@ -32,13 +37,13 @@ its own card; both were folded in here.
 | Field | Value |
 |---|---|
 | Thread | `solomon` (`connector.main`) |
-| Gate | `FORGE_MARCUS` != `0`; no other on/off knob, never retired |
-| Tick | 900 s, hardcoded (`daycare_director.py:76`) |
-| Brief cadence | `FORGE_SOLOMON_BRIEF_EVERY_H`, default 24 (`:69`) |
-| Failure backoff | 15 min doubling to 6 h (`:925`) |
-| Clock-out | tick skipped on `forge_ops.paused()` (`:962`) |
+| Gate | Box only (`FORGE_MARCUS=1`) **and** `FORGE_SOLOMON_BRIEF` != `0`. **Default is OFF** (`SCHEDULED_BRIEF`, `daycare_director.py:86`; owner cut scheduled briefs 2026-09-30): the thread is not started and `forge_heartbeat.retire("solomon")` runs at boot. The on-demand brief (`POST /api/daycare/director/run`) and chat work either way |
+| Tick | 900 s, hardcoded (`POLL_INTERVAL`, `daycare_director.py:95`) |
+| Brief cadence | `FORGE_SOLOMON_BRIEF_EVERY_H`, default 24 (`BRIEF_EVERY_MS`, `:88`) |
+| Failure backoff | 15 min doubling to 6 h (`backoff_delay_s`, `:1177`) |
+| Clock-out | tick skipped on `forge_ops.paused()` (`:1210`) |
 | Session | builds under `daycare_supabase.BRIDGE.autoadmin_session("127.0.0.1")` |
-| Heartbeat | `solomon` every tick (`:990`) |
+| Heartbeat | `solomon` every tick (`:1238`), only while the scheduled brief is on |
 
 **Telegram**
 
@@ -57,15 +62,17 @@ its own card; both were folded in here.
 Lane routes: §10 (`/api/daycare/replies*`), §11 (`/api/daycare/leads*`). `replies_view()` /
 `leads_view()` exist on the engine (lane view + the lane's live state) but no route serves them yet.
 
-**Bus roles he answers to** — `BUS_ROLES` (`daycare_director.py:64`): `solomon`, `family-comms`, `enrollment`, `ads`, `growth`, `nora`, `nova`, `daycare_replies`, `daycare_leads`. `_read_bus_inbox` (`:420`) pulls unread (≤10 per role, plus `all`), marks them read, feeds the newest 10 into the brief as `busDelegations`.
+**Bus roles he answers to** — `BUS_ROLES` (`daycare_director.py:73`): `solomon`, `family-comms`, `enrollment`, `ads`, `growth`, `nora`, `nova`, `daycare_replies`, `daycare_leads`. `_read_bus_inbox` (`:587`) pulls unread (≤10 per role, plus `all`), marks them read, feeds the newest 10 into the brief as `busDelegations`.
 
 **Handoffs in:** bus messages to any role above · hub tasks (including any still filed under the retired `daycare_replies` id — `agents_hub._FOLDED`) · his Leads lane feeds `leadDesk` and his Replies lane feeds `replyDesk` into the brief.
 
-**UI:** `window.DaycareDirector` (route key `Director`, `app.jsx:65`; page title "Solomon") — via the Agents hub Console tab, not the Daycare sidebar · Agent Control Center `solomon` (all three lanes) · Agent Office (Daycare room) · "Solomon · Leads" card on the Daycare Dashboard.
+**Calendar lane triggers (§18):** the 15-min `daycare_calendar` thread, plus the owner taps `POST /api/daycare/tour/confirm`, `/tour/cancel`, `/starts/calendar` and the read `GET /api/daycare/calendar`.
+
+**UI:** `window.DaycareDirector` (route key `Director`, `app.jsx:69`; page title "Solomon") — via the Agents hub Console tab, not the Daycare sidebar · Agent Control Center `solomon` (all three lanes) · Agent Office (Daycare room) · "Solomon · Leads" card on the Daycare Dashboard · "Google Calendar" status panel (`DcsCalendarStatus`, `daycare.jsx:294`) and the Book tour / Cancel tour buttons on the Lead Desk rows.
 
 ## 3. Reads / context load order
 
-`build_brief` (`daycare_director.py:555`):
+`build_brief` (`daycare_director.py:753`):
 1. inline role + evidence rule (backstop) — names both live lanes; the brief itself never drafts family text
 2. `north_star`
 3. `daycare-context.md` [:12000 — whole file; was 3500, which cut the offers/referral/CCIS angle] + `enrollment-ad-agent.md` [:4000] (`daycare_context.py`)
@@ -78,6 +85,7 @@ Lane routes: §10 (`/api/daycare/replies*`), §11 (`/api/daycare/leads*`). `repl
 ## 4. Outputs / writes
 
 - `marcus_state/solomon.json`.
+- Lane state files: `daycare_replies.json`, `daycare_leads.json` + `daycare_lead_stages.json`, `daycare_starts.json`, `daycare_ads_auto.json`, `daycare_revive.json`, `daycare_board.json`, `daycare_calendar.json` (the Calendar ledger, §18).
 - Vault `Reports/daycare/brief-YYYY-MM-DD.md` per brief, `Skills/solomon-playbook.md` on learn.
 - Bus: `solomon→all` status per brief · one `handoff` per delegation to `role.lower()` (≤8) · learn status · his Leads lane's owner alerts (`solomon→operator`, §11).
 
@@ -85,8 +93,8 @@ Lane routes: §10 (`/api/daycare/replies*`), §11 (`/api/daycare/leads*`). `repl
 
 - Read-only, propose + delegate. Never texts a family, invoices or launches ads, and the brief never writes the DB. His Replies lane drafts family texts, but only the owner's tap sends one (§10).
 - **Exception — Auto-enroll lane (ON by default, owner decision 2026-10-07):** `daycare_auto_enroll.py` writes child rows + parent logins to production Supabase for every READY Family Contact Form card, no click; odd cards are held with a reason. PIN texts wait on `FORGE_DAYCARE_AUTO_ENROLL_TEXT=1`. Off: `FORGE_DAYCARE_AUTO_ENROLL=0` (CLAUDE.md §2).
-- Only autonomous writes: brief notes, playbook, bus notes (plus each lane's own state file).
-- Kill: `FORGE_MARCUS=0`, clock out, or no key. Key: `SOLOMON_ANTHROPIC_API_KEY` → `ANTHROPIC_API_KEY` → agency → wholesale (`_solomon_key`, also used by the Replies lane and his chat).
+- The brief's own autonomous writes: brief notes, playbook, bus notes. Lane writes are listed per lane: Starts writes a GHL field + tag (§12), Ads writes to Meta only in `auto` mode (§13), Calendar creates, moves and removes events on ONE Google calendar (§18, QA mode by default). Never a text, email to a family, invoice or tag-based message trigger without the owner's tap.
+- Kill (brief lane): `FORGE_MARCUS` not `1`, `FORGE_SOLOMON_BRIEF=0` (already the default), clock out, or no key. Key: `SOLOMON_ANTHROPIC_API_KEY` → `ANTHROPIC_API_KEY` → agency → wholesale (`_solomon_key`, also used by the Replies lane and his chat).
 - Knob `FORGE_SOLOMON_BRIEF_TOKENS` 5000.
 
 ## 6. Self-improvement
@@ -98,7 +106,7 @@ Lane routes: §10 (`/api/daycare/replies*`), §11 (`/api/daycare/leads*`). `repl
 
 ## 7. Chat & tasks
 
-- `/api/hub/chat {agentId:"solomon"}` → `agents_hub._director_chat` (`agents_hub.py:301`), key from `daycare_director._solomon_key()`.
+- `/api/hub/chat {agentId:"solomon"}` → `agents_hub._director_chat` (`agents_hub.py:329`), key from `daycare_director._solomon_key()`.
 - Prompt: role + blurb → creed → `daycare_context.context_block()` → latest brief [:3500] → top skills (**empty** — `daycare_director` has no `top_skills_text`) → `playbook_text(4000)` → **YOUR LIVE LANES** (`_lanes_block` → `_delegate_context("solomon")`: Replies + Leads state, [:2500]) → `open_tasks_block("solomon")` → `caveman.block()`. ≤700 tok.
 - Tasks reach him twice: `open_tasks_block` in chat + the bus `task` message read at brief time.
 - **Live data (2026-10-18):** `_director_chat` runs `dash_live.ask` — read-only `api_get`/`find_people`/`route_help` over `/api/daycare/*` + brain/owner-actions, ≤4 tool turns; he pulls `/api/daycare/ads/feed` himself before quoting a Meta figure (the per-message `ads_feed_block` preload now runs only when live tools are off). Workspace: Daycare only (cross-workspace `/api/hub/chat {business}` refused). Knob `FORGE_CHAT_LIVE=0`.
@@ -112,16 +120,16 @@ Claude: yes — 2 calls per brief (competitor read + brief) + learn. Bucket `sol
 
 ```bash
 curl -s localhost:7799/api/agents/registry | jq '.agents[]|select(.id=="solomon")|{status,lastSuccessAt,nextRun,lastError,pendingApprovals,work,detail,heartbeat}'
-curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="solomon" or .loop=="daycare_replies" or .loop=="daycare_leads")'
+curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="solomon" or .loop=="daycare_replies" or .loop=="daycare_leads" or .loop=="daycare_starts" or .loop=="daycare_calendar")'
 # needs a daycare session (auto-admin via loopback/Serve):
 curl -s localhost:7799/api/daycare/director/status | jq '{aiReady,creedLoaded,topSkills,briefCount,lastBriefAt,nextBriefAt,failStreak}'
 ```
 
-His registry row (`agents_hub.registry`): heartbeats `solomon` + `daycare_replies` + `daycare_leads` (a sick lane loop turns his status DEGRADED/FAILED and `lastError` names the lane), approval queue = pending Reply drafts (`WAITING FOR APPROVAL`), `work` = briefs · Replies drafts waiting · Leads needing a human.
+His registry row (`agents_hub.registry`): heartbeats from `AGENTS[solomon]["hb"]` (`agents_hub.py:134`) = `solomon` (only when `FORGE_SOLOMON_BRIEF` is on) + `daycare_replies` + `daycare_leads` + `daycare_starts` + `daycare_ads` + `solomon_orchestrator` (only when `FORGE_SOLOMON_ORCH=1`). `daycare_calendar` is NOT in that list: a sick Calendar loop does not change his row status; it shows on `/api/system/health` and sends a loop-down alert to the daycare Telegram chat (`connector._WATCHDOG_BIZ`). A sick lane loop in the list turns his status DEGRADED/FAILED and `lastError` names the lane, approval queue = pending Reply drafts (`WAITING FOR APPROVAL`), `work` = briefs · Replies drafts waiting · Leads needing a human.
 
 ## 10. Lane: Solomon · Replies — the Reply Desk (parent-reply drafter, added 2026-09-23)
 
-His `family-comms` lane made concrete: every 60 s, drafts the next text back (a parent gets an answer ~90 s–5 min after texting — never instant) to any parent/guardian who texted the daycare GHL number and is owed a reply, in the center's real texting voice, grounded in the verified fact sheet. **Draft-only by default — the owner's tap sends.** Opt-in `FORGE_DAYCARE_REPLY_AUTO=1` auto-sends ONLY clean, flag-free answers to enrollment *leads* in the safe categories (tour · subsidy · availability · enroll · pricing-deflect); escalations, enrolled families, billing/safety/custody/medical, and anything flagged stay a tap. Cap `FORGE_DAYCARE_AUTO_CAP` (30/day), ≤3 per contact/24 h, 8am–9pm ET, Telegram receipt each send, stopped by clock-out or any staff reply in GHL. Lead-qualifying ladder (age → center → start → subsidy → tour) lives in `daycare-parent-reply.md` §2b.
+His `family-comms` lane made concrete: every 60 s (`FORGE_DAYCARE_REPLIES_INTERVAL`), drafts the next text back (a parent gets an answer ~90 s–5 min after texting — never instant) to any parent/guardian who texted the daycare GHL number and is owed a reply, in the center's real texting voice, grounded in the verified fact sheet. **Draft-only by default — the owner's tap sends.** Opt-in `FORGE_DAYCARE_REPLY_AUTO=1` auto-sends ONLY clean, flag-free answers to enrollment *leads* in the safe categories (tour · subsidy · availability · enroll · pricing-deflect); escalations, enrolled families, billing/safety/custody/medical, and anything flagged stay a tap. Cap `FORGE_DAYCARE_AUTO_CAP` (30/day), ≤3 per contact/24 h, 8am–9pm ET, Telegram receipt each send, stopped by clock-out or any staff reply in GHL. Lead-qualifying ladder (age → center → start → subsidy → tour) lives in `daycare-parent-reply.md` §2b.
 
 **Identity + triggers**
 
@@ -133,7 +141,7 @@ His `family-comms` lane made concrete: every 60 s, drafts the next text back (a 
 | Tick | `FORGE_DAYCARE_REPLIES_INTERVAL` 60 s · ≤`FORGE_DAYCARE_REPLY_MAX` 8 Claude calls + ≤40 thread GETs per sweep |
 | Clock-out | whole sweep skipped on `forge_ops.paused()` |
 | Heartbeat | `daycare_replies`, label "Solomon · Replies" |
-| Model | `FORGE_DAYCARE_REPLY_MODEL`, default `claude-sonnet-5` · key = `_solomon_key()` |
+| Model | `FORGE_DAYCARE_REPLY_MODEL`, default `review_agent.SMART_MODEL` (= `FORGE_SMART_MODEL`, default `claude-sonnet-5-5`; `daycare_replies.py:58`) · key = `_solomon_key()` |
 | Knobs | `FORGE_DAYCARE_REPLY_GRACE_SEC` (90) · `FORGE_DAYCARE_REPLY_MAX` (8) · `FORGE_DAYCARE_REPLIES_INTERVAL` (60) · `FORGE_DAYCARE_REPLY_AUTO` (0) · `FORGE_DAYCARE_AUTO_CAP` (30) |
 | Telegram | no `/replydesk` command and no name trigger — ask Solomon (`solomon, …`) |
 | Handoffs | none in — it reads the daycare GHL location directly, the same account the Leads lane and the speed-to-lead website workflow use |
@@ -159,7 +167,7 @@ Per-thread user prompt: last 15 messages of the conversation, parent/child first
 
 **Autonomy & gates — this is the part that matters**
 
-- **Draft-only.** Every row is a proposal; nothing sends without `/api/daycare/replies/approve`. Auto-send is NOT built; turning it on is an operator decision.
+- **Draft-only by default.** Every row is a proposal; nothing sends without `/api/daycare/replies/approve`, except the opt-in `auto_send()` path (`FORGE_DAYCARE_REPLY_AUTO=1`, default OFF, clean enrollment-lead answers only, see the lane intro above). Turning it on is an operator decision.
 - **Yields to the GHL automations first** (`gate()`, pure, no Claude): a thread is skipped when —
   - the last message is already outbound (a workflow or a person answered);
   - the parent sent STOP/HELP/START/etc. — the carrier/GHL keyword auto-replies own those words;
@@ -176,7 +184,7 @@ Per-thread user prompt: last 15 messages of the conversation, parent/child first
 
 **Chat & tasks:** Solomon answers (§7) with the lane's live state in his prompt. No dedicated task queue; a task still filed under the retired `daycare_replies` id shows in Solomon's open-tasks block.
 
-**Cost:** Claude — up to `FORGE_DAYCARE_REPLY_MAX` (8) Sonnet 5 calls per 5-min sweep, only for threads that pass `gate()`. Bucket `solomon` (thread `daycare_replies` aliased in `cost_tracker.THREAD_ALIAS`).
+**Cost:** Claude — up to `FORGE_DAYCARE_REPLY_MAX` (8) `SMART_MODEL` calls per 60 s sweep, only for threads that pass `gate()`. Bucket `solomon` (thread `daycare_replies` aliased in `cost_tracker.THREAD_ALIAS`).
 
 ```bash
 curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="daycare_replies")'
@@ -198,7 +206,7 @@ Every 15 min reads the daycare GHL (GET only), derives each enrollment lead's st
 | Interval | `FORGE_DAYCARE_LEADS_INTERVAL`, default 900 s (`daycare_leads.py:58`); first sleep aligned to the last run |
 | Clock-out | sweep skipped on `forge_ops.paused()` |
 | 429 | aborts the sweep, waits for Retry-After |
-| Heartbeat | `daycare_leads`, label "Solomon · Leads" (`daycare_leads.py:660`) |
+| Heartbeat | `daycare_leads`, label "Solomon · Leads" (`daycare_leads.py:677`) |
 | Telegram | outbound only (owner pings, "Solomon · Leads — …"). No command, no name trigger — ask Solomon |
 
 **HTTP** — daycare router, session-gated
@@ -210,7 +218,7 @@ Every 15 min reads the daycare GHL (GET only), derives each enrollment lead's st
 
 **Bus:** sends `solomon→operator` alerts (contact id + reason codes only; was `daycare_leads→operator` before 2026-09-24). Reads nothing.
 
-**UI:** "Solomon · Leads" card on the Daycare Dashboard (`daycare.jsx:248`, `DldLeadDesk`).
+**UI:** "Solomon · Leads" card on the Daycare Dashboard (`daycare.jsx:307`, `DldLeadDesk`).
 
 **Feeds:** Solomon's brief (`leadDesk`) · his chat's live-lanes block · his registry row · Owner Actions (`_src_daycare_leads`, "Solomon · Leads: …") · Mission Control daycare tiles · daily brief/recap stats.
 
@@ -308,3 +316,113 @@ Spec: `docs/superpowers/specs/2026-10-18-solomon-daycare-orchestrator-design.md`
 - **Gates:** nothing outward anywhere in this section — no text, email, invoice, tag, ad change, login. Self-fixes stay in the chat AUTO tier. Kill: `FORGE_SOLOMON_ORCH=0`, clock-out, snooze, the cost ceiling (CLAUDE.md §2 exception).
 - **Cost:** $0 Claude. Each round is GET reads only: the Gmail list + one metadata read per message (≤3 pages) + ≤15 header-only thread reads, the enrolled audit's GHL contact scan (≤1000 contacts), billing/children/classrooms per center, one Pipeboard feed pull (60 s cache), system/Stripe/GHL health. Round time not measured yet (Unknown).
 - **Verify:** `cd "forge rei" && python3 test_daycare_board.py && python3 test_daycare_watches.py && python3 test_solomon_orchestrator.py && python3 test_daycare_board_ui.py`; on the box `curl -s localhost:7799/api/daycare/board | jq '{counts, lastRound, sources}'`.
+
+## 18. Lane: Solomon · Calendar — tours and first days on one Google calendar (added 2026-10-31)
+
+Code: `forge rei/daycare_calendar.py` (the lane) + `forge rei/google_cal_io.py` (the only Google door). Tests: `forge rei/test_daycare_calendar.py`, `forge rei/test_google_cal_io.py`. Spec: Brand Kit `docs/google-calendar/2026-10-30-tour-first-day-calendar-design.md` (not in this repo; not re-read here). CLAUDE.md section "Solomon · Calendar" has the same rules.
+
+One line: every 15 minutes the lane works out which tour and first-day events should exist, compares that to its ledger, and creates, moves or removes events on one calendar. Zero Claude. One way only: an edit made inside Google does not flow back.
+
+**Identity + triggers**
+
+| Field | Value |
+|---|---|
+| Engine | `forge rei/daycare_calendar.py` (module, `run_forever(DAYCARE_GHL)`; `tick()` holds a non-blocking lock so two ticks never overlap) |
+| Thread | `daycare_calendar` (`connector.main`, box only); heartbeat label "Solomon · Calendar"; makes no Claude call, so there is no cost bucket and no `THREAD_ALIAS` entry |
+| Gate | `FORGE_MARCUS=1` (loops run on the box only) **and** `FORGE_DAYCARE_CALENDAR` != `0` (default on; `0` retires the heartbeat, `connector.py:5990`) |
+| Interval | `FORGE_DAYCARE_CAL_INTERVAL`, default 900 s (`daycare_calendar.py:56`) |
+| Clock-out | tick skipped on `forge_ops.paused()` |
+| Mode | **QA by default.** `qa_mode()` is true unless `FORGE_DAYCARE_CAL_QA=0` (owner's switch to real families). QA mode touches only GHL contacts tagged `zz-calendar-qa` and writes only to `GOOGLE_CAL_ID_QA`; live mode uses `GOOGLE_CAL_ID` and skips QA/test contacts |
+| Telegram | outbound only: one note per ET day to the daycare chat when a login is rejected, an email fails, or an event fails 3 tries (counts only, never a name). Loop-down alerts go to the daycare chat via `_WATCHDOG_BIZ`. No command |
+
+**Reads**
+- Tours: GHL contacts with tag `tour-scheduled` (not `tour-canceled`), one GET per contact. Fields Tour Date, Tour Time, Tour Location. Needs exactly one center tag, and the tag must agree with Tour Location, or the tour is held (listed on the status panel, no event).
+- First days: the Starts state file (`marcus_state/daycare_starts.json`) read strictly, so a bad file raises and removes nothing. Included when the entry is `confirmed`/`sending`/`sent`/`failed`, or `proposed` with the owner's Add to calendar tap (`calendarAt`).
+- Centers: `921` (A Touch of Blessings), `2318` (A Touch of Blessings 2 & 3), `1923 AMT` (A Mother's Touch, separate entity). **1923 tours are off** (`tourLabel` is None) until the tour check-in text has an A Mother's Touch version; the center is never guessed.
+
+**Outputs / writes**
+- Google Calendar events on ONE calendar, tagged `[921]` / `[2318]` / `[1923 AMT]`, one color per center, 30-minute tours. Stable event ids, so a lost ledger never duplicates. No guests, phone, email, last name, notes or payment type in any event. Past events are never created or moved.
+- Ledger `marcus_state/daycare_calendar.json`: event ids, hashes, dates, links, plus a first name in `held`. Never a phone, email or token.
+- Owner email (Resend, plain text): once a tour is really on the calendar, one email with the event link to `DAYCARE_CAL_NOTIFY_TO`, and one more if the tour moves (`[QA]` in the subject in QA mode). A blank address turns the email off. That address is the owner's: never a family's.
+- Cleanup: 7 days after the event the names are stripped (`SCRUB_AFTER_DAYS`); a stripped row leaves the ledger after 90 days. A tour missing from the GHL search is re-read before its event is removed; a failed read never removes an event. Max 20 Google writes per tick.
+- GHL writes happen only on the owner's taps below (Confirm tour, Cancel tour); the tick itself writes nothing to GHL.
+
+**HTTP** — daycare router, daycare session required
+
+| Method | Route | Effect |
+|---|---|---|
+| GET | `/api/daycare/calendar` | `view()`: state file only, no network. `{mode, lastRunAt, error, events, failed, held}` |
+| POST | `/api/daycare/tour/confirm` `{contact_id, date, time, center}` | Confirm tour: validates (center 921 or 2318, today to +120 days, Mon-Fri, 6:00 AM-6:00 PM), writes Tour Date / Tour Time / Tour Location, adds `tour-scheduled` (additive, never an upsert) and the center tags if missing, removes `tour-canceled`. Writing Tour Date arms the published Tour Check-in SMS, so **this tap is that text's approval** |
+| POST | `/api/daycare/tour/cancel` `{contact_id}` | Removes `tour-scheduled`, adds `tour-canceled`, blanks Tour Date. The next tick removes the event |
+| POST | `/api/daycare/starts/calendar` `{contact_id, on}` | Add to calendar / remove for a first day (`daycare_starts.set_calendar`) |
+
+In QA mode all three taps refuse a contact that is not tagged `zz-calendar-qa` (turning a first day off is always allowed).
+
+**Autonomy & gates**
+- The lane itself is autonomous but internal: it only mirrors facts the owner already confirmed into a calendar only the owner sees. It never texts, never emails a family, never adds a guest.
+- Auth: `google_cal_io` refuses any calendar id other than the two configured ones and any guest. The refresh token can edit every calendar of that Google account, which is why those two guards exist. A service account cannot write here (Workspace blocks outside editors).
+- Fail-safe: login rejected (`CalAuthError`) stops the tick and tells the owner to re-consent. Calendar not connected sets `error` and does nothing else.
+- Kill: `FORGE_DAYCARE_CALENDAR=0` + restart, clock-out, or blank `GOOGLE_CAL_REFRESH_YAHJAIR`. Blank `DAYCARE_CAL_NOTIFY_TO` kills only the email.
+- Real mode needs the owner to set `FORGE_DAYCARE_CAL_QA=0`. Unknown (not verified): whether that has been done on the box today.
+
+**Self-improvement:** none. **Chat & tasks:** none of its own; ask Solomon. Unknown: whether his lanes block (`agents_hub._lanes_block`) shows Calendar state. The code has no `daycare_calendar` reference in `agents_hub.py`, so assume not.
+
+**Cost:** zero Claude. Network: GHL reads (contact search, one GET per tagged contact), Google Calendar writes, one Resend POST per new or moved tour.
+
+**Verify it's alive**
+
+```bash
+cd "forge rei" && python3 test_daycare_calendar.py && python3 test_google_cal_io.py
+curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="daycare_calendar")'
+curl -s localhost:7799/api/daycare/calendar | jq '{mode,lastRunAt,error,events,failed,held}'   # needs a daycare session
+```
+
+Healthy: `mode` matches what the owner intends (`qa` until the switch), `lastRunAt` under ~20 min old, `error` null, `failed` 0.
+
+## 19. Keys, MCPs and task file
+
+(Numbered 19 because §10 above is already the Replies lane and other docs link to it.)
+
+### (a) Environment variables Solomon's lanes read
+
+Names only, never values. "Process env" = set in the service environment (the box unit; Mac shell for local runs). "daycare.env" = `forge-daycare/config/daycare.env` (template: `forge-daycare/config/daycare.env.example`), read through `daycare_supabase._read_env()`. Where a module uses `_pick`, the process env wins and `daycare.env` is the fallback, so those names work in either place. Collected by grep of `daycare_director.py`, `daycare_replies.py`, `daycare_leads.py`, `daycare_starts.py`, `daycare_calendar.py`, `google_cal_io.py`, `solomon_orchestrator.py`, `daycare_ads_autopilot.py`, plus `daycare_revive.py` and `daycare_board.py` for their kill switches.
+
+| Name | Lane | Where set |
+|---|---|---|
+| `FORGE_MARCUS` | all loops (box gate, must be `1`) | process env |
+| `SOLOMON_ANTHROPIC_API_KEY`, `ANTHROPIC_API_KEY` | brief, chat, Replies (`_solomon_key()`; falls back to the agency, then wholesale key) | process env |
+| `FORGE_SMART_MODEL` | Replies model default (`review_agent.SMART_MODEL`) | process env |
+| `FORGE_SOLOMON_BRIEF`, `FORGE_SOLOMON_BRIEF_EVERY_H`, `FORGE_SOLOMON_BRIEF_TOKENS`, `FORGE_SOLOMON_LEARN_EVERY`, `FORGE_SOLOMON_LEARN_GAP_MIN` | brief | process env |
+| `FORGE_DAYCARE_REPLIES`, `FORGE_DAYCARE_REPLIES_INTERVAL`, `FORGE_DAYCARE_REPLY_MODEL`, `FORGE_DAYCARE_REPLY_GRACE_SEC`, `FORGE_DAYCARE_REPLY_MAX`, `FORGE_DAYCARE_REPLY_AUTO`, `FORGE_DAYCARE_AUTO_CAP` | Replies | process env |
+| `FORGE_DAYCARE_REVIVE` | Revive | process env |
+| `FORGE_DAYCARE_LEADS`, `FORGE_DAYCARE_LEADS_INTERVAL` | Leads | process env |
+| `FORGE_DAYCARE_STARTS`, `FORGE_DAYCARE_STARTS_INTERVAL` | Starts | process env |
+| `FORGE_DAYCARE_ADS`, `FORGE_DAYCARE_ADS_MODE`, `FORGE_DAYCARE_ADS_HOUR`, `FORGE_DAYCARE_ADS_TCPL`, `FORGE_DAYCARE_ADS_MAX_DAILY`, `FORGE_DAYCARE_ADS_MAX_ACTIONS`, `FORGE_DAYCARE_ADS_LEARN_PREFIX`, `FORGE_DAYCARE_ADS_CREATIVE`, `FORGE_DAYCARE_ADS_KEYWORDS`, `FORGE_DAYCARE_ADS_LAUNCH_BUDGETS`, `FORGE_TZ_OFFSET` | Ads | process env (`FORGE_DAYCARE_ADS_MODE` is only a default: the saved mode in `daycare_ads_auto.json` wins) |
+| `PIPEBOARD_API_TOKEN`, `PIPEBOARD_AD_ACCOUNT_ID`, `PIPEBOARD_MCP_URL` | Ads (Meta reads/writes through Pipeboard) | daycare.env |
+| `APIFY_TOKEN` | Ads competitor read | dropship env (read in `dropship_adspy.py`), not daycare.env |
+| `FORGE_SOLOMON_ORCH`, `FORGE_SOLOMON_ORCH_EVERY_MIN` | Orchestrator | process env |
+| `FORGE_DAYCARE_BOARD`, `FORGE_BOARD_MIN_GAP_SEC` | Board (state path override, minimum round gap) | process env (named in §17, not re-grepped) |
+| `GHL_API_KEY`, `GHL_LOCATION_ID` | Replies, Leads, Starts, Calendar, Revive (the daycare GHL client) | daycare.env |
+| `FORGE_DAYCARE_CALENDAR`, `FORGE_DAYCARE_CAL_INTERVAL` | Calendar | process env |
+| `FORGE_DAYCARE_CAL_QA` | Calendar (unset or anything but `0` = QA mode) | daycare.env or process env (`_pick`) |
+| `GOOGLE_CAL_ID`, `GOOGLE_CAL_ID_QA`, `GOOGLE_CAL_REFRESH_YAHJAIR` | Calendar | daycare.env or process env (`_pick`) |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` | Calendar OAuth client (shared with the Gmail reader, §16) | daycare.env or process env (`_pick`) |
+| `RESEND_API_KEY`, `RESEND_FROM`, `DAYCARE_CAL_NOTIFY_TO` | Calendar tour email | daycare.env or process env (`_pick`) |
+| `HIGGSFIELD_*` | Ad Generator images (§15) | see §15 (not re-grepped) |
+
+The master key file `~/.agent-keys/master.env` is not read by any of these modules; this card does not list or open it.
+
+### (b) MCPs relevant to a daycare agent
+
+Suggested for Claude sessions that work on Solomon. **Not read from code**: the connector never calls an MCP; it uses direct HTTP clients.
+
+- Supabase MCP, project ref `eqblpbeqothkpyqiafzs` (daycare DB; the connector reaches it through `daycare_supabase.py`, not through the MCP).
+- GoHighLevel MCP (daycare location only; never cross into the wholesale account).
+- Google Calendar MCP (read the calendar the Calendar lane writes; the lane uses `google_cal_io`, not the MCP).
+- Gmail MCP (read-only reading of daycare mail; the box path is `gmail_io.py`, §16).
+- Stripe MCP (daycare billing reads).
+- Resend is an HTTP API, not an MCP: `daycare_calendar._send_email` posts to `https://api.resend.com/emails`.
+
+### (c) Task file
+
+This card is Solomon's canonical task file: what he does, which lane does it, what gates apply, how to verify. Runtime is unchanged: the code still loads the creed, top skills and playbook from `forge-solomon/skills/` (and `forge-daycare/skills/` for the Replies/Ads/Ad Studio lanes). This is a documentation pointer only, no runtime change.

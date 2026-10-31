@@ -103,3 +103,13 @@ curl -s localhost:7799/api/agents/registry | jq '.agents[]|select(.id=="marcus")
 curl -s localhost:7799/api/screening/status | jq '{aiScreening,autoScreen,total,lastError}'
 curl -s localhost:7799/api/marcus/status | jq '{pending,hasAI,lastError,promptHealth}'
 ```
+
+## 10. Keys, MCPs and task file
+
+This card is the agent's canonical task file; runtime prompts still load skills from `forge-marcus/skills/` — doc pointer only.
+
+Table with statuses: [ENV-MAP, Marcus](../ENV-MAP.md#marcus-wholesale-lanes-scout-atlas-follow-up-ace-autopilot). Names only, values live in `~/.agent-keys/master.env`.
+
+- Claude key: `MARCUS_ANTHROPIC_API_KEY` → `ANTHROPIC_API_KEY` (marcus.env; the drafter also scans ghl.env). master.env `ANTHROPIC_API_KEY__WHOLESALE`: OK.
+- GoHighLevel: `GHL_API_KEY` (`GHL_API_KEY__WHOLESALE` OK), `GHL_LOCATION_ID` (CONFIG), `GHL_BASE_URL`, `GHL_API_VERSION` (CONFIG). Never use the `__DAYCARE` or `__AGENCY` GHL keys here.
+- Suggested MCPs (not read from code): GoHighLevel (wholesale location only), brain, Claude_Browser. A GHL write or seller SMS still needs the owner's tap.
