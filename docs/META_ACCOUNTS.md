@@ -50,5 +50,10 @@ and the personal `Yahjair Mack` ad account belong to neither business: never rea
 
 - Link `@forgelabsphiladelphia` to Metricool brand `forgelabsx` (Metricool shows TikTok only) and set `METRICOOL_USER_TOKEN`.
 - Create the agency's own Facebook Page, fill the Page `Unknown` cell above.
-- Add the agency ids to `META_AD_ACCOUNT_MAP` in `forge-agency/config/agency.env` (owner approval; live env).
+- ~~Add the agency ad account to `META_AD_ACCOUNT_MAP`~~ **Done 2026-10-31 on the box only**: `/opt/forge/forge-agency/config/agency.env`
+  has `META_AD_ACCOUNT_MAP={"clientforge":"act_2344043939684594"}` (backup `agency.env.bak-20261031` beside it). There is NO `agency.env`
+  on the Mac, so a Mac `push.sh` that ships one would overwrite the box copy: keep this line in it. The agency Ads tab now reads
+  `act_2344043939684594` live through Pipeboard; the daycare account and the no-`account` default stay blocked (verified on the box).
+- The agency ad account's Meta timezone is **America/Los_Angeles** (not Eastern). Meta's day boundaries, and the Ads picker's
+  "today", follow that zone, same as Ads Manager.
 - Update this file in the same change as each of the above.
