@@ -173,6 +173,70 @@ function SoQueue({ net, refreshKey }) {
   );
 }
 
+// Instagram Studio — agency @forgelabsphiladelphia only. Runs the vendored ig tools; saves DRAFTS only.
+const SO_IG_TOOLS = [
+  { id: "humanize", label: "Humanize", hint: "Strip the AI fingerprint from a draft" },
+  { id: "caption",  label: "Caption lint", hint: "What the feed shows before '… more'" },
+  { id: "hook",     label: "Score hooks", hint: "One hook per line" },
+  { id: "beats",    label: "Beat sheet", hint: "Paste a Reel script, one line per beat" },
+  { id: "detect",   label: "AI-detect", hint: "How machine-written it reads" },
+];
+
+function SoIgStudio({ onSaved }) {
+  const Icons = window.Icons;
+  const { data: st } = window.useApi("/api/agency/instagram", { interval: 60000 });
+  const [tool, setTool] = useStateSo("humanize");
+  const [text, setText] = useStateSo("");
+  const [out, setOut] = useStateSo(null);
+  const [busy, setBusy] = useStateSo(false);
+  const [err, setErr] = useStateSo(null);
+  const acct = (st && st.account) || {};
+  const mc = (st && st.metricool) || {};
+
+  async function go(path, body) {
+    if (!text.trim()) { setErr("Paste some text first"); return; }
+    setBusy(true); setErr(null); setOut(null);
+    try {
+      const r = await window.apiPost(path, body);
+      if (r && r.error) setErr(r.error); else setOut(r);
+      if (r && r.ok && r.post && onSaved) onSaved();
+    } catch (e) { setErr(e.message || "Failed"); }
+    setBusy(false);
+  }
+
+  return (
+    <div className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ fontWeight: 600, fontSize: 15 }}>Instagram Studio · <span className="mono">@{acct.handle || "forgelabsphiladelphia"}</span></div>
+      <div className="faint" style={{ fontSize: 12 }}>
+        Agency account only. Tools run locally; saving makes a draft, nothing posts.
+        {mc.instagramLinked !== true && " Instagram is not confirmed linked in Metricool yet, so publishing is off."}
+      </div>
+      <div className="tabs" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {SO_IG_TOOLS.map((t) => (
+          <button key={t.id} className={"tab" + (tool === t.id ? " active" : "")} title={t.hint}
+            onClick={() => { setTool(t.id); setOut(null); setErr(null); }}>{t.label}</button>
+        ))}
+      </div>
+      <textarea style={{ ...window.AgUI.inp, minHeight: 90, resize: "vertical", fontFamily: "inherit" }}
+        value={text} onChange={(e) => setText(e.target.value)}
+        placeholder={(SO_IG_TOOLS.find((t) => t.id === tool) || {}).hint} />
+      {err && <div style={{ color: "var(--red)", fontSize: 12.5 }}>{err}</div>}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button className="tab" disabled={busy} onClick={() => go("/api/agency/instagram/tool", { tool, text })}>{busy ? "Running…" : "Run"}</button>
+        <button className="tab" disabled={busy} onClick={() => go("/api/agency/instagram/draft", { text })}
+          style={{ background: "var(--green)", color: "#04210f", fontWeight: 700, borderColor: "transparent" }}>
+          <Icons.Plus size={14} /> Humanize + save draft
+        </button>
+      </div>
+      {out && (
+        <pre className="mono" style={{ fontSize: 11.5, whiteSpace: "pre-wrap", maxHeight: 260, overflow: "auto", margin: 0 }}>
+          {out.note ? out.note + "\n\n" : ""}{JSON.stringify(out.result || out.humanized || out, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 function AgencySocial() {
   const Icons = window.Icons;
   const { data: conn } = window.useApi("/api/agency/social", { interval: 30000 });
@@ -205,6 +269,8 @@ function AgencySocial() {
       {a.note && <div className="faint" style={{ fontSize: 11.5, marginTop: -6 }}>{a.note}</div>}
 
       <SoHeatmap net={net} />
+
+      {net === "instagram" && <SoIgStudio onSaved={() => setK((x) => x + 1)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 1fr) minmax(320px, 1fr)", gap: 16, alignItems: "start" }}>
         <SoComposer net={net} onSaved={() => setK((x) => x + 1)} />

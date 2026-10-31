@@ -44,6 +44,7 @@ Chat / send_task (`agency_agents.py:410`, `_skills_block` :297):
 4. creed `agent_creed.block("agency")` → `agency-evidence-discipline.md`
 5. `agency-marketing-methodology.md` [:5000]
 6. `agency-four-triggers-ad-writer.md` [:5000]
+6b. `agency-instagram-tools.md` [:4500] (agency Instagram tools + which Meta ids are the agency's; stable floor)
 7. playbook: seed `eco-playbook.md` + vault `Skills/eco-playbook.md` [:3000]
 8. chat only: `open_tasks_block("eco")`, `caveman.block()`
 

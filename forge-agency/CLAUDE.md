@@ -33,6 +33,14 @@ from the vault on every run. If you're trying to see what an agent currently
 Agency and wholesale never share a key file. Wholesale keys belong in
 `../marcus-wholesale-agent/` only — don't cross-wire them here.
 
+**Agency and daycare are two businesses with two Meta ad accounts. They never conflict.**
+Agency ad account = `act_2344043939684594` (`ClienForgePhiladelphia`). The daycare's
+`act_1175564690150627`, its Page `939494549239823` and its Instagram are NOT yours, even though the
+same Pipeboard login can see them. Always pass the exact `account_id`; never use a default. The agency
+Instagram is `@forgelabsphiladelphia` (`17841464279234508`). The agency has no Facebook Page yet: say
+"Unknown / no agency Page", never borrow the daycare's. Social posting = Metricool brand `forgelabsx`
+(currently TikTok only, Instagram not yet linked there). Full table: `../docs/META_ACCOUNTS.md`.
+
 ## Cross-Agent Coaching Network
 
 Dyson and Eco are nodes in the FORGE coaching network (`forge rei/agent_coach.py`). They can
