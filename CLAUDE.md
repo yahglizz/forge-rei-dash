@@ -872,8 +872,10 @@ key on the box. New migrations go in BOTH migration folders.
   Token `GOOGLE_CAL_REFRESH_YAHJAIR` (scope `calendar.events`) can edit every yahjair@ calendar, so
   `google_cal_io` refuses any other calendar id and any guest. A service account cannot write here (Workspace
   blocks outside editors). Never add a guest, phone, email, last name, note or payment type to an event. A failed
-  read never removes an event; center is never guessed; names are stripped 7 days after the event. Spec: Brand Kit
-  `docs/google-calendar/`. Tests: `test_google_cal_io.py`, `test_daycare_calendar.py`.
+  read never removes an event; center is never guessed; names are stripped 7 days after the event. Once a tour
+  is really on the calendar the lane emails `DAYCARE_CAL_NOTIFY_TO` the event link through Resend, once, and once
+  more if it moves (`[QA]` in the subject in QA mode; blank = off). That address is the owner's: never a family's.
+  Spec: Brand Kit `docs/google-calendar/`. Tests: `test_google_cal_io.py`, `test_daycare_calendar.py`.
 - **Solomon · Starts — start date → confirm → start-day app login (2026-09-29).**
   `daycare_starts.py` (thread `daycare_starts`, 15 min, zero Claude, `FORGE_DAYCARE_STARTS=0`
   retires it) reads new-signup GHL threads, pulls the agreed start date out of the texts (form

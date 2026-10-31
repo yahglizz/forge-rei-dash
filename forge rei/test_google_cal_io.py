@@ -101,16 +101,16 @@ class Guard(Base):
 
 class Put(Base):
     def test_new_event_is_one_insert_with_no_updates_sent(self):
-        fake = self.use(Reply(200, b'{"id":"abcde1"}'))
-        self.assertEqual(g.put_event(QA, "abcde1", {"summary": "x"}), "created")
+        fake = self.use(Reply(200, b'{"id":"abcde1","htmlLink":"https://cal/new"}'))
+        self.assertEqual(g.put_event(QA, "abcde1", {"summary": "x"}), "https://cal/new")
         method, url, body = fake.calls[0]
         self.assertEqual(method, "POST")
         self.assertIn("sendUpdates=none", url)
         self.assertEqual(body["id"], "abcde1")
 
     def test_existing_id_replaces_the_event_and_restores_a_deleted_one(self):
-        fake = self.use(http_error(409), Reply(200, b'{"id":"abcde1"}'))
-        self.assertEqual(g.put_event(QA, "abcde1", {"summary": "x"}), "updated")
+        fake = self.use(http_error(409), Reply(200, b'{"id":"abcde1","htmlLink":"https://cal/put"}'))
+        self.assertEqual(g.put_event(QA, "abcde1", {"summary": "x"}), "https://cal/put")
         method, url, body = fake.calls[1]
         self.assertEqual(method, "PUT")
         self.assertIn("/events/abcde1", url)

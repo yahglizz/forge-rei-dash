@@ -144,18 +144,16 @@ def _call(method, calendar_id, event=None, body=None, retry=True):
 def put_event(calendar_id, eid, body):
     """Create the event, or replace it when the id exists (a move, a lost ledger, or a rebook
     after a cancel: a deleted id still answers 409, and the replace brings it back).
-    Returns 'created' or 'updated'."""
+    Returns Google's link to the event."""
     _guard(calendar_id)
     if body.get("attendees"):
         raise CalError("refused: daycare events never have guests")
     try:
-        _call("POST", calendar_id, body={**body, "id": eid})
-        return "created"
+        return _call("POST", calendar_id, body={**body, "id": eid}).get("htmlLink") or ""
     except CalError as e:
         if e.code != 409:
             raise
-    _call("PUT", calendar_id, eid, {**body, "status": "confirmed"})
-    return "updated"
+    return _call("PUT", calendar_id, eid, {**body, "status": "confirmed"}).get("htmlLink") or ""
 
 
 def remove(calendar_id, eid):

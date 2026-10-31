@@ -14,6 +14,7 @@ import daycare_calendar as dc
 import daycare_ghl
 import google_cal_io
 
+REAL_SEND = dc._send_email
 ET = dc.ET
 NOW = datetime(2026, 11, 2, 9, 0, tzinfo=ET).timestamp()   # a Monday, after the clock change
 LIVE, QA = "live@group.calendar.google.com", "qa@group.calendar.google.com"
@@ -83,7 +84,7 @@ class FakeGoogle:
             raise self.fail
         self.writes += 1
         self.events[(cal, eid)] = body
-        return "created"
+        return f"https://calendar.example/{eid}"
 
     def remove(self, cal, eid):
         if self.fail:
@@ -98,12 +99,15 @@ class Base(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.google = FakeGoogle()
         self.starts = {}
-        self.env = {"FORGE_DAYCARE_CAL_QA": "0", "GOOGLE_CAL_ID": LIVE, "GOOGLE_CAL_ID_QA": QA}
+        self.mail = []
+        self.env = {"FORGE_DAYCARE_CAL_QA": "0", "GOOGLE_CAL_ID": LIVE, "GOOGLE_CAL_ID_QA": QA,
+                    "DAYCARE_CAL_NOTIFY_TO": "owner@example.com"}
         for p in (mock.patch.object(dc, "STATE", Path(self.tmp.name) / "cal.json"),
                   mock.patch.object(dc, "gcal", self.google),
                   mock.patch.object(dc, "_pick", lambda n: self.env.get(n, "")),
                   mock.patch.object(dc, "_starts_entries", lambda: self.starts),
                   mock.patch.object(dc, "_notify", lambda text, key: None),
+                  mock.patch.object(dc, "_send_email", lambda subject, text: self.mail.append((subject, text))),
                   mock.patch.object(dc, "_gcal_ready", lambda: True)):
             p.start()
             self.addCleanup(p.stop)
@@ -645,6 +649,125 @@ class ConfirmTour(Base):
         out = dc.confirm_tour(ghl, "c1", "2026-11-04", "10:00", "loc-921-n-18th", now=NOW)
         self.assertFalse(out["ok"])
         self.assertEqual((ghl.puts, ghl.posts), ([], []))
+
+
+class TourEmail(Base):
+    def test_a_new_tour_emails_the_owner_with_the_event_link(self):
+        self.run_tick(FakeGHL(contact()))
+        self.assertEqual(len(self.mail), 1)
+        subject, text = self.mail[0]
+        self.assertEqual(subject, "Tour booked: Zuri D. [921], Wed Nov 4 at 10:00 AM")
+        self.assertIn(f"https://calendar.example/{dc.event_id('tour|c1')}", text)
+        self.assertIn("921 N 18th St", text)
+
+    def test_the_email_holds_no_contact_details(self):
+        self.run_tick(FakeGHL(contact()))
+        text = " ".join(self.mail[0])
+        for word in ("secret@example.com", "5550100", "Davis", "Jane"):
+            self.assertNotIn(word, text)
+
+    def test_repeat_ticks_send_nothing_more(self):
+        ghl = FakeGHL(contact())
+        for _ in range(3):
+            self.run_tick(ghl)
+        self.assertEqual(len(self.mail), 1)
+
+    def test_a_moved_tour_sends_one_more(self):
+        ghl = FakeGHL(contact())
+        self.run_tick(ghl)
+        ghl.contacts["c1"] = contact(day="2026-11-05", time_text="Thursday, November 5 at 2:30 PM ET")
+        self.run_tick(ghl)
+        self.run_tick(ghl)
+        self.assertEqual([m[0] for m in self.mail][1:], ["Tour moved: Zuri D. [921], Thu Nov 5 at 2:30 PM"])
+
+    def test_a_changed_age_updates_the_event_without_an_email(self):
+        ghl = FakeGHL(contact())
+        self.run_tick(ghl)
+        ghl.contacts["c1"] = contact(age="3 Years")
+        self.run_tick(ghl)
+        self.assertIn("(3 Years)", self.only()["summary"])
+        self.assertEqual(len(self.mail), 1)
+
+    def test_rebooking_after_a_cancel_counts_as_new(self):
+        ghl = FakeGHL(contact())
+        self.run_tick(ghl)
+        ghl.contacts["c1"]["tags"] = ["tour-canceled", "loc-921-n-18th"]
+        self.run_tick(ghl)
+        ghl.contacts["c1"]["tags"] = ["tour-scheduled", "loc-921-n-18th"]
+        self.run_tick(ghl)
+        self.assertEqual([m[0].split(":")[0] for m in self.mail], ["Tour booked", "Tour booked"])
+
+    def test_no_email_until_the_event_is_really_on_the_calendar(self):
+        ghl = FakeGHL(contact())
+        self.google.fail = google_cal_io.CalError("down")
+        self.run_tick(ghl)
+        self.assertEqual(self.mail, [])
+        self.google.fail = None
+        self.run_tick(ghl)
+        self.assertEqual(len(self.mail), 1)
+
+    def test_a_failed_send_keeps_the_event_retries_and_tells_the_owner_by_type_only(self):
+        ghl = FakeGHL(contact())
+        with mock.patch.object(dc, "_send_email", side_effect=google_cal_io.CalError("Resend HTTP 500", 500)):
+            err = self.run_tick(ghl)
+        self.assertIn("Resend HTTP 500", err)
+        self.assertEqual(len(self.events()), 1)
+        self.assertIsNone(self.run_tick(ghl))
+        self.assertEqual(len(self.mail), 1)
+
+    def test_an_outage_stops_at_the_first_failed_send(self):
+        ghl = FakeGHL(contact(), contact(cid="c2", child="Ada Lane"))
+        with mock.patch.object(dc, "_send_email", side_effect=google_cal_io.CalError("down")) as send:
+            self.run_tick(ghl)
+        self.assertEqual(send.call_count, 1)
+
+    def test_a_past_tour_and_a_first_day_send_nothing(self):
+        self.run_tick(FakeGHL(contact(day="2026-10-20")))
+        self.starts["c2"] = {"contactId": "c2", "startDate": "2026-11-09", "status": "confirmed",
+                             "locationId": daycare_ghl.LOCATION_ID_BY_TAG["loc-921-n-18th"]}
+        self.run_tick(FakeGHL(contact(cid="c2", tags=("loc-921-n-18th",), day="", time_text="", where="")))
+        self.assertEqual(self.mail, [])
+
+    def test_no_address_means_no_email_and_no_error(self):
+        self.env["DAYCARE_CAL_NOTIFY_TO"] = ""
+        self.assertIsNone(self.run_tick(FakeGHL(contact())))
+        self.assertEqual(self.mail, [])
+
+    def test_qa_mode_marks_the_subject(self):
+        self.env["FORGE_DAYCARE_CAL_QA"] = "1"
+        self.run_tick(FakeGHL(contact(tags=("tour-scheduled", "loc-921-n-18th", dc.QA_TAG))))
+        self.assertTrue(self.mail[0][0].startswith("[QA] Tour booked: "))
+
+    def test_an_unreadable_time_says_so(self):
+        self.run_tick(FakeGHL(contact(time_text="sometime")))
+        self.assertEqual(self.mail[0][0], "Tour booked: Zuri D. [921], Wed Nov 4, time not set")
+
+
+class SendEmail(unittest.TestCase):
+    ENV = {"RESEND_API_KEY": "re_secret", "RESEND_FROM": "ATOB <noreply@example.com>",
+           "DAYCARE_CAL_NOTIFY_TO": "owner@example.com"}
+
+    def send(self, env, effect=None):
+        with mock.patch.object(dc, "_pick", lambda n: env.get(n, "")), \
+                mock.patch("urllib.request.urlopen", side_effect=effect) as call:
+            REAL_SEND("Subject", "Body")
+        return call
+
+    def test_posts_one_plain_text_email_to_the_owner_address(self):
+        req = self.send(self.ENV).call_args[0][0]
+        body = json.loads(req.data)
+        self.assertEqual((body["to"], body["subject"], body["text"]), (["owner@example.com"], "Subject", "Body"))
+        self.assertEqual(req.full_url, "https://api.resend.com/emails")
+
+    def test_a_refusal_never_carries_the_key_or_a_body(self):
+        refused = urllib.error.HTTPError("u", 422, "x", {}, None)
+        with self.assertRaises(google_cal_io.CalError) as hit:
+            self.send(self.ENV, refused)
+        self.assertEqual(str(hit.exception), "Resend HTTP 422")
+
+    def test_a_missing_key_is_a_plain_error(self):
+        with self.assertRaises(google_cal_io.CalError):
+            self.send({"DAYCARE_CAL_NOTIFY_TO": "owner@example.com"})
 
 
 class View(Base):

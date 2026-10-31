@@ -19,7 +19,10 @@ Rules that keep a family safe:
   - QA mode is the default: only zz-calendar-qa contacts, only the QA calendar.
     FORGE_DAYCARE_CAL_QA=0 is the owner's switch to real mode.
 
-Disk: event ids, hashes and dates, plus a first name in `held`. Never a phone, email or token.
+Email: once a tour is really on the calendar, one email to DAYCARE_CAL_NOTIFY_TO with the event
+link, and one more if it moves. The address is the owner's alone: it never goes to a family.
+
+Disk: event ids, hashes, dates and links, plus a first name in `held`. Never a phone, email or token.
 Stdlib only. Tests: python3 test_daycare_calendar.py
 """
 from __future__ import annotations
@@ -31,6 +34,8 @@ import os
 import re
 import threading
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -63,6 +68,8 @@ CF_TOUR_TIME = "FPuBFbQzWCzFq5V8qFap"
 CF_TOUR_LOCATION = "Ya3O863Fh9koyqCejf8k"
 CF_CHILD_AGE = "KW7sDqefOml0Iym7MH5c"
 TAG_SCHEDULED, TAG_CANCELED, QA_TAG = "tour-scheduled", "tour-canceled", "zz-calendar-qa"
+NOTIFY_TO = "DAYCARE_CAL_NOTIFY_TO"         # blank = no tour emails
+RESEND_URL = "https://api.resend.com/emails"
 START_STATUSES = {"confirmed", "sending", "sent", "failed"}
 
 # tourLabel = the GHL Tour Location text. None = no tours there yet: the check-in text must
@@ -204,6 +211,19 @@ def _all_day(day):
     return {"date": day.isoformat()}, {"date": (day + timedelta(days=1)).isoformat()}
 
 
+def _clock(hour, minute):
+    return f"{hour % 12 or 12}:{minute:02d} {'PM' if hour >= 12 else 'AM'}"
+
+
+def _when_text(body):
+    start = body["start"]
+    if "dateTime" not in start:
+        day = datetime.strptime(start["date"], "%Y-%m-%d")
+        return f"{day:%a %b} {day.day}, time not set"
+    at = datetime.fromisoformat(start["dateTime"])
+    return f"{at:%a %b} {at.day} at {_clock(at.hour, at.minute)}"
+
+
 def _tour_event(location, contact_id, fam, cf, loc, day):
     center = CENTERS[loc]
     age = _age(cf, day)
@@ -295,7 +315,8 @@ def _tours(client, qa, qa_ids, cal):
         body, timed = _tour_event(client.location_id, contact_id, fam, cf, loc, day)
         if not timed:
             _hold(held, "tour", contact_id, fam, "Tour Time could not be read: event is all-day")
-        wanted[key] = {"kind": "tour", "cal": cal, "body": body, "when": day.isoformat(), "center": loc}
+        wanted[key] = {"kind": "tour", "cal": cal, "body": body, "when": day.isoformat(), "center": loc,
+                       "who": _short_name(fam)}
     return wanted, keep, held
 
 
@@ -356,7 +377,7 @@ def _still_booked(client, contact_id):
 
 
 # --------------------------------------------------------------------------- the tick
-def _record(ledger, key, want, error):
+def _record(ledger, key, want, error, link=""):
     """Ledger row after a write. Failed writes keep the old hash, so the next tick retries."""
     row = ledger.setdefault(key, {"kind": want["kind"], "eventId": event_id(key), "tries": 0})
     if error:
@@ -364,7 +385,7 @@ def _record(ledger, key, want, error):
         return
     shell = {k: v for k, v in want["body"].items() if k not in ("summary", "description")}
     row.update(cal=want["cal"], when=want["when"], center=want["center"], shell=shell, tries=0, error=None,
-               hash=_hash(want["cal"], want["body"]), source=want.get("source"), scrubbed=False)
+               hash=_hash(want["cal"], want["body"]), source=want.get("source"), scrubbed=False, link=link)
 
 
 def _scrub_body(row):
@@ -382,6 +403,52 @@ def _notify(text, key):
         pass
 
 
+def _send_email(subject, text):
+    """One plain-text email to the owner through Resend. Errors carry a code, never the key or a body."""
+    key, sender = _pick("RESEND_API_KEY"), _pick("RESEND_FROM")
+    if not key or not sender:
+        raise CalError("email is not connected (RESEND_API_KEY, RESEND_FROM)")
+    req = urllib.request.Request(
+        RESEND_URL, method="POST",
+        data=json.dumps({"from": sender, "to": [_pick(NOTIFY_TO)], "subject": subject, "text": text}).encode(),
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                 "User-Agent": "forge-reios/1.0 (+daycare_calendar)"})   # Cloudflare blocks urllib's own
+    try:
+        with urllib.request.urlopen(req, timeout=30):
+            pass
+    except urllib.error.HTTPError as e:
+        raise CalError(f"Resend HTTP {e.code}", e.code) from None
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise CalError(f"Resend unreachable: {type(e).__name__}") from None
+
+
+def _tour_emails(st, wanted, qa, today):
+    """Email the owner about each tour the calendar really holds. The name comes from this tick's
+    GHL read, because the ledger keeps none. Returns an error, or None. The first failed send stops
+    the loop, and the next tick retries it."""
+    if not _pick(NOTIFY_TO):
+        return None
+    for key, want in wanted.items():
+        row = st["events"].get(key) or {}
+        if (want["kind"] != "tour" or want["when"] < today.isoformat()
+                or row.get("hash") != _hash(want["cal"], want["body"])):
+            continue
+        center, when = CENTERS[want["center"]], _when_text(want["body"])
+        slot = f"{want['center']}|{when}"
+        if row.get("emailed") == slot:
+            continue
+        verb = "Tour moved" if row.get("emailed") else "Tour booked"
+        try:
+            _send_email(f"{'[QA] ' if qa else ''}{verb}: {want['who']} {center['tag']}, {when}",
+                        f"{verb}\n\n{want['body']['summary']}\n{when}\n{center['address']}\n\n"
+                        f"Open it on the calendar:\n{row.get('link') or 'https://calendar.google.com'}\n")
+        except CalError as e:
+            return f"tour email failed: {e}"
+        row["emailed"] = slot
+        _save(st)
+    return None
+
+
 def _apply(client, st, wanted, keep, clean, today, cal):
     """Run the writes. Returns (writes used, auth error or None, read error or None)."""
     ledger, writes, read_err = st["events"], 0, None
@@ -397,8 +464,7 @@ def _apply(client, st, wanted, keep, clean, today, cal):
             continue
         writes += 1
         try:
-            gcal.put_event(want["cal"], event_id(key), want["body"])
-            _record(ledger, key, want, None)
+            _record(ledger, key, want, None, gcal.put_event(want["cal"], event_id(key), want["body"]))
         except CalAuthError:
             _save(st)
             return writes, "Google calendar login rejected: re-consent needed", read_err
@@ -490,13 +556,14 @@ def _tick(client, now):
                 errors.append(f"{kind} read failed: {type(e).__name__}")
     st["held"] = held + [h for h in st.get("held") or [] if h.get("kind") not in clean]
     _, auth_err, read_err = _apply(client, st, wanted, keep, clean, today, cal)
-    errors += [e for e in (auth_err, read_err) if e]
+    email_err = _tour_emails(st, wanted, qa, today)
+    errors += [e for e in (auth_err, read_err, email_err) if e]
     failed = [r for r in st["events"].values() if r.get("tries", 0) >= FAIL_TRIES]
     if failed:
         errors.append(f"{len(failed)} calendar event(s) could not be updated")
-    if (failed or auth_err) and st.get("notifiedOn") != today.isoformat():
+    if (failed or auth_err or email_err) and st.get("notifiedOn") != today.isoformat():
         st["notifiedOn"] = today.isoformat()
-        _notify(auth_err or f"Calendar: {len(failed)} event(s) could not be updated after {FAIL_TRIES} tries.",
+        _notify(auth_err or email_err or f"Calendar: {len(failed)} event(s) could not be updated after {FAIL_TRIES} tries.",
                 f"daycare-calendar:{today}")
     st.update(lastRunAt=int(now * 1000), error="; ".join(errors) or None)
     _save(st)
@@ -566,8 +633,7 @@ def confirm_tour(client, contact_id, day, clock, center_tag, now=None):
     entities = [t for t in tags if t.startswith("entity-")]
     if (locs and locs != [center_tag]) or (entities and entities != [center["entity"]]):
         return {"ok": False, "error": "this family is tagged for another center: fix it in GHL first"}
-    text = (f"{tour_day:%A}, {tour_day:%B} {tour_day.day} at "
-            f"{hour % 12 or 12}:{minute:02d} {'PM' if hour >= 12 else 'AM'} ET")
+    text = f"{tour_day:%A}, {tour_day:%B} {tour_day.day} at {_clock(hour, minute)} ET"
     cid = contact["id"]
     try:
         client.put(f"/contacts/{cid}", {"customFields": [
