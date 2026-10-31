@@ -333,7 +333,7 @@ One line: every 15 minutes the lane works out which tour and first-day events sh
 | Interval | `FORGE_DAYCARE_CAL_INTERVAL`, default 900 s (`daycare_calendar.py:56`) |
 | Clock-out | tick skipped on `forge_ops.paused()` |
 | Mode | **QA by default.** `qa_mode()` is true unless `FORGE_DAYCARE_CAL_QA=0` (owner's switch to real families). QA mode touches only GHL contacts tagged `zz-calendar-qa` and writes only to `GOOGLE_CAL_ID_QA`; live mode uses `GOOGLE_CAL_ID` and skips QA/test contacts |
-| Telegram | outbound only: one note per ET day to the daycare chat when a login is rejected, an email fails, or an event fails 3 tries (counts only, never a name). Loop-down alerts go to the daycare chat via `_WATCHDOG_BIZ`. No command |
+| Telegram | outbound only: one note per ET day to the daycare chat when a login is rejected, an email fails, or an event fails 3 tries (counts only, never a name); plus tour reminders (below). Loop-down alerts go to the daycare chat via `_WATCHDOG_BIZ`. No command |
 
 **Reads**
 - Tours: GHL contacts with tag `tour-scheduled` (not `tour-canceled`), one GET per contact. Fields Tour Date, Tour Time, Tour Location. Needs exactly one center tag, and the tag must agree with Tour Location, or the tour is held (listed on the status panel, no event).
@@ -347,11 +347,19 @@ One line: every 15 minutes the lane works out which tour and first-day events sh
 - Cleanup: 7 days after the event the names are stripped (`SCRUB_AFTER_DAYS`); a stripped row leaves the ledger after 90 days. A tour missing from the GHL search is re-read before its event is removed; a failed read never removes an event. Max 20 Google writes per tick.
 - GHL writes happen only on the owner's taps below (Confirm tour, Cancel tour); the tick itself writes nothing to GHL.
 
+**Reminders** (added 2026-10-31, plan `docs/plans/2026-10-31-solomon-calendar-watch.md`). Owner only: no event has guests, so no family is ever reminded by this lane (the GHL Tour Check-in SMS is separate and unchanged).
+- Google popups in the event body (`_reminders`, `useDefault: false`): timed tour 1440 + 60 min, first day 900 min (9 AM the day before, in the calendar's own zone), all-day tour none. First-day `source` carries `|r1`, so rows written before this patch once.
+- Telegram (`_remind`, after `_tour_emails` in each tick): for each timed tour whose ledger hash matches this tick's plan and whose start is in the future, one note at the nearest of 24 h / 2 h before. Text: `[QA] ` in QA mode, center tag, time, countdown, event link. **Never a name.** Sent with `telegram_io.send_biz("daycare", …, dedupe_key="cal-remind:{key}:{stage}:{start}")`, only when `_biz_chats()` has a daycare chat (unbound = skip, no HQ fallback). Quiet 9 PM-6 AM ET: held to the first tick after 6:00, skipped once the tour has started. `reminded` = `{stage, start}` in the ledger row, written only on an ok or dedupe-skipped result; a moved tour has a new start, so its stages reset. A failed or crashed send is retried next tick and never enters the tick's `error` (3 bad ticks would turn Solomon's row FAILED). Kill: `FORGE_DAYCARE_CAL_REMIND=0`.
+
+**Calendar panel** (`DcsCalendar` in `daycare.jsx`, Daycare dashboard, replaced the old status card): status line (QA mode, updated, errors, held), then the next 14 days grouped Today / Tomorrow / weekday, each row with a center dot, Tour or First day chip, time in ET ("time not set" for an all-day tour), child first name + initial, Open link to the event, and "reminder sent". Shows an empty state in live mode too. Data: `view().upcoming`, built only from rows with a hash, not scrubbed, on the current mode's calendar, dated today or later. The name comes from `_WHO`, filled in memory by each tick and never saved; after a restart rows show without a name until the next tick.
+
+**Solomon sees it:** `daycare_calendar` is in his `hb` (when `FORGE_DAYCARE_CALENDAR` != `0`), so the lane's health folds into his row. `week()` (next 7 days: mode, tour and first-day counts, up to 8 `MM-DD kind [tag]` entries, no names, under 300 chars) sits in `agents_hub._delegate_context("solomon")` before `adGenerator`, inside the 2500-char cut.
+
 **HTTP** — daycare router, daycare session required
 
 | Method | Route | Effect |
 |---|---|---|
-| GET | `/api/daycare/calendar` | `view()`: state file only, no network. `{mode, lastRunAt, error, events, failed, held}` |
+| GET | `/api/daycare/calendar` | `view()`: state file only, no network. `{mode, lastRunAt, error, events, failed, held, upcoming}`; each `upcoming` row is `{kind, date, time, center, tag, link, reminded, who}` |
 | POST | `/api/daycare/tour/confirm` `{contact_id, date, time, center}` | Confirm tour: validates (center 921 or 2318, today to +120 days, Mon-Fri, 6:00 AM-6:00 PM), writes Tour Date / Tour Time / Tour Location, adds `tour-scheduled` (additive, never an upsert) and the center tags if missing, removes `tour-canceled`. Writing Tour Date arms the published Tour Check-in SMS, so **this tap is that text's approval** |
 | POST | `/api/daycare/tour/cancel` `{contact_id}` | Removes `tour-scheduled`, adds `tour-canceled`, blanks Tour Date. The next tick removes the event |
 | POST | `/api/daycare/starts/calendar` `{contact_id, on}` | Add to calendar / remove for a first day (`daycare_starts.set_calendar`) |
@@ -362,19 +370,19 @@ In QA mode all three taps refuse a contact that is not tagged `zz-calendar-qa` (
 - The lane itself is autonomous but internal: it only mirrors facts the owner already confirmed into a calendar only the owner sees. It never texts, never emails a family, never adds a guest.
 - Auth: `google_cal_io` refuses any calendar id other than the two configured ones and any guest. The refresh token can edit every calendar of that Google account, which is why those two guards exist. A service account cannot write here (Workspace blocks outside editors).
 - Fail-safe: login rejected (`CalAuthError`) stops the tick and tells the owner to re-consent. Calendar not connected sets `error` and does nothing else.
-- Kill: `FORGE_DAYCARE_CALENDAR=0` + restart, clock-out, or blank `GOOGLE_CAL_REFRESH_YAHJAIR`. Blank `DAYCARE_CAL_NOTIFY_TO` kills only the email.
+- Kill: `FORGE_DAYCARE_CALENDAR=0` + restart, clock-out, or blank `GOOGLE_CAL_REFRESH_YAHJAIR`. Blank `DAYCARE_CAL_NOTIFY_TO` kills only the email. `FORGE_DAYCARE_CAL_REMIND=0` kills only the Telegram reminders.
 - Real mode needs the owner to set `FORGE_DAYCARE_CAL_QA=0`. Unknown (not verified): whether that has been done on the box today.
 
-**Self-improvement:** none. **Chat & tasks:** none of its own; ask Solomon. Unknown: whether his lanes block (`agents_hub._lanes_block`) shows Calendar state. The code has no `daycare_calendar` reference in `agents_hub.py`, so assume not.
+**Self-improvement:** none. **Chat & tasks:** none of its own; ask Solomon. His lanes block (`agents_hub._lanes_block`) carries `calendar` = `week()` since 2026-10-31.
 
-**Cost:** zero Claude. Network: GHL reads (contact search, one GET per tagged contact), Google Calendar writes, one Resend POST per new or moved tour.
+**Cost:** zero Claude. Network: GHL reads (contact search, one GET per tagged contact), Google Calendar writes, one Resend POST per new or moved tour, at most two Telegram sends per timed tour.
 
 **Verify it's alive**
 
 ```bash
 cd "forge rei" && python3 test_daycare_calendar.py && python3 test_google_cal_io.py
 curl -s localhost:7799/api/system/health | jq '.loops[]|select(.loop=="daycare_calendar")'
-curl -s localhost:7799/api/daycare/calendar | jq '{mode,lastRunAt,error,events,failed,held}'   # needs a daycare session
+curl -s localhost:7799/api/daycare/calendar | jq '{mode,lastRunAt,error,events,failed,held,upcoming}'   # needs a daycare session
 ```
 
 Healthy: `mode` matches what the owner intends (`qa` until the switch), `lastRunAt` under ~20 min old, `error` null, `failed` 0.

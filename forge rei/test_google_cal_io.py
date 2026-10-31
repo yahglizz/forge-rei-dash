@@ -68,6 +68,16 @@ class Base(unittest.TestCase):
         return fake
 
 
+class Reminders(Base):
+    def test_popups_ride_through_and_the_guard_still_holds(self):
+        fake = self.use(Reply(200, b'{"htmlLink": "x"}'))
+        body = {"summary": "s", "reminders": {"useDefault": False, "overrides": [{"method": "popup", "minutes": 60}]}}
+        g.put_event(QA, "abc", body)
+        self.assertEqual(fake.calls[0][2]["reminders"], body["reminders"])
+        with self.assertRaises(g.CalError):
+            g.put_event("personal@gmail.com", "abc", body)
+
+
 class EventId(Base):
     def test_id_uses_only_googles_alphabet(self):
         for key in ("tour|abc", "first|XYZ", "z" * 200):

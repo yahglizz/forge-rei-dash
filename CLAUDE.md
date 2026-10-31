@@ -875,7 +875,16 @@ key on the box. New migrations go in BOTH migration folders.
   read never removes an event; center is never guessed; names are stripped 7 days after the event. Once a tour
   is really on the calendar the lane emails `DAYCARE_CAL_NOTIFY_TO` the event link through Resend, once, and once
   more if it moves (`[QA]` in the subject in QA mode; blank = off). That address is the owner's: never a family's.
-  Spec: Brand Kit `docs/google-calendar/`. Tests: `test_google_cal_io.py`, `test_daycare_calendar.py`.
+  **Reminders (2026-10-31), owner only, no guests:** Google popups on timed tours (1 day + 1 hour before) and first
+  days (9 AM the day before); none on an all-day tour. Plus one Telegram note to the **daycare chat** at the nearest
+  of 24 h / 2 h before a timed tour really on the calendar: center, time, countdown, link, **never a name**; skipped
+  when the daycare chat is unbound (no HQ fallback); quiet 9 PM-6 AM ET; `reminded` in the ledger row, marked only
+  on a sent/deduped result; a moved tour resets. Never a lane error. `FORGE_DAYCARE_CAL_REMIND=0` = off.
+  **Calendar panel** (`DcsCalendar`, Daycare dashboard): `view().upcoming` = next 14 days on this mode's calendar,
+  first name from tick memory only (`_WHO`, never disk). Solomon: `daycare_calendar` in his `hb`, and
+  `week()` (7-day counts + dates + center, no names) in `_delegate_context("solomon")`.
+  Spec: Brand Kit `docs/google-calendar/`, `docs/plans/2026-10-31-solomon-calendar-watch.md`. Tests:
+  `test_google_cal_io.py`, `test_daycare_calendar.py`.
 - **Solomon · Starts — start date → confirm → start-day app login (2026-09-29).**
   `daycare_starts.py` (thread `daycare_starts`, 15 min, zero Claude, `FORGE_DAYCARE_STARTS=0`
   retires it) reads new-signup GHL threads, pulls the agreed start date out of the texts (form

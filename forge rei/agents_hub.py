@@ -133,6 +133,8 @@ AGENTS = [
      # in `hb` would read the whole row as DISABLED, so it is only listed when the brief is on.
      "hb": (["solomon"] if os.environ.get("FORGE_SOLOMON_BRIEF", "0") != "0" else [])
            + ["daycare_replies", "daycare_leads", "daycare_starts", "daycare_ads"]
+           # Solomon · Calendar (daycare_calendar) — retired + unlisted when FORGE_DAYCARE_CALENDAR=0
+           + (["daycare_calendar"] if os.environ.get("FORGE_DAYCARE_CALENDAR", "1") != "0" else [])
            # the board's wake-up timer — opt-in (FORGE_SOLOMON_ORCH=1), retired + unlisted when off
            + (["solomon_orchestrator"] if os.environ.get("FORGE_SOLOMON_ORCH", "0") == "1" else []),
      "queue": "daycare_replies"},
@@ -470,6 +472,7 @@ def _delegate_context(agent_id):
     try:
         if agent_id == "solomon":
             import daycare_board
+            import daycare_calendar
             import daycare_director
             import daycare_ads_studio
             # Command Board FIRST (_lanes_block cuts at 2500 chars) — counts only: titles can quote email
@@ -477,6 +480,9 @@ def _delegate_context(agent_id):
             return {"board": daycare_board.counts_block(),
                     "replies": daycare_director.reply_desk_state(),   # Solomon · Replies
                     "leads": daycare_director.lead_desk_state(),      # Solomon · Leads
+                    # Solomon · Calendar: next 7 days, counts + dates + center, no names (<300 chars)
+                    **({"calendar": daycare_calendar.week()}
+                       if os.environ.get("FORGE_DAYCARE_CALENDAR", "1") != "0" else {}),
                     "adGenerator": daycare_ads_studio.lane_state()}   # Ad Studio (images = owner tap)
         if agent_id == "marcus":   # his lanes: Scout · Atlas · Follow-up · ACE · Autopilot
             out = {}

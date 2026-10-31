@@ -22,6 +22,9 @@ Rules that keep a family safe:
 Email: once a tour is really on the calendar, one email to DAYCARE_CAL_NOTIFY_TO with the event
 link, and one more if it moves. The address is the owner's alone: it never goes to a family.
 
+Reminders, owner only: Google popups in each event (no guests), and one Telegram note to the daycare
+chat 24 h / 2 h before a timed tour, never a name (_remind). FORGE_DAYCARE_CAL_REMIND=0 = no notes.
+
 Disk: event ids, hashes, dates and links, plus a first name in `held`. Never a phone, email or token.
 Stdlib only. Tests: python3 test_daycare_calendar.py
 """
@@ -86,7 +89,11 @@ CENTERS = {
 }
 TAG_BY_LOCATION_ID = {v: k for k, v in daycare_ghl.LOCATION_ID_BY_TAG.items()}
 
+REMIND = (("2h", 2 * 3600), ("24h", 24 * 3600))   # Telegram stages, nearest first
+QUIET = (21, 6)             # 9 PM - 6 AM ET: a reminder waits for the first tick after 6:00
+
 _RUN = threading.Lock()
+_WHO = {}                   # ledger key -> "Zuri D.", filled each tick: memory only, never on disk
 _CLOCK = re.compile(r"\b(\d{1,2}):(\d{2})\s*([AP])\.?M\b", re.I)
 _DIGITS = re.compile(r"^\d{10,14}$")
 _AGE_TEXT = re.compile(r"^[0-9A-Za-z ./-]{1,20}$")
@@ -224,13 +231,20 @@ def _when_text(body):
     return f"{at:%a %b} {at.day} at {_clock(at.hour, at.minute)}"
 
 
+def _reminders(*minutes):
+    """Google popups for the calendar owner only (no guests). Without useDefault:false Google
+    answers 400 to overrides, and an empty list means no popup at all."""
+    return {"useDefault": False, "overrides": [{"method": "popup", "minutes": m} for m in minutes]}
+
+
 def _tour_event(location, contact_id, fam, cf, loc, day):
     center = CENTERS[loc]
     age = _age(cf, day)
     clock = parse_clock(cf.get(CF_TOUR_TIME))
     start, end = _timed(day, *clock) if clock else _all_day(day)
     return {"summary": _title(center, "Tour" if clock else "Tour: time not set", fam, age), "description": _describe(location, contact_id, fam, cf), "location": center["address"],
-            "colorId": center["color"], "start": start, "end": end}, bool(clock)
+            "colorId": center["color"], "start": start, "end": end,
+            "reminders": _reminders(1440, 60) if clock else _reminders()}, bool(clock)   # 1 day, 1 hour
 
 
 def _first_day_event(location, contact_id, fam, cf, loc, day):
@@ -238,7 +252,8 @@ def _first_day_event(location, contact_id, fam, cf, loc, day):
     start, end = _all_day(day)
     return {"summary": _title(center, "First day", fam, _age(cf, day)),
             "description": _describe(location, contact_id, fam, cf), "location": center["address"],
-            "colorId": center["color"], "start": start, "end": end, "transparency": "transparent"}
+            "colorId": center["color"], "start": start, "end": end, "transparency": "transparent",
+            "reminders": _reminders(900)}   # all-day: 9:00 AM the day before, in the calendar's zone
 
 
 def _hash(cal, body):
@@ -296,6 +311,7 @@ def _tours(client, qa, qa_ids, cal):
         if not qa and (QA_TAG in tags or _is_test(fam)):
             continue
         key = f"tour|{contact_id}"
+        _WHO[key] = _short_name(fam)
         cf = daycare_ghl._cf_map(contact)
         day = _date(cf.get(CF_TOUR_DATE))
         loc = _one_center(tags)
@@ -330,6 +346,8 @@ def _first_days(client, entries, ledger, qa, qa_ids, today, cal):
         if qa and contact_id not in qa_ids:
             continue
         key = f"first|{contact_id}"
+        first, last = daycare_ghl._split_name(entry.get("childName") or entry.get("childFirst"))
+        _WHO[key] = _short_name({"child_first": first, "child_last": last})   # no GHL read needed
         day = _date(entry.get("startDate"))
         row = ledger.get(key) or {}
         if not day:
@@ -338,7 +356,8 @@ def _first_days(client, entries, ledger, qa, qa_ids, today, cal):
             if key in ledger:
                 keep.add(key)
             continue
-        source = f"{day}|{status in START_STATUSES}|{entry.get('locationId')}"
+        # |r1 = popups added 2026-10-31: a row written before that patches once and gains them.
+        source = f"{day}|{status in START_STATUSES}|{entry.get('locationId')}|r1"
         if row.get("hash") and row.get("source") == source:
             keep.add(key)
             continue
@@ -449,6 +468,38 @@ def _tour_emails(st, wanted, qa, today):
     return None
 
 
+def _remind(st, wanted, qa, now):
+    """One Telegram note to the daycare chat at the nearest of 24 h / 2 h before each timed tour the
+    calendar really holds. Owner only, no name. Best effort: a failed send is retried next tick and
+    never becomes a lane error. FORGE_DAYCARE_CAL_REMIND=0 turns it off."""
+    if _pick("FORGE_DAYCARE_CAL_REMIND") == "0" or not QUIET[1] <= datetime.fromtimestamp(now, ET).hour < QUIET[0]:
+        return
+    try:
+        import telegram_io
+        if not telegram_io._biz_chats().get("daycare"):
+            return                                # unbound: send_biz would fall back to HQ
+        for key, want in wanted.items():
+            row = st["events"].get(key) or {}
+            start = want["body"]["start"].get("dateTime")   # an all-day tour has no time to remind
+            if want["kind"] != "tour" or not start or row.get("hash") != _hash(want["cal"], want["body"]):
+                continue
+            left = datetime.fromisoformat(start).timestamp() - now
+            stage = next((name for name, before in REMIND if 0 < left <= before), None)
+            done = row.get("reminded") or {}
+            if not stage or (done.get("start") == start and done.get("stage") in (stage, REMIND[0][0])):
+                continue                          # a moved tour has a new start, so its stages reset
+            hours, minutes = divmod(round(left / 60), 60)
+            count = " ".join(p for p in (f"{hours} h" if hours else "", f"{minutes} min" if minutes else "") if p)
+            text = (f"{'[QA] ' if qa else ''}Tour reminder {CENTERS[want['center']]['tag']}: "
+                    f"{_when_text(want['body'])}, in {count or '1 min'}\n{row.get('link') or 'https://calendar.google.com'}")
+            res = telegram_io.send_biz("daycare", html.escape(text), dedupe_key=f"cal-remind:{key}:{stage}:{start}")
+            if isinstance(res, dict) and res.get("ok"):   # a dedupe skip comes back ok too
+                row["reminded"] = {"stage": stage, "start": start}
+                _save(st)
+    except Exception:  # noqa: BLE001 — a reminder never blocks the lane or turns Solomon's row red
+        pass
+
+
 def _apply(client, st, wanted, keep, clean, today, cal):
     """Run the writes. Returns (writes used, auth error or None, read error or None)."""
     ledger, writes, read_err = st["events"], 0, None
@@ -557,6 +608,7 @@ def _tick(client, now):
     st["held"] = held + [h for h in st.get("held") or [] if h.get("kind") not in clean]
     _, auth_err, read_err = _apply(client, st, wanted, keep, clean, today, cal)
     email_err = _tour_emails(st, wanted, qa, today)
+    _remind(st, wanted, qa, now)                  # never an error: see _remind
     errors += [e for e in (auth_err, read_err, email_err) if e]
     failed = [r for r in st["events"].values() if r.get("tries", 0) >= FAIL_TRIES]
     if failed:
@@ -580,16 +632,43 @@ def tick(client, now=None):
 
 
 def view(now=None):
-    """GET /api/daycare/calendar: state only, no network on the request path."""
+    """GET /api/daycare/calendar: state only, no network on the request path. `upcoming` = the next
+    14 days really on this mode's calendar; `who` comes from the last tick's memory, never disk."""
     st = _load()
-    rows = (st.get("events") or {}).values()
+    events = st.get("events") or {}
+    rows = events.values()
     err = st.get("error")
     if not st.get("lastRunAt"):
         err = err or ("The calendar lane has not run yet: it runs every 15 min on the box "
                       "(loops are off on a UI-only machine).")
-    return {"ok": True, "mode": "qa" if qa_mode() else "live", "lastRunAt": st.get("lastRunAt"), "error": err,
+    qa, today = qa_mode(), _today(now).isoformat()
+    cal, until = _pick("GOOGLE_CAL_ID_QA" if qa else "GOOGLE_CAL_ID"), (_today(now) + timedelta(days=14)).isoformat()
+    upcoming = []
+    for key, r in events.items():
+        if not r.get("hash") or r.get("scrubbed") or r.get("cal") != cal or not today <= r.get("when", "") < until:
+            continue
+        at = ((r.get("shell") or {}).get("start") or {}).get("dateTime")   # None = all-day: time not set
+        done = r.get("reminded") or {}
+        upcoming.append({"kind": r.get("kind"), "date": r["when"], "time": at, "center": r.get("center"),
+                         "tag": CENTERS.get(r.get("center"), {}).get("tag"), "link": r.get("link") or None,
+                         "reminded": done.get("stage") if at and done.get("start") == at else None,
+                         "who": _WHO.get(key)})
+    upcoming.sort(key=lambda u: (u["date"], u["time"] or ""))
+    return {"ok": True, "mode": "qa" if qa else "live", "lastRunAt": st.get("lastRunAt"), "error": err,
             "events": sum(1 for r in rows if r.get("hash") and not r.get("scrubbed")),
-            "failed": sum(1 for r in rows if r.get("tries", 0) >= FAIL_TRIES), "held": st.get("held") or []}
+            "failed": sum(1 for r in rows if r.get("tries", 0) >= FAIL_TRIES), "held": st.get("held") or [],
+            "upcoming": upcoming}
+
+
+def week(now=None):
+    """Solomon's chat context (agents_hub._delegate_context): the next 7 days on the calendar.
+    Counts, dates and center only, never a name. Stays under 300 chars."""
+    v = view(now)
+    end = (_today(now) + timedelta(days=7)).isoformat()
+    soon = [u for u in v["upcoming"] if u["date"] < end]
+    return {"mode": v["mode"], "tours": sum(u["kind"] == "tour" for u in soon),
+            "firstDays": sum(u["kind"] == "first" for u in soon),
+            "next": [f"{u['date'][5:]} {u['kind']} {u['tag']}" for u in soon[:8]]}
 
 
 # --------------------------------------------------------------------------- owner taps

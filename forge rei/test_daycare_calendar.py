@@ -13,11 +13,16 @@ from unittest import mock
 import daycare_calendar as dc
 import daycare_ghl
 import google_cal_io
+import telegram_io
 
 REAL_SEND = dc._send_email
 ET = dc.ET
 NOW = datetime(2026, 11, 2, 9, 0, tzinfo=ET).timestamp()   # a Monday, after the clock change
 LIVE, QA = "live@group.calendar.google.com", "qa@group.calendar.google.com"
+
+
+def at(day, hour, minute=0, month=11):
+    return datetime(2026, month, day, hour, minute, tzinfo=ET).timestamp()
 
 
 def contact(cid="c1", tags=("tour-scheduled", "loc-921-n-18th"), day="2026-11-04",
@@ -100,9 +105,13 @@ class Base(unittest.TestCase):
         self.google = FakeGoogle()
         self.starts = {}
         self.mail = []
+        self.tg, self.chats, self.tg_result = [], {"daycare": "-100"}, {"ok": True}
         self.env = {"FORGE_DAYCARE_CAL_QA": "0", "GOOGLE_CAL_ID": LIVE, "GOOGLE_CAL_ID_QA": QA,
                     "DAYCARE_CAL_NOTIFY_TO": "owner@example.com"}
-        for p in (mock.patch.object(dc, "STATE", Path(self.tmp.name) / "cal.json"),
+        dc._WHO.clear()
+        for p in (mock.patch.object(telegram_io, "_biz_chats", lambda: self.chats),
+                  mock.patch.object(telegram_io, "send_biz", self.fake_send),
+                  mock.patch.object(dc, "STATE", Path(self.tmp.name) / "cal.json"),
                   mock.patch.object(dc, "gcal", self.google),
                   mock.patch.object(dc, "_pick", lambda n: self.env.get(n, "")),
                   mock.patch.object(dc, "_starts_entries", lambda: self.starts),
@@ -111,6 +120,12 @@ class Base(unittest.TestCase):
                   mock.patch.object(dc, "_gcal_ready", lambda: True)):
             p.start()
             self.addCleanup(p.stop)
+
+    def fake_send(self, business, text, buttons=None, dedupe_key=None):
+        self.tg.append((business, text, dedupe_key))
+        if isinstance(self.tg_result, Exception):
+            raise self.tg_result
+        return self.tg_result
 
     def events(self):
         return list(self.google.events.values())
@@ -196,6 +211,48 @@ class TourEvent(Base):
         ms = int(datetime(2026, 11, 4, tzinfo=dc.UTC).timestamp() * 1000)
         self.run_tick(FakeGHL(contact(day=str(ms))))
         self.assertTrue(self.only()["start"]["dateTime"].startswith("2026-11-04T10:00"))
+
+
+class GooglePopups(Base):
+    def popups(self, *minutes):
+        return {"useDefault": False, "overrides": [{"method": "popup", "minutes": m} for m in minutes]}
+
+    def first_day(self):
+        self.starts["c1"] = {"contactId": "c1", "startDate": "2026-11-09", "status": "confirmed",
+                             "locationId": daycare_ghl.LOCATION_ID_BY_TAG["loc-921-n-18th"]}
+        return FakeGHL(contact(tags=("loc-921-n-18th",), day="", time_text="", where=""))
+
+    def test_timed_tour_pops_up_a_day_and_an_hour_before(self):
+        self.run_tick(FakeGHL(contact()))
+        self.assertEqual(self.only()["reminders"], self.popups(1440, 60))
+
+    def test_all_day_tour_gets_no_popup(self):
+        self.run_tick(FakeGHL(contact(time_text="sometime in the morning")))
+        self.assertEqual(self.only()["reminders"], self.popups())
+
+    def test_first_day_pops_up_at_9_am_the_day_before(self):
+        self.run_tick(self.first_day())
+        self.assertEqual(self.only()["reminders"], self.popups(900))
+
+    def test_first_day_settles_after_one_write(self):
+        ghl = self.first_day()
+        for _ in range(3):
+            self.run_tick(ghl)
+        self.assertEqual(self.google.writes, 1)
+
+    def test_a_first_day_written_before_popups_patches_once(self):
+        ghl = self.first_day()
+        self.run_tick(ghl)
+        st = dc._load()
+        row = st["events"]["first|c1"]
+        row["source"] = row["source"].removesuffix("|r1")     # a row from before this build
+        row["hash"] = "old"
+        dc._save(st)
+        self.google.events.clear()
+        self.run_tick(ghl)
+        self.run_tick(ghl)
+        self.assertEqual(self.google.writes, 2)
+        self.assertEqual(self.only()["reminders"], self.popups(900))
 
 
 class Centers(Base):
@@ -743,6 +800,137 @@ class TourEmail(Base):
         self.assertEqual(self.mail[0][0], "Tour booked: Zuri D. [921], Wed Nov 4, time not set")
 
 
+class TourReminders(Base):
+    LINK = f"https://calendar.example/{dc.event_id('tour|c1')}"
+    START = "2026-11-04T10:00:00-05:00"
+
+    def stages(self):
+        return [key.split(":")[2] for _, _, key in self.tg]
+
+    def row(self):
+        return dc._load()["events"]["tour|c1"]
+
+    def test_more_than_a_day_out_sends_nothing(self):
+        self.run_tick(FakeGHL(contact()))
+        self.assertEqual(self.tg, [])
+
+    def test_a_day_before_one_note_to_the_daycare_chat_without_a_name(self):
+        self.assertIsNone(self.run_tick(FakeGHL(contact()), now=at(3, 11)))
+        self.assertEqual(self.tg, [("daycare", f"Tour reminder [921]: Wed Nov 4 at 10:00 AM, in 23 h\n{self.LINK}",
+                                    f"cal-remind:tour|c1:24h:{self.START}")])
+        for word in ("Zuri", "Davis", "Jane", "5550100", "secret@"):
+            self.assertNotIn(word, self.tg[0][1])
+        self.assertEqual(self.row()["reminded"], {"stage": "24h", "start": self.START})
+
+    def test_repeat_ticks_and_a_restart_send_it_once(self):
+        ghl = FakeGHL(contact())
+        self.run_tick(ghl, now=at(3, 11))
+        dc._WHO.clear()                       # a restart drops memory: the ledger on disk remembers
+        self.run_tick(ghl, now=at(3, 11, 15))
+        self.run_tick(ghl, now=at(3, 15))
+        self.assertEqual(len(self.tg), 1)
+
+    def test_two_hours_before_sends_the_second(self):
+        ghl = FakeGHL(contact())
+        for now in (at(3, 11), at(4, 8), at(4, 8, 15)):
+            self.run_tick(ghl, now=now)
+        self.assertEqual(self.stages(), ["24h", "2h"])
+        self.assertIn(", in 2 h\n", self.tg[1][1])
+
+    def test_booked_inside_two_hours_sends_only_the_nearest(self):
+        self.run_tick(FakeGHL(contact()), now=at(4, 8, 30))
+        self.assertEqual(self.stages(), ["2h"])
+        self.assertIn(", in 1 h 30 min\n", self.tg[0][1])
+
+    def test_quiet_hours_hold_it_until_six(self):
+        ghl = FakeGHL(contact())
+        for now in (at(3, 21), at(3, 23, 45), at(4, 5, 45)):
+            self.run_tick(ghl, now=now)
+        self.assertEqual(self.tg, [])
+        self.run_tick(ghl, now=at(4, 6))
+        self.assertEqual(self.stages(), ["24h"])
+        self.assertIn(", in 4 h\n", self.tg[0][1])
+
+    def test_a_tour_that_started_is_skipped(self):
+        self.run_tick(FakeGHL(contact()), now=at(4, 10, 5))
+        self.assertEqual(self.tg, [])
+
+    def test_unbound_daycare_chat_skips_and_never_falls_back_to_hq(self):
+        ghl = FakeGHL(contact())
+        self.chats = {"wholesale": "-200"}
+        self.run_tick(ghl, now=at(3, 11))
+        self.assertEqual(self.tg, [])
+        self.assertNotIn("reminded", self.row())
+        self.chats = {"daycare": "-100"}
+        self.run_tick(ghl, now=at(3, 11, 15))
+        self.assertEqual(self.stages(), ["24h"])
+
+    def test_a_failed_send_is_not_marked_retries_and_is_never_a_lane_error(self):
+        ghl = FakeGHL(contact())
+        self.tg_result = {"error": "Forbidden: bot was kicked"}
+        self.assertIsNone(self.run_tick(ghl, now=at(3, 11)))
+        self.assertNotIn("reminded", self.row())
+        self.tg_result = {"ok": True}
+        self.run_tick(ghl, now=at(3, 11, 15))
+        self.assertEqual(len(self.tg), 2)
+        self.assertEqual(self.row()["reminded"]["stage"], "24h")
+
+    def test_a_dedupe_skip_counts_as_sent(self):
+        self.tg_result = {"ok": True, "skipped": "dedupe"}
+        self.run_tick(FakeGHL(contact()), now=at(3, 11))
+        self.assertEqual(self.row()["reminded"]["stage"], "24h")
+
+    def test_a_telegram_crash_is_swallowed(self):
+        self.tg_result = RuntimeError("boom")
+        self.assertIsNone(self.run_tick(FakeGHL(contact()), now=at(3, 11)))
+        self.assertIsNone(dc._load()["error"])
+        self.assertEqual(len(self.events()), 1)
+
+    def test_a_moved_tour_resets_its_stages(self):
+        ghl = FakeGHL(contact())
+        self.run_tick(ghl, now=at(3, 11))
+        ghl.contacts["c1"] = contact(time_text="Wednesday, November 4 at 2:30 PM ET")
+        self.run_tick(ghl, now=at(3, 11, 15))     # 27 h out: no stage yet
+        self.run_tick(ghl, now=at(3, 15))
+        self.assertEqual(self.stages(), ["24h", "24h"])
+        self.assertTrue(self.tg[1][2].endswith(":2026-11-04T14:30:00-05:00"))
+        self.assertIn("at 2:30 PM, in 23 h 30 min", self.tg[1][1])
+
+    def test_qa_mode_marks_the_note(self):
+        self.env["FORGE_DAYCARE_CAL_QA"] = "1"
+        self.run_tick(FakeGHL(contact(tags=("tour-scheduled", "loc-921-n-18th", dc.QA_TAG))), now=at(3, 11))
+        self.assertTrue(self.tg[0][1].startswith("[QA] Tour reminder [921]: "))
+
+    def test_kill_switch(self):
+        self.env["FORGE_DAYCARE_CAL_REMIND"] = "0"
+        self.run_tick(FakeGHL(contact()), now=at(3, 11))
+        self.assertEqual(self.tg, [])
+
+    def test_all_day_tour_and_first_day_get_no_note(self):
+        self.starts["c2"] = {"contactId": "c2", "startDate": "2026-11-04", "status": "confirmed",
+                             "locationId": daycare_ghl.LOCATION_ID_BY_TAG["loc-921-n-18th"]}
+        self.run_tick(FakeGHL(contact(time_text="sometime"),
+                              contact(cid="c2", tags=("loc-921-n-18th",), day="", time_text="", where="")),
+                      now=at(3, 11))
+        self.assertEqual(len(self.events()), 2)
+        self.assertEqual(self.tg, [])
+
+    def test_no_note_until_the_event_is_on_the_calendar(self):
+        self.google.fail = google_cal_io.CalError("down")
+        self.run_tick(FakeGHL(contact()), now=at(3, 11))
+        self.assertEqual(self.tg, [])
+
+    def test_daylight_saving_day_counts_real_hours(self):
+        # 2026-11-01 the clocks fall back: 10:00 AM EST Sunday is 24 real hours after 11:00 AM EDT Saturday.
+        ghl = FakeGHL(contact(day="2026-11-01", time_text="Sunday, November 1 at 10:00 AM ET"))
+        self.run_tick(ghl, now=at(31, 10, 30, month=10))    # 24.5 h out (23.5 on the wall clock)
+        self.assertEqual(self.tg, [])
+        self.run_tick(ghl, now=at(31, 11, month=10))
+        self.assertIn("Sun Nov 1 at 10:00 AM, in 24 h\n", self.tg[0][1])
+        self.run_tick(ghl, now=at(1, 8))                    # 2 h out, the morning after the change
+        self.assertEqual(self.stages(), ["24h", "2h"])
+
+
 class SendEmail(unittest.TestCase):
     ENV = {"RESEND_API_KEY": "re_secret", "RESEND_FROM": "ATOB <noreply@example.com>",
            "DAYCARE_CAL_NOTIFY_TO": "owner@example.com"}
@@ -780,6 +968,90 @@ class View(Base):
         self.assertEqual(v["mode"], "live")
         self.assertEqual(v["events"], 1)
         self.assertNotIn("secret@example.com", dc.STATE.read_text())
+
+
+class Upcoming(Base):
+    def booked(self):
+        self.starts["c2"] = {"contactId": "c2", "startDate": "2026-11-09", "status": "confirmed", "childFirst": "Ada",
+                             "childName": "Ada Lane", "locationId": daycare_ghl.LOCATION_ID_BY_TAG["loc-2318-cecil-b-moore"]}
+        ghl = FakeGHL(contact(), contact(cid="c2", tags=("loc-2318-cecil-b-moore",), day="", time_text="", where="",
+                                         child="Ada Lane"))
+        self.run_tick(ghl)
+        return ghl
+
+    def test_next_two_weeks_by_day_with_time_center_link_and_first_name(self):
+        self.booked()
+        self.assertEqual(dc.view(NOW)["upcoming"], [
+            {"kind": "tour", "date": "2026-11-04", "time": "2026-11-04T10:00:00-05:00", "center": "loc-921-n-18th",
+             "tag": "[921]", "link": f"https://calendar.example/{dc.event_id('tour|c1')}", "reminded": None,
+             "who": "Zuri D."},
+            {"kind": "first", "date": "2026-11-09", "time": None, "center": "loc-2318-cecil-b-moore",
+             "tag": "[2318]", "link": f"https://calendar.example/{dc.event_id('first|c2')}", "reminded": None,
+             "who": "Ada L."}])
+
+    def test_the_name_lives_in_memory_only(self):
+        self.booked()
+        text = dc.STATE.read_text()
+        for word in ("Zuri", "Davis", "Ada", "Lane", "5550100", "secret@"):
+            self.assertNotIn(word, text)
+        dc._WHO.clear()                           # a restart: no name until the next tick
+        self.assertEqual([u["who"] for u in dc.view(NOW)["upcoming"]], [None, None])
+
+    def test_an_all_day_tour_has_no_time(self):
+        self.run_tick(FakeGHL(contact(time_text="sometime")))
+        self.assertIsNone(dc.view(NOW)["upcoming"][0]["time"])
+
+    def test_only_today_through_13_days_out(self):
+        self.run_tick(FakeGHL(contact(day="2026-11-02"), contact(cid="c2", day="2026-11-15"),
+                              contact(cid="c3", day="2026-11-16")))
+        self.assertEqual([u["date"] for u in dc.view(NOW)["upcoming"]], ["2026-11-02", "2026-11-15"])
+        self.assertEqual(dc.view(at(5, 9))["upcoming"][0]["date"], "2026-11-15")   # a past day drops off
+
+    def test_scrubbed_and_never_written_rows_are_hidden(self):
+        self.booked()
+        st = dc._load()
+        st["events"]["tour|c1"]["scrubbed"] = True
+        st["events"]["first|c2"].pop("hash")
+        dc._save(st)
+        self.assertEqual(dc.view(NOW)["upcoming"], [])
+
+    def test_qa_rows_are_hidden_in_live_mode(self):
+        self.env["FORGE_DAYCARE_CAL_QA"] = "1"
+        self.run_tick(FakeGHL(contact(tags=("tour-scheduled", "loc-921-n-18th", dc.QA_TAG))))
+        self.assertEqual(len(dc.view(NOW)["upcoming"]), 1)
+        self.env["FORGE_DAYCARE_CAL_QA"] = "0"
+        self.assertEqual(dc.view(NOW)["upcoming"], [])
+
+    def test_a_sent_reminder_shows(self):
+        self.run_tick(FakeGHL(contact()), now=at(3, 11))
+        self.assertEqual(dc.view(at(3, 11))["upcoming"][0]["reminded"], "24h")
+
+    def test_no_network_on_the_request_path(self):
+        self.booked()
+        with mock.patch.object(dc, "gcal", None), mock.patch.object(telegram_io, "send_biz", None):
+            self.assertEqual(len(dc.view(NOW)["upcoming"]), 2)
+
+    def test_empty_before_any_run(self):
+        self.assertEqual(dc.view(NOW)["upcoming"], [])
+
+
+class SolomonWeek(Base):
+    def test_counts_dates_and_center_for_seven_days_never_a_name(self):
+        self.starts["c2"] = {"contactId": "c2", "startDate": "2026-11-06", "status": "confirmed", "childName": "Ada Lane",
+                             "locationId": daycare_ghl.LOCATION_ID_BY_TAG["loc-2318-cecil-b-moore"]}
+        self.run_tick(FakeGHL(contact(), contact(cid="c3", day="2026-11-09"),
+                              contact(cid="c2", tags=("loc-2318-cecil-b-moore",), day="", time_text="", where="")))
+        week = dc.week(NOW)
+        self.assertEqual(week, {"mode": "live", "tours": 1, "firstDays": 1,
+                                "next": ["11-04 tour [921]", "11-06 first [2318]"]})
+        self.assertNotIn("Zuri", json.dumps(week))
+
+    def test_a_full_week_stays_under_300_chars(self):
+        dc._save({"events": {f"first|x{i}": {"kind": "first", "cal": LIVE, "when": "2026-11-03", "hash": "h",
+                                             "center": "loc-1923-cecil-b-moore"} for i in range(30)}})
+        week = dc.week(NOW)
+        self.assertEqual(week["firstDays"], 30)
+        self.assertLess(len(json.dumps(week)), 300)
 
 
 if __name__ == "__main__":

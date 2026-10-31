@@ -291,15 +291,47 @@ function DtrTourControl(props) {
   </div>;
 }
 
-function DcsCalendarStatus() {
+// Center dots: Google's Grape / Peacock / Flamingo, darkened enough to read on light and dark cards.
+const DCS_DOT = { "loc-921-n-18th": "#8B5CF6", "loc-2318-cecil-b-moore": "#0284C7", "loc-1923-cecil-b-moore": "#DB2777" };
+const DCS_ET = "America/New_York";
+
+// "Today" / "Tomorrow" / "Wednesday, Nov 4" built from the date's own parts: new Date("2026-11-09")
+// is UTC midnight, which DcxDate would show as Nov 8 in ET.
+function DcsDay(iso) {
+  const ymd = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: DCS_ET }).format(new Date());
+  const [ty, tm, td] = today.split("-").map(Number);
+  const [y, m, d] = iso.split("-").map(Number);
+  if (iso === today) return "Today";
+  if (iso === ymd(Date.UTC(ty, tm - 1, td + 1))) return "Tomorrow";
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "short", day: "numeric" });
+}
+
+function DcsCalendar() {
   const res = DcxUseResource("/calendar", null, 60000);
   const data = res.data && !Array.isArray(res.data) ? res.data : {};
   const held = data.held || [];
-  if (res.loading || res.error || (!data.error && !held.length && data.mode !== "qa")) return null;
+  const items = data.upcoming || [];
+  const days = [...new Set(items.map((u) => u.date))];
+  const clock = (u) => u.time ? new Date(u.time).toLocaleTimeString("en-US", { timeZone: DCS_ET, hour: "numeric", minute: "2-digit" }) + " ET" : u.kind === "tour" ? "time not set" : "All day";
   return <div className="card card-pad dc-panel">
-    <div className="dc-panel-head"><div><div className="card-title">Google Calendar</div><div className="faint">{data.mode === "qa" ? "QA mode · only test contacts · " : ""}{data.events || 0} event(s) on the calendar{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div></div>
+    <div className="dc-panel-head"><div><div className="card-title">Calendar · next 14 days</div><div className="faint">{data.mode === "qa" ? "QA mode · only test contacts · " : ""}Tours + first days on Google Calendar · Solomon reminds you 24 h and 2 h before a tour{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div><b>{items.length}</b></div>
+    {res.error && <div className="dc-error-text" role="alert">{res.error.message || "The calendar is unavailable."}</div>}
     {data.error && <div className="dc-error-text" role="alert">{data.error}</div>}
-    {held.length > 0 && <div className="dc-alert-list">{held.map((row) => <div key={row.kind + row.contactId}><span className="dc-severity warning"/><div><b>{row.who}</b><small>{row.reason}</small></div></div>)}</div>}
+    {held.length > 0 && <div className="dc-alert-list">{held.map((row) => <div key={row.kind + row.contactId}><span className="dc-severity warning"/><div><b>Held · {row.who}</b><small>{row.reason}</small></div></div>)}</div>}
+    {res.loading ? <div className="dc-inline-empty">Loading the calendar…</div> : !items.length
+      ? <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>Nothing booked in the next 14 days</b><span>Booked tours and confirmed first days show here within 15 minutes.</span></div></div>
+      : days.map((day) => <div key={day} style={{ marginTop: 10 }}>
+        <div className="dc-section-label">{DcsDay(day)}</div>
+        <div className="dc-alert-list">{items.filter((u) => u.date === day).map((u, i) => <div key={u.link || u.kind + day + i} style={{ gridTemplateColumns: "8px 1fr auto", alignItems: "start" }}>
+          <span className="dc-severity" style={{ background: DCS_DOT[u.center] || "#94A3B8" }} aria-hidden="true"/>
+          <div>
+            <b>{clock(u)}{u.who ? " · " + u.who : ""}</b>
+            <small><span className="dc-severity-pill">{u.kind === "tour" ? "Tour" : "First day"}</span> {u.tag}{u.reminded ? " · reminder sent (" + u.reminded + ")" : ""}</small>
+          </div>
+          {u.link && <a className="link" style={{ fontSize: 11 }} href={u.link} target="_blank" rel="noreferrer">Open ↗</a>}
+        </div>)}</div>
+      </div>)}
   </div>;
 }
 // --- /CALENDAR ---
@@ -500,7 +532,7 @@ function DaycareDashboard() {
     <div className="dc-kpi-grid"><DcxKpi label="Enrolled" value={enrolled} sub={Math.max(0, capacity - enrolled) + " of " + capacity + " spots open"} icon="Children"/><DcxKpi label="Checked In" value={checkedIn} sub="live attendance" icon="Attendance" color="#22C55E"/><DcxKpi label="Active Staff" value={staff} sub="center team" icon="Staff" color="#8B5CF6"/><DcxKpi label="Balances Due" value={DcxMoney(amountDue)} sub={invoicesDue + " open invoices"} icon="Billing" color={invoicesDue ? "#F4B860" : "#22C55E"}/><DcxKpi label="Unread" value={unread} sub="family + team messages" icon="Bell" color={unread ? "#38BDF8" : "#22C55E"}/><DcxKpi label="Open Alerts" value={alerts.length} sub="items needing review" icon="Bell" color={alerts.length ? "#F4B860" : "#22C55E"}/></div>
     <DbdBoard/>{/* --- BOARD --- */}
     <DstStartDates/>{/* --- STARTS --- */}
-    <DcsCalendarStatus/>{/* --- CALENDAR --- */}
+    <DcsCalendar/>{/* --- CALENDAR --- */}
     <DldLeadDesk/>{/* --- WP-E --- */}
     {window.DcaAdsCard && <window.DcaAdsCard/>}{/* --- ENROLLMENT ADS (Pipeboard) --- */}
     {window.DcaAdGenCard && <window.DcaAdGenCard/>}{/* --- AD GENERATOR --- */}

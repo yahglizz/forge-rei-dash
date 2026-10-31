@@ -35,6 +35,8 @@ daycare_replies.STATE = TMP / "daycare_replies.json"
 daycare_leads.STATE = TMP / "daycare_leads.json"
 daycare_leads.STAGES_STATE = TMP / "daycare_lead_stages.json"
 daycare_ghl._FORM_CHILD_STATE = TMP / "daycare_form_children.json"
+import daycare_calendar  # noqa: E402
+daycare_calendar.STATE = TMP / "daycare_calendar.json"
 
 NOW = int(time.time() * 1000)
 REQUIRED = ("id", "name", "business", "purpose", "status", "lastRun", "lastSuccessAt",
@@ -237,7 +239,7 @@ def test_solomon_owns_reply_and_lead_lanes():
     import json
     assert "daycare_replies" not in agents_hub._BY_ID                 # a lane, not a row
     assert agents_hub._BY_ID["solomon"]["hb"] == ["daycare_replies", "daycare_leads", "daycare_starts",
-                                              "daycare_ads"]   # + Starts/Ads lanes (agents_hub.AGENTS)
+                                              "daycare_ads", "daycare_calendar"]   # + Starts/Ads/Calendar lanes
     daycare_replies.STATE.write_text(json.dumps({"lastRunAt": NOW, "drafts": {
         "c1": {"contactId": "c1", "status": "pending", "action": "draft",
                "inboundAt": NOW - 600_000},
@@ -276,6 +278,28 @@ def test_solomon_owns_reply_and_lead_lanes():
     assert (r["pending"], r["escalations"]) == (2, 1) and 590 <= r["oldestPendingAgeSec"] <= 700, r
     assert "leads" in ctx and "YOUR LIVE LANES" in lanes
     assert agents_hub._lanes_block("midas") == ""           # only directors with lanes
+
+
+def test_solomon_calendar_week_survives_the_2500_cut():
+    """The calendar block sits before adGenerator, so ~1800 chars of board + replies + leads
+    still leave it whole inside _lanes_block's 2500-char cut. Counts + dates only, no names."""
+    import json
+    import daycare_board
+    import daycare_director
+    real = (daycare_board.counts_block, daycare_director.reply_desk_state,
+            daycare_director.lead_desk_state, daycare_calendar.week)
+    week = {"mode": "live", "tours": 20, "firstDays": 20, "next": ["11-04 first [1923 AMT]"] * 8}
+    daycare_board.counts_block = daycare_director.reply_desk_state = \
+        daycare_director.lead_desk_state = lambda: {"pad": "x" * 600}
+    daycare_calendar.week = lambda now=None: week
+    try:
+        ctx = agents_hub._delegate_context("solomon")
+        lanes = agents_hub._lanes_block("solomon")
+    finally:
+        (daycare_board.counts_block, daycare_director.reply_desk_state,
+         daycare_director.lead_desk_state, daycare_calendar.week) = real
+    assert list(ctx) == ["board", "replies", "leads", "calendar", "adGenerator"], list(ctx)
+    assert len(json.dumps(week)) < 300 and json.dumps(week) in lanes, lanes[-400:]
 
 
 def test_chat_error_text_is_surfaced():
