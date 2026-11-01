@@ -510,6 +510,74 @@ function DbdBoard() {
   </div>;
 }
 // --- /BOARD ---
+// --- PIPELINE --- Solomon · Pipeline (daycare_pipeline.py → /api/daycare/pipeline). The GHL
+// "Enrollment" pipeline as a board. n8n only TAGS a proposal (pipe-propose:<slug>); a stage
+// moves in GHL only when the owner taps Approve (rule 2). Card name = the child (GHL contact).
+const DPI_COLOR = { "new-lead": "#38BDF8", contacted: "#8B5CF6", "tour-scheduled": "#F4B860", "application-sent": DCX_ACCENT, enrolled: "#22C55E", lost: "#94A3B8" };
+
+function DpiAge(ms) {
+  if (!ms) return "";
+  const days = Math.floor((Date.now() - ms) / 86400000);
+  return days < 1 ? "today" : days === 1 ? "1 day" : days + " days";
+}
+
+function DpiPipeline() {
+  const res = DcxUseResource("/pipeline", null, 60000);
+  const [busy, setBusy] = useStateDcx("");
+  const [note, setNote] = useStateDcx("");
+  const [askAll, setAskAll] = useStateDcx(false);
+  const data = res.data && !Array.isArray(res.data) ? res.data : {};
+  const stages = data.stages || [];
+  const proposals = data.proposals || 0;
+  const post = async (kind, body, busyKey) => {
+    setBusy(busyKey || kind); setNote("");
+    try {
+      const r = await DcxRequest("/pipeline/" + kind, { body });
+      if (r.ok === false) {
+        const first = (r.results || []).find((x) => !x.ok);
+        setNote(r.error || (r.failed + " move(s) failed" + (first ? ": " + first.error : "")));
+      } else if (r.warning) setNote(r.warning);
+      else if (r.remaining > 0) setNote(r.remaining + " more proposal(s) — tap Approve all again.");
+      res.setData(await DcxRequest("/pipeline"));
+    } catch (error) { setNote(error.message); } finally { setBusy(""); setAskAll(false); }
+  };
+  const err = res.error ? (res.error.message || "Pipeline is unavailable.")
+    : data.enabled === false ? data.error
+    : data.configured === false ? "GHL not connected — add the daycare GHL key on the box."
+    : data.error ? (data.fetchedAt ? "Last refresh failed: " + data.error + " · showing the last good read." : data.error) : "";
+  return <div className="card card-pad dc-panel">
+    <div className="dc-panel-head" style={{ flexWrap: "wrap" }}>
+      <div><div className="card-title">Enrollment pipeline</div><div className="faint">GoHighLevel · stages move only when you approve{data.fetchedAt ? " · updated " + DcxDate(data.fetchedAt, true) + (data.stale ? " · stale" : "") : ""}</div></div>
+      <div className="dc-head-actions">
+        <button className="dc-outline" disabled={Boolean(busy)} onClick={() => post("refresh", {})}>{busy === "refresh" ? "Refreshing…" : "Refresh"}</button>
+        <button className="dc-primary" disabled={Boolean(busy) || !proposals} onClick={() => setAskAll(true)}>Approve all proposals ({proposals})</button>
+      </div>
+    </div>
+    {err && <div className="dc-error-text" role="alert">{err}</div>}
+    {note && <div className="dc-error-text" role="status">{note}</div>}
+    {res.loading ? <div className="dc-inline-empty">Loading pipeline…</div>
+      : !data.total ? <div className="dc-inline-empty">{data.fetchedAt ? "No opportunities in the Enrollment pipeline." : "No pipeline data yet."}</div>
+      : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10, marginTop: 10 }}>
+        {stages.map((col) => { const color = DPI_COLOR[col.slug] || DCX_ACCENT; return <div key={col.id} style={{ minWidth: 0, border: "1px solid var(--border)", borderRadius: 10, padding: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}><b style={{ color, fontSize: 13 }}>{col.name}</b><span className="tabnum" style={{ fontSize: 12, padding: "1px 8px", borderRadius: 999, background: color + "22", color }}>{col.count}</span></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 380, overflowY: "auto" }}>
+            {col.cards.length ? col.cards.map((c) => <div key={c.opportunityId} style={{ borderRadius: 8, padding: "6px 8px", background: "rgba(148,163,184,.08)", overflowWrap: "anywhere" }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name || "Unnamed"}</div>
+              <small className="faint">{[DpiAge(c.createdAt), c.source, c.status && c.status !== "open" ? c.status : ""].filter(Boolean).join(" · ")}</small>
+              {c.proposedStageId && <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+                <span style={{ fontSize: 11, padding: "1px 7px", borderRadius: 999, background: "#F4B86022", color: "#F4B860" }}>proposed → {c.proposedStageName}</span>
+                <button className="link" style={{ fontSize: 12 }} disabled={Boolean(busy)} onClick={() => post("move", { opportunity_id: c.opportunityId, stage: c.proposedStageId }, c.opportunityId)}>{busy === c.opportunityId ? "Moving…" : "Approve"}</button>
+              </div>}
+            </div>) : <small className="faint">No families</small>}
+          </div>
+        </div>; })}
+      </div>}
+    {askAll && <DcxModal title={"Approve " + proposals + " stage move(s)?"} copy="Each proposed card moves to its proposed stage in GoHighLevel (up to 50 per tap), and its proposal tag is removed. Nothing is texted to families." onClose={() => setAskAll(false)}>
+      <div className="dc-modal-actions"><button className="dc-quiet" onClick={() => setAskAll(false)}>Cancel</button><button className="dc-primary" disabled={Boolean(busy)} onClick={() => post("move-all", { confirm: true }, "move-all")}>{busy === "move-all" ? "Moving…" : "Approve all"}</button></div>
+    </DcxModal>}
+  </div>;
+}
+// --- /PIPELINE ---
 
 function DaycareDashboard() {
   const overview = DcxUseResource("/overview", "overview", 30000);
@@ -534,6 +602,7 @@ function DaycareDashboard() {
     <DstStartDates/>{/* --- STARTS --- */}
     <DcsCalendar/>{/* --- CALENDAR --- */}
     <DldLeadDesk/>{/* --- WP-E --- */}
+    <DpiPipeline/>{/* --- PIPELINE --- */}
     {window.DcaAdsCard && <window.DcaAdsCard/>}{/* --- ENROLLMENT ADS (Pipeboard) --- */}
     {window.DcaAdGenCard && <window.DcaAdGenCard/>}{/* --- AD GENERATOR --- */}
     <div className="dc-main-grid"><div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Center pulse</div><div className="faint">Fast paths for today’s operations</div></div><span className="dc-live"><i/> LIVE</span></div><div className="dc-day-grid">{[["Attendance","Attendance",checkedIn + " currently in"],["CareLogs","Daily Logs","Care updates"],["Incidents","Incidents","Safety records"],["Billing","Billing","Family balances"]].map((item) => { const Icon = window.Icons[item[0]] || window.Icons.Dashboard; return <button key={item[0]} onClick={() => window.GoTo(item[0])}><span><Icon size={18}/></span><b>{item[1]}</b><small>{item[2]}</small></button>; })}</div></div><div className="card card-pad dc-panel"><div className="dc-panel-head"><div><div className="card-title">Management alerts</div><div className="faint">Prioritized operational exceptions</div></div><b>{alerts.length}</b></div>{alerts.length ? <div className="dc-alert-list">{alerts.slice(0,5).map((alert, index) => <div key={alert.id || index}><span className={"dc-severity " + (alert.severity || "info")}/><div><b>{alert.title || alert.kind || "Needs review"}</b><small>{alert.body || alert.message || "Open the related page for details."}</small></div></div>)}</div> : <div className="dc-all-clear"><window.Icons.Check size={22}/><div><b>All clear</b><span>No operational alerts right now.</span></div></div>}</div></div>
