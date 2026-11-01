@@ -15,6 +15,7 @@ and state file — one identity, one Agent Control Center row, one chat:
 | **Solomon · Revive** | `forge rei/daycare_revive.py` | rides the `daycare_replies` thread | win-back drafts for quiet leads | §14 |
 | **Solomon · Orchestrator** | `forge rei/solomon_orchestrator.py` | `solomon_orchestrator`, 300 s wake — **OFF by default** (`FORGE_SOLOMON_ORCH=1`) | keeps the Command Board current, $0 Claude | §17 |
 | **Solomon · Calendar** | `forge rei/daycare_calendar.py` (+ `forge rei/google_cal_io.py`) | `daycare_calendar`, 900 s | tours + first days → one Google calendar, $0 Claude, **QA mode by default** | §18 |
+| **Solomon · Pipeline** | `forge rei/daycare_pipeline.py` | `daycare_pipeline`, 300 s, GET-only | the two GHL enrollment boards (ATOB + A Mother's Touch), stage moves = owner taps, $0 Claude | §20 |
 
 The lanes report to him: `reply_desk_state()` / `lead_desk_state()` (`daycare_director.py:142`/`:165`)
 feed the brief (`replyDesk` / `leadDesk`), his chat (`agents_hub._lanes_block`) and his registry
@@ -434,3 +435,21 @@ Suggested for Claude sessions that work on Solomon. **Not read from code**: the 
 ### (c) Task file
 
 This card is Solomon's canonical task file: what he does, which lane does it, what gates apply, how to verify. Runtime is unchanged: the code still loads the creed, top skills and playbook from `forge-solomon/skills/` (and `forge-daycare/skills/` for the Replies/Ads/Ad Studio lanes). This is a documentation pointer only, no runtime change.
+
+## 20. Lane: Solomon · Pipeline — the two GHL enrollment boards (added 2026-11-01)
+
+Written from code 2026-11-01 (`forge rei/daycare_pipeline.py`). Not in his `hb` list: a sick
+loop shows on `/api/system/health` and alerts the daycare Telegram chat (`connector._WATCHDOG_BIZ`).
+
+| | |
+|---|---|
+| Boards | `enrollment` = GHL "Enrollment" (A Touch of Blessings: 921 N 18th + 2318 Cecil B. Moore) · `amt` = GHL "A Mother's Touch" (1923 Cecil B. Moore — **separate legal entity**). Never summed, never mixed. |
+| Stages | New Lead → Contacted → Tour Scheduled → Application Sent → Enrolled → Lost (same on both; ids resolved live by pipeline name, hard-coded fallback) |
+| Business tags | AMT = `entity-amt` or `loc-1923-cecil-b-moore`; ATOB centers `entity-atob`, `loc-921-n-18th`, `loc-2318-cecil-b-moore` |
+| Who moves stages | Daily n8n workflow `R5knymRU7t30uR8x` (9 PM ET, outside this repo): forward only, quoted evidence line, nothing past Contacted without a parent reply, Enrolled needs high confidence or the `enrolled` tag; moves AMT contacts into their own pipeline. **Lost = tag `pipe-propose:lost`, moved only by the owner's Approve tap.** This repo never moves a stage on its own. |
+| "Enrolled" truth | A child row in the production roster; the `enrolled` GHL tag mirrors it. A Family Contact Form (emergency-contact PDF, brand `atob`/`amt`, `forge rei/daycare_family_forms.py`) = paperwork done, **not** enrolled in the app. |
+| State | `marcus_state/daycare_pipeline.json` (ATOB) · `marcus_state/daycare_pipeline_amt.json` (AMT) |
+| Routes | GET `/api/daycare/pipeline[?board=amt]` (state only) · POST `/api/daycare/pipeline/{move,move-all,refresh}` with body `board` (default `enrollment`) |
+| Gates | Owner's session-gated tap; the card + stage must belong to THAT board, and a live GET of the opportunity must still show that board's pipeline before the PUT (fail-closed). In chat a pipeline move is a ✅ tap card. Kill `FORGE_DAYCARE_PIPELINE=0`. |
+| His context | Chat `_lanes_block` → `pipeline` = `daycare_pipeline.counts()` (per board: total, proposals, byStage, stale, missing — no names). Seed skill `solomon-enrollment-pipelines.md` (loaded with his other `solomon-*` skills). |
+| Test | `forge rei/test_daycare_pipeline.py` |

@@ -510,9 +510,12 @@ function DbdBoard() {
   </div>;
 }
 // --- /BOARD ---
-// --- PIPELINE --- Solomon · Pipeline (daycare_pipeline.py → /api/daycare/pipeline). The GHL
-// "Enrollment" pipeline as a board. n8n only TAGS a proposal (pipe-propose:<slug>); a stage
-// moves in GHL only when the owner taps Approve (rule 2). Card name = the child (GHL contact).
+// --- PIPELINE --- Solomon · Pipeline (daycare_pipeline.py → /api/daycare/pipeline[?board=amt]).
+// TWO boards, never mixed: "Enrollment" = A Touch of Blessings, "A Mother's Touch" = 1923 Cecil
+// B. Moore (separate legal entity). The daily n8n run moves stages forward on evidence; Lost
+// stays a proposal tag (pipe-propose:<slug>) that moves only when the owner taps Approve
+// (rule 2). Card name = the child (GHL contact).
+const DPI_BOARDS = [["enrollment", "A Touch of Blessings"], ["amt", "A Mother's Touch"]];
 const DPI_COLOR = { "new-lead": "#38BDF8", contacted: "#8B5CF6", "tour-scheduled": "#F4B860", "application-sent": DCX_ACCENT, enrolled: "#22C55E", lost: "#94A3B8" };
 
 function DpiAge(ms) {
@@ -522,23 +525,29 @@ function DpiAge(ms) {
 }
 
 function DpiPipeline() {
-  const res = DcxUseResource("/pipeline", null, 60000);
+  const [board, setBoard] = useStateDcx("enrollment");
+  const viewPath = "/pipeline" + (board === "enrollment" ? "" : "?board=" + board);
+  const res = DcxUseResource(viewPath, null, 60000);
   const [busy, setBusy] = useStateDcx("");
   const [note, setNote] = useStateDcx("");
   const [askAll, setAskAll] = useStateDcx(false);
-  const data = res.data && !Array.isArray(res.data) ? res.data : {};
+  // Never show the other board's payload while the switch is loading.
+  const raw = res.data && !Array.isArray(res.data) ? res.data : {};
+  const data = (raw.board || "enrollment") === board ? raw : {};
   const stages = data.stages || [];
   const proposals = data.proposals || 0;
+  const boardName = (DPI_BOARDS.find((b) => b[0] === board) || DPI_BOARDS[0])[1];
+  const pickBoard = (key) => { if (busy || key === board) return; setNote(""); setAskAll(false); setBoard(key); };
   const post = async (kind, body, busyKey) => {
     setBusy(busyKey || kind); setNote("");
     try {
-      const r = await DcxRequest("/pipeline/" + kind, { body });
+      const r = await DcxRequest("/pipeline/" + kind, { body: { ...body, board } });
       if (r.ok === false) {
         const first = (r.results || []).find((x) => !x.ok);
         setNote(r.error || (r.failed + " move(s) failed" + (first ? ": " + first.error : "")));
       } else if (r.warning) setNote(r.warning);
       else if (r.remaining > 0) setNote(r.remaining + " more proposal(s) — tap Approve all again.");
-      res.setData(await DcxRequest("/pipeline"));
+      res.setData(await DcxRequest(viewPath));
     } catch (error) { setNote(error.message); } finally { setBusy(""); setAskAll(false); }
   };
   const err = res.error ? (res.error.message || "Pipeline is unavailable.")
@@ -547,8 +556,9 @@ function DpiPipeline() {
     : data.error ? (data.fetchedAt ? "Last refresh failed: " + data.error + " · showing the last good read." : data.error) : "";
   return <div className="card card-pad dc-panel">
     <div className="dc-panel-head" style={{ flexWrap: "wrap" }}>
-      <div><div className="card-title">Enrollment pipeline</div><div className="faint">GoHighLevel · stages move only when you approve{data.fetchedAt ? " · updated " + DcxDate(data.fetchedAt, true) + (data.stale ? " · stale" : "") : ""}</div></div>
+      <div><div className="card-title">Enrollment pipeline</div><div className="faint">GoHighLevel · {boardName} · daily run moves stages forward on evidence; you approve the rest{data.fetchedAt ? " · updated " + DcxDate(data.fetchedAt, true) + (data.stale ? " · stale" : "") : ""}</div></div>
       <div className="dc-head-actions">
+        <div className="dc-locbar-tabs" role="tablist" aria-label="Business">{DPI_BOARDS.map(([key, label]) => <button key={key} role="tab" aria-selected={board === key} className={board === key ? "active" : ""} disabled={Boolean(busy)} onClick={() => pickBoard(key)}>{label}</button>)}</div>
         <button className="dc-outline" disabled={Boolean(busy)} onClick={() => post("refresh", {})}>{busy === "refresh" ? "Refreshing…" : "Refresh"}</button>
         <button className="dc-primary" disabled={Boolean(busy) || !proposals} onClick={() => setAskAll(true)}>Approve all proposals ({proposals})</button>
       </div>
@@ -556,7 +566,8 @@ function DpiPipeline() {
     {err && <div className="dc-error-text" role="alert">{err}</div>}
     {note && <div className="dc-error-text" role="status">{note}</div>}
     {res.loading ? <div className="dc-inline-empty">Loading pipeline…</div>
-      : !data.total ? <div className="dc-inline-empty">{data.fetchedAt ? "No opportunities in the Enrollment pipeline." : "No pipeline data yet."}</div>
+      : data.missing ? <div className="dc-inline-empty">No "{data.pipelineName || boardName}" pipeline in GoHighLevel yet — nothing to show for {boardName}.</div>
+      : !data.total ? <div className="dc-inline-empty">{data.fetchedAt ? "No opportunities in the " + (data.pipelineName || "Enrollment") + " pipeline." : "No pipeline data yet."}</div>
       : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10, marginTop: 10 }}>
         {stages.map((col) => { const color = DPI_COLOR[col.slug] || DCX_ACCENT; return <div key={col.id} style={{ minWidth: 0, border: "1px solid var(--border)", borderRadius: 10, padding: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}><b style={{ color, fontSize: 13 }}>{col.name}</b><span className="tabnum" style={{ fontSize: 12, padding: "1px 8px", borderRadius: 999, background: color + "22", color }}>{col.count}</span></div>
@@ -572,7 +583,7 @@ function DpiPipeline() {
           </div>
         </div>; })}
       </div>}
-    {askAll && <DcxModal title={"Approve " + proposals + " stage move(s)?"} copy="Each proposed card moves to its proposed stage in GoHighLevel (up to 50 per tap), and its proposal tag is removed. Nothing is texted to families." onClose={() => setAskAll(false)}>
+    {askAll && <DcxModal title={"Approve " + proposals + " " + boardName + " stage move(s)?"} copy={"Each proposed " + boardName + " card moves to its proposed stage in GoHighLevel (up to 50 per tap), and its proposal tag is removed. The other business's board is not touched. Nothing is texted to families."} onClose={() => setAskAll(false)}>
       <div className="dc-modal-actions"><button className="dc-quiet" onClick={() => setAskAll(false)}>Cancel</button><button className="dc-primary" disabled={Boolean(busy)} onClick={() => post("move-all", { confirm: true }, "move-all")}>{busy === "move-all" ? "Moving…" : "Approve all"}</button></div>
     </DcxModal>}
   </div>;

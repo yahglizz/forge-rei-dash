@@ -70,7 +70,11 @@ Ranked growth brief (families waiting → funnel leak → sellable seats → ret
 clock) + speed-to-lead follow-through: Replies texts back a parent ~90 s–5 min after they text
 (drafts for the owner's tap, or auto-send for clean enrollment-lead answers when the operator
 opts in with `FORGE_DAYCARE_REPLY_AUTO=1`, default OFF), pings the daycare Telegram chat when he
-hits a question he can't answer. Codex: read `forge-solomon/AGENTS.md`.
+hits a question he can't answer. Pipeline lane: two GHL enrollment boards, never mixed —
+"Enrollment" (A Touch of Blessings) and "A Mother's Touch" (1923, a separate legal entity); the daily
+n8n run moves stages forward on evidence, Lost stays a `pipe-propose:lost` tap; "enrolled" = a child row
+in the production roster (a Family Contact Form alone is paperwork, not enrollment). Card:
+[`agents/daycare/solomon.md`](agents/daycare/solomon.md) §20. Codex: read `forge-solomon/AGENTS.md`.
 
 ### Dropship — Midas (archived; read + propose only, never launches/spends/orders)
 

@@ -1112,7 +1112,7 @@ import daycare_blast  # noqa: E402 — daycare family SMS blast (operator-gated,
 import daycare_leads  # noqa: E402 — Daycare Lead Desk (read-only GHL lead visibility, no Claude)
 import daycare_starts  # noqa: E402 — Solomon · Starts: agreed start date → confirm → start-day login
 import daycare_calendar  # noqa: E402 — Solomon · Calendar: tours + first days → Google Calendar
-import daycare_pipeline  # noqa: E402 — Solomon · Pipeline: GHL Enrollment board; stage moves = owner taps
+import daycare_pipeline  # noqa: E402 — Solomon · Pipeline: GHL Enrollment + A Mother's Touch boards; stage moves = owner taps
 import daycare_replies  # noqa: E402 — Solomon family-comms: drafts parent replies, owner sends
 # --- /WP-E ---
 import daycare_board  # noqa: E402 — Solomon's Command Board (state file; spec 2026-10-18 orchestrator)
@@ -5084,16 +5084,19 @@ class Handler(BaseHTTPRequestHandler):
                                                        body.get("time"), body.get("center"))
             elif path == "/api/daycare/tour/cancel":
                 result = daycare_calendar.cancel_tour(DAYCARE_GHL, body.get("contact_id"))
-            # Solomon · Pipeline: stage moves are the OWNER's taps (rule 2) — n8n only tags
-            # proposals (`pipe-propose:<slug>`); refresh is a GET-only read, ≥15 s apart.
+            # Solomon · Pipeline: stage moves here are the OWNER's taps (rule 2); refresh is a
+            # GET-only read, ≥15 s apart. body.board = "enrollment" (default, A Touch of
+            # Blessings) | "amt" (A Mother's Touch) — the module rejects anything else and
+            # checks the card + stage belong to THAT board's pipeline.
             elif path == "/api/daycare/pipeline/move":
                 result = daycare_pipeline.move(DAYCARE_GHL, body.get("opportunity_id"),
-                                               body.get("stage"))
+                                               body.get("stage"), board=body.get("board"))
             elif path == "/api/daycare/pipeline/move-all":
                 result = daycare_pipeline.move_all_proposed(DAYCARE_GHL,
-                                                            confirm=body.get("confirm") is True)
+                                                            confirm=body.get("confirm") is True,
+                                                            board=body.get("board"))
             elif path == "/api/daycare/pipeline/refresh":
-                result = daycare_pipeline.refresh_manual(DAYCARE_GHL)
+                result = daycare_pipeline.refresh_manual(DAYCARE_GHL, board=body.get("board"))
             # Reply desk: run = draft-only sweep (sends nothing); approve IS the owner's
             # send tap (rule 2) and re-checks the live thread first; dismiss is internal.
             elif path == "/api/daycare/replies/run":
@@ -5252,7 +5255,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/leads": lambda session: daycare_leads.view(),
             "/api/daycare/starts": lambda session: daycare_starts.view(),
             "/api/daycare/calendar": lambda session: daycare_calendar.view(),
-            "/api/daycare/pipeline": lambda session: daycare_pipeline.view(DAYCARE_GHL.configured),
+            "/api/daycare/pipeline": lambda session: daycare_pipeline.view(
+                DAYCARE_GHL.configured, board=q.get("board", [""])[0]),   # ?board=amt
             "/api/daycare/replies": lambda session: daycare_replies.view(),
             # --- /WP-E ---
             # Messages tab: live daycare GHL threads (GET only on the request path).
@@ -6031,7 +6035,7 @@ def main():
         # Solomon · Pipeline: GET-only read of the GHL Enrollment pipeline every 5 min for the
         # Dashboard board. Stage moves are owner taps only. FORGE_DAYCARE_PIPELINE=0 = off.
         if daycare_pipeline.enabled():
-            print(f"   Solomon · Pipeline: GHL Enrollment board every {daycare_pipeline.INTERVAL // 60} min · moves = owner taps")
+            print(f"   Solomon · Pipeline: GHL Enrollment + A Mother's Touch boards every {daycare_pipeline.INTERVAL // 60} min · moves = owner taps")
             threading.Thread(target=daycare_pipeline.run_forever, args=(DAYCARE_GHL,),
                              daemon=True, name="daycare_pipeline").start()
         else:

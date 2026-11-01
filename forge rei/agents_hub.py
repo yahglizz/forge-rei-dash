@@ -475,6 +475,7 @@ def _delegate_context(agent_id):
             import daycare_calendar
             import daycare_director
             import daycare_ads_studio
+            import daycare_pipeline
             # Command Board FIRST (_lanes_block cuts at 2500 chars) — counts only: titles can quote email
             # subjects; the items themselves come from GET /api/daycare/board.
             return {"board": daycare_board.counts_block(),
@@ -483,6 +484,10 @@ def _delegate_context(agent_id):
                     # Solomon · Calendar: next 7 days, counts + dates + center, no names (<300 chars)
                     **({"calendar": daycare_calendar.week()}
                        if os.environ.get("FORGE_DAYCARE_CALENDAR", "1") != "0" else {}),
+                    # Solomon · Pipeline: per-board counts (ATOB `enrollment` / AMT `amt`), saved
+                    # state only, no names, never summed — two separate businesses. Sits after
+                    # calendar so the calendar stays inside the 2500-char cut.
+                    "pipeline": daycare_pipeline.counts(),
                     "adGenerator": daycare_ads_studio.lane_state()}   # Ad Studio (images = owner tap)
         if agent_id == "marcus":   # his lanes: Scout · Atlas · Follow-up · ACE · Autopilot
             out = {}

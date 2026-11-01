@@ -1,4 +1,13 @@
-"""daycare_pipeline.py — Solomon · Pipeline: the daycare GHL "Enrollment" pipeline on the dashboard.
+"""daycare_pipeline.py — Solomon · Pipeline: the daycare GHL enrollment pipelines on the dashboard.
+
+TWO boards, never mixed (separate legal entities):
+  `enrollment` (default) — GHL pipeline "Enrollment" = A Touch of Blessings (921 N 18th +
+                           2318 Cecil B. Moore). State marcus_state/daycare_pipeline.json.
+  `amt`                  — GHL pipeline "A Mother's Touch" = 1923 Cecil B. Moore, a SEPARATE
+                           legal entity. State marcus_state/daycare_pipeline_amt.json.
+Every function takes `board` (default "enrollment", so the original single-board callers and
+payload are unchanged). A move is checked against THAT board's cached cards + stages and,
+live, against the opportunity's current pipelineId before any write.
 
 A lane of Solomon (like Leads / Starts): thread `daycare_pipeline`, heartbeat labeled
 "Solomon · Pipeline", ZERO Claude calls.
@@ -7,18 +16,21 @@ What it does:
   1. refresh() — every 5 min on the box (FORGE_MARCUS gate lives in connector.main), a
      read-only paged GET of the daycare location's "Enrollment" pipeline opportunities
      (stage ids resolved live from GET /opportunities/pipelines, the ids below as fallback)
-     -> marcus_state/daycare_pipeline.json. Never raises: a failed read keeps the last
+     -> the board's state file (both boards every tick). Never raises: a failed read keeps the last
      cards and records the error, so view() shows them marked stale.
   2. view() — GET /api/daycare/pipeline. State file only, no network on the request path.
-  3. Proposals: an n8n workflow (built outside this repo) only TAGS the contact with
-     `pipe-propose:<slug>` (slug = new-lead|contacted|tour-scheduled|application-sent|
+  3. Proposals: the daily n8n workflow R5knymRU7t30uR8x (9 PM ET, built outside this repo)
+     reads each open opportunity's thread and moves stages FORWARD-only on quoted evidence
+     (and moves A Mother's Touch contacts — tag entity-amt / loc-1923-cecil-b-moore — out of
+     Enrollment into their own pipeline). Lost is never auto-moved: it stays a tag
+     `pipe-propose:lost` (slugs: new-lead|contacted|tour-scheduled|application-sent|
      enrolled|lost). A card shows "proposed -> <Stage>" when that differs from its stage.
   4. move() / move_all_proposed() — the OWNER's tap (POST /api/daycare/pipeline/move and
      /move-all). PUT the opportunity's stage in GHL, then remove the contact's
      `pipe-propose:*` tags, then update the cached card at once.
 
-CLAUDE.md §2 (propose -> review -> execute), addition for this lane: **stage moves are
-operator taps; n8n only tags proposals.** Nothing here moves a stage on its own — the loop
+CLAUDE.md §2 (propose -> review -> execute), addition for this lane: **in this repo stage
+moves are operator taps.** Nothing here moves a stage on its own — the loop
 and refresh() are GET-only; the only GHL writes are inside move(), which runs only from the
 owner's session-gated POST. It sends nothing to families.
 
@@ -38,10 +50,11 @@ import forge_heartbeat
 import forge_ops
 
 HERE = Path(__file__).resolve().parent
-STATE = HERE / "marcus_state" / "daycare_pipeline.json"
+STATE = HERE / "marcus_state" / "daycare_pipeline.json"            # board "enrollment" (ATOB)
+STATE_AMT = HERE / "marcus_state" / "daycare_pipeline_amt.json"    # board "amt" (A Mother's Touch)
 _LOCK = threading.Lock()            # state file read-modify-write
 _MOVE_LOCK = threading.Lock()       # one owner move (or move-all batch) at a time
-_REFRESH_LOCK = threading.Lock()    # one GHL read at a time
+_REFRESH_LOCKS = {"enrollment": threading.Lock(), "amt": threading.Lock()}   # one GHL read per board
 
 INTERVAL = int(os.environ.get("FORGE_DAYCARE_PIPELINE_INTERVAL", "300"))   # 5 min
 MANUAL_REFRESH_MIN_SEC = 15
@@ -60,9 +73,39 @@ FALLBACK_STAGES = (
     ("70d53796-0a23-4bf4-ad56-8231a2fb3b3c", "Enrolled"),
     ("365b2803-cc2c-40c3-a8a8-a6c1b4194f15", "Lost"),
 )
+AMT_PIPELINE_NAME = "A Mother's Touch"
+AMT_FALLBACK_PIPELINE_ID = "2CWNllg1yK8DN1J4uEl6"
+AMT_FALLBACK_STAGES = (
+    ("6472b166-258b-4d8d-bf26-ac17fa6b353c", "New Lead"),
+    ("5d86715d-4e1e-4cbf-b0c5-60c63a874106", "Contacted"),
+    ("a328e644-3168-4f13-8682-9d93576ab5a4", "Tour Scheduled"),
+    ("4aa57852-f89f-4622-b9ca-f8337f745c95", "Application Sent"),
+    ("b39b7bcc-fd38-4492-b368-e225ba61edb6", "Enrolled"),
+    ("373f5eb1-5066-4db6-8a2e-f9610e85f81f", "Lost"),
+)
 PROPOSE_PREFIX = "pipe-propose:"
 
-_manual_at = 0.0
+DEFAULT_BOARD = "enrollment"
+# board -> (GHL pipeline name, fallback pipeline id, fallback stages, dashboard label,
+#           missing_is_empty). missing_is_empty: when the live pipelines list was read and has
+# no pipeline by that name, show an honest empty board instead of searching fallback ids.
+BOARDS = {
+    "enrollment": (PIPELINE_NAME, FALLBACK_PIPELINE_ID, FALLBACK_STAGES, "A Touch of Blessings", False),
+    "amt": (AMT_PIPELINE_NAME, AMT_FALLBACK_PIPELINE_ID, AMT_FALLBACK_STAGES, "A Mother's Touch", True),
+}
+BAD_BOARD = "board must be one of: " + ", ".join(BOARDS)
+
+_manual_at = {}                     # board -> last manual refresh (s)
+
+
+def board_key(value):
+    """'' / None -> the default board; a known key (any case) -> it; anything else -> None."""
+    v = str(value or "").strip().lower()
+    return DEFAULT_BOARD if not v else (v if v in BOARDS else None)
+
+
+def _state_path(board):
+    return STATE_AMT if board == "amt" else STATE
 
 
 def enabled():
@@ -99,11 +142,20 @@ def proposed_slug(tags, valid_slugs):
     return hits[-1] if hits else None
 
 
-def resolve_pipeline(data):
+def _norm_name(name):
+    """Pipeline name for matching: case, spacing and curly apostrophes don't matter."""
+    return " ".join(str(name or "").replace("\u2019", "'").strip().lower().split())
+
+
+def resolve_pipeline(data, board=DEFAULT_BOARD):
     """GET /opportunities/pipelines payload -> (pipeline_id, [{id,name,slug}], source).
-    Matches the pipeline by name; anything unusable falls back to the known ids."""
-    for p in ((data or {}).get("pipelines") if isinstance(data, dict) else None) or []:
-        if not isinstance(p, dict) or str(p.get("name") or "").strip().lower() != PIPELINE_NAME.lower():
+    Matches the board's pipeline by name; anything unusable falls back to the known ids.
+    source "missing" (pipeline_id None): the list was read and that board's pipeline is not
+    in it (only boards with missing_is_empty, i.e. A Mother's Touch)."""
+    name, fb_id, fb_stages, _label, missing_is_empty = BOARDS[board]
+    pipelines = (data.get("pipelines") if isinstance(data, dict) else None)
+    for p in pipelines or []:
+        if not isinstance(p, dict) or _norm_name(p.get("name")) != _norm_name(name):
             continue
         raw = [s for s in (p.get("stages") or []) if isinstance(s, dict) and s.get("id")]
         if not p.get("id") or not raw:
@@ -111,7 +163,10 @@ def resolve_pipeline(data):
         raw.sort(key=lambda s: s.get("position") if isinstance(s.get("position"), (int, float)) else 0)
         return (str(p["id"]), [{"id": str(s["id"]), "name": str(s.get("name") or ""),
                                 "slug": _slug(s.get("name"))} for s in raw], "live")
-    return FALLBACK_PIPELINE_ID, [{"id": i, "name": n, "slug": _slug(n)} for i, n in FALLBACK_STAGES], "fallback"
+    else:
+        if missing_is_empty and isinstance(pipelines, list):
+            return None, [{"id": i, "name": n, "slug": _slug(n)} for i, n in fb_stages], "missing"
+    return fb_id, [{"id": i, "name": n, "slug": _slug(n)} for i, n in fb_stages], "fallback"
 
 
 def card_from(opp, stages):
@@ -151,30 +206,33 @@ def _summary(cards, stages):
 
 
 # ── state ─────────────────────────────────────────────────────────────────────
-def _load():
+def _load(board=DEFAULT_BOARD):
     try:
-        d = json.loads(STATE.read_text())
+        d = json.loads(_state_path(board).read_text())
         return d if isinstance(d, dict) else {}
     except Exception:  # noqa: BLE001 — missing/corrupt state = empty board
         return {}
 
 
-def _save(st):
+def _save(st, board=DEFAULT_BOARD):
     st.update(_summary(st.get("cards") or [], st.get("stages") or []))
-    forge_atomic.atomic_write_json(STATE, st)
+    forge_atomic.atomic_write_json(_state_path(board), st)
 
 
 # ── GHL reads (GET only) ──────────────────────────────────────────────────────
-def fetch(client):
-    """Read the Enrollment pipeline -> (pipeline_id, stages, source, cards). GET only.
-    Raises on a failed opportunity read (refresh() records it)."""
+def fetch(client, board=DEFAULT_BOARD):
+    """Read one board's pipeline -> (pipeline_id, stages, source, cards). GET only.
+    Raises on a failed opportunity read (refresh() records it). A pipeline that is not in
+    GHL (source "missing") returns no cards and makes no search."""
     try:
         pid, stages, source = resolve_pipeline(
-            client.get("/opportunities/pipelines", {"locationId": client.location_id}))
+            client.get("/opportunities/pipelines", {"locationId": client.location_id}), board)
     except Exception as e:  # noqa: BLE001 — stage ids fall back; the search below still runs
-        pid, stages, source = resolve_pipeline(None)
+        pid, stages, source = resolve_pipeline(None, board)
         source = f"fallback ({_err(e)})"
     cards, seen, after = [], set(), None
+    if pid is None:
+        return pid, stages, source, cards
     for _ in range(MAX_PAGES):
         params = {"location_id": client.location_id, "pipeline_id": pid,
                   "status": "all", "limit": PAGE_SIZE}
@@ -199,26 +257,30 @@ def fetch(client):
     return pid, stages, source, cards
 
 
-def refresh(client, now=None):
-    """One read of GHL -> state. Never raises; returns {ok, error, total}."""
+def refresh(client, now=None, board=DEFAULT_BOARD):
+    """One read of one board from GHL -> its state. Never raises; returns {ok, error, total}."""
     now = now or time.time()
+    board = board_key(board)
+    if board is None:
+        return {"ok": False, "error": BAD_BOARD}
     if not enabled():
         return {"ok": False, "error": "Pipeline lane is off (FORGE_DAYCARE_PIPELINE=0)."}
     configured = bool(client is not None and getattr(client, "configured", False))
     got, error = None, None
+    lock = _REFRESH_LOCKS[board]
     if not configured:
         error = "GHL not connected — add GHL_API_KEY + GHL_LOCATION_ID to daycare.env."
-    elif not _REFRESH_LOCK.acquire(blocking=False):
+    elif not lock.acquire(blocking=False):
         return {"ok": False, "error": "A pipeline refresh is already running."}
     else:
         try:
-            got = fetch(client)
+            got = fetch(client, board)
         except Exception as e:  # noqa: BLE001
             error = f"GHL read failed: {_err(e)}"
         finally:
-            _REFRESH_LOCK.release()
+            lock.release()
     with _LOCK:
-        st = _load()
+        st = _load(board)
         st["lastRunAt"], st["configured"], st["error"] = _ms(now), configured, error
         if got:
             pid, stages, source, cards = got
@@ -227,31 +289,37 @@ def refresh(client, now=None):
                      if (c.get("movedAt") or 0) >= _ms(now)}
             st.update(pipelineId=pid, stages=stages, stageSource=source, fetchedAt=_ms(now),
                       cards=[moved.get(c["opportunityId"], c) for c in cards])
-        _save(st)
-    print(f"[daycare_pipeline] refresh: {len(got[3]) if got else 'n/a'} opportunities"
+        _save(st, board)
+    print(f"[daycare_pipeline] refresh {board}: {len(got[3]) if got else 'n/a'} opportunities"
           + (f", error: {error}" if error else ""))
     return {"ok": error is None, "error": error, "total": st.get("total", 0)}
 
 
-def refresh_manual(client):
-    """POST /api/daycare/pipeline/refresh — the owner's Refresh tap, ≥15 s apart."""
-    global _manual_at
-    wait = MANUAL_REFRESH_MIN_SEC - (time.time() - _manual_at)
+def refresh_manual(client, board=DEFAULT_BOARD):
+    """POST /api/daycare/pipeline/refresh — the owner's Refresh tap, ≥15 s apart per board."""
+    board = board_key(board)
+    if board is None:
+        return {"ok": False, "error": BAD_BOARD}
+    wait = MANUAL_REFRESH_MIN_SEC - (time.time() - _manual_at.get(board, 0.0))
     if wait > 0:
         return {"ok": False, "error": f"Refreshed a moment ago — try again in {int(wait) + 1}s."}
-    _manual_at = time.time()
-    return refresh(client)
+    _manual_at[board] = time.time()
+    return refresh(client, board=board)
 
 
 # ── view (state only) ─────────────────────────────────────────────────────────
-def view(configured=None, now=None):
-    """GET /api/daycare/pipeline. Reads the state file only — no network."""
+def view(configured=None, now=None, board=DEFAULT_BOARD):
+    """GET /api/daycare/pipeline[?board=amt]. Reads that board's state file only — no network."""
     now = now or time.time()
-    st = _load()
-    stages = st.get("stages") or resolve_pipeline(None)[1]
+    board = board_key(board)
+    if board is None:
+        return {"ok": False, "error": BAD_BOARD}
+    st = _load(board)
+    stages = st.get("stages") or resolve_pipeline(None, board)[1]
     cards = st.get("cards") or []
     fetched = st.get("fetchedAt")
     error = st.get("error")
+    missing = st.get("stageSource") == "missing"
     if not enabled():
         error = "Pipeline lane is off (FORGE_DAYCARE_PIPELINE=0)."
     elif not st.get("lastRunAt"):
@@ -276,6 +344,10 @@ def view(configured=None, now=None):
         "stale": not fetched or now - fetched / 1000 > STALE_SEC,
         "stageSource": st.get("stageSource"),
         "error": error,
+        "board": board,
+        "label": BOARDS[board][3],
+        "pipelineName": BOARDS[board][0],
+        "missing": missing,
     }
 
 
@@ -285,19 +357,40 @@ def _stage_for(stages, value):
     return next((s for s in stages if v and (s["id"] == v or s["slug"] == _slug(v))), None)
 
 
-def _move_one(client, opportunity_id, stage, now):
+def _live_pipeline_ok(client, oid, pid):
+    """GET the opportunity and confirm it is STILL in this board's pipeline (n8n moves A
+    Mother's Touch families between pipelines). None = ok, else an error dict. Fail-closed."""
+    try:
+        data = client.get(f"/opportunities/{oid}")
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "opportunityId": oid, "code": getattr(e, "code", None),
+                "error": f"Could not confirm the card's pipeline in GHL: {_err(e)}"}
+    # GHL v2 nests it under "opportunity" (not verified live); a bare object is accepted too.
+    opp = data if isinstance(data, dict) else {}
+    opp = opp.get("opportunity") if isinstance(opp.get("opportunity"), dict) else opp
+    if not pid or str(opp.get("pipelineId") or "") != str(pid):
+        return {"ok": False, "opportunityId": oid,
+                "error": "This card is no longer in this pipeline in GHL — refresh and try again."}
+    return None
+
+
+def _move_one(client, opportunity_id, stage, now, board=DEFAULT_BOARD):
     """Caller holds _MOVE_LOCK. PUT the stage, clear the proposal tags, update the card."""
     oid = str(opportunity_id or "").strip()
-    st = _load()
+    st = _load(board)
     stages = st.get("stages") or []
     card = next((c for c in st.get("cards") or [] if oid and c["opportunityId"] == oid), None)
     if not card:
-        return {"ok": False, "opportunityId": oid, "error": "Not an Enrollment pipeline card — refresh and try again."}
+        return {"ok": False, "opportunityId": oid,
+                "error": f"Not a {BOARDS[board][0]} pipeline card — refresh and try again."}
     target = _stage_for(stages, stage)
     if not target:
         return {"ok": False, "opportunityId": oid,
                 "error": "Stage must be one of: " + ", ".join(s["name"] for s in stages)}
     if card["stageId"] != target["id"]:
+        bad = _live_pipeline_ok(client, oid, st.get("pipelineId"))
+        if bad:
+            return bad
         try:
             client.put(f"/opportunities/{oid}", {"pipelineStageId": target["id"]})
         except Exception as e:  # noqa: BLE001
@@ -310,15 +403,15 @@ def _move_one(client, opportunity_id, stage, now):
         except Exception as e:  # noqa: BLE001 — the move stands; the tag reappears on refresh
             tags_cleared, warning = False, f"Moved, but the proposal tag could not be removed: {_err(e)}"
     with _LOCK:
-        st = _load()
+        st = _load(board)
         for c in st.get("cards") or []:
             if c["opportunityId"] == oid:
                 c.update(stageId=target["id"], stageName=target["name"], movedAt=_ms(now),
                          updatedAt=_ms(now), proposedStageId=None, proposedStageName=None)
                 if tags_cleared:
                     c["proposeTags"] = []
-        _save(st)
-    print(f"[daycare_pipeline] owner move: opp {oid} -> stage {target['id']}"
+        _save(st, board)
+    print(f"[daycare_pipeline] owner move ({board}): opp {oid} -> stage {target['id']}"
           + ("" if tags_cleared else " (proposal tag NOT cleared)"))
     out = {"ok": True, "opportunityId": oid, "stageId": target["id"], "stageName": target["name"],
            "tagsCleared": tags_cleared}
@@ -335,26 +428,29 @@ def _gate(client):
     return None
 
 
-def move(client, opportunity_id, stage):
-    """POST /api/daycare/pipeline/move — the owner's tap moves ONE card. stage = id or slug."""
-    blocked = _gate(client)
+def move(client, opportunity_id, stage, board=DEFAULT_BOARD):
+    """POST /api/daycare/pipeline/move — the owner's tap moves ONE card on ONE board.
+    stage = id or slug of THAT board's stages."""
+    b = board_key(board)
+    blocked = BAD_BOARD if b is None else _gate(client)
     if blocked:
         return {"ok": False, "error": blocked}
     with _MOVE_LOCK:
-        return _move_one(client, opportunity_id, stage, time.time())
+        return _move_one(client, opportunity_id, stage, time.time(), b)
 
 
-def move_all_proposed(client, confirm=False):
+def move_all_proposed(client, confirm=False, board=DEFAULT_BOARD):
     """POST /api/daycare/pipeline/move-all — the owner's confirmed tap approves every
-    proposal, ≤50 per call. Stops early on a GHL rate limit (429)."""
-    blocked = _gate(client) or (None if confirm is True else "confirm:true required")
+    proposal on ONE board, ≤50 per call. Stops early on a GHL rate limit (429)."""
+    b = board_key(board)
+    blocked = (BAD_BOARD if b is None else _gate(client)) or (None if confirm is True else "confirm:true required")
     if blocked:
         return {"ok": False, "error": blocked}
     with _MOVE_LOCK:
-        todo = [c for c in _load().get("cards") or [] if c.get("proposedStageId")]
+        todo = [c for c in _load(b).get("cards") or [] if c.get("proposedStageId")]
         results = []
         for c in todo[:MOVE_ALL_CAP]:
-            r = _move_one(client, c["opportunityId"], c["proposedStageId"], time.time())
+            r = _move_one(client, c["opportunityId"], c["proposedStageId"], time.time(), b)
             results.append(r)
             if r.get("code") == 429:
                 break
@@ -364,8 +460,25 @@ def move_all_proposed(client, confirm=False):
 
 
 # ── loop ──────────────────────────────────────────────────────────────────────
+def counts(now=None):
+    """Both boards' counts for Solomon's chat context — state files only, no network, no
+    names, never raises. Keys stay per board: the two businesses are never summed."""
+    now = now or time.time()
+    out = {}
+    for b in BOARDS:
+        try:
+            v = view(now=now, board=b)
+            out[b] = {"label": v["label"], "total": v["total"], "proposals": v["proposals"],
+                      "byStage": {s["name"]: s["count"] for s in v["stages"]},
+                      "stale": v["stale"], "missing": v["missing"]}
+        except Exception as e:  # noqa: BLE001
+            out[b] = {"unreadable": type(e).__name__}
+    return out
+
+
 def run_forever(client):
-    """Background loop (thread `daycare_pipeline` — Solomon's Pipeline lane). GET only."""
+    """Background loop (thread `daycare_pipeline` — Solomon's Pipeline lane). GET only.
+    Refreshes BOTH boards each tick; the heartbeat carries the first error."""
     last = (_load().get("lastRunAt") or 0) / 1000
     time.sleep(max(0, min(INTERVAL, last + INTERVAL - time.time())))   # deploys restart often
     while True:
@@ -374,7 +487,12 @@ def run_forever(client):
             if client is None or not getattr(client, "configured", False):
                 err = "Daycare GHL not configured"
             elif not forge_ops.paused():
-                err = refresh(client).get("error")
+                errs = []
+                for b in BOARDS:
+                    e = refresh(client, board=b).get("error")
+                    if e:
+                        errs.append(f"{b}: {e}")
+                err = "; ".join(errs) or None
         except Exception as e:  # noqa: BLE001
             err = type(e).__name__
         forge_heartbeat.beat("daycare_pipeline", INTERVAL, "Solomon · Pipeline", error=err)

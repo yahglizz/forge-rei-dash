@@ -298,7 +298,8 @@ def test_solomon_calendar_week_survives_the_2500_cut():
     finally:
         (daycare_board.counts_block, daycare_director.reply_desk_state,
          daycare_director.lead_desk_state, daycare_calendar.week) = real
-    assert list(ctx) == ["board", "replies", "leads", "calendar", "adGenerator"], list(ctx)
+    assert list(ctx) == ["board", "replies", "leads", "calendar", "pipeline", "adGenerator"], list(ctx)
+    assert set(ctx["pipeline"]) == {"enrollment", "amt"}, ctx["pipeline"]   # per board, never summed
     assert len(json.dumps(week)) < 300 and json.dumps(week) in lanes, lanes[-400:]
 
 
