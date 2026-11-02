@@ -268,6 +268,22 @@ def open_cards(business=None):
     return sorted(out, key=lambda c: c["ts"])
 
 
+def waiting_cards():
+    """GET /api/chat/waiting: the phone's "Waiting on you" list. Every still-open dashboard card in every
+    business, newest first: open_cards' fields plus kind "mac"|"write" and expiresIn (seconds). A Mac
+    command goes through mac_link.redact; redacted=True says the shown text differs from what would run,
+    so the phone sends him to the full card instead of offering ✅. Read-only; Telegram cards stay out."""
+    now = time.time()
+    out = []
+    for c in sorted(open_cards(), key=lambda c: c["ts"], reverse=True):
+        c.update(kind="mac" if c["kind"] == "mac" else "write", expiresIn=max(0, int(c["expiresAt"] - now)))
+        if c["kind"] == "mac":
+            shown = mac_link.redact(c["command"])
+            c.update(command=shown, redacted=shown != c["command"])
+        out.append(c)
+    return out
+
+
 def _err(res):
     return str(res.get("error") or res.get("detail") or "failed")[:200] if ta._failed(res) else ""
 

@@ -213,6 +213,42 @@ def test_funnel_never_reaches_the_mac_routes():
     assert not mac_link._seen, "neither listener touched the link"
 
 
+def test_funnel_never_reaches_the_waiting_list():
+    """GET /api/chat/waiting lists card tokens and Mac commands: the dashboard listener only."""
+    reset()
+    card = queue_card()
+    portal = serve(connector.PortalHandler)
+    try:
+        for path in ("/api/chat/waiting", "/api/chat/waiting?business=daycare", "/api/chat/cards"):
+            assert http(portal.server_address[1], "GET", path)[0] == 404, path
+            assert http(portal.server_address[1], "POST", path, None, {})[0] == 404, path
+    finally:
+        portal.shutdown()
+    gate = serve(gw.GatewayHandler)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        for path in ("/api/chat/waiting", "/gateway/api/chat/waiting"):
+            assert http(gate.server_address[1], "GET", path)[0] == 401, path
+            assert http(gate.server_address[1], "POST", path, None, {})[0] == 404, path
+            req = urllib.request.Request(f"http://127.0.0.1:{gate.server_address[1]}{path}",
+                                         headers={"X-Forge-Gateway-Key": t.OWNER_KEY})
+            try:
+                opener.open(req, timeout=10)
+                raise AssertionError("the owner's gateway key opened " + path)
+            except urllib.error.HTTPError as e:
+                assert e.code == 404 and card["tok"].encode() not in e.read(), path
+    finally:
+        gate.shutdown()
+    with mock.patch.object(connector, "_ALLOWED_CLIENT_NETWORKS", ()):
+        assert http(SYS["port"], "GET", "/api/chat/waiting")[0] == 403, "off the tailnet: refused"
+    code, raw = http(SYS["port"], "GET", "/api/chat/waiting")     # the dashboard's own listener answers
+    assert code == 200 and card["tok"].encode() in raw, raw
+    assert "/api/chat/waiting" not in ta.all_gets() and ta.allowed_read("/api/chat/waiting")[0] is False
+    for name in ("api_get", "route_help"):
+        out = call(name, {"path": "/api/chat/waiting"})
+        assert "off-limits" in out["error"] and card["tok"] not in json.dumps(out), out
+
+
 def test_card_list_route_never_reaches_a_model():
     reset()
     card = queue_card()

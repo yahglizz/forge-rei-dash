@@ -13,7 +13,7 @@
 //   GET  /api/chat/cards[?business=] → still-open tap cards (survive a reload); tap = ChatActions
 //   GET  /api/mac/status             → Mac online / last seen (refreshed with each registry poll)
 //   GET  /api/system/n8n             → runs / failures this month, hidden unless connected (same refresh)
-// Tasks view: m_tasks.jsx. Chat turns abort after 330 s; "still working" at 20 s; Cancel any time.
+// Tasks view: m_tasks.jsx. "Waiting on you" (every business's open cards, top of Crew): m_waiting.jsx. Chat turns abort after 330 s; "still working" at 20 s; Cancel any time.
 const { useState: useStateMA, useEffect: useEffectMA, useRef: useRefMA } = React;
 
 // Static roster for when the registry call fails: the same main agents as agents_hub.AGENTS (no lanes,
@@ -359,6 +359,7 @@ function MAgentsPage(props) {
     <React.Fragment>
       <window.MHeader title="Agents" sub="Your AI employees — synced with Telegram" />
       <div className="m-content" style={{ gap: 10 }}>
+        {window.MAWaitingCard && <window.MAWaitingCard />}
 
         {(macLine || n8nLine) && (
           <div className="m-row" style={{ gap: 14, fontSize: 12, padding: "0 2px", flexWrap: "wrap" }}>

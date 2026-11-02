@@ -3230,6 +3230,11 @@ ROUTES["/api/mac/status"] = lambda q: mac_link.status()   # the same facts as th
 NO_CACHE.add("/api/mac/status")
 ROUTES["/api/chat/cards"] = lambda q: {"ok": True, "cards": dash_live.open_cards((q.get("business", [None]) or [None])[0])}
 NO_CACHE.add("/api/chat/cards")   # the phone's durable tap cards: still-open dashboard cards, read-only
+# "Waiting on you" at the top of Crew: every business's open dash cards, newest first, Mac commands redacted.
+# Dashboard listener only: the Funnel portal and the gateway answer their own short path lists, and
+# /api/chat/ is in telegram_agent.DENY, so no model reads a token.
+ROUTES["/api/chat/waiting"] = lambda q: {"ok": True, "cards": dash_live.waiting_cards()}
+NO_CACHE.add("/api/chat/waiting")
 # --- /WP-C ---
 
 

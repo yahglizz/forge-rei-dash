@@ -94,6 +94,102 @@ def test_cards_route_is_not_agent_reachable():
             assert "off-limits" in ta.allowed(biz, "GET", path)[1], (biz, path)
 
 
+# ── GET /api/chat/waiting ("Waiting on you" at the top of Crew) ─────────────────────────────
+def test_waiting_route_lists_every_open_dash_card_newest_first():
+    ta.STATE = TMP / "pending_waiting.json"
+    ta.STATE.write_text("{}")
+    key = "sk-ant-" + "x" * 30
+    oldest = ta._queue("dash", "solomon", "daycare", "/api/daycare/replies/approve", {"contact_id": "c1"}, "Text a parent")
+    mac = ta._queue("dash", "orion", "hq", None, {}, "Run on your Mac: ls",
+                    mac={"command": "ls -la", "reason": "look", "why": "any command", "surface": "t"})
+    keyed = ta._queue("dash", "dyson", "agency", None, {}, "Run on your Mac: curl",
+                      mac={"command": "curl -H 'x: " + key + "' example.test", "reason": "r", "why": "w", "surface": "t"})
+    newest = ta._queue("dash", "marcus", "wholesale", None, {}, "Two moves", calls=[
+        {"path": "/api/pipeline/move", "body": {"id": "a"}}, {"path": "/api/pipeline/move", "body": {"id": "b"}}])
+    ta._queue("-100", "solomon", "daycare", "/api/daycare/replies/approve", {}, "a Telegram card")
+    gone = ta._queue("dash", "solomon", "daycare", "/api/daycare/replies/approve", {}, "expired", ttl=60)
+    d = json.loads(ta.STATE.read_text())
+    now = int(time.time())
+    for i, tok in enumerate((oldest, mac, keyed, newest)):
+        d[tok]["ts"] = now - 100 + i
+    d[gone]["ts"] = now - 600
+    ta.STATE.write_text(json.dumps(d))
+
+    code, res = _get("/api/chat/waiting")
+    assert code == 200 and res["ok"], res
+    toks = [c["tok"] for c in res["cards"]]
+    assert toks == [newest, keyed, mac, oldest], "dash only, unexpired only, every business, newest first: %s" % toks
+    by = {c["tok"]: c for c in res["cards"]}
+    assert by[oldest]["kind"] == "write" and by[newest]["kind"] == "write" and by[mac]["kind"] == "mac"
+    for c in res["cards"]:
+        assert {"tok", "agent", "summary", "kind", "expiresIn"} <= set(c), c
+        assert 0 < c["expiresIn"] <= ta.PENDING_TTL, c
+        assert "calls" not in c and "body" not in c, "no raw queue entry leaves the box"
+    assert by[mac]["command"] == "ls -la" and by[mac]["redacted"] is False
+    assert by[mac]["reason"] == "look" and by[mac]["why"] == "any command" and by[mac]["warning"] == dash_live.MAC_WARNING
+    assert key not in json.dumps(res) and "[redacted]" in by[keyed]["command"] and by[keyed]["redacted"] is True
+    assert "command" not in by[oldest] and by[newest]["count"] == 2, "a write card carries its in-chat text only"
+    assert "/api/chat/waiting" in connector.NO_CACHE
+    assert json.loads(ta.STATE.read_text())[keyed]["mac"]["command"].count(key) == 1, "reading never changes the card"
+
+    # not agent-reachable: the whole /api/chat/ family is in DENY, scope aside
+    with mock.patch.object(ta, "catalog", lambda: {"GET": {"/api/chat/waiting"}, "POST": set()}):
+        for biz in ta.SCOPE:
+            assert "off-limits" in ta.allowed(biz, "GET", "/api/chat/waiting")[1], biz
+        assert not ta.allowed_read("/api/chat/waiting")[0]
+
+
+def test_waiting_card_tap_is_the_existing_confirm_and_pops_once():
+    ta.STATE = TMP / "pending_waiting_tap.json"
+    ta.STATE.write_text("{}")
+    tok = ta._queue("dash", "solomon", "daycare", "/api/daycare/ghl/tag", {"contact_id": "c1"}, "Tag a parent")
+    drop = ta._queue("dash", "solomon", "daycare", "/api/daycare/ghl/tag", {"contact_id": "c2"}, "Tag another parent")
+    sent = []
+    fake_http = lambda method, path, query=None, body=None, timeout=90: sent.append((method, path, body)) or {"ok": True}  # noqa: E731
+    with mock.patch.object(ta, "catalog", lambda: {"GET": set(), "POST": {"/api/daycare/ghl/tag"}}), \
+            mock.patch.object(ta, "_http", fake_http), \
+            mock.patch.object(forge_ops, "paused", lambda: False), \
+            mock.patch.object(connector, "_dash_tap_history", lambda *a: None):
+        listed = [c["tok"] for c in _get("/api/chat/waiting")[1]["cards"]]
+        assert set(listed) == {tok, drop}, listed
+        first = _post("/api/chat/action/confirm", {"tok": tok})[1]
+        second = _post("/api/chat/action/confirm", {"tok": tok})[1]
+        assert first.get("ok") and "Tag a parent" in first["message"], first
+        assert "expired" in second.get("error", ""), second
+        assert sent == [("POST", "/api/daycare/ghl/tag", {"contact_id": "c1"})], "ran once: %s" % sent
+        assert _post("/api/chat/action/cancel", {"tok": drop})[1]["ok"]
+        assert "error" in _post("/api/chat/action/cancel", {"tok": drop})[1]
+        assert _get("/api/chat/waiting")[1]["cards"] == [], "a tapped or cancelled card leaves the list"
+    assert len(sent) == 1
+
+
+def test_waiting_list_wiring():
+    w = (M / "m_waiting.jsx").read_text()
+    assert '"/api/chat/waiting"' in w and "WY_POLL_MS = 20000" in w
+    assert 'document.visibilityState === "visible"' in w and '"visibilitychange"' in w
+    assert "clearInterval(iv)" in w and 'removeEventListener("visibilitychange"' in w
+    # the in-chat card renderer and its endpoints, never a second approval path
+    assert "<window.ChatActions actions={[c]} />" in w
+    assert "/api/chat/action" not in w.split("// Hook aliases")[1] and "apiPost" not in w
+    assert 'className="m-cards"' in w and "minHeight: 44" in w, "44px taps (.m-cards button) and the refresh button"
+    assert '"Waiting on you (" + n + ")"' in w and "if (!shown.length) return null;" in w
+    assert "rows[k].until > now" in w, "expired rows drop out between polls"
+    assert 'c.kind === "mac" && c.redacted' in w and "<WYHidden c={c} />" in w, "a redacted Mac command gets no ✅"
+    assert re.search(r"Object\.assign\(window,\s*\{\s*MAWaitingCard\s*\}\)", w)
+    assert not re.search(r"<\w+\[", w), "computed JSX tag"
+    declared = set(re.findall(r"use(?:State|Effect|Ref): (\w+)", w))
+    assert declared == {"useEffectWY", "useRefWY"}, declared
+    for f in list(HERE.glob("*.jsx")) + list(M.glob("*.jsx")):
+        if f.name != "m_waiting.jsx":
+            for name in declared | {"WY_POLL_MS", "wyName", "wyLeft", "WYHidden", "MAWaitingCard"}:
+                assert not re.search(r"\b%s\b" % name, f.read_text()) or (name == "MAWaitingCard" and f.name == "m_agents.jsx"), (name, f.name)
+    a = (M / "m_agents.jsx").read_text()
+    body = a[a.index('<div className="m-content" style={{ gap: 10 }}>'):]
+    assert body.index("<window.MAWaitingCard />") < body.index("(macLine || n8nLine)"), "first thing in Crew"
+    html = (M / "index.html").read_text()
+    assert html.index('src="../chat_actions.jsx"') < html.index('src="m_waiting.jsx"') < html.index('src="m_app.jsx"')
+
+
 # ── task result ───────────────────────────────────────────────────────────────────────────
 def test_task_result_is_kept_on_done_and_cleared_on_reopen():
     agents_hub.TASKS = TMP / "hub_tasks.json"
