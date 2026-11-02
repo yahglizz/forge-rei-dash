@@ -97,7 +97,7 @@ _SECRET_KEY = re.compile(r"token|secret|api_?key|password|passwd|authorization",
 _RISKY = (("dismiss", "🙈 dismisses"), ("reset-pin", "🔐 resets a login"), ("blast", "📣 mass text"),
           ("/send", "✉️ sends a message"), ("reply", "✉️ texts someone"),
           ("approve", "✉️ sends / approves"), ("delete", "🗑 deletes"),
-          ("deactivate", "🗑 deactivates"), ("stripe", "💳 money"), ("invoice", "💳 money"),
+          ("deactivate", "🗑 deactivates"), ("stripe", "💳 money"), ("invoice", "💳 money"), ("fee-link", "💳 money"),
           ("payroll", "💳 money"), ("launch", "💸 spend"), ("create-ad", "💸 spend"),
           ("adgen/generate", "💸 spends image credits"), ("adgen/cards", "💸 spends image credits"))
 MAX_CARDS = 5

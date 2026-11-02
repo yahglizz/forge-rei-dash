@@ -11,6 +11,7 @@ credentials in marcus-wholesale-agent/config/ghl.env.
 Run:  python3 connector.py   ->   http://localhost:7799
 """
 
+import gzip
 import io
 import ipaddress
 import json
@@ -392,6 +393,27 @@ SERVE_TYPES = {
     ".woff": "font/woff", ".woff2": "font/woff2",
     ".glb": "model/gltf-binary",
 }
+_STATIC_CACHE: dict = {}      # (path, mtime_ns, size) -> (raw bytes, gzip bytes | None); text types only
+_GZIP_TYPES = {".html", ".css", ".jsx", ".js", ".json", ".svg"}
+
+
+def _static_payload(target):
+    """(etag, raw, gzipped|None) for one static file. The etag is mtime+size (no hashing, so big
+    models/images stay cheap); text types are compressed once per edit and kept in memory."""
+    st = target.stat()
+    etag = '"%x-%x"' % (st.st_mtime_ns, st.st_size)
+    if target.suffix.lower() not in _GZIP_TYPES:
+        return etag, target.read_bytes(), None
+    key = (str(target), st.st_mtime_ns, st.st_size)
+    if key not in _STATIC_CACHE:
+        raw = target.read_bytes()
+        if len(_STATIC_CACHE) > 300:
+            _STATIC_CACHE.clear()
+        _STATIC_CACHE[key] = (raw, gzip.compress(raw, 6) if len(raw) > 1024 else None)
+    raw, gz = _STATIC_CACHE[key]
+    return etag, raw, gz
+
+
 # Directories that must never be reachable over HTTP even with an allowed suffix.
 DENY_DIRS = {"deploy", "marcus_state", "__pycache__", ".git", "uploads"}
 
@@ -1099,6 +1121,7 @@ import daycare_ads_studio  # noqa: E402 — Nova's idea → image → PAUSED ad 
 import daycare_ads_autopilot  # noqa: E402 — Solomon · Ads: daily ad optimizer + creative loop (shadow by default)
 import daycare_ads_tg  # noqa: E402 — Solomon · Ads Telegram approval cards (optimize / create / launch taps)
 import stripe_io  # noqa: E402 — stdlib Stripe REST bridge for daycare invoicing
+import daycare_fees  # noqa: E402 — fee links (registration etc.): mint + paid/unpaid from Stripe
 import daycare_billing_link  # noqa: E402 — billing P0: owner texts a Stripe pay link for the remaining balance
 import daycare_billing_reminders  # noqa: E402 — overdue reminders: box tick + QA-only run-now
 import gmail_io  # noqa: E402 — daycare Gmail, read-only + daycare-only (2026-10-18; the box's Gmail path)
@@ -5011,6 +5034,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/daycare/stripe/send-invoice", "/api/daycare/stripe/sync-payment",
                 "/api/daycare/ghl/text-invoice", "/api/daycare/ghl/dismiss", "/api/daycare/ghl/undismiss",
                 "/api/daycare/billing/link/compose", "/api/daycare/billing/link/send",
+                "/api/daycare/billing/fee-link",
                 "/api/daycare/billing/reminders/run",
                 "/api/daycare/ghl/enroll", "/api/daycare/ghl/reply", "/api/daycare/ghl/tag",
                 "/api/daycare/guardian/resend-login", "/api/daycare/login-queue/run",
@@ -5137,6 +5161,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = daycare_billing_link.compose(session, body.get("invoice_id"))
             elif path == "/api/daycare/billing/link/send":
                 result = daycare_billing_link.send(session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL)
+            elif path == "/api/daycare/billing/fee-link":           # mints a link + draft; sends nothing
+                result = daycare_fees.create(session, body)
             elif path == "/api/daycare/billing/reminders/run":      # QA Sandbox only; real centers refused inside
                 result = daycare_billing_reminders.run_now(session, body, DAYCARE_GHL)
             elif path == "/api/daycare/ghl/dismiss":
@@ -5250,7 +5276,7 @@ class Handler(BaseHTTPRequestHandler):
                 result,
                 headers=({"Set-Cookie": set_cookie} if set_cookie else None),
             )
-        except daycare_billing_link.BillingLinkError as error:
+        except (daycare_billing_link.BillingLinkError, daycare_fees.FeeError) as error:
             return self._send_json(error.payload(), error.status)
         except daycare_supabase.DaycareError as error:
             headers = None
@@ -5291,6 +5317,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/notifications": lambda session: daycare_supabase.get_notifications(session),
             # ?location_id= (optional) reads another center without switching (the board's watches)
             "/api/daycare/billing": lambda session: _daycare_at(session, q, daycare_supabase.get_billing),
+            "/api/daycare/billing/fees": lambda session: daycare_fees.list_fees(session, q),
             "/api/daycare/payroll": lambda session: daycare_supabase.get_payroll(session),
             "/api/daycare/reports": lambda session: daycare_supabase.get_reports(
                 session, q.get("from", [None])[0], q.get("to", [None])[0]),
@@ -5439,7 +5466,7 @@ class Handler(BaseHTTPRequestHandler):
                 handlers[path](session),
                 headers=({"Set-Cookie": set_cookie} if set_cookie else None),
             )
-        except daycare_billing_link.BillingLinkError as error:
+        except (daycare_billing_link.BillingLinkError, daycare_fees.FeeError) as error:
             return self._send_json(error.payload(), error.status)
         except daycare_supabase.DaycareError as error:
             headers = None
@@ -5903,13 +5930,25 @@ class Handler(BaseHTTPRequestHandler):
                 or not target.is_file()):
             self.send_error(404, "Not found")
             return
-        data = target.read_bytes()
-        self.send_response(200)
+        # ETag + gzip + revalidate: the phone app pulls ~3.7 MB of scripts on every open and the
+        # box used to send them raw with no cache headers (2026-11-02). `no-cache` = always
+        # revalidate, so a saved edit still ships at once; an unchanged file costs a 304.
+        etag, data, gz = _static_payload(target)
+        fresh = self.headers.get("If-None-Match") == etag
+        self.send_response(304 if fresh else 200)
+        self.send_header("ETag", etag)
+        self.send_header("Cache-Control", "no-store" if path == "/portal.html" else "no-cache")
+        self.send_header("Referrer-Policy", "no-referrer")
+        if gz is not None:
+            self.send_header("Vary", "Accept-Encoding")
+        if fresh:
+            self.end_headers()
+            return
+        if gz is not None and "gzip" in (self.headers.get("Accept-Encoding") or "").lower():
+            data = gz
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Referrer-Policy", "no-referrer")
-        if path == "/portal.html":
-            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         try:
             self.wfile.write(data)
