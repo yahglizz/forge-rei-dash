@@ -2386,6 +2386,7 @@ def _tg_handoff(conv_id):
 import telegram_ops  # noqa: E402
 import telegram_agent  # noqa: E402
 import dash_live  # noqa: E402  — dashboard chat tools + actions (AUTO runs, TAP = ✅ card)
+import agent_gateway  # noqa: E402  — n8n → agent jobs (off unless FORGE_GATEWAY_PORT is set)
 import autopilot      # noqa: E402
 
 
@@ -3660,6 +3661,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raise
 
+    def _handle_gateway_tool(self):
+        if self.client_address[0] != "127.0.0.1":
+            return self._send_json({"error": "loopback only"}, 403)
+        try:
+            payload = self._read_json_body()
+        except (ValueError, OverflowError):
+            return self._send_json({"error": "bad request"}, 400)
+        code, out = agent_gateway.tool_http(self.headers.get("X-Job-Token"), payload)
+        return self._send_json(out, code)
+
     def do_POST(self):
         if not self._dashboard_client_allowed():
             return self._send_json({"error": "private dashboard access required"}, 403)
@@ -3668,6 +3679,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self._same_origin_post():
             return self._send_json({"error": "same-origin request required"}, 403)
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/gateway/tool":      # agent_runner child: loopback + per-job token
+            return self._handle_gateway_tool()
         if parsed.path.startswith("/api/daycare/"):
             return self._handle_daycare_post(parsed.path)
         if parsed.path.startswith("/api/dropship/"):
@@ -6176,6 +6189,7 @@ def main():
     else:
         print("   Scout + Marcus: loops DISABLED (FORGE_MARCUS!=1) — UI/proxy only")
     _start_portal_server()  # public-safe client portal (only if FORGE_PORTAL_PORT set)
+    agent_gateway.start_server()  # n8n's door to the agents (only if FORGE_GATEWAY_PORT set)
     if daycare_supabase.testcopy_autologin_requested():   # local test copy only; guards live in daycare_supabase
         _signed = daycare_supabase.BRIDGE.testcopy_session() is not None
         print("   Daycare test-copy autologin: " + ("signed in as the QA Sandbox admin" if _signed else "REFUSED (warning above)"))

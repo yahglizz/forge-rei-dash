@@ -355,7 +355,7 @@ def _write(name, inp, agent_id, col):
     if tap:
         if len(col["actions"]) >= ta.MAX_CARDS:
             return {"error": f"max {ta.MAX_CARDS} cards per message — let the owner tap these first"}
-        tok = ta._queue("dash", agent_id, biz, paths[0] if not batch else None,
+        tok = ta._queue(col.get("chat") or "dash", agent_id, biz, paths[0] if not batch else None,
                         calls[0]["body"] if not batch else {}, summary, calls=calls if batch else None)
         col["actions"].append({"tok": tok, "kind": "tap", "agent": agent_id, "summary": summary,
                                "risk": _risk(paths), "path": paths[0] if not batch else None, "count": n,

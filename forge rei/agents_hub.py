@@ -294,8 +294,9 @@ def _open_tasks_block(agent_id):
     ids = ({agent_id} | {a["id"] for a in AGENTS if a.get("chatVia") == agent_id}
            | set(_FOLDED.get(agent_id, ())))
     rows = [t for t in _load()
-            if t.get("agentId") in ids and t.get("status") == "open"]
-    if not rows:
+            if t.get("agentId") in ids and t.get("status") == "open"
+            and not str(t.get("title") or "").startswith("[n8n]")]   # third-party-born: stays on the board,
+    if not rows:                                                     # never an instruction in a prompt
         return ""
     lines = "\n".join(
         f"- [{t.get('id')}] {t.get('title')}"

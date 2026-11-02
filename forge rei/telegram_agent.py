@@ -84,6 +84,8 @@ DENY = (
     "/api/brain/undo", "/api/outbound/agent/",
     # raw seller sends skip the no-price guard — seller texts go through Marcus drafts
     "/api/send", "/api/reply/send", "/api/screening/send",
+    # the agent gateway's own tool door (per-job token, child processes only)
+    "/api/gateway/",
 )
 _SECRET_KEY = re.compile(r"token|secret|api_?key|password|passwd|authorization", re.I)
 _RISKY = (("dismiss", "🙈 dismisses"), ("reset-pin", "🔐 resets a login"), ("blast", "📣 mass text"),
@@ -258,16 +260,22 @@ def _load():
         return {}
 
 
-def _queue(chat_id, agent_id, business, path, body, summary, calls=None):
-    """calls=[{path, body}] = one card for a whole batch (dashboard chat, dash_live)."""
+def _queue(chat_id, agent_id, business, path, body, summary, calls=None, ttl=None, no_history=False):
+    """calls=[{path, body}] = one card for a whole batch (dashboard chat, dash_live).
+    ttl = seconds this card stays tappable. no_history = the tap result stays out of the agent's
+    chat thread (a card born from third-party text must not replay into its context)."""
     tok = secrets.token_hex(8)
     now = int(time.time())
     with _LOCK:
-        d = {k: v for k, v in _load().items() if now - v.get("ts", 0) < PENDING_TTL}
+        d = {k: v for k, v in _load().items() if now - v.get("ts", 0) < v.get("ttl", PENDING_TTL)}
         d[tok] = {"chat": str(chat_id), "agent": agent_id, "business": business,
                   "path": path, "body": body, "summary": summary, "ts": now}
         if calls:
             d[tok]["calls"] = calls
+        if ttl:
+            d[tok]["ttl"] = int(ttl)
+        if no_history:
+            d[tok]["noHistory"] = True
         forge_atomic.atomic_write_json(STATE, d)
     return tok
 
@@ -310,8 +318,10 @@ def confirm(tok, chat_id=None, hook=True):
             return {"error": "that card belongs to another chat"}
         d.pop(tok, None)
         forge_atomic.atomic_write_json(STATE, d)
-    if not p or time.time() - p.get("ts", 0) > PENDING_TTL:
+    if not p or time.time() - p.get("ts", 0) > p.get("ttl", PENDING_TTL):
         return {"error": "expired — ask again"}
+    if p.get("noHistory"):
+        hook = False
     if p.get("calls"):
         return _confirm_calls(p, hook)
     ok, why = allowed(p["business"], "POST", p["path"])
