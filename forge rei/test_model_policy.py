@@ -534,7 +534,7 @@ def check_reply_style():
                 assert "caveman.block()" in ast.get_source_segment(src, n.args[1]), f"{f}:{n.lineno}"
         assert hits, f
     # The text style tells the model how to open and close; SMS and scoring stay out of it.
-    for rule in ("no opener", "no sign-off", "grounding:", "no title line"):
+    for rule in ("no opener", "no sign-off", "grounding:"):
         assert rule in caveman._TEXT.lower(), rule
     for f in ("marcus_engine.py", "daycare_replies.py", "daycare_revive.py", "scout_triage.py", "marcus_screening.py",
               "agent_creed.py", "legit_check.py"):

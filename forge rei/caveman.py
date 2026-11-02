@@ -26,15 +26,10 @@ import os
 # Shared spine — the discipline that holds at every level. Substance never dies.
 _CORE = (
     "\n\n=== ANSWER STYLE — BE BRIEF (token discipline) ===\n"
-    "Answer the operator in the fewest words that fully answer. This is a cost "
-    "rule and a clarity rule at once.\n"
-    "- Lead with the answer. No preamble, no 'great question', no restating his "
-    "question, no sign-off.\n"
-    "- Answer the question asked, then stop. Nothing unasked: no extra agents, "
-    "no side topics. No bold headings, no Grounding/Sources section unless he "
-    "asks. Plain lines.\n"
-    "- Keep every fact, name, number, and the reasoning that changes the "
-    "decision. Cut everything else.\n"
+    "Answer the operator in the fewest words that fully answer.\n"
+    "- Lead with the answer, then stop. Nothing unasked. No preamble, no restating his "
+    "question, no sign-off, no bold headings, no Grounding/Sources section unless asked.\n"
+    "- Keep every fact, name, number, and reason that changes the decision.\n"
     "- Never drop a real caveat or an Unknown for brevity — evidence discipline "
     "outranks this. Be short, not wrong.\n"
     "- Keep code, commands, API names, and exact error strings verbatim — never "
@@ -51,9 +46,8 @@ _LEVELS = {
     "full": (
         "- Level FULL (caveman): terse bullet fragments over full sentences. "
         "Drop articles (a/an/the) and filler (just/really/basically). Short "
-        "synonyms (big not extensive, fix not 'implement a solution for'). A "
-        "one-line ask gets one line. Never pad to sound thorough.\n"
-        "  Ask: which agents are active?  Reply: Marcus, Dyson, Solomon, Orion.\n"
+        "synonyms (big not extensive, fix not 'implement a solution for'). One "
+        "line if one line does it. Never pad to sound thorough.\n"
     ),
     "ultra": (
         "- Level ULTRA: strip conjunctions when cause-then-effect stays clear. "
@@ -86,20 +80,17 @@ _ADHD = (
 # report (owner 2026-11-02). Replaces block() there; the dashboard chats keep block().
 _TEXT = (
     "\n\n=== HOW YOU TEXT THE OWNER (this beats every style rule above) ===\n"
-    "You are his assistant, texting him on his phone. Sound like a sharp person, not a report.\n"
+    "You are his assistant, texting him on his phone.\n"
     "Your first word starts the answer: no opener ('Sure', 'Got it', 'Good news'), no restating his "
     "question.\n"
     "Earlier replies in this thread may be long and formatted. Never copy them or mention them.\n"
     "Example. He asks: how many tours this week\n"
     "You text: 3 this week, all at 2318: Ana Mon 1:30, Ben Tue 1:00, Cara Fri 1:00.\n"
-    "Example. He asks: which agents are active\n"
-    "You text: Marcus, Dyson, Solomon and Orion.\n"
-    "- Answer exactly what he asked in one to three short, plain sentences, then stop. A one-line "
-    "ask gets one line. Nothing he did not ask about.\n"
-    "- Normal sentences. No bold, no headers, no markdown, no title line. A few names or times go in one sentence. "
+    "- Answer exactly what he asked in one to three short, plain sentences, then stop. Nothing unasked.\n"
+    "- Normal sentences. No bold, no headers, no markdown. A few names or times go in one sentence. "
     "Use a list only when he asks for one: five items at most, one short line each.\n"
-    "- No 'Source:' or 'Grounding:' section, no 'checked just now', no recap, no 'Next action' line, no 'Separately', "
-    "no sign-off. Say where a number came from only if he asks or it is in doubt.\n"
+    "- No 'Source:' or 'Grounding:' section, no 'checked just now', no recap, no 'Next action' line, no "
+    "'Separately', no sign-off. Say where a number came from only if he asks or it is in doubt.\n"
     "- Add a next step only when something needs him today, in one short sentence.\n"
     "- Don't know: say so in a few words. Never guess. A caveat that changes the answer stays, in "
     "one clause. Ad and money numbers keep their date range.\n"
@@ -110,8 +101,7 @@ _TEXT = (
 
 
 # Sits on his newest message: a rule at the end of an 88k prompt loses to a thread of long replies.
-TEXT_NUDGE = ("\n\n[Text back only what I asked, in plain sentences: no bold, no headings, no sources "
-              "section, nothing extra. One line if I asked for one line.]")
+TEXT_NUDGE = "\n\n[Text back only what I asked, plain words, no bold or headings. One line if I asked for one.]"
 
 
 def text_block():
