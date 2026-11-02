@@ -449,6 +449,16 @@ Never put a dashboard route behind Funnel; the dashboard trusts loopback.
   allowed workflows and exact GET routes live in `TASKS`, so a new task is a code change. `data` is
   untrusted. The only write is `file_task`, a tap card.
 - **Owner chat** (`POST /v1/chat`, owner key): same tools and gates as dashboard chat (`dash_live`).
+- **Box chat** (`agent_gateway.chat_local`, in-process, 0 n8n executions, `FORGE_CHAT_GATEWAY=1` in
+  `/etc/default/forge-reios`, unset = old path): the same chat job for `/api/hub/chat` and
+  `/api/agency/agents/chat` (`origin="dash"`: cards come back inline, bound to chat `dash`) and the box
+  Telegram bot, DMs and groups (`telegram_io._partner_turn`, `origin="telegram"`: cards go to the business
+  chat). With the flag on, box Telegram has the dashboard's AUTO tier, as `/v1/chat` does. The job records
+  the turn in `agents_history` with `via` = origin. One box chat runs at a time, so a slot stays free for
+  n8n. A refusal (busy, rate limit, unknown agent) or a failed job falls back to the old path and logs
+  `gateway: ... fell back`; a job that already wrote or queued a card reports where it stopped and never
+  replays. `FORGE_CHAT_LIVE=0` still means no chat tools. Old path only: the Marcus move/tag command parser
+  and Scout's "audit my messages" shortcut. Check: `python3 test_chat_gateway.py`.
 - **Keys:** SHA-256 on the box (`/etc/default/forge-reios`), plaintext in n8n credentials and
   `~/.agent-keys/forge-gateway.env`. Rotate = new key, new hash, restart.
 - **Records:** `marcus_state/gateway/jobs/` (14 days), one `action_log` row per job, failures to the

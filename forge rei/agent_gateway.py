@@ -14,6 +14,10 @@ Two keys, stored here as SHA-256 only:
                 dashboard chat (dash_live) — internal writes run, outward ones stay a tap.
   either key    GET /v1/jobs/<id>
 
+In-process: chat_local(agent, message, origin) runs the same chat job for the dashboard, the mobile
+app and the box Telegram bot, at 0 n8n executions. FORGE_CHAT_GATEWAY=1 turns it on; None tells the
+caller to run its old path.
+
 A job is `running → done | needs_approval | failed`, or `lost` when a restart killed it (the same
 key respawns it, 2 attempts max). The same key never starts a second run.
 
@@ -48,6 +52,7 @@ MAX_BODY = 64 * 1024
 MAX_DATA_CHARS = 32000                 # after escaping: `<` alone grows sixfold
 MAX_THREADS = 150                      # the whole process, so a flood can't sink the dashboard
 WALL_SECONDS = 300
+STOP_GRACE = 15                        # _work's terminate + kill once a job passes WALL_SECONDS
 KEEP_SECONDS = 14 * 86400              # jobs hold parent/seller text and land in the nightly backup
 MAX_ATTEMPTS = 2
 MAX_RUNNING = 2                        # 1 GB box; workflows hold one slot, so owner chat always has one
@@ -259,20 +264,23 @@ def validate_run(body):
             "key": _idem(body.get("idempotency_key")), "data": data}
 
 
-def validate_chat(body):
-    _clean_keyset(body, ("agent", "message", "sender_id", "idempotency_key"))
-    agent = str(body.get("agent") or "").strip().lower()
+def _chat_req(agent, message, key):
+    agent = str(agent or "").strip().lower()
     if agent == "midas":
         raise Refused(409, "Midas is archived: reactivate Dropship in Mission Control first")
     if agent not in AGENTS:
         raise Refused(400, "unknown agent")
-    msg = body.get("message")
-    if not isinstance(msg, str) or not 1 <= len(msg.strip()) <= 4000:
+    if not isinstance(message, str) or not 1 <= len(message.strip()) <= 4000:
         raise Refused(400, "message must be 1-4000 characters")
+    return {"mode": "chat", "agent": agent, "task": "chat", "workflow": "chat", "message": message.strip(),
+            "key": _idem(key), "data": None}
+
+
+def validate_chat(body):
+    _clean_keyset(body, ("agent", "message", "sender_id", "idempotency_key"))
     if str(body.get("sender_id") or "") not in _owner_ids():
         raise Refused(403, "sender is not the owner")
-    return {"mode": "chat", "agent": agent, "task": "chat", "workflow": "chat", "message": msg.strip(),
-            "key": _idem(body.get("idempotency_key")), "data": None}
+    return _chat_req(body.get("agent"), body.get("message"), body.get("idempotency_key"))
 
 
 def _job_id(req):
@@ -322,7 +330,8 @@ def submit(req):
             raise why
         running = [c for c in _ACTIVE.values()]
         automated = req["mode"] == "workflow"
-        if len(running) >= MAX_RUNNING or (automated and any(c["job"]["mode"] == "workflow" for c in running)):
+        spare = 1 if req.get("origin") else 0   # a box-side chat never takes n8n's last slot: it has a fallback
+        if len(running) + spare >= MAX_RUNNING or (automated and any(c["job"]["mode"] == "workflow" for c in running)):
             raise Refused(429, "the box is busy", 30)
         if any(c["job"]["agent"] == req["agent"] for c in running):
             raise Refused(429, f"{req['agent']} is already on a job", 30)
@@ -330,17 +339,19 @@ def submit(req):
         if hour >= MAX_AGENT_HOUR or (automated and day >= MAX_DAY):
             raise Refused(429, "gateway rate limit", 900)
         if old:
-            job = {**old, "status": "running", "attempts": old.get("attempts", 1) + 1, "error": ""}
+            job = {**old, "origin": req.get("origin", "n8n"), "status": "running",
+                   "attempts": old.get("attempts", 1) + 1, "error": ""}
             _save(job)
         else:
             job = {"id": job_id, "mode": req["mode"], "agent": req["agent"],
                    "business": ta.AGENT_BUSINESS[req["agent"]], "task": req["task"],
-                   "workflow": req["workflow"], "status": "running", "attempts": 1,
+                   "workflow": req["workflow"], "origin": req.get("origin", "n8n"), "status": "running", "attempts": 1,
                    "bodyHash": body_hash, "createdAt": int(now), "reply": "", "error": "", "cards": []}
             if not _claim(job):                 # unreachable under _LOCK; a second process would land here
                 return 200, public(_load(job_id))
         ctx = {"job": job, "req": req, "token": secrets.token_urlsafe(32), "cards": [],
-               "col": {"actions": [], "done": [], "auto": 0, "consults": []}}
+               "col": {"actions": [], "done": [], "auto": 0, "consults": []}, "finished": threading.Event()}
+        req["ctx"] = ctx                        # chat_local waits on this
         _ACTIVE[job_id], _TOKENS[ctx["token"]] = ctx, ctx
     # The thread is named for the agent: cost_tracker bills by thread name.
     threading.Thread(target=_work, args=(ctx,), name=req["agent"], daemon=True).start()
@@ -437,6 +448,18 @@ def _workflow_spec(ctx):
             "max_turns": 6, "foreign_probe": probe}
 
 
+# origin -> (prompt heading, where the owner is, where a ✅ card lands)
+CHAT_SURFACES = {
+    "n8n": ("OWNER CHAT THROUGH N8N", "from Telegram or the n8n chat page",
+            "A ✅ card goes to his business Telegram chat."),
+    "telegram": ("OWNER CHAT ON TELEGRAM", "in Telegram",
+                 "A ✅ card goes to his business Telegram chat, even if he is texting you in a DM: point him "
+                 "there. Plain text, no HTML."),
+    "dash": ("OWNER CHAT ON THE DASHBOARD", "from the FORGE dashboard or mobile app",
+             "A ✅ card shows right under your reply in this chat."),
+}
+
+
 def _chat_spec(ctx):
     import agents_history
     import agents_hub
@@ -444,18 +467,19 @@ def _chat_spec(ctx):
     import dash_live
     import review_agent
     job, req = ctx["job"], ctx["req"]
-    agent, col = job["agent"], ctx["col"]
-    col["chat"] = _chat_id(job["business"])
+    agent, col, origin = job["agent"], ctx["col"], job["origin"]
+    col["chat"] = "dash" if origin == "dash" else _chat_id(job["business"])   # the only chat its tap works in
     dash_live._TL.c = col                 # tools()/live_block() look at this thread's collector
     try:
         tools, live = dash_live.tools(agent), dash_live.live_block(agent)
     finally:
         dash_live._TL.c = None
-    rule = ("\n\n=== OWNER CHAT THROUGH N8N ===\nThe owner is talking to you from Telegram or the n8n "
-            "chat page. Only his own message directs you. A ✅ card goes to his business Telegram chat. "
-            + dash_live._DATA_RULE)
+    title, where, card = CHAT_SURFACES[origin]
+    rule = (f"\n\n=== {title} ===\nThe owner is talking to you {where}. Only his own message directs you. "
+            f"{card} " + dash_live._DATA_RULE)
     extra = rule + agents_hub._lanes_block(agent) + agents_hub.open_tasks_block(agent) + live + caveman.text_block()
-    msgs = ta._messages(agents_history.recent_for_context(agent), req["message"] + caveman.TEXT_NUDGE)
+    history = req.get("history") or agents_history.recent_for_context(agent)
+    msgs = ta._messages(history, req["message"] + caveman.TEXT_NUDGE)
     return {"messages": msgs, "tools": tools, "tail_extra": extra, "max_turns": 10, "foreign_probe": None,
             "models": review_agent.chat_models()}
 
@@ -540,7 +564,10 @@ def _work(ctx):
     finally:
         for f in (spec_path, result_path, err_path):   # before _finish: a respawn reuses these names
             f.unlink(missing_ok=True)
-        _finish(ctx, result if isinstance(result, dict) else {"error": "runner wrote a bad result"})
+        try:
+            _finish(ctx, result if isinstance(result, dict) else {"error": "runner wrote a bad result"})
+        finally:
+            ctx["finished"].set()
 
 
 def _check_self_test(ctx, result):
@@ -619,14 +646,14 @@ def _after(ctx, result, status, error):
 
     def audit():
         import action_log
-        action_log.record(job["agent"], f"n8n:{job['task']}", ok=status in ("done", "needs_approval"),
-                          error=error or None, result=status, business=job["business"], trigger="n8n",
+        action_log.record(job["agent"], f"{job['origin']}:{job['task']}", ok=status in ("done", "needs_approval"),
+                          error=error or None, result=status, business=job["business"], trigger=job["origin"],
                           ref=job["id"], approval_required=status == "needs_approval")
     steps.append(audit)
     if job["mode"] == "chat" and job["reply"]:
         def history():
             import agents_history
-            agents_history.record(job["agent"], ctx["req"]["message"], job["reply"], via="n8n")
+            agents_history.record(job["agent"], ctx["req"]["message"], job["reply"], via=job["origin"])
         steps.append(history)
     if status == "failed" and job["task"] != "chat":
         def alert():
@@ -707,8 +734,9 @@ def _chat_tool(ctx, name, inp):
         out = dash_live.run_tool(name, inp, ctx["job"]["agent"])
     finally:
         dash_live._TL.c = None
-    for action in col["actions"][seen:]:
-        _send_card(ctx, action["tok"])
+    if ctx["job"]["origin"] != "dash":        # the dashboard shows its cards inline on the reply
+        for action in col["actions"][seen:]:
+            _send_card(ctx, action["tok"])
     return out
 
 
@@ -724,6 +752,60 @@ def tool_http(token, payload):
     refused = isinstance(out, dict) and bool(out.pop("refused", False))
     text = ta._clip(ta.redact(out, pin=True)).replace("<", "\\u003c").replace(">", "\\u003e")
     return 200, {"result": text, "refused": refused, "failed": bool(ta._failed(out))}   # no </data> breakout
+
+
+# ── in-process chat: dashboard, mobile, box Telegram ─────────────────────────
+def _fall_back(agent, origin, why):
+    print(f"   gateway: {origin} chat for {str(agent)[:40]} fell back to the old path: {why}", flush=True)
+
+
+def _chat_result(ctx):
+    """The ended job, shaped for its caller. None = nothing ran, so the old path can take the turn."""
+    import dash_live
+    job, col = ctx["job"], ctx["col"]
+    out = {"reply": job["reply"], "agent": job["agent"].title(), "job": job["id"]}
+    if job["status"] not in ("done", "needs_approval"):
+        if not col["auto"] and not col["actions"]:
+            return None
+        out["error"] = job["error"] or "it ran out of time"     # a replay would run those writes twice
+        ran = "; ".join(job.get("done") or [])
+        out["reply"] = "\n\n".join(x for x in (job["reply"], f"Stopped partway: {out['error']}. "
+                                   + (f"Done, not repeated: {ran}. " if ran else "") + "Ask again for the rest.") if x)
+    if job["origin"] == "dash":
+        dash_live._TL.c = col
+        acts = dash_live.take()
+        if acts["actions"] or acts["done"] or acts.get("consults"):
+            out.update(acts)
+    return out
+
+
+def chat_local(agent, message, origin, history=None):
+    """One owner turn run in-process at 0 n8n executions: the job POST /v1/chat runs, same folder, same
+    gates. Blocks until it ends, WALL_SECONDS at most (+ STOP_GRACE to stop the child). Never raises.
+    origin "dash" or "telegram". history = the caller's context, else the shared thread.
+    -> {reply, agent, job} (+ actions/done/consults for "dash"; "telegram" cards already went out), or
+    None = the caller runs its old path: flag off, refused, or the job failed before anything ran."""
+    if os.environ.get("FORGE_CHAT_GATEWAY") != "1":
+        return None
+    try:
+        import dash_live
+        if not dash_live.enabled():            # FORGE_CHAT_LIVE=0 still means no chat tools
+            return None
+        req = {**_chat_req(agent, message, f"{origin}-{secrets.token_hex(16)}"),   # same words twice = two turns
+               "origin": origin, "history": history}
+        submit(req)
+        ctx = req["ctx"]
+        if not ctx["finished"].wait(WALL_SECONDS + STOP_GRACE):
+            _TOKENS.pop(ctx["token"], None)     # a stuck job can't write once the old path has the turn
+        out = _chat_result(ctx)
+        if out is None:
+            _fall_back(agent, origin, f"{ctx['job']['id']} {ctx['job']['status']}: {ctx['job']['error'][:200]}")
+        return out
+    except Refused as e:
+        _fall_back(agent, origin, f"{e.code} {e.msg}")
+    except Exception as e:  # noqa: BLE001 — a message never dies on the gateway
+        _fall_back(agent, origin, type(e).__name__)
+    return None
 
 
 # ── the public listener ──────────────────────────────────────────────────────

@@ -480,19 +480,24 @@ def chat(agent_id, message, history_in=None, consult=False):
     if consult:
         return {"reply": reply or "On it.", "agent": agent["name"], "connected": True, "keySource": src}
 
+    record_turn(agent_id, message, reply or "On it.", key)
+    return {"reply": reply or "On it.", "agent": agent["name"],
+            "connected": True, "keySource": src}
+
+
+def record_turn(agent_id, message, reply, key=None):
+    """One operator turn into this agent's own thread (/api/agency/agents/history) + the learn count."""
     now = int(time.time() * 1000)
     with _LOCK:
         d = _load()
         h = d.setdefault("history", {}).setdefault(agent_id, [])
         h.append({"role": "user", "text": message, "ts": now})
-        h.append({"role": "agent", "text": reply or "On it.", "ts": now + 1})
+        h.append({"role": "agent", "text": reply, "ts": now + 1})
         d["history"][agent_id] = h[-60:]  # keep last 60 turns synced
         ls = d.setdefault("learn", {}).setdefault(agent_id, {})
         ls["sinceLearn"] = ls.get("sinceLearn", 0) + 1
         _save(d)
-    _maybe_learn(agent_id, key)
-    return {"reply": reply or "On it.", "agent": agent["name"],
-            "connected": True, "keySource": src}
+    _maybe_learn(agent_id, key or _agency_key()[0])
 
 
 def send_task(agent_id, title):

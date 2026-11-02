@@ -1199,8 +1199,11 @@ def _partner_turn(chat_id, agent_id, text, reply_token=None):
         # ✅ cards (telegram_agent). The old text-only brains stay as the fallback.
         cards, recorded = [], False
         try:
+            import agent_gateway
             import telegram_agent
-            out = telegram_agent.chat(agent_id, text, hist, chat_id)
+            out = agent_gateway.chat_local(agent_id, text, "telegram", history=hist)
+            recorded = out is not None                 # that job recorded the turn + sent its cards
+            out = out or telegram_agent.chat(agent_id, text, hist, chat_id)
             reply, cards = out.get("reply") or "", out.get("cards") or []
             failed = bool(out.get("error"))
         except Exception as e:  # noqa: BLE001

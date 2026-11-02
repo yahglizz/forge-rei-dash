@@ -2410,6 +2410,17 @@ dash_live.set_consult(lambda _aid, _q: agents_hub._flag_error(agents_hub._chat(
     ghl_get, LOCATION_ID, _aid, _q, scout=SCOUT, consult=True)))
 
 
+def _gateway_chat(agent_id, message, history, business=None):
+    """A dashboard/mobile turn from the agent's own folder (FORGE_CHAT_GATEWAY=1): the job records it
+    in agents_history. None = run the old path, which also answers a wrong-workspace chat."""
+    if business and agents_hub.wrong_workspace(agent_id, business):
+        return None
+    out = agent_gateway.chat_local(agent_id, message, "dash", history=history)
+    if out and not out.get("error") and out["agent"].lower() in agency_agents._AGENTS:
+        agency_agents.record_turn(out["agent"].lower(), message.strip(), out["reply"])   # the phone's agency thread
+    return out
+
+
 def _dash_tap_history(_chat, agent_id, text):
     """A dashboard ✅ ran — the agent sees the outcome on its next turn (PIN-redacted text)."""
     agents_history.record(agent_id, "(tap)", f"[owner tapped ✅] {text[:1500]}", via="dash")
@@ -3915,14 +3926,16 @@ class Handler(BaseHTTPRequestHandler):
                 _aid = body.get("agentId", "marcus")
                 # business = the workspace the chat came from (hub / mobile portal); an agent
                 # outside its home workspace refuses with a pointer (agents_hub.wrong_workspace).
-                result = _chat_with_actions(lambda: agents_hub.chat(
-                    ghl_get, LOCATION_ID, _aid, body.get("message", ""),
-                    history=(body.get("history") or agents_history.recent_for_context(_aid)),
-                    scout=SCOUT, business=body.get("business")))
-                if (isinstance(result, dict) and result.get("reply") and not result.get("needsKey")
-                        and not result.get("refused")):   # a refusal never lands in the agent's thread
-                    agents_history.record(_aid, body.get("message", ""),
-                                          result.get("reply"), via="dash")
+                result = _gateway_chat(_aid, body.get("message"), body.get("history"), body.get("business"))
+                if result is None:
+                    result = _chat_with_actions(lambda: agents_hub.chat(
+                        ghl_get, LOCATION_ID, _aid, body.get("message", ""),
+                        history=(body.get("history") or agents_history.recent_for_context(_aid)),
+                        scout=SCOUT, business=body.get("business")))
+                    if (isinstance(result, dict) and result.get("reply") and not result.get("needsKey")
+                            and not result.get("refused")):   # a refusal never lands in the agent's thread
+                        agents_history.record(_aid, body.get("message", ""),
+                                              result.get("reply"), via="dash")
             elif parsed.path == "/api/hub/task":
                 result = agents_hub.send_task(body.get("agentId"), body.get("title"),
                                               body.get("note", ""), business=body.get("business"))
@@ -4132,8 +4145,10 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/agency/callsheet/clear-dead":
                 result = agency_callsheet.clear_dead()
             elif parsed.path == "/api/agency/agents/chat":
-                result = _chat_with_actions(lambda: agency_agents.chat(
-                    body.get("agentId"), body.get("message"), body.get("history")))
+                result = _gateway_chat(body.get("agentId"), body.get("message"), body.get("history"))
+                if result is None:
+                    result = _chat_with_actions(lambda: agency_agents.chat(
+                        body.get("agentId"), body.get("message"), body.get("history")))
             elif parsed.path == "/api/agency/agents/task":
                 result = agency_agents.send_task(
                     body.get("agentId"), body.get("title"))
