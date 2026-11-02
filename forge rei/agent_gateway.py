@@ -362,7 +362,7 @@ def _layers(agent, business):
     creed = agent_creed.block(creed_name) if creed_name else ""
     if creed_name and not creed.strip():
         raise RuntimeError(f"creed missing for {business}")
-    context = ta._context(business) or ""
+    context = "" if business == "hq" else ta._context(business) or ""    # hq's context IS the North Star
     playbook = brain_io.read_note(f"Skills/{agent}-playbook.md").get("content") or ""
     tail = context + (f"\n\n=== YOUR LEARNED PLAYBOOK (vault) ===\n{playbook}" if playbook else "")
     return star + creed, tail, {"northStar": len(star), "creed": len(creed), "context": len(context),

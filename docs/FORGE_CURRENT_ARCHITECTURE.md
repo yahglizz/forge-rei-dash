@@ -102,10 +102,10 @@ Business-truth for the daycare lives **outside** this repo in the private
 | `forge-daily-learn.timer` | box, 20:00 ET | POSTs learn/run routes for 6 agents. |
 | `forge-backup.timer` | box, 03:30 ET | *[wave 1]* tarball of box-only state → `/root/backups` (7 kept). |
 | `forge-review.timer` | box, Mon 08:00 UTC | *[wave 1]* Fixed — `ExecStart` JSON quoted (WP-F d141618), box unit confirmed 2026-09-22. `/api/review/run` now returns the real Claude error instead of a bare 500. |
-| Tailscale Serve / Funnel | box | Serve → :7799 (tailnet only). Funnel :8443 → portal :10000 (public). |
+| Tailscale Serve / Funnel | box | Serve → :7799 (tailnet only). Funnel :8443 → portal :10000 (public); `/gateway` → agent gateway 127.0.0.1:10001 (public, keyed; n8n's door to the agents, see `CLAUDE.md` §8a). |
 | ufw | box | deny incoming except 22/tcp + `tailscale0`. |
 | **Runs on the Mac (dev box)** | launchd | `com.forge.autosync` (code → GitHub), `com.agentic.brain-sync` (vault box→Mac, every 6 h), `com.graphify.brain-sync`. `~/Desktop/LeadScraper` (Apify) is Mac-only. **If the Mac is closed, production keeps running**; only vault mirroring to the Mac and lead scraping pause. |
-| Not present | — | No n8n on the box (agency n8n points at an external workspace that returns 404), no cron jobs, no Docker, no queue system, no inbound webhooks (Telegram is long-poll). cloudflared binary present but unused/stale. |
+| Not present | — | No n8n on the box (n8n Cloud `atob.app.n8n.cloud` calls in through the gateway), no cron jobs, no Docker, no queue system, no inbound webhooks (Telegram is long-poll). cloudflared binary present but unused/stale. |
 
 ## 8. Businesses — active vs archive
 

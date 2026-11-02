@@ -15,6 +15,7 @@ need it open.
 | State backup | box `forge-backup.timer` 03:30 ET → `/root/backups/forge-state-YYYY-MM-DD.tgz` (7 kept) | `ls -lh /root/backups` |
 | Vault box→Mac | Mac `com.agentic.brain-sync` (6 h) | Mac only |
 | Client portal (public) | box, Funnel `:8443` → `:10000` | `tailscale funnel status` |
+| Agent gateway (public, keyed) | box, Funnel `:8443/gateway` → `127.0.0.1:10001` | `ls marcus_state/gateway/jobs`; n8n `FORGE Agent Tests` |
 
 ## 2. Health checks
 

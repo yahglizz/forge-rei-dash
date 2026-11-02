@@ -426,6 +426,28 @@ update that skill if you improved the pattern.
 
 ---
 
+## 8a. n8n → agents (the gateway)
+
+n8n Cloud (`atob.app.n8n.cloud`) is the manager. It reaches the box through one door:
+`https://forge-reios.tail0a2dda.ts.net:8443/gateway` → `127.0.0.1:10001` (`forge rei/agent_gateway.py`).
+Never put a dashboard route behind Funnel; the dashboard trusts loopback.
+
+- **The agent runtime is Python, not Claude Code.** Nothing auto-loads a CLAUDE.md. Each job spawns
+  `agent_runner.py` as `nobody` with cwd = the agent's folder and one Anthropic key. It reads the files
+  in `AGENTS` (`agent_gateway.py`) relative to that cwd and returns path + sha256 + chars. Missing file
+  or over 60k chars = the job fails. To change what an agent reads, edit that list.
+- **Workflow jobs** (`POST /v1/run`, workflow key): n8n sends `task_id` + `data`. The instruction, agent,
+  allowed workflows and exact GET routes live in `TASKS`, so a new task is a code change. `data` is
+  untrusted. The only write is `file_task`, a tap card.
+- **Owner chat** (`POST /v1/chat`, owner key): same tools and gates as dashboard chat (`dash_live`).
+- **Keys:** SHA-256 on the box (`/etc/default/forge-reios`), plaintext in n8n credentials and
+  `~/.agent-keys/forge-gateway.env`. Rotate = new key, new hash, restart.
+- **Records:** `marcus_state/gateway/jobs/` (14 days), one `action_log` row per job, failures to the
+  business Telegram chat. One idempotency key = one run; `lost` (restart mid-job) respawns once.
+- **n8n side:** every caller goes through sub-workflow `FORGE Agent Dispatch`. Agent calls are additive
+  tail branches with `onError: continue`, so an agent failure can't break a lane.
+- **Check:** `FORGE Agent Tests` in n8n; `python3 test_agent_gateway.py` here.
+
 ## 9. Quick reference
 
 - Local run (UI-only; loops are off unless `FORGE_MARCUS=1`): `FORGE_PORT=7799 python3 connector.py`

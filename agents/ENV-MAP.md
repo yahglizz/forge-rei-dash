@@ -143,6 +143,18 @@ Engine file: `forge rei/mission_control_agent.py` (built as `ORION` in `forge re
 Orion reads other agents' state through the dashboard API, so it needs no business keys of its own.
 Suggested MCPs (not read from code): brain, scheduled-tasks, Vercel (runtime logs).
 
+## Agent gateway (n8n → box)
+
+| Var | Where | Purpose |
+|---|---|---|
+| `FORGE_GATEWAY_PORT` | `/etc/default/forge-reios` | Starts the listener on 127.0.0.1. Unset = off |
+| `FORGE_GATEWAY_WORKFLOW_KEY_SHA256` | same | Hash of the key n8n workflows send |
+| `FORGE_GATEWAY_OWNER_KEY_SHA256` | same | Hash of the key `FORGE Agent Chat` sends |
+| `FORGE_GATEWAY_OWNER_IDS` | same | Telegram user ids allowed in owner chat |
+
+Plain keys live only in n8n credentials and `~/.agent-keys/forge-gateway.env`. Each job's child gets
+exactly one Anthropic key plus a per-job token.
+
 ## Broken or empty keys that block an agent (STATUS.md, 2026-10-31)
 
 | Agent | Key | Status | What it blocks |

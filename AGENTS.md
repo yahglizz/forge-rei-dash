@@ -78,6 +78,12 @@ in the production roster (a Family Contact Form alone is paperwork, not enrollme
 
 ### Dropship — Midas (archived; read + propose only, never launches/spends/orders)
 
+### n8n → agents
+n8n Cloud (`atob.app.n8n.cloud`) triggers agents through `agent_gateway.py`: each job runs as a child
+process from the agent's own folder, loads that folder's files with a recorded hash, and holds one
+Anthropic key. Workflows name a fixed task; owner chat has dashboard-chat tools and gates. Details:
+`CLAUDE.md` §8a.
+
 ### Telegram routing
 Each business has its own chat (`/bind daycare|agency|wholesale|dropship`); everything about a
 business — alerts, pings, loop-down/recovered, receipts — goes ONLY to that chat. HQ keeps

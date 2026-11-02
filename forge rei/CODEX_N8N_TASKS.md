@@ -1,5 +1,8 @@
 # CODEX_N8N_TASKS — FORGE Task Bot (n8n Telegram worker)
 
+> **RETIRED 2026-11-02.** FORGE n8n moved to `atob.app.n8n.cloud`. `FORGE Agent Chat` replaces this bot
+> and runs agents on the box (`CLAUDE.md` §8a). The `yg4st` instance below was never audited. Kept for history.
+
 > **MISSION.** This whole operation runs Yahjair's **wholesale real-estate agency**.
 > The AI employees (Marcus = acquisitions/texting, Scout = triage) work **24/7 as if
 > they were Yahjair himself** — so deals move forward while he's at his day job. Every
