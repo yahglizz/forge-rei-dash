@@ -22,6 +22,22 @@ class CostTrackerTest(unittest.TestCase):
         self.assertAlmostEqual(18.0, s["today"]["claudeUSD"], places=2)
         self.assertEqual(1_000_000, s["today"]["claudeIn"])
 
+    def test_by_model_counts_and_old_rows_still_load(self):
+        # an old day row (no byModel) must load and keep accumulating
+        cost_tracker._save({"days": {cost_tracker._today_key(): {"claudeUSD": 1.0, "claudeIn": 5}}})
+        cost_tracker.record_anthropic("claude-haiku-5-5", 1000, 100)
+        cost_tracker.record_anthropic("claude-haiku-5-5", 1000, 100)
+        cost_tracker.record_anthropic("claude-sonnet-5-5", 1000, 100)
+        s = cost_tracker.status()
+        bm = s["today"]["byModel"]
+        self.assertEqual(2, bm["claude-haiku-5-5"]["calls"])
+        self.assertEqual(1, bm["claude-sonnet-5-5"]["calls"])
+        self.assertGreater(bm["claude-sonnet-5-5"]["usd"], 0)
+        self.assertEqual(2, s["mtd"]["byModel"]["claude-haiku-5-5"]["calls"])
+        # a day row without byModel reads as {}
+        cost_tracker._save({"days": {cost_tracker._today_key(): {"claudeUSD": 1.0}}})
+        self.assertEqual({}, cost_tracker.status()["today"]["byModel"])
+
     def test_haiku_5_5_has_two_rate_cards_split_at_a_100k_prompt(self):
         day = lambda: cost_tracker.status()["today"]["claudeUSD"]
         self.assertEqual((0.10, 0.50), cost_tracker._price_for("claude-haiku-5-5"))

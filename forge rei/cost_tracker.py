@@ -144,6 +144,9 @@ def record_anthropic(model, input_tokens, output_tokens,
             b = by.setdefault(who, {"usd": 0.0, "calls": 0})
             b["usd"] = round(float(b.get("usd") or 0.0) + usd, 6)
             b["calls"] = int(b.get("calls") or 0) + 1
+            bm = row.setdefault("byModel", {}).setdefault(str(model or "unknown"), {"usd": 0.0, "calls": 0})
+            bm["usd"] = round(float(bm.get("usd") or 0.0) + usd, 6)
+            bm["calls"] = int(bm.get("calls") or 0) + 1
             _save(_prune(d))
     except Exception:
         pass
@@ -228,11 +231,16 @@ def status():
         mtd_in = mtd_out = mtd_sms = mtd_cache_read = mtd_cache_write = 0
         mtd_claude_usd = 0.0
         by_agent = {}
+        by_model = {}
         for k, row in days.items():
             if not k.startswith(month):
                 continue
             for who, b in (row.get("byAgent") or {}).items():
                 acc = by_agent.setdefault(who, {"usd": 0.0, "calls": 0})
+                acc["usd"] += float(b.get("usd") or 0.0)
+                acc["calls"] += int(b.get("calls") or 0)
+            for m, b in (row.get("byModel") or {}).items():
+                acc = by_model.setdefault(m, {"usd": 0.0, "calls": 0})
                 acc["usd"] += float(b.get("usd") or 0.0)
                 acc["calls"] += int(b.get("calls") or 0)
             mtd_in += int(row.get("claudeIn") or 0)
@@ -266,8 +274,11 @@ def status():
                       "claudeCacheWrite": int(trow.get("claudeCacheWrite") or 0),
                       "claudeCacheRead": int(trow.get("claudeCacheRead") or 0),
                       "sms": int(trow.get("sms") or 0),
+                      "byModel": trow.get("byModel") or {},
                       "usd": today_usage},
-            "mtd": {"claudeIn": mtd_in, "claudeOut": mtd_out,
+            "mtd": {"byModel": {m: {"usd": round(v["usd"], 4), "calls": v["calls"]}
+                                for m, v in by_model.items()},
+                    "claudeIn": mtd_in, "claudeOut": mtd_out,
                     "claudeUSD": round(mtd_claude_usd, 4),
                     "claudeCacheWrite": mtd_cache_write, "claudeCacheRead": mtd_cache_read,
                     "sms": mtd_sms, "smsUSD": mtd_sms_usd,
