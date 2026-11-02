@@ -583,6 +583,69 @@ def test_a_tool_call_queued_on_a_given_up_job_is_refused():
     assert not t.CALLS["posts"] and ctx["col"]["auto"] == 0, "the old path owns this write now"
 
 
+def ended_ctx(token):
+    job = {"id": "sol-" + "e" * 32, "mode": "chat", "agent": "solomon", "business": "daycare", "task": "chat",
+           "workflow": "chat", "origin": "dash", "status": "running", "reply": "", "error": "", "cards": []}
+    return {"job": job, "req": {"message": "hi"}, "token": token, "cards": [], "finished": threading.Event(),
+            "col": {"actions": [], "done": [], "auto": 0, "consults": []}}
+
+
+def test_a_tool_call_after_a_normal_finish_is_refused():
+    """A late call that looked its token up before _finish popped it: a write here would land unrecorded."""
+    reset()
+    ctx = ended_ctx("late-call")
+    gw._finish(ctx, {"reply": "all done"})
+    assert ctx["ended_by"] == "job" and ctx["job"]["status"] == "done", ctx["job"]
+    gw._TOKENS[ctx["token"]] = ctx          # as a request already past the token check holds it
+    try:
+        out = gw.tool_http("late-call", {"name": "api_post", "input": {
+            "path": AUTO, "body": {"agentId": "solomon", "title": "x"}, "summary": "Task"}})
+    finally:
+        gw._TOKENS.pop(ctx["token"], None)
+    assert out == (403, {"error": "job stopped"}), out
+    assert not t.CALLS["posts"] and ctx["col"]["auto"] == 0
+
+
+def test_the_snapshot_holds_everything_a_finished_call_wrote():
+    """_finish waits out a call in flight, then snapshots. It lets go of tool_lock before it saves."""
+    reset()
+    ctx = ended_ctx("slow-call")
+    gw._TOKENS[ctx["token"]] = ctx
+    running = threading.Event()
+    real = dash_live.run_tool
+
+    def slow(name, inp, agent):
+        running.set()
+        time.sleep(0.5)
+        col = dash_live._TL.c
+        col["auto"] += 1
+        col["done"].append({"summary": "Slow write", "ok": True})
+        return {"done": True}
+    dash_live.run_tool = slow
+    try:
+        call = threading.Thread(target=gw.tool_http, args=("slow-call", {"name": "api_post", "input": {}}))
+        call.start()
+        assert running.wait(5), "the tool call started"
+        gw._finish(ctx, {"reply": "all done"})
+        call.join(5)
+    finally:
+        dash_live.run_tool = real
+    job = ctx["job"]
+    assert job["done"] == ["Slow write"], job
+    assert gw._load(job["id"])["done"] == ["Slow write"], "the saved record has it too"
+    assert ctx["tool_lock"].acquire(blocking=False), "_finish released tool_lock"
+    ctx["tool_lock"].release()
+
+
+def test_the_first_route_to_end_a_turn_keeps_it():
+    reset()
+    ctx = ended_ctx("race-1")
+    ctx["ended_by"] = "waiter"
+    gw._finish(ctx, {"reply": "late reply"})
+    assert ctx["ended_by"] == "waiter" and ctx["job"]["reply"] == "" and "stopped waiting" in ctx["job"]["error"]
+    assert not rows(), "a job the waiter stopped records nothing"
+
+
 def test_only_the_owner_gets_the_gateway_on_telegram():
     reset()
     before = t.CALLS["model"]

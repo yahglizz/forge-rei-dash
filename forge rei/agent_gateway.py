@@ -599,7 +599,9 @@ def _check_self_test(ctx, result):
 
 def _finish(ctx, result):
     job = ctx["job"]
-    if ctx.setdefault("ended_by", "job") == "waiter":    # the old path owns this turn: no reply, no history
+    with ctx.setdefault("tool_lock", threading.Lock()):   # a call in flight lands before the snapshot below
+        ended_by = ctx.setdefault("ended_by", "job")      # first route wins; later calls are refused
+    if ended_by == "waiter":                   # the old path owns this turn: no reply, no history
         result = {**result, "lost": False, "reply": "", "error": "the caller stopped waiting"}
     error = str(result.get("error") or "")
     status = "lost" if result.get("lost") else "failed" if error else "done"
@@ -756,7 +758,7 @@ def tool_http(token, payload):
     name, inp = str(payload.get("name") or ""), payload.get("input")
     inp = inp if isinstance(inp, dict) else {}
     with ctx.setdefault("tool_lock", threading.Lock()):
-        if _given_up(ctx):                     # queued here when the wait ran out: the old path owns the turn
+        if ctx.get("ended_by"):                # queued here when the turn ended: _finish won't see this write
             return 403, {"error": "job stopped"}
         out = (_workflow_tool if ctx["job"]["mode"] == "workflow" else _chat_tool)(ctx, name, inp)
     refused = isinstance(out, dict) and bool(out.pop("refused", False))
