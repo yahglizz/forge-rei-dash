@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from datetime import date, datetime, timezone
 import urllib.error
@@ -146,9 +147,11 @@ def _req(method: str, path: str, params: dict | None = None,
             detail = "Stripe request failed"
             try:
                 payload = json.loads(body.decode("utf-8"))
-                detail = payload.get("error", {}).get("message", detail)
+                detail = str(payload.get("error", {}).get("message", detail))
             except Exception:  # noqa: BLE001
                 pass
+            # Stripe echoes a masked key ("sk_live_****abcd") on a bad key; this text reaches agents.
+            detail = re.sub(r"\b(?:sk|rk|pk)_(?:live|test)_[\w*]*", "[redacted key]", detail)
             raise StripeError(error.code, detail, "stripe_http_error") from None
         except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
             last_error = error
