@@ -265,7 +265,7 @@ def test_billing_calls_run_at_the_invoices_own_center():
             raise AssertionError("bad center id accepted")
     src = open(connector.__file__).read()
     for needle in ('lambda: daycare_billing_link.compose(session, body.get("invoice_id"))',
-                   'session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL))',
+                   'result = _billing_at(session, body.get("location_id"), _send)',
                    'q.get("location_id", [""])[0], lambda: daycare_billing_link.timeline('):
         assert needle in src, needle
 
@@ -340,8 +340,20 @@ def test_a_sent_text_is_never_reported_as_failed_because_the_switch_back_failed(
 
 def test_phone_pay_link_send_is_refused_for_a_mothers_touch():
     import connector
+    import daycare_billing_link
+    amt = Sess(); amt.profile = {"role": "admin", "location_id": AMT, "active_location_id": AMT}
+    try:
+        connector._phone_send_guard(amt)
+    except daycare_billing_link.BillingLinkError as e:
+        assert e.status == 409 and e.code == "no_center_stripe"
+    else:
+        raise AssertionError("phone pay-link send allowed at A Mother's Touch")
+    ok = Sess(); ok.profile = {"role": "admin", "location_id": ATOB, "active_location_id": ATOB2}
+    connector._phone_send_guard(ok)                                # ATOB centers pass
+    # the guard runs INSIDE the at_location block, judged on the real center, not on the request field
     src = open(connector.__file__).read()
-    assert 'daycare_fees.AMT:\n                    raise daycare_billing_link.BillingLinkError(409, daycare_fees.NO_AMT_STRIPE' in src
+    assert "_phone_send_guard(session)" in src and "return daycare_billing_link.send(session, body.get" in src
+    assert 'body.get("location_id") or "").lower() == daycare_fees.AMT' not in src
 
 
 def test_routes_are_wired_and_get_is_read_only():

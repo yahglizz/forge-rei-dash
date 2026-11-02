@@ -3551,6 +3551,14 @@ def _billing_at(session, loc, fn):
     return result
 
 
+def _phone_send_guard(session):
+    """The phone never texts a pay link for A Mother's Touch: stripe_io gives it A Touch of Blessings'
+    Stripe key. Checked after at_location has switched (membership-checked), so a client cannot name a
+    different center than the invoice's to dodge it. The desktop path is unchanged."""
+    if str(daycare_supabase.active_location(session)).lower() == daycare_fees.AMT:
+        raise daycare_billing_link.BillingLinkError(409, daycare_fees.NO_AMT_STRIPE, "no_center_stripe")
+
+
 def _log_billing_restore_failed():
     try:
         print("[daycare] billing call finished but the center switch-back failed", flush=True)
@@ -5190,10 +5198,13 @@ class Handler(BaseHTTPRequestHandler):
                 result = _billing_at(session, body.get("location_id"),
                                      lambda: daycare_billing_link.compose(session, body.get("invoice_id")))
             elif path == "/api/daycare/billing/link/send":
-                if str(body.get("location_id") or "").lower() == daycare_fees.AMT:
-                    raise daycare_billing_link.BillingLinkError(409, daycare_fees.NO_AMT_STRIPE, "no_center_stripe")
-                result = _billing_at(session, body.get("location_id"), lambda: daycare_billing_link.send(
-                    session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL))
+                phone = bool(body.get("location_id"))          # the phone always names the center; the desktop never does
+
+                def _send():
+                    if phone:
+                        _phone_send_guard(session)             # judged on the center we are ACTUALLY standing in
+                    return daycare_billing_link.send(session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL)
+                result = _billing_at(session, body.get("location_id"), _send)
             elif path == "/api/daycare/billing/fee-link":           # mints a link + draft; sends nothing
                 result = daycare_fees.create(session, body)
             elif path == "/api/daycare/billing/reminders/run":      # QA Sandbox only; real centers refused inside
