@@ -625,7 +625,7 @@ def _finish(ctx, result):
         status, error = "failed", "a tap card could not reach Telegram"
     job["receipts"] = {**job.get("receipts", {}), **{k: result[k] for k in (
         "cwd", "files", "tools", "usage", "turns", "secretEnvNames", "systemChars", "foreignProbe",
-        "model", "escalated") if k in result}}
+        "model", "escalated", "escalateReason") if k in result}}
     if job["mode"] == "workflow" and TASKS[job["task"]].get("self_test") and status == "done":
         job["checks"] = _check_self_test(ctx, result)
         if not all(job["checks"].values()):

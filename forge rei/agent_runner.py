@@ -140,7 +140,8 @@ def run(spec):
                "text": spec["head"] + "\n\n=== YOUR FOLDER FILES (read from " + out["cwd"] + ") ==="
                + folder_text + spec["tail"]}]
     out["systemChars"] = len(system[0]["text"])
-    review_agent.routed(lambda model, extra: _run_turn(spec, system, model, extra, out), spec["models"])
+    review_agent.routed(lambda model, extra: _run_turn(spec, system, model, extra, out), spec["models"],
+                        lambda why: out.update(escalated=True, escalateReason=why))
     if spec.get("foreign_probe"):              # the isolation check runs in code, not on the model's word
         probe = call_tool(spec, "api_get", {"path": spec["foreign_probe"]})
         out["foreignProbe"] = {"path": spec["foreign_probe"], "refused": bool(probe.get("refused"))}

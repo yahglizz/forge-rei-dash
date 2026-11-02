@@ -307,6 +307,23 @@ def _text(t):
 TOOL = {"name": "api_get", "description": "read", "input_schema": {"type": "object"}}
 
 
+LAST_GATEWAY_OUT = []
+
+
+class ApiErr(RuntimeError):
+    """What post_messages / agent_runner.call_model raise on an HTTP error: the status rides on .code."""
+    def __init__(self, code):
+        super().__init__(f"Anthropic API error ({code}): x")
+        self.code = code
+
+
+def _next(script):
+    item = script.pop(0) if script else _text("done")
+    if isinstance(item, BaseException):
+        raise item
+    return item
+
+
 def _dash(script, payloads, ran):
     import dash_live
     import review_agent
@@ -315,7 +332,7 @@ def _dash(script, payloads, ran):
 
     def post(key, payload):
         payloads.append(json.loads(json.dumps(payload)))
-        return script.pop(0) if script else _text("done")
+        return _next(script)
     dash_live.active, dash_live.live_block = (lambda a: True), (lambda a: "")
     dash_live.tools, dash_live.writes_on = (lambda a: [TOOL]), (lambda a: False)
     dash_live.run_tool = lambda name, inp, a: (ran.append(name), "result")[1]
@@ -333,7 +350,7 @@ def _telegram(script, payloads, ran):
 
     def call(key, payload):
         payloads.append(json.loads(json.dumps(payload)))
-        return script.pop(0) if script else _text("done")
+        return _next(script)
     ta.system_prompt = lambda a, b: "SYS"
     ta._run_tool = lambda name, inp, *a: (ran.append(name), "result")[1]
     try:
@@ -349,14 +366,16 @@ def _gateway(script, payloads, ran):
 
     def call(spec, payload):
         payloads.append(json.loads(json.dumps(payload)))
-        return script.pop(0) if script else _text("done")
+        return _next(script)
     ar.load_files = lambda rels, root: ("", [])
     ar.call_model = call
     ar.call_tool = lambda spec, name, inp: (ran.append(name), {"result": "result"})[1]
     try:
-        return ar.run({"files": [], "root": ".", "head": "h", "tail": "t", "tools": [TOOL], "max_tokens": 2500,
-                       "messages": [{"role": "user", "content": ORIGINAL}], "max_turns": 3,
-                       "models": review_agent.chat_models()})["reply"]
+        out = ar.run({"files": [], "root": ".", "head": "h", "tail": "t", "tools": [TOOL], "max_tokens": 2500,
+                      "messages": [{"role": "user", "content": ORIGINAL}], "max_turns": 3,
+                      "models": review_agent.chat_models()})
+        LAST_GATEWAY_OUT[:] = [out]
+        return out["reply"]
     finally:
         ar.load_files, ar.call_model, ar.call_tool = saved
 
@@ -455,6 +474,91 @@ def check_router():
         assert ps[-1]["tool_choice"] == {"type": "none"} and ps[-1]["model"] == H and _offers(ps[-1]), loop
         assert len(ps) == cap + 1, loop
     print("router OK")
+
+
+def _try(loop, script):
+    """-> (reply or None, error text or None, payloads, ran). The telegram loop folds an API error into its reply."""
+    payloads, ran = [], []
+    try:
+        reply = LOOPS[loop](list(script), payloads, ran)
+    except Exception as e:  # noqa: BLE001
+        return None, f"{type(e).__name__}: {e}", payloads, ran
+    return (None, reply, payloads, ran) if reply.startswith("Couldn't reach my brain") else (reply, None, payloads, ran)
+
+
+def check_api_failure_falls_back_to_sonnet():
+    import socket
+    import urllib.error
+    import review_agent as ra
+    os.environ.pop("FORGE_CHAT_ROUTER", None)
+    assert [ra.transient_error(e) for e in (
+        ApiErr(500), ApiErr(529), ApiErr(503), urllib.error.URLError("reset"), ConnectionResetError(),
+        TimeoutError(), socket.timeout(), ApiErr(400), ApiErr(401), ApiErr(403), ApiErr(429), ValueError("x"))] == [
+        True] * 7 + [False] * 5
+    for loop in LOOPS:
+        # Haiku overloaded (529), a 500, a dropped connection, a timeout: Sonnet answers from the original messages.
+        for bad in (ApiErr(529), ApiErr(500), urllib.error.URLError("reset"), TimeoutError()):
+            reply, err, ps, ran = _try(loop, [bad, _text("the plan")])
+            assert reply == "the plan" and err is None, (loop, bad, reply, err)
+            assert [p["model"] for p in ps] == [H, S] and ran == [], (loop, bad)
+            assert not _offers(ps[1]) and ps[1]["messages"] == ps[0]["messages"], loop
+
+        # Haiku read a tool, THEN 529'd: the read reruns on Sonnet from the original messages, nothing else ran.
+        reply, err, ps, ran = _try(loop, [_use(), ApiErr(529), _text("3 tours")])
+        assert reply == "3 tours" and [p["model"] for p in ps] == [H, H, S] and ran == ["api_get"], (loop, ps, ran)
+        assert ps[2]["messages"] == ps[0]["messages"] and len(ps[2]["messages"]) == 1, loop
+
+        # A 4xx (bad request, auth, billing, 429) is an error: Sonnet is never called.
+        for code in (400, 401, 403, 429):
+            reply, err, ps, ran = _try(loop, [ApiErr(code), _text("never")])
+            assert reply is None and err and str(code) in err, (loop, code, err)
+            assert [p["model"] for p in ps] == [H], (loop, code)
+
+        # One fallback only: Sonnet failing too is an error, with no third call and no loop back to Haiku.
+        reply, err, ps, ran = _try(loop, [ApiErr(529), ApiErr(529), _text("never")])
+        assert reply is None and err and "529" in err and [p["model"] for p in ps] == [H, S], (loop, err, ps)
+
+        # A write on Haiku restarts before it runs (so it never ran on Haiku); a Sonnet failure after that
+        # is returned as the error, never replayed.
+        reply, err, ps, ran = _try(loop, [_use("api_post"), ApiErr(500), _text("never")])
+        assert reply is None and err and [p["model"] for p in ps] == [H, S] and ran == [], (loop, err, ps, ran)
+
+        # Kill switch: Sonnet only, so its 529 is just an error, one call.
+        os.environ["FORGE_CHAT_ROUTER"] = "0"
+        try:
+            reply, err, ps, ran = _try(loop, [ApiErr(529), _text("never")])
+            assert reply is None and err and [p["model"] for p in ps] == [S], (loop, err, ps)
+        finally:
+            del os.environ["FORGE_CHAT_ROUTER"]
+
+    # Gateway receipts say why it restarted; a clean escalate has no reason.
+    _try("gateway", [ApiErr(529), _text("the plan")])
+    out = LAST_GATEWAY_OUT[0]
+    assert out["escalated"] is True and out["escalateReason"] == "haiku_error" and out["model"] == S, out
+    _try("gateway", [_use("escalate"), _text("the plan")])
+    assert LAST_GATEWAY_OUT[0]["escalated"] is True and "escalateReason" not in LAST_GATEWAY_OUT[0]
+    _try("gateway", [_use(), _text("3 tours")])
+    assert LAST_GATEWAY_OUT[0]["escalated"] is False and LAST_GATEWAY_OUT[0]["model"] == H
+
+    # post_messages hands the HTTP status to the router on .code (urlopen faked, no network).
+    import io
+    saved = ra.claude_urlopen
+
+    def boom(code):
+        def f(req, timeout):
+            raise urllib.error.HTTPError(req.full_url, code, "x", {}, io.BytesIO(b'{"error": {"message": "m"}}'))
+        return f
+    try:
+        for code in (529, 400):
+            ra.claude_urlopen = boom(code)
+            try:
+                ra.post_messages("k", {"model": H, "max_tokens": 10})
+                raise AssertionError("must raise")
+            except RuntimeError as e:
+                assert e.code == code and ra.transient_error(e) is (code == 529), (code, e)
+    finally:
+        ra.claude_urlopen = saved
+    print("api failure fallback OK")
 
 
 def check_consult_round_final_is_sonnet():
@@ -561,6 +665,7 @@ if __name__ == "__main__":
     check_allowlist()
     check_env_cannot_reach_a_banned_model()
     check_router()
+    check_api_failure_falls_back_to_sonnet()
     check_consult_round_final_is_sonnet()
     check_gateway_spec_routes_chat_only()
     check_pause_turn_passes_thinking_back()

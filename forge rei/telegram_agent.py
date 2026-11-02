@@ -743,6 +743,8 @@ def chat(agent_id, text, history, chat_id, key=None, call=None):
             try:
                 data = call(key, payload)
             except Exception as e:  # noqa: BLE001
+                if extra and review_agent.transient_error(e):    # the cheap model is down: one try on SMART
+                    return review_agent.ESCALATED
                 return {"reply": f"Couldn't reach my brain: {e}\nSlash commands still work "
                                  "(/status, /starts, /logins, /pin).", "cards": cards,
                         "error": str(e)}

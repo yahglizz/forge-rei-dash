@@ -277,7 +277,9 @@ def post_messages(key, payload):
         except Exception:  # noqa: BLE001
             msg = str(e)
         _ai_health(False, e.code, msg, key)
-        raise RuntimeError(f"Anthropic API error ({e.code}): {msg}") from None
+        err = RuntimeError(f"Anthropic API error ({e.code}): {msg}")
+        err.code = e.code      # transient_error() reads it: the chat router falls back on a 5xx
+        raise err from None
     except Exception as e:  # noqa: BLE001 — network / timeout: transient, then re-raise
         _ai_health(False, None, e, key)
         raise
@@ -370,12 +372,32 @@ def hand_up(uses, said, final):
     return any(u.get("name") not in READ_TOOLS for u in uses) or (final and not said)
 
 
-def routed(turn, models=None):
+def transient_error(e):
+    """Did the model call fail before it answered, in a way worth one try on the next model? Yes for
+    a 5xx (529 overloaded included), a timeout or a dropped connection. No for a 4xx: bad request,
+    auth, credit/billing, the circuit gate, a 429 rate limit - the next model would get the same."""
+    code = getattr(e, "code", None)
+    if isinstance(code, int):
+        return code >= 500
+    return isinstance(e, OSError)     # URLError, ConnectionError, TimeoutError, socket.timeout
+
+
+def routed(turn, models=None, on_fallback=None):
     """turn(model, extra_tools) -> its result, or ESCALATED to restart on the next model. The last
-    model is offered no escalate, so a turn restarts at most once."""
+    model is offered no escalate, so a turn restarts at most once. A transient API failure on a
+    non-last model restarts the same way (on_fallback("haiku_error") first, for receipts). That is
+    safe after tool calls: only READ_TOOLS ever run on a non-last model (hand_up), so a restart
+    reruns reads and nothing with a side effect. The last model's failure just raises: no second fallback."""
     models = models or chat_models()
     for model in models[:-1]:
-        out = turn(model, [ESCALATE_TOOL])
+        try:
+            out = turn(model, [ESCALATE_TOOL])
+        except Exception as e:  # noqa: BLE001
+            if not transient_error(e):
+                raise
+            if on_fallback:
+                on_fallback("haiku_error")
+            continue
         if out is not ESCALATED:
             return out
     return turn(models[-1], [])
