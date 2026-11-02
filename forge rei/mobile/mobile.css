@@ -860,3 +860,5 @@ body {
 .m-badge { font-weight: 700; }
 /* Daycare primary button: white on deep purple (~5.7:1); dark text on #8B5CF6 was ~4:1. */
 .biz-daycare .m-btn:not(.ghost) { background: #7c3aed; color: #fff; }
+/* Daycare stat tiles: no decorative corner circle (desktop KPI tiles have none). */
+.mbd-stat:after { display: none; }
