@@ -45,8 +45,21 @@ class FeeError(Exception):
         return {"ok": False, "detail": self.message, "error": self.message, "code": self.code}
 
 
-def _center(value) -> str:
-    return daycare_supabase.require_uuid(value or ATOB, "location_id")
+def _center(session, value) -> str:
+    """The center this call is about — and proof the caller may act there. RLS hands list_locations
+    only the centers the profile belongs to, so a center id outside it never reaches Stripe.
+    No id given -> A Touch of Blessings (owner rule), else the caller's own active center."""
+    profile = getattr(session, "profile", None) or {}
+    if profile.get("role") not in daycare_supabase.MANAGEMENT_ROLES:
+        raise FeeError(403, "Management or admin access is required", "management_required")
+    mine = {str(r.get("id")).lower() for r in daycare_supabase.list_locations(session).get("locations") or []}
+    if value:
+        center = daycare_supabase.require_uuid(value, "location_id").lower()
+    else:
+        center = ATOB if ATOB in mine else str(daycare_supabase.active_location(session)).lower()
+    if center not in mine:
+        raise FeeError(403, "You don't have access to that center", "location_mismatch")
+    return center
 
 
 def _iso(ts) -> str | None:
@@ -80,7 +93,7 @@ def _pages(path: str, params: dict, key: str, cap: int = 3) -> list:
 
 def list_fees(session, q=None) -> dict:
     """Paid / unpaid fee links for one center. Stripe is the source of truth; cached 30 s."""
-    center = _center(((q or {}).get("location_id") or [""])[0])
+    center = _center(session, ((q or {}).get("location_id") or [""])[0])
     hit = _CACHE.get(center)
     if hit and time.time() - hit[0] < CACHE_SECONDS:
         return hit[1]
@@ -157,7 +170,7 @@ def create(session, body) -> dict:
     contact = str(body.get("contact_id") or "").strip()
     if contact and not _GHL_ID.match(contact):
         raise FeeError(400, "Contact id looks wrong", "validation_error")
-    center = _center(body.get("location_id"))
+    center = _center(session, body.get("location_id"))
     guard = (contact or family.lower(), purpose, cents, center)
     with _LOCK:
         hit = _RECENT.get(guard)

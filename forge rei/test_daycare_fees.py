@@ -8,6 +8,7 @@ from unittest import mock
 
 import daycare_fees as fees
 import daycare_ghl
+import daycare_supabase
 import stripe_io
 
 ATOB = "11111111-1111-1111-1111-111111111111"
@@ -15,6 +16,19 @@ ATOB2 = "22222222-2222-2222-2222-222222222222"
 AMT = "44444444-4444-4444-4444-444444444444"
 QA = "99999999-9999-9999-9999-999999999999"
 NOW = int(time.time())
+
+
+class Sess:
+    def __init__(self, role="admin"):
+        self.profile = {"role": role, "location_id": ATOB, "active_location_id": AMT}
+
+
+SESS = Sess()
+MINE = [ATOB, ATOB2, AMT, QA]
+
+
+def _locations(session):
+    return {"ok": True, "locations": [{"id": i} for i in MINE]}
 
 
 class FakeStripe:
@@ -36,10 +50,11 @@ def keyfor(loc):
     return "sk_test_x" if str(loc) == QA else "sk_live_x"
 
 
-def run(stripe, fn, *a, **k):
+def run(stripe, fn, session, *a, **k):
     fees._CACHE.clear(); fees._RECENT.clear()
-    with mock.patch.object(stripe_io, "_req", stripe), mock.patch.object(stripe_io, "key_for_location", keyfor):
-        return fn(*a, **k)
+    with mock.patch.object(stripe_io, "_req", stripe), mock.patch.object(stripe_io, "key_for_location", keyfor), \
+            mock.patch.object(daycare_supabase, "list_locations", _locations):
+        return fn(session or SESS, *a, **k)
 
 
 def sess(sid, status, link="plink_a", cents=4900, ago=60, meta=None):
@@ -158,9 +173,10 @@ def test_create_validation_blocks_bad_input_before_stripe():
 def test_double_tap_returns_the_same_link():
     st = FakeStripe()
     fees._CACHE.clear(); fees._RECENT.clear()
-    with mock.patch.object(stripe_io, "_req", st), mock.patch.object(stripe_io, "key_for_location", keyfor):
-        a = fees.create(None, mk())
-        b = fees.create(None, mk())
+    with mock.patch.object(stripe_io, "_req", st), mock.patch.object(stripe_io, "key_for_location", keyfor), \
+            mock.patch.object(daycare_supabase, "list_locations", _locations):
+        a = fees.create(SESS, mk())
+        b = fees.create(SESS, mk())
     assert a["linkId"] == b["linkId"] and b.get("reused") and len([c for c in st.calls if c[0] == "POST"]) == 1
 
 
@@ -175,15 +191,56 @@ def test_missing_key_fails_closed():
         raise stripe_io.StripeError(503, "The Stripe test key is not set for the QA Sandbox", "not_configured")
     st = FakeStripe()
     fees._RECENT.clear(); fees._CACHE.clear()
-    with mock.patch.object(stripe_io, "_req", st), mock.patch.object(stripe_io, "key_for_location", nokey):
+    with mock.patch.object(stripe_io, "_req", st), mock.patch.object(stripe_io, "key_for_location", nokey), \
+            mock.patch.object(daycare_supabase, "list_locations", _locations):
         for fn, arg in ((fees.create, mk(location_id=QA)), (fees.list_fees, q(QA))):
             try:
-                fn(None, arg)
+                fn(SESS, arg)
             except fees.FeeError as e:
                 assert e.status == 503 and e.code == "not_configured"
             else:
                 raise AssertionError("must refuse without a key")
     assert st.calls == []
+
+
+def test_a_center_the_caller_does_not_belong_to_never_reaches_stripe():
+    global MINE
+    keep, MINE = MINE, [ATOB, ATOB2]                 # RLS: this profile is not a member of A Mother's Touch
+    try:
+        for fn, arg in ((fees.list_fees, q(AMT)), (fees.create, mk(location_id=AMT))):
+            st = FakeStripe()
+            try:
+                run(st, fn, None, arg)
+            except fees.FeeError as e:
+                assert e.status == 403 and e.code == "location_mismatch", e.payload()
+            else:
+                raise AssertionError("cross-center call was allowed")
+            assert st.calls == [], st.calls             # refused BEFORE any Stripe call
+    finally:
+        MINE = keep
+
+
+def test_only_management_roles_may_read_or_make_fees():
+    for role in ("parent", "staff", "", None):
+        st = FakeStripe()
+        for fn, arg in ((fees.list_fees, q(ATOB)), (fees.create, mk())):
+            try:
+                run(st, fn, Sess(role), arg)
+            except fees.FeeError as e:
+                assert e.status == 403 and e.code == "management_required"
+            else:
+                raise AssertionError(f"role {role!r} got through")
+        assert st.calls == []
+
+
+def test_default_center_falls_back_to_the_callers_own_when_not_in_atob():
+    global MINE
+    keep, MINE = MINE, [AMT]
+    try:
+        out = run(FakeStripe(), fees.list_fees, None, {})
+        assert out["centerId"] == AMT                   # the session's active center, never silently ATOB
+    finally:
+        MINE = keep
 
 
 def test_routes_are_wired_and_get_is_read_only():
