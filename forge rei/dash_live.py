@@ -279,7 +279,8 @@ def waiting_cards():
         c.update(kind="mac" if c["kind"] == "mac" else "write", expiresIn=max(0, int(c["expiresAt"] - now)))
         if c["kind"] == "mac":
             shown = mac_link.redact(c["command"])
-            c.update(command=shown, redacted=shown != c["command"])
+            c.update(command=shown, redacted=shown != c["command"],      # reason/why are agent-written text
+                     reason=mac_link.redact(c.get("reason") or ""), why=mac_link.redact(c.get("why") or ""))
         out.append(c)
     return out
 

@@ -29,12 +29,13 @@ function WYHidden({ c }) {
       <div style={{ marginTop: 6 }}>
         Part of this command looks like a key, so it is hidden here and there is no ✅ on this list.
         Open {wyName(c.agent)}'s chat in the {String(c.business || "")} Crew to read every character before you run it.
+        Left alone, it expires on its own.
       </div>
     </div>
   );
 }
 
-function MAWaitingCard() {
+function MAWaitingCard({ hide }) {   // hide = toks already on screen in the open chat: one copy, one ✅
   const w = window.useApiM("/api/chat/waiting");
   const rowsRefWY = useRefWY({});      // tok -> {c, until, live, tapped}: a card tapped here keeps its result until it expires
   const dataRefWY = useRefWY(null);
@@ -63,7 +64,7 @@ function MAWaitingCard() {
   }
   Object.keys(rows).forEach((k) => { if (!(rows[k].until > now)) delete rows[k]; });   // expired → row disappears
 
-  const shown = Object.keys(rows).map((k) => rows[k]).sort((a, b) => (Number(b.c.ts) || 0) - (Number(a.c.ts) || 0));
+  const shown = Object.keys(rows).map((k) => rows[k]).filter((r) => !(hide || []).includes(r.c.tok)).sort((a, b) => (Number(b.c.ts) || 0) - (Number(a.c.ts) || 0));
   if (!shown.length) return null;
   const n = shown.filter((r) => r.live).length;
   return (

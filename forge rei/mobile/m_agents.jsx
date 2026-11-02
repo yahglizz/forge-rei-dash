@@ -359,7 +359,7 @@ function MAgentsPage(props) {
     <React.Fragment>
       <window.MHeader title="Agents" sub="Your AI employees — synced with Telegram" />
       <div className="m-content" style={{ gap: 10 }}>
-        {window.MAWaitingCard && <window.MAWaitingCard />}
+        {window.MAWaitingCard && <window.MAWaitingCard hide={view === "chat" ? myCards.map((c) => c.tok) : []} />}
 
         {(macLine || n8nLine) && (
           <div className="m-row" style={{ gap: 14, fontSize: 12, padding: "0 2px", flexWrap: "wrap" }}>

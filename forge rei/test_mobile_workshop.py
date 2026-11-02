@@ -103,7 +103,8 @@ def test_waiting_route_lists_every_open_dash_card_newest_first():
     mac = ta._queue("dash", "orion", "hq", None, {}, "Run on your Mac: ls",
                     mac={"command": "ls -la", "reason": "look", "why": "any command", "surface": "t"})
     keyed = ta._queue("dash", "dyson", "agency", None, {}, "Run on your Mac: curl",
-                      mac={"command": "curl -H 'x: " + key + "' example.test", "reason": "r", "why": "w", "surface": "t"})
+                      mac={"command": "curl -H 'x: " + key + "' example.test", "reason": "uses " + key, "why": "w",
+                           "surface": "t"})
     newest = ta._queue("dash", "marcus", "wholesale", None, {}, "Two moves", calls=[
         {"path": "/api/pipeline/move", "body": {"id": "a"}}, {"path": "/api/pipeline/move", "body": {"id": "b"}}])
     ta._queue("-100", "solomon", "daycare", "/api/daycare/replies/approve", {}, "a Telegram card")
@@ -185,7 +186,7 @@ def test_waiting_list_wiring():
                 assert not re.search(r"\b%s\b" % name, f.read_text()) or (name == "MAWaitingCard" and f.name == "m_agents.jsx"), (name, f.name)
     a = (M / "m_agents.jsx").read_text()
     body = a[a.index('<div className="m-content" style={{ gap: 10 }}>'):]
-    assert body.index("<window.MAWaitingCard />") < body.index("(macLine || n8nLine)"), "first thing in Crew"
+    assert body.index("<window.MAWaitingCard hide=") < body.index("(macLine || n8nLine)"), "first thing in Crew"
     html = (M / "index.html").read_text()
     assert html.index('src="../chat_actions.jsx"') < html.index('src="m_waiting.jsx"') < html.index('src="m_app.jsx"')
 
