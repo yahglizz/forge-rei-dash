@@ -221,6 +221,19 @@ def test_tools_stay_inside_the_task():
     assert job["receipts"]["tools"][0] == {"name": "api_get", "path": "/api/marcus/status", "ok": False}
 
 
+def test_eco_always_reads_the_agency_account():
+    seen = []
+    real, ta._http = ta._http, lambda method, path, query=None, **k: seen.append((path, query)) or {}
+    try:
+        gw._workflow_tool({"job": {"task": "eco.self_test"}}, "api_get",
+                          {"path": "/api/agency/eco", "query": {"account": "act_1"}})
+        gw._workflow_tool({"job": {"task": "orion.self_test"}}, "api_get", {"path": "/api/system/health"})
+    finally:
+        ta._http = real
+    assert seen == [("/api/agency/eco", {"account": "act_2344043939684594"}),
+                    ("/api/system/health", None)], seen
+
+
 def test_file_task_is_a_tap_card_with_a_day_to_live():
     steps = [tool("file_task", {"title": "Call the Hill family"}), text("proposed")]
     MODEL["fn"] = lambda p: steps.pop(0)

@@ -92,6 +92,10 @@ SELF_TEST = {  # agent → (a route it may read, another business's route it mus
     "orion": ("/api/system/health", "/api/daycare/board"),
 }
 
+# Pipeboard's default account is the daycare's, which the agency allowlist refuses, so a bare read
+# of Eco's route is always "no account". The gateway names the agency's own, not the model.
+FIXED_QUERY = {"/api/agency/eco": {"account": "act_2344043939684594"}}
+
 TEST_WORKFLOW = "FORGE Agent Tests"
 TASKS = {
     "solomon.pipeline_review": {
@@ -687,6 +691,7 @@ def _workflow_tool(ctx, name, inp):
     query = dict(urllib.parse.parse_qsl(qs))
     if isinstance(inp.get("query"), dict):
         query.update(inp["query"])
+    query.update(FIXED_QUERY.get(path, {}))
     return ta._http("GET", path, query=query or None)
 
 
