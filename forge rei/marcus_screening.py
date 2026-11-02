@@ -414,8 +414,9 @@ class Screener:
         user = (triage + "\n\nSELLER TEXT THREAD (oldest first):\n" + transcript
                 + "\n\nReturn the screening report JSON now.")
         try:
+            # SMART, not FAST: the report carries nurtureDraft, a seller SMS in the owner's voice.
             raw = review_agent._claude(key, system, user, max_tokens=1400, effort="low",
-                                       model=review_agent.FAST_MODEL)
+                                       model=review_agent.SMART_MODEL)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"claude: {e}"
             return {"error": f"claude: {e}"}

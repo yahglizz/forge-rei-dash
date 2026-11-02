@@ -89,7 +89,7 @@ function CACard({ a }) {
     </div>}
     {st.s === "done" && (cmd ? <pre role="status" style={CA_CODE}>{st.msg}</pre> : <div role="status" style={{ marginTop: 8, color: CA_GREEN }}>✔ {st.msg}</div>)}
     {st.s === "cancelled" && <div role="status" style={{ marginTop: 8, opacity: .7 }}>Cancelled</div>}
-    {st.s === "error" && <div role="alert" style={{ marginTop: 8, color: CA_RED }}>✖ {st.msg}{st.retry ? " — card kept, you can retry." : ""}</div>}
+    {st.s === "error" && <div role="alert" style={{ marginTop: 8, color: CA_RED }}>✖ {st.msg}{st.retry ? (cmd ? " — the connection dropped. The command may have run: check the Mac before you retry." : " — card kept, you can retry.") : ""}</div>}
   </div>;
 }
 

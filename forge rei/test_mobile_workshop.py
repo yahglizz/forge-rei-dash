@@ -2,6 +2,7 @@
 phone crew screens. Run with python3 test_mobile_workshop.py (no network, nothing live: the pending
 card queue and the task store go to temp files). valjsx only proves the JSX parses; this proves the
 wiring. Exit 1 on failure."""
+import io
 import json
 import os
 import re
@@ -15,9 +16,14 @@ TMP = Path(tempfile.mkdtemp(prefix="mobile-workshop-test-"))
 os.environ["FORGE_ACTION_LOG"] = str(TMP / "actions.jsonl")
 os.environ.setdefault("FORGE_MARCUS", "0")
 
+import agent_bus  # noqa: E402
+import agent_office  # noqa: E402
 import agents_hub  # noqa: E402
+import agents_history  # noqa: E402
 import connector  # noqa: E402
 import dash_live  # noqa: E402
+import forge_ops  # noqa: E402
+import mac_link  # noqa: E402
 import telegram_agent as ta  # noqa: E402
 
 HERE = Path(__file__).parent
@@ -242,9 +248,124 @@ def test_api_post_timeout_and_cancel_run_for_real():
     assert out["err"] == "undefined:boom", out
 
 
+# ── Run now: an open task runs through the office job ─────────────────────────────────────
+def _post(path, body):
+    payload = json.dumps(body).encode()
+    h = object.__new__(connector.Handler)
+    h.path = path
+    h.headers = {"Host": "localhost:7799", "Content-Length": str(len(payload))}
+    h.rfile = io.BytesIO(payload)
+    h.client_address = ("127.0.0.1", 5555)
+    h._dashboard_client_allowed = lambda: True
+    out = []
+    h._send_json = lambda obj, code=200, headers=None: out.append((code, obj))
+    h._daycare_resolve_session = lambda sid: (object(), None)
+    h._daycare_require_secure = lambda: None
+    connector.Handler.do_POST(h)
+    assert len(out) == 1, out
+    return out[0]
+
+
+def _wait_job(jid):
+    for _ in range(100):
+        j = agent_office.job(jid)["job"]
+        if j["status"] != "running":
+            return j
+        time.sleep(0.05)
+    raise AssertionError("job did not finish")
+
+
+def test_run_now_runs_the_existing_task_with_chat_gates():
+    agents_hub.TASKS = TMP / "hub_tasks_run.json"
+    agent_office._JOBS.clear()
+    seen = []
+
+    def fake_chat(ghl_get, loc, agent_id, message, **kw):
+        col = dash_live._col()                    # the chat collector: AUTO writes + TAP cards
+        seen.append(col is not None)
+        if col is not None:
+            col["actions"].append({"tok": "t1", "kind": "tap", "agent": agent_id, "summary": "Text a parent"})
+            col["done"].append({"summary": "Tagged 2 leads", "ok": True})
+        return {"reply": "Here is the plan.", "agent": agent_id}
+
+    row = agents_hub.send_task("solomon", "Draft the tour follow-up", "short", business="daycare")["task"]
+    with mock.patch.object(agent_office, "AUTO_CHECKIN", False), \
+            mock.patch.object(agent_bus, "STATE", TMP / "bus.json"), \
+            mock.patch.object(agents_hub, "chat", fake_chat), \
+            mock.patch.object(agents_history, "record", lambda *a, **k: None), \
+            mock.patch.object(forge_ops, "paused", lambda: False):
+        # a plain office dispatch stays read-only: no collector
+        plain = _post("/api/office/task", {"agentId": "marcus", "title": "Plain job", "business": "wholesale"})[1]
+        assert plain["ok"], plain
+        _wait_job(plain["jobId"])
+        assert seen == [False], "a floor dispatch never opens the write gates"
+        rows_before = len(agents_hub.tasks()["tasks"])
+
+        code, res = _post("/api/office/task", {"agentId": "solomon", "title": "ignored", "taskId": row["id"],
+                                               "business": "daycare"})
+        assert code == 200 and res["ok"] and res["taskId"] == row["id"], res
+        job = _wait_job(res["jobId"])
+        assert job["status"] == "done" and seen[-1] is True, "run now opens chat's collector"
+        assert "Here is the plan." in job["result"] and "Did: Tagged 2 leads" in job["result"]
+        assert "1 card(s) are waiting for your tap" in job["result"]
+        assert job["title"] == "Draft the tour follow-up", "the stored task is the truth, not the request body"
+        assert len(agents_hub.tasks()["tasks"]) == rows_before, "no second task row"
+        done = next(t for t in agents_hub.tasks("solomon")["tasks"] if t["id"] == row["id"])
+        assert done["status"] == "done" and done["result"].startswith("Here is the plan."), done
+
+        # not open any more / another agent's / wrong workspace / clocked out: refused, nothing runs
+        n = len(seen)
+        assert "isn't open" in _post("/api/office/task", {"agentId": "solomon", "title": "x", "taskId": row["id"]})[1]["error"]
+        other = agents_hub.send_task("marcus", "Marcus job", "", business="wholesale")["task"]
+        assert "isn't open" in _post("/api/office/task", {"agentId": "solomon", "title": "x", "taskId": other["id"]})[1]["error"]
+        assert "floor" in _post("/api/office/task", {"agentId": "marcus", "title": "x", "taskId": other["id"],
+                                                     "business": "daycare"})[1]["error"]
+        with mock.patch.object(forge_ops, "paused", lambda: True):
+            assert "clocked out" in _post("/api/office/task", {"agentId": "marcus", "title": "x", "taskId": other["id"]})[1]["error"]
+        assert len(seen) == n
+
+
+def test_run_now_button_set_matches_the_office():
+    t = (M / "m_tasks.jsx").read_text()
+    ids = re.search(r"const MT_RUNNABLE = \[([^\]]*)\]", t).group(1)
+    ids = sorted(re.findall(r'"(\w+)"', ids))
+    assert ids == sorted(set(agent_office.DEPT_OF) - set(agent_office.LANE_OF)), ids
+    assert "canRun={MT_RUNNABLE.includes(t.agentId)}" in t and ">Run now</button>" in t
+    assert '"/api/office/task"' in t and "taskId: t.id" in t and '"/api/office/jobs"' in t
+    assert "setInterval" in t and "[anyRunning]" in t, "polls only while a run is live"
+    assert "Filing a task only saves it" in t, "default stays file only"
+
+
+# ── Mac tap + dropped connection ────────────────────────────────────────────────────────
+def test_mac_tap_says_when_agentdrive_is_unmounted():
+    card = {"agent": "marcus", "mac": {"command": "ls", "surface": "t"}}
+    res = {"ran": True, "exitCode": 0, "timedOut": False, "truncated": False, "output": "a.txt"}
+    for mounted, says in ((False, True), (True, False), (None, False)):
+        with mock.patch.object(mac_link, "status", lambda m=mounted: {"driveMounted": m}), \
+                mock.patch.object(mac_link, "run", lambda *a, **k: dict(res)), \
+                mock.patch.object(dash_live, "_mark_tainted", lambda a: None):
+            out = dash_live.mac_tap(card)
+        assert out["ok"] and out["message"].endswith("a.txt")
+        assert ("AgentDrive is not mounted so it ran from the home folder" in out["message"].splitlines()[0]) is says, (mounted, out)
+
+
+def test_dropped_connection_on_a_mac_card_is_not_called_card_kept():
+    src = (HERE / "chat_actions.jsx").read_text()
+    assert "the command may have run: check the Mac before you retry" in src.replace("The command", "the command")
+    assert 'st.retry ? (cmd ?' in src and "card kept, you can retry" in src, "other cards keep the old line"
+
+
+def test_n8n_line_in_the_crew_header():
+    a = (M / "m_agents.jsx").read_text()
+    assert '"/api/system/n8n"' in a and "n8n.connected" in a and "runs this month" in a and "failed" in a
+    assert "macM.refresh(); n8nM.refresh();" in a, "refreshed with the registry poll, no timer of its own"
+    assert a.count("interval:") == 3 and a.count("setInterval") == 1
+
+
 def main():
     failed = 0
     saved = (ta.STATE, agents_hub.TASKS)
+    jobs0 = list(agent_office._JOBS)
     try:
         for name, fn in list(globals().items()):
             if name.startswith("test_") and callable(fn):

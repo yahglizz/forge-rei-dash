@@ -4008,6 +4008,23 @@ class Handler(BaseHTTPRequestHandler):
                         agents_history.record(_aid, _msg, out.get("reply"), via="office")
                     return out
 
+                def _office_chat_cards(_aid, _msg):
+                    # "Run now" on a filed task (phone): the run gets chat's own gates. AUTO writes run and
+                    # are named in the result; TAP writes queue as cards (durable, /api/chat/cards) and the
+                    # result says how many wait. A plain office dispatch stays read-only.
+                    dash_live.begin()
+                    try:
+                        out = _office_chat(_aid, _msg)
+                    finally:
+                        acts = dash_live.take()
+                    if isinstance(out, dict) and out.get("reply"):
+                        tail = [f"Did: {d.get('summary') or d.get('path')}" for d in acts["done"][:6]]
+                        if acts["actions"]:
+                            tail.append(f"{len(acts['actions'])} card(s) are waiting for your tap in Crew.")
+                        if tail:
+                            out = dict(out, reply=str(out["reply"]) + "\n\n" + "\n".join(tail))
+                    return out
+
                 if parsed.path == "/api/office/plan":
                     result = agent_office.plan(body.get("message"), _office_chat, business=_floor)
                 elif parsed.path == "/api/office/chat":
@@ -4020,11 +4037,16 @@ class Handler(BaseHTTPRequestHandler):
                 elif parsed.path == "/api/office/checkin":
                     # Orion checks in on the team — read-only, zero Claude.
                     result = agent_office.checkin("operator", business=_floor)
+                elif body.get("taskId") and forge_ops.paused():
+                    result = {"error": "Agents are clocked out. Clock them back in to run a task."}
                 else:
+                    _run_now = bool(body.get("taskId"))
                     result = agent_office.dispatch(body.get("agentId"), body.get("title"),
-                                                   body.get("note", ""), chat_fn=_office_chat,
+                                                   body.get("note", ""),
+                                                   chat_fn=_office_chat_cards if _run_now else _office_chat,
                                                    directed_by=body.get("directedBy", ""),
-                                                   business=_floor)
+                                                   business=_floor,
+                                                   task_id=str(body.get("taskId") or ""))
             elif parsed.path == "/api/agency/billing/send":
                 # Owner's "Send payment link" tap: build the Stripe link + email/text it to the client.
                 import agency_billing

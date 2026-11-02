@@ -642,6 +642,7 @@ def mac_run(inp, agent_id, col):
 def mac_tap(card):
     """The ✅ on a Mac card (telegram_agent._confirm_mac). -> {ok, message} or {error}, for the owner."""
     m = card["mac"]
+    drive = mac_link.status()["driveMounted"]
     res = mac_link.run(m["command"], {"surface": m["surface"], "agent": _cap_key(card["agent"]), "via": "tap"})
     if res.get("ran"):
         _mark_tainted(card["agent"])
@@ -649,6 +650,8 @@ def mac_tap(card):
         return {"error": res["error"]}
     head = f"exit {res['exitCode']}" + (", killed at 120 seconds" if res["timedOut"] else "") \
         + (f", output cut at {mac_link.MAX_OUTPUT} characters" if res["truncated"] else "")
+    if drive is False:
+        head += ", AgentDrive is not mounted so it ran from the home folder"
     return {"ok": True, "message": f"{head}\n{res['output']}".rstrip(), "exitCode": res["exitCode"]}
 
 

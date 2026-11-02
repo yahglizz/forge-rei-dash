@@ -474,7 +474,7 @@ def _fail_task(job, err):
         pass
 
 
-def dispatch(agent_id, title, note="", chat_fn=None, directed_by="", business=None):
+def dispatch(agent_id, title, note="", chat_fn=None, directed_by="", business=None, task_id=""):
     """Give an agent a task from the floor: file it, then actually run it.
 
     chat_fn(agent_id, message) -> the agents_hub chat bound to this GHL sub-account.
@@ -492,6 +492,17 @@ def dispatch(agent_id, title, note="", chat_fn=None, directed_by="", business=No
     nope = off_floor(agent_id, business)
     if nope:
         return {"error": nope, "wrongWorkspace": True}
+    existing = None
+    if task_id:     # "Run now" on a task already filed (the phone): run THAT row, never file a second one
+        try:
+            import agents_hub
+            existing = next((t for t in agents_hub.tasks(agent_id)["tasks"]
+                             if t.get("id") == task_id and t.get("status") == "open"), None)
+        except Exception:
+            existing = None
+        if not existing:
+            return {"error": "that task isn't open for this agent"}
+        title, note = str(existing.get("title") or ""), str(existing.get("note") or "")
     if not title:
         return {"error": "a task needs a title"}
     if len(title) > 600 or len(note) > 4000:
@@ -501,11 +512,11 @@ def dispatch(agent_id, title, note="", chat_fn=None, directed_by="", business=No
     if _live_job(agent_id):
         return {"error": f"{_card(agent_id)['name']} is already on a task"}
 
-    task_id = ""
+    task_id = existing["id"] if existing else ""
     try:
         import agents_hub
         # Every agent on the floor is a hub agent now, so every task gets a store row.
-        if agent_id in _hub_agents():
+        if not existing and agent_id in _hub_agents():
             out = agents_hub.send_task(agent_id, title, note)
             task_id = ((out or {}).get("task") or {}).get("id", "")
     except Exception:

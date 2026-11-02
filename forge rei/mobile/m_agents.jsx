@@ -12,6 +12,7 @@
 //   GET  /api/bus?limit=30           → comms bus feed
 //   GET  /api/chat/cards[?business=] → still-open tap cards (survive a reload); tap = ChatActions
 //   GET  /api/mac/status             → Mac online / last seen (refreshed with each registry poll)
+//   GET  /api/system/n8n             → runs / failures this month, hidden unless connected (same refresh)
 // Tasks view: m_tasks.jsx. Chat turns abort after 330 s; "still working" at 20 s; Cancel any time.
 const { useState: useStateMA, useEffect: useEffectMA, useRef: useRefMA } = React;
 
@@ -192,6 +193,7 @@ function MAgentsPage(props) {
   const rosterM = window.useApiM("/api/agents/registry", { interval: 30000 });
   const cardsM = window.useApiM("/api/chat/cards" + (business ? "?business=" + encodeURIComponent(business) : ""));
   const macM = window.useApiM("/api/mac/status");
+  const n8nM = window.useApiM("/api/system/n8n");
   const hasRegistry = !!(rosterM.data && Array.isArray(rosterM.data.agents));
   const registered = hasRegistry ? rosterM.data.agents.filter((a) => a && a.id && !a.archived) : [];
   const inBiz = (a) => {
@@ -235,7 +237,7 @@ function MAgentsPage(props) {
   // Mac state refreshes on the registry's own poll, so no extra timer.
   const regStamp = rosterM.data && rosterM.data.generatedAt;
   useEffectMA(() => {
-    if (regStamp && lastRegRefMA.current && lastRegRefMA.current !== regStamp) macM.refresh();
+    if (regStamp && lastRegRefMA.current && lastRegRefMA.current !== regStamp) { macM.refresh(); n8nM.refresh(); }
     lastRegRefMA.current = regStamp || lastRegRefMA.current;
   }, [regStamp]);
 
@@ -344,17 +346,27 @@ function MAgentsPage(props) {
     : !mac.enabled ? "Mac link is off"
     : mac.online ? "Mac online" + (mac.busy ? ", running a command" : "")
     : "Mac offline, last seen " + (mac.lastSeen || "Unknown");
+  // n8n: runs and failures this month. Hidden when n8n is not connected (the route says so).
+  const n8n = n8nM.data;
+  const n8nLine = n8n && n8n.connected
+    ? "n8n: " + (n8n.runsThisMonth || 0) + ((n8n.capped || n8n.partial) ? "+" : "") + " runs this month, " + (n8n.failedThisMonth || 0) + " failed"
+    : "";
   const st = MAState(active, myCards.length);
   return (
     <React.Fragment>
       <window.MHeader title="Agents" sub="Your AI employees — synced with Telegram" />
       <div className="m-content" style={{ gap: 10 }}>
 
-        {macLine && (
-          <div className="m-row" style={{ gap: 7, fontSize: 12, padding: "0 2px" }}>
-            <span style={{ width: 9, height: 9, borderRadius: "50%", flex: "none",
-              background: mac && mac.enabled && mac.online ? "#22C55E" : "#94A3B8" }} />
-            <span className="m-fade">{macLine}</span>
+        {(macLine || n8nLine) && (
+          <div className="m-row" style={{ gap: 14, fontSize: 12, padding: "0 2px", flexWrap: "wrap" }}>
+            {macLine && (
+              <span className="m-row" style={{ gap: 7 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", flex: "none",
+                  background: mac && mac.enabled && mac.online ? "#22C55E" : "#94A3B8" }} />
+                <span className="m-fade">{macLine}</span>
+              </span>
+            )}
+            {n8nLine && <span className="m-fade">{n8nLine}</span>}
           </div>
         )}
         {rosterM.error && <div className="mw-warn">Agent registry unavailable — showing the saved chat list.</div>}

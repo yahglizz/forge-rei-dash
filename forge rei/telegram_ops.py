@@ -778,7 +778,8 @@ def _intent(text):
         return None
     try:
         import review_agent
-        raw = review_agent._claude(key, _INTENT_SYS, text, max_tokens=300)
+        # SMART: a text_seller intent carries the SMS itself, written by this call.
+        raw = review_agent._claude(key, _INTENT_SYS, text, max_tokens=300, model=review_agent.SMART_MODEL)
         m = re.search(r"\{.*\}", raw, re.S)
         return json.loads(m.group(0)) if m else None
     except Exception:  # noqa: BLE001

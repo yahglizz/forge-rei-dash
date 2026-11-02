@@ -90,10 +90,10 @@ def check_agent_calls_named():
 FAST_SITES = sorted([
     ("agency_agents.py", "learn"), ("agent_collab.py", "ask"),
     ("agents_chat.py", "chat"), ("agents_chat.py", "chat"),
-    ("marcus_lead.py", "directives"), ("marcus_screening.py", "screen"),
+    ("marcus_lead.py", "directives"),
     ("scout_triage.py", "_claude_batch"), ("scout_triage.py", "retro_audit"),
 ])
-UNNAMED_SITES = sorted([("agency_callsheet.py", "_leads_from_ai"), ("telegram_ops.py", "_intent")])
+UNNAMED_SITES = sorted([("agency_callsheet.py", "_leads_from_ai")])
 
 
 def _claude_sites():
@@ -122,6 +122,9 @@ def check_tiers():
     assert ("scout_triage.py", "learn") in sites["SMART_MODEL"]
     assert ("agent_collab.py", "consult_round") in sites["SMART_MODEL"], "operator's final reply"
     assert ("legit_check.py", "verdict") in sites["SMART_MODEL"], "gates seller-facing SMS"
+    # Output that is itself a seller text: screening's nurtureDraft, the Telegram text_seller intent.
+    assert ("marcus_screening.py", "screen") in sites["SMART_MODEL"], "nurtureDraft is a seller SMS"
+    assert ("telegram_ops.py", "_intent") in sites["SMART_MODEL"], "text_seller writes the SMS"
     # Haiku runs at low effort: no FAST site may ask for more.
     for p in HERE.glob("*.py"):
         if not p.name.startswith("test_"):
