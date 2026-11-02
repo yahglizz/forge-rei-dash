@@ -494,7 +494,7 @@ def test_double_tap_starts_one_job():
 def test_live_qa_fixes():
     d = (M / "m_biz_daycare.jsx").read_text()
     tabs = d[d.index("window.M_BIZ.daycare = {"):]
-    assert tabs.count("label:") <= 5 and 'key: "crew", label: "Crew"' in tabs and "crew: MBDCrew" in tabs
+    assert tabs.count("label:") <= 6 and 'key: "crew", label: "Crew"' in tabs and "crew: MBDCrew" in tabs
     assert '<window.MAgentsPage business="daycare" />' in d and "Talk to Solomon" in d
     # Solomon on the daycare crew goes through the hub chat, like every other place he is offered
     a = (M / "m_agents.jsx").read_text()

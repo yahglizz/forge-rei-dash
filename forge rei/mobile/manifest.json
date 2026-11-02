@@ -1,14 +1,25 @@
 {
   "name": "FORGE REI OS Mobile",
   "short_name": "FORGE",
-  "start_url": "/mobile/index.html",
-  "scope": "/mobile/",
+  "start_url": "/m/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#080f19",
   "theme_color": "#080f19",
   "icons": [
-    { "src": "/assets/pwa-icon-180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "/assets/pwa-icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
+    {
+      "src": "/assets/pwa-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "id": "/m/",
+  "description": "FORGE \u2014 run the businesses from your phone"
 }

@@ -3,9 +3,12 @@
 // .biz-daycare theme in mobile.css). Same Supabase + GHL the desktop console drives;
 // the connector holds every key and the box auto-admins tailnet traffic as Management.
 // Hook aliases for this file: BD. Top-level names: MBD*. Exports: MBDHome, MBDMessages,
-// MBDFamilies, MBDLogins + window.M_BIZ.daycare.
+// MBDFamilies, MBDLogins + window.M_BIZ.daycare; also MBDHead, MBDSheet, MBDAuth, MBDAuthLine for the Billing tab
+// (m_biz_billing.jsx, loaded just before this file).
 //
-// Tabs: Home (diagnostics + Solomon) · Messages (GHL) · Families (enrollment) · Logins · Crew.
+// Tabs: Home (diagnostics + Solomon) · Messages (GHL) · Families (enrollment) · Billing · Logins · Crew.
+// Billing = window.MBLBilling; the parent thread's "Fee link" button opens window.MBLFeeSheet.
+// A Touch of Blessings is the default center: Home moves there once per browser session (sessionStorage m_bd_atob).
 // Solomon is the one daycare agent — Leads + Replies are his lanes; chat = Crew tab (Orion is there too).
 // Every outward/irreversible action is an explicit tap + window.confirm (rule 2):
 //   POST /api/daycare/replies/approve {contact_id,text}   send Solomon's (edited) draft
@@ -21,6 +24,7 @@ const MBD_STAGES = [["TOUR_BOOKED", "Tour booked"], ["TOUR_COMPLETED", "Tour com
   ["APPLICATION", "Application"], ["ENROLLED", "Enrolled"], ["LOST", "Lost"]];
 const MBD_AUTH_CODES = ["session_expired", "authentication_required", "https_required", "forbidden",
   "management_required", "profile_missing", "inactive_account", "location_mismatch", "origin_rejected"];
+const MBD_ATOB = "11111111-1111-1111-1111-111111111111";   // owner rule: the default center
 const MBD_STALE_MS = 30 * 86400 * 1000;   // matches FORGE_OWNER_ACTIONS_STALE_DAYS
 
 // useApiM puts a daycare error payload in both .data ({ok:false,code}) and .error.
@@ -171,6 +175,15 @@ function MBDHome() {
     catch (e) { setErr("Couldn't switch center — " + ((e && e.message) || "retry")); }
     setSwitching("");
   }
+  // Owner rule: A Touch of Blessings is always the default center. Once per browser session, move there.
+  useEffectBD(() => {
+    if (!locs.data || !locs.data.ok || !activeLoc) return;
+    let done = false;
+    try { done = sessionStorage.getItem("m_bd_atob") === "1"; } catch (_) {}
+    if (done) return;
+    try { sessionStorage.setItem("m_bd_atob", "1"); } catch (_) {}
+    if (activeLoc !== MBD_ATOB && locList.some((l) => l.id === MBD_ATOB)) switchTo(MBD_ATOB);
+  }, [locs.data]);
 
   const briefAge = ds.lastBriefAt ? Date.now() - ds.lastBriefAt : null;
   const briefState = ds.lastError ? (ds.failStreak > 1 ? "bad" : "warn") : briefAge == null ? "off" : briefAge > 48 * 3600e3 ? "warn" : "ok";
@@ -322,6 +335,7 @@ function MBDThread(props) {
   const [text, setText] = useStateBD(null);
   const [busy, setBusy] = useStateBD(false);
   const [err, setErr] = useStateBD("");
+  const [fee, setFee] = useStateBD(false);
   useEffectBD(() => { if (t && text === null) setText((t.draft && t.draft.draft) || ""); }, [t]);
   useEffectBD(() => { const el = document.querySelector(".mbd-sheet .m-sheet-body"); if (el) el.scrollTop = el.scrollHeight; }, [t && t.messages && t.messages.length]);
   const name = t ? MBDName(t.name, "Parent") : "Conversation";
@@ -336,8 +350,11 @@ function MBDThread(props) {
     } catch (e) { setErr("Not sent — " + ((e && e.message) || "retry")); }
     setBusy(false);
   }
-  return <MBDSheet title={name} onClose={props.onClose}
-    right={t && t.phone ? <a className="mbd-call" href={"tel:" + t.phone} aria-label="Call"><window.MIcons.Phone size={18} /></a> : null}
+  return <React.Fragment><MBDSheet title={name} onClose={props.onClose}
+    right={t ? <React.Fragment>
+      <button className="mbd-pill ghost" onClick={() => setFee(true)}>Fee link</button>
+      {t.phone ? <a className="mbd-call" href={"tel:" + t.phone} aria-label="Call"><window.MIcons.Phone size={18} /></a> : null}
+    </React.Fragment> : null}
     foot={t && <React.Fragment>
       {!t.canSend && <div className="mw-warn" style={{ marginBottom: 8 }}>Can't text now — {t.blockReason}.</div>}
       {t.draft && <div className="m-fade" style={{ marginBottom: 6 }}>Solomon's draft is loaded — edit, then send.</div>}
@@ -358,7 +375,9 @@ function MBDThread(props) {
           <div className="mbd-bubble-meta">{MBDAgo(mm.at)}{mm.auto ? " · auto" : ""}{mm.kind && mm.kind !== "sms" ? " · " + mm.kind : ""}</div>
         </div>)}
       </React.Fragment>}
-  </MBDSheet>;
+  </MBDSheet>
+    {fee && t && window.MBLFeeSheet && <window.MBLFeeSheet contactId={t.contactId} name={t.name} onClose={() => setFee(false)} />}
+  </React.Fragment>;
 }
 
 function MBDMessages() {
@@ -829,7 +848,7 @@ function MBDLogins() {
   </React.Fragment>;
 }
 
-Object.assign(window, { MBDHome, MBDMessages, MBDFamilies, MBDLogins });
+Object.assign(window, { MBDHome, MBDMessages, MBDFamilies, MBDLogins, MBDHead, MBDSheet, MBDAuth, MBDAuthLine, MBDThread });
 // Crew = the same crew page as the other businesses: Solomon + Orion, tap cards with the tab badge, Tasks,
 // Mac and n8n lines. Solomon chats through the hub chat there, like everywhere else.
 const MBDCrew = () => (window.MAgentsPage ? <window.MAgentsPage business="daycare" /> : <window.MEmpty title="Crew unavailable" />);
@@ -840,8 +859,9 @@ window.M_BIZ.daycare = {
     { key: "home", label: "Home", ico: "Pulse" },
     { key: "messages", label: "Messages", ico: "Chat" },
     { key: "families", label: "Families", ico: "Heart" },
+    { key: "billing", label: "Billing", ico: "Dollar" },
     { key: "logins", label: "Logins", ico: "Key" },
     { key: "crew", label: "Crew", ico: "Bot" },
   ],
-  pages: { home: MBDHome, messages: MBDMessages, families: MBDFamilies, logins: MBDLogins, crew: MBDCrew },
+  pages: { home: MBDHome, messages: MBDMessages, families: MBDFamilies, billing: window.MBLBilling, logins: MBDLogins, crew: MBDCrew },
 };

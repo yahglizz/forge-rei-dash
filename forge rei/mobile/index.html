@@ -10,8 +10,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="FORGE">
 <meta name="theme-color" content="#080f19">
+<meta name="color-scheme" content="dark">
+<style>html,body{background:#080f19;margin:0}.m-boot{height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#8498aa;font:500 13px system-ui,-apple-system,sans-serif}.m-boot i{width:30px;height:30px;border:3px solid rgba(79,124,255,.25);border-top-color:#4F7CFF;border-radius:50%;animation:mboot .8s linear infinite}@keyframes mboot{to{transform:rotate(360deg)}}</style>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="/assets/pwa-icon-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/pwa-icon-180.png">
 <link rel="apple-touch-startup-image" href="/assets/splash-mobile.png">
 <link rel="icon" type="image/png" href="/assets/pwa-icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,7 +31,7 @@
 <script src="../live_sync.js"></script>
 </head>
 <body>
-<div id="root"></div>
+<div id="root"><div class="m-boot"><i></i>Opening FORGE…</div></div>
 <script type="text/babel" src="m_api.jsx"></script>
 <script type="text/babel" src="m_shell.jsx"></script>
 <script type="text/babel" src="m_home.jsx"></script>
@@ -45,6 +47,7 @@
 <script type="text/babel" src="m_workspaces.jsx"></script>
 <script type="text/babel" src="m_biz_wholesale.jsx"></script>
 <script type="text/babel" src="m_biz_agency.jsx"></script>
+<script type="text/babel" src="m_biz_billing.jsx"></script>
 <script type="text/babel" src="m_biz_daycare.jsx"></script>
 <script type="text/babel" src="m_login.jsx"></script>
 <script type="text/babel" src="m_app.jsx"></script>

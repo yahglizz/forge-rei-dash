@@ -862,3 +862,36 @@ body {
 .biz-daycare .m-btn:not(.ghost) { background: #7c3aed; color: #fff; }
 /* Daycare stat tiles: no decorative corner circle (desktop KPI tiles have none). */
 .mbd-stat:after { display: none; }
+
+/* ===== Billing tab (m_biz_billing.jsx). Dark only; tap targets >= 44px. ===== */
+.mbl-chips, .mbl-seg { flex: none; }
+.mbl-chips .m-chip, .mbl-seg .m-chip { min-height: 44px; flex: none; }
+.mbl-chips .m-chip.mbl-muted { opacity: .65; }
+.mbl-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mbl-tile { min-width: 0; padding: 12px 10px; border: 1px solid var(--border); border-radius: 14px; background: var(--card-2); }
+.mbl-tile small { display: block; color: var(--text-3); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mbl-tile strong { display: block; margin: 4px 0; color: var(--text); font-size: 19px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.mbl-tile.bad strong { color: #f87171; }
+.mbl-tile.ok strong { color: #4ade80; }
+.mbl-row { min-height: 64px; }
+.mbl-row .mbd-row-side { align-items: flex-end; flex: none; }
+.mbl-amt { color: var(--text); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mbl-link { color: var(--text-3); }
+.mbl-flag { color: #fbbf24; }
+.mbl-pill { padding: 3px 9px; border: 1px solid var(--border-strong); border-radius: 999px; background: rgba(132,152,170,.14); color: var(--text-2); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.mbl-pill.ok { color: #4ade80; background: rgba(34,197,94,.14); border-color: rgba(34,197,94,.3); }
+.mbl-pill.warn { color: #e6b450; background: rgba(201,150,43,.14); border-color: rgba(201,150,43,.35); }
+.mbl-pill.bad { color: #f87171; background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.3); }
+.mbl-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+.mbl-facts > div { min-width: 0; }
+.mbl-facts > div.wide { grid-column: 1 / -1; }
+.mbl-facts small { display: block; margin-bottom: 3px; color: var(--text-3); font-size: 11px; }
+.mbl-facts b { display: block; color: var(--text); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.mbl-block { display: flex; flex-direction: column; gap: 8px; }
+.mbl-hit { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--card-2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.mbl-hit small { color: var(--text-3); }
+.mbl-tl { display: flex; flex-direction: column; }
+.mbl-tl-row { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
+.mbl-tl-row:last-child { border-bottom: 0; }
+.mbl-tl-row span:first-child { color: var(--text); font-weight: 600; }
+/* ===== end Billing tab ===== */
