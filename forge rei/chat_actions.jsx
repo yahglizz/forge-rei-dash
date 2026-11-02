@@ -17,6 +17,8 @@ const CA_BTN = {
   minHeight: 36, padding: "6px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
   border: "1px solid var(--border, rgba(127,127,127,.5))", background: "transparent", color: "inherit",
 };
+const CA_CODE = { margin: "6px 0 0", padding: "7px 9px", borderRadius: 8, maxHeight: 320, overflow: "auto", whiteSpace: "pre-wrap",
+  overflowWrap: "anywhere", fontFamily: "var(--mono, ui-monospace, Menlo, monospace)", fontSize: 11.5, background: "var(--card, rgba(127,127,127,.08))" };
 
 function caArr(x) { return Array.isArray(x) ? x : []; }
 function caStr(x) { return x == null ? "" : String(x); }
@@ -43,6 +45,7 @@ function CACard({ a }) {
   const guard = useRefCA(false);                     // a double click must not fire two requests
   const preview = caArr(a && a.preview).slice(0, 5);
   const count = Number(a && a.count) || 0;
+  const cmd = caStr(a && a.command);                 // a Mac card: always shown whole, never in the collapsed preview
 
   async function run(kind) {
     if (guard.current || !tok) return;
@@ -53,7 +56,7 @@ function CACard({ a }) {
       if (!post) throw new TypeError("Failed to fetch");
       const d = await post("/api/chat/action/" + kind, { tok });
       if (d && d.error) { setSt({ s: "error", msg: caStr(d.error), retry: !!d.cardKept, kind }); return; }   // server said no: token spent, unless cardKept
-      setSt(kind === "cancel" ? { s: "cancelled" } : { s: "done", msg: caTrim((d && d.message) || "Done.", 300) });
+      setSt(kind === "cancel" ? { s: "cancelled" } : { s: "done", msg: cmd ? caStr(d && d.message) : caTrim((d && d.message) || "Done.", 300) });
     } catch (e) {
       const net = caIsNetwork(e);
       setSt({ s: "error", msg: caTrim((e && e.message) || "Failed", 300), retry: net, kind });
@@ -68,6 +71,12 @@ function CACard({ a }) {
       {count > 1 && <span style={{ flex: "none", fontSize: 11, fontWeight: 700, padding: "1px 8px", borderRadius: 999, border: "1px solid currentColor", opacity: .8 }}>{count} items</span>}
     </div>
     {a && a.risk && <div style={{ fontSize: 11, opacity: .7, marginTop: 2 }}>Risk: {caStr(a.risk)}</div>}
+    {cmd && <div style={{ marginTop: 6 }}>
+      <div role="alert" style={{ color: CA_RED, fontWeight: 700 }}>⚠️ {caStr(a.warning)}</div>
+      {a.why && <div style={{ fontSize: 11.5, marginTop: 3 }}>Needs your tap because: {caStr(a.why)}</div>}
+      {a.reason && <div style={{ fontSize: 11.5, marginTop: 2, opacity: .8 }}>The agent's stated reason, not verified: {caStr(a.reason)}</div>}
+      <pre style={CA_CODE}>{cmd}</pre>
+    </div>}
     {preview.length > 0 && <details style={{ marginTop: 6 }}>
       <summary style={{ cursor: "pointer", fontSize: 11.5, opacity: .8 }}>Preview ({preview.length}{count > preview.length ? " of " + count : ""})</summary>
       {preview.map((p, i) => <div key={i} style={{ marginTop: 5, fontFamily: "var(--mono, ui-monospace, Menlo, monospace)", fontSize: 11, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
@@ -78,7 +87,7 @@ function CACard({ a }) {
       <button type="button" style={{ ...CA_BTN, opacity: busy ? .5 : 1 }} disabled={busy} onClick={() => run("confirm")}>{busy && st.kind === "confirm" ? "Working…" : st.s === "error" && st.kind === "confirm" ? "✅ Retry" : "✅ Do it"}</button>
       <button type="button" style={{ ...CA_BTN, opacity: busy ? .5 : 1 }} disabled={busy} onClick={() => run("cancel")}>{busy && st.kind === "cancel" ? "Working…" : st.s === "error" && st.kind === "cancel" ? "❌ Retry" : "❌ Cancel"}</button>
     </div>}
-    {st.s === "done" && <div role="status" style={{ marginTop: 8, color: CA_GREEN }}>✔ {st.msg}</div>}
+    {st.s === "done" && (cmd ? <pre role="status" style={CA_CODE}>{st.msg}</pre> : <div role="status" style={{ marginTop: 8, color: CA_GREEN }}>✔ {st.msg}</div>)}
     {st.s === "cancelled" && <div role="status" style={{ marginTop: 8, opacity: .7 }}>Cancelled</div>}
     {st.s === "error" && <div role="alert" style={{ marginTop: 8, color: CA_RED }}>✖ {st.msg}{st.retry ? " — card kept, you can retry." : ""}</div>}
   </div>;

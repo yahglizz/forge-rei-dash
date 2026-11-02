@@ -25,7 +25,7 @@ from pathlib import Path
 import review_agent
 
 MAX_FOLDER_CHARS = 60000
-TOOL_TIMEOUT = 120
+TOOL_TIMEOUT = 140                     # outlasts mac_run's 125 second wait
 _SECRET_NAME = re.compile(r"key|token|secret|password|auth", re.I)
 
 

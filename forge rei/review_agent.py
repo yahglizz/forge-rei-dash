@@ -336,7 +336,7 @@ def _claude(key, system, user, max_tokens=1200, tools=None, model=None, effort="
 # don't cross models. Haiku's reads just rerun; only READ_TOOLS run on it (not a write, not a
 # teammate consult, not any tool added later), so nothing with a side effect runs twice.
 ESCALATED = object()
-READ_TOOLS = frozenset(("api_get", "route_help", "find_people", "pipeboard_read"))
+READ_TOOLS = frozenset(("api_get", "route_help", "find_people", "pipeboard_read", "mac_status"))
 ESCALATE_TOOL = {
     "name": "escalate",
     "description": "Hand this whole request to the stronger model, which restarts it from the "

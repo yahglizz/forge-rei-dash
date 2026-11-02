@@ -673,6 +673,14 @@ _TAP_AGENT = (("approve", "marcus", "wholesale"), ("mdismiss", "marcus", "wholes
               ("ads", "solomon", "daycare"))   # daycare_ads_tg cards (2026-10-17)
 
 
+def _foreign_mac_tap(tok, from_id):
+    """A Mac card runs a shell as the owner, so an allowlisted teammate's tap doesn't count. No owner
+    ids set = nobody's does."""
+    import agent_gateway
+    import telegram_agent
+    return telegram_agent.is_mac_card(tok) and not agent_gateway.is_owner(from_id)
+
+
 def _handle_callback(cq, token=None, agent_chat=False):
     """Authorize, dispatch to a registered action, then ack + edit the message.
 
@@ -708,6 +716,13 @@ def _handle_callback(cq, token=None, agent_chat=False):
 
     raw = cq.get("data") or ""
     action, _, arg = raw.partition(":")
+    if action == "pgo" and _foreign_mac_tap(arg, from_id):     # the card and its buttons stay for the owner
+        try:
+            _api("answerCallbackQuery", {"callback_query_id": cq_id, "show_alert": True,
+                                         "text": "Only the owner can run a Mac command"}, timeout=10, token=token)
+        except Exception:  # noqa: BLE001
+            pass
+        return
     fn = _ACTIONS.get(action)
     if not fn:
         result = {"error": f"unknown action: {action}"}

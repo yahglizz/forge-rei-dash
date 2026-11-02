@@ -86,6 +86,8 @@ DENY = (
     "/api/send", "/api/reply/send", "/api/screening/send",
     # the agent gateway's own tool door (per-job token, child processes only)
     "/api/gateway/",
+    # the Mac worker's queue and its status: mac_run and mac_status are the only way in
+    "/api/mac/",
 )
 _SECRET_KEY = re.compile(r"token|secret|api_?key|password|passwd|authorization", re.I)
 _RISKY = (("dismiss", "🙈 dismisses"), ("reset-pin", "🔐 resets a login"), ("blast", "📣 mass text"),
@@ -260,10 +262,11 @@ def _load():
         return {}
 
 
-def _queue(chat_id, agent_id, business, path, body, summary, calls=None, ttl=None, no_history=False):
+def _queue(chat_id, agent_id, business, path, body, summary, calls=None, ttl=None, no_history=False, mac=None):
     """calls=[{path, body}] = one card for a whole batch (dashboard chat, dash_live).
     ttl = seconds this card stays tappable. no_history = the tap result stays out of the agent's
-    chat thread (a card born from third-party text must not replay into its context)."""
+    chat thread (a card born from third-party text must not replay into its context).
+    mac = {command, reason, why, surface}: a Mac card, set only by dash_live.mac_run."""
     tok = secrets.token_hex(8)
     now = int(time.time())
     with _LOCK:
@@ -276,6 +279,8 @@ def _queue(chat_id, agent_id, business, path, body, summary, calls=None, ttl=Non
             d[tok]["ttl"] = int(ttl)
         if no_history:
             d[tok]["noHistory"] = True
+        if mac:
+            d[tok]["mac"] = mac
         forge_atomic.atomic_write_json(STATE, d)
     return tok
 
@@ -322,6 +327,8 @@ def confirm(tok, chat_id=None, hook=True):
         return {"error": "expired — ask again"}
     if p.get("noHistory"):
         hook = False
+    if p.get("mac"):
+        return _confirm_mac(p)
     if p.get("calls"):
         return _confirm_calls(p, hook)
     ok, why = allowed(p["business"], "POST", p["path"])
@@ -361,6 +368,42 @@ def _confirm_calls(p, hook):
     return {"error": text, **out} if not done else {"ok": True, "message": text, **out}
 
 
+def is_mac_card(tok):
+    return bool((_load().get(str(tok)) or {}).get("mac"))
+
+
+def _run_mac(p):
+    import dash_live
+    out = dash_live.mac_tap(p)
+    _log_tap(p, "mac_run", {"ok": not out.get("error"), "error": out.get("error")})   # never the output
+    return out
+
+
+def _mac_result_text(p, out):
+    body = out.get("error") or out.get("message") or ""
+    return (f"🖥 <b>Mac result</b> for {_esc(p['agent'].title())}\n<code>{_esc(p['mac']['command'][:200])}</code>\n"
+            f"<pre>{_esc(body[:3000])}</pre>")
+
+
+def _confirm_mac(p):
+    """✅ on a Mac card: the stored command, nothing a model can send now, with the kill switches read
+    again here. A Telegram tap runs inside the poll loop, so its wait moves to a thread and the result
+    follows as a message. Output goes to the owner only, never into the agent's thread."""
+    import mac_link
+    why = mac_link.refused()
+    if why:
+        return {"error": why}
+    if p["chat"] == "dash":
+        return _run_mac(p)
+
+    def work():
+        import telegram_io
+        telegram_io._send_to(p["chat"], _mac_result_text(p, _run_mac(p)))
+
+    threading.Thread(target=work, name=p["agent"], daemon=True).start()   # cost_tracker style: named for the agent
+    return {"ok": True, "message": "Running on the Mac. The result follows here."}
+
+
 def cancel(tok, chat_id=None):
     with _LOCK:
         d = _load()
@@ -374,6 +417,15 @@ def cancel(tok, chat_id=None):
 
 def card(c):
     """(text, buttons) for a queued write."""
+    if c.get("mac"):
+        m = c["mac"]
+        return (f"⚠️ <b>{_esc(c['agent'].title())} wants to run this on your Mac.</b>\n"
+                "It runs as you, with your keys and signed-in sessions. Read every character before you tap.\n"
+                f"Needs your tap because: {_esc(m['why'])}\n"
+                f"The agent's stated reason, not verified: {_esc(m['reason'])}\n"
+                f"<pre>{_esc(m['command'])}</pre>",
+                [[{"text": "✅ Run it", "callback_data": f"pgo:{c['tok']}"},
+                  {"text": "❌ Cancel", "callback_data": f"pno:{c['tok']}"}]])
     body = json.dumps(c.get("body") or {}, default=str)
     risk = next((label for key, label in _RISKY if key in c["path"]), "✏️ writes data")
     return (f"🟡 <b>{_esc(c['agent'].title())} wants to:</b> {_esc(c['summary'])}\n"

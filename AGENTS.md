@@ -94,6 +94,18 @@ system alerts (Anthropic credits/auth, clock, sync, graph builder) and Orion.
 
 ---
 
+## The owner's Mac (`mac_run`)
+
+Owner decision 2026-11-01, written risk accepted. In his own chats an agent can run a real shell
+command on his Mac while it is awake. Orion, Dyson and Eco run a clean, non-risky command at once from
+a gateway chat. Solomon, Marcus, Scout and Atlas get a ✅ card every time, because their prompts carry
+lead and seller text. So does any agent that read outside text in the last 30 minutes, or just ran a
+command. Workflow jobs, teammate consults and the old Telegram path never get the tool. Only the
+owner's tap runs a card. Rules: `CLAUDE.md` section 2 (Mac shell) and section 8a (Mac link). Kill:
+`FORGE_MAC=0`, clock-out, `~/.forge-mac/off`, or `launchctl bootout`.
+
+---
+
 ## How the agents talk to each other
 
 - **Agent bus** (`agent_bus.py`, `/api/bus`) — one shared message bus across all

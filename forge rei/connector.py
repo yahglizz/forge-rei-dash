@@ -2387,6 +2387,7 @@ import telegram_ops  # noqa: E402
 import telegram_agent  # noqa: E402
 import dash_live  # noqa: E402  — dashboard chat tools + actions (AUTO runs, TAP = ✅ card)
 import agent_gateway  # noqa: E402  — n8n → agent jobs (off unless FORGE_GATEWAY_PORT is set)
+import mac_link       # noqa: E402  — the owner's Mac (worker dials out; off without FORGE_MAC_KEY_SHA256)
 import autopilot      # noqa: E402
 
 
@@ -3224,6 +3225,8 @@ def api_owner_actions(_q):
 
 ROUTES["/api/owner-actions"] = api_owner_actions
 NO_CACHE.add("/api/owner-actions")
+ROUTES["/api/mac/status"] = lambda q: mac_link.status()   # the same facts as the mac_status tool
+NO_CACHE.add("/api/mac/status")
 # --- /WP-C ---
 
 
@@ -3697,6 +3700,20 @@ class Handler(BaseHTTPRequestHandler):
         code, out = agent_gateway.tool_http(self.headers.get("X-Job-Token"), payload)
         return self._send_json(out, code)
 
+    def _handle_mac_next(self, query):
+        if not mac_link.key_ok(self.headers.get("X-Mac-Key")):
+            return self._send_json({"error": "forbidden"}, 403)
+        return self._send_json(mac_link.next_command(urllib.parse.parse_qs(query)))
+
+    def _handle_mac_result(self):
+        if not mac_link.key_ok(self.headers.get("X-Mac-Key")):
+            return self._send_json({"error": "forbidden"}, 403)
+        try:
+            body = self._read_json_body(limit=mac_link.MAX_RESULT_BODY)
+        except (ValueError, OverflowError):
+            return self._send_json({"error": "bad request"}, 400)
+        return self._send_json(mac_link.post_result(body))
+
     def do_POST(self):
         if not self._dashboard_client_allowed():
             return self._send_json({"error": "private dashboard access required"}, 403)
@@ -3707,6 +3724,8 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/gateway/tool":      # agent_runner child: loopback + per-job token
             return self._handle_gateway_tool()
+        if parsed.path == "/api/mac/result":        # the Mac worker: X-Mac-Key, tailnet only
+            return self._handle_mac_result()
         if parsed.path.startswith("/api/daycare/"):
             return self._handle_daycare_post(parsed.path)
         if parsed.path.startswith("/api/dropship/"):
@@ -5786,6 +5805,8 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
+        if path == "/api/mac/next":                 # the Mac worker: X-Mac-Key, tailnet only
+            return self._handle_mac_next(parsed.query)
         if path.startswith("/api/daycare/"):
             return self._handle_daycare_get(path, urllib.parse.parse_qs(parsed.query))
 

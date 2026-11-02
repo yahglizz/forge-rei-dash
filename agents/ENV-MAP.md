@@ -152,6 +152,8 @@ Suggested MCPs (not read from code): brain, scheduled-tasks, Vercel (runtime log
 | `FORGE_GATEWAY_WORKFLOW_KEY_SHA256` | same | Hash of the key n8n workflows send |
 | `FORGE_GATEWAY_OWNER_KEY_SHA256` | same | Hash of the key `FORGE Agent Chat` sends |
 | `FORGE_GATEWAY_OWNER_IDS` | same | Telegram user ids allowed in owner chat |
+| `FORGE_MAC_KEY_SHA256` | `mac_link.py` | Hash of the Mac worker's key. Unset = the Mac link is off and every key fails |
+| `FORGE_MAC` | same | `0` = the Mac link is off, even with the hash set |
 
 Plain keys live only in n8n credentials and `~/.agent-keys/forge-gateway.env`. Each job's child gets
 exactly one Anthropic key plus a per-job token.

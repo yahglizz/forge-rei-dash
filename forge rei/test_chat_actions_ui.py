@@ -32,6 +32,9 @@ def check():
     assert re.search(r"function ChatActions\(\{\s*actions,\s*done,\s*consults\s*\}\)", src), "no consults prop"
     assert "!acts.length && !dn.length && !cs.length" in src and "<CAConsult" in src and "🤝" in src
     assert "<details" in src and "show all" in src and "c.tainted" in src and "couldn't answer" in src
+    # a Mac card shows the whole command up front, never trimmed and never behind the collapsed preview
+    assert "const cmd = caStr(a && a.command)" in src and src.index("<pre style={CA_CODE}>{cmd}</pre>") < src.index("preview.length > 0 && <details")
+    assert "caTrim(cmd" not in src and "a.warning" in src
     for name in CONSUMERS:
         s = (HERE / name).read_text()
         assert "ChatActions" in s, name + " does not render ChatActions"
