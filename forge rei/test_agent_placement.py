@@ -94,8 +94,9 @@ def test_ui_surfaces_scoped():
     assert "business: biz }" in hub, "hub chat/tasks must send the workspace"
     assert 'wsId === "dropship" ? "dropship"' in hub, "dropship must not fall back to the wholesale roster"
     mob = (HERE / "mobile" / "m_agents.jsx").read_text()
-    assert re.search(r"return b === business;", mob), "business portal crews: own agents only (no Orion)"
-    assert '"cross" || b === "system"' not in mob
+    # 2026-11-01: each portal crew = its own agent + Orion (the office-floor rule), never system rows
+    assert 'b === business || b === "cross"' in mob, "business portal crews: own agent + Orion"
+    assert 'b === "system"' not in mob
     app = (HERE / "app.jsx").read_text()
     for ws in ("rei", "agency", "daycare", "dropship"):
         assert f'<window.BrainPage ws="{ws}" />' in app, ws

@@ -453,7 +453,7 @@ def _run_job(job, chat_fn):
         try:
             import agents_hub
             if job.get("taskId"):
-                agents_hub.update_task(job["taskId"], "done")
+                agents_hub.update_task(job["taskId"], "done", result=reply)
         except Exception:
             pass
         _step(jid, "done", head)

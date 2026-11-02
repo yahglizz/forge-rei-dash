@@ -687,8 +687,9 @@ def send_task(agent_id, title, note="", business=None):
 TASK_STATUSES = ("open", "done", "dismissed", "failed")
 
 
-def update_task(task_id, status, error=None):
-    """failed = the agent's run errored; `error` keeps the real reason on the task."""
+def update_task(task_id, status, error=None, result=None):
+    """failed = the agent's run errored; `error` keeps the real reason on the task.
+    done may carry the agent's `result` (what the phone shows); any other status clears it."""
     if status not in TASK_STATUSES:
         return {"error": "bad status"}
     with _LOCK:
@@ -702,6 +703,10 @@ def update_task(task_id, status, error=None):
                     t["error"] = str(error or "the agent's run failed")[:400]
                 else:
                     t.pop("error", None)
+                if status != "done":
+                    t.pop("result", None)
+                elif result:
+                    t["result"] = str(result)[:4000]
                 hit = t
                 break
         if not hit:

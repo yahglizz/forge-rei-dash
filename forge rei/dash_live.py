@@ -235,6 +235,35 @@ def _risk(paths):
     return next((lab for lab in labels if lab not in ("✏️ writes data", "🙈 dismisses")), labels[0])
 
 
+def open_cards(business=None):
+    """The dashboard's still-tappable cards, rebuilt from the pending queue (GET /api/chat/cards): same
+    shape as a chat reply's `actions`, so a card survives a reload. Read-only; the tap is unchanged
+    (single-use, bound to chat "dash"). `business` keeps that workspace's cards plus Orion's."""
+    now = time.time()
+    biz = {"rei": "wholesale"}.get(str(business or "").strip().lower(), str(business or "").strip().lower())
+    out = []
+    for tok, p in ta._load().items():
+        ttl = p.get("ttl", ta.PENDING_TTL)
+        if p.get("chat") != "dash" or now - p.get("ts", 0) >= ttl:
+            continue
+        if biz and p.get("business") != biz and p.get("agent") != "orion":
+            continue
+        card = {"tok": tok, "agent": p.get("agent"), "business": p.get("business"), "summary": p.get("summary"),
+                "ts": int(p.get("ts", 0)), "expiresAt": int(p.get("ts", 0) + ttl)}
+        if p.get("mac"):
+            m = p["mac"]
+            card.update(kind="mac", path=None, risk="🖥 runs on your Mac", count=1, preview=[],
+                        command=m.get("command"), reason=m.get("reason"), why=m.get("why"), warning=MAC_WARNING)
+        else:
+            calls = p.get("calls") or [{"path": p.get("path"), "body": p.get("body")}]
+            paths = [str(c.get("path") or "") for c in calls]
+            card.update(kind="tap", path=paths[0] if len(paths) == 1 else None, risk=_risk(paths),
+                        count=len(calls), preview=[{"path": c.get("path"), "body": _trim(c.get("body"))}
+                                                   for c in calls[:5]])
+        out.append(card)
+    return sorted(out, key=lambda c: c["ts"])
+
+
 def _err(res):
     return str(res.get("error") or res.get("detail") or "failed")[:200] if ta._failed(res) else ""
 

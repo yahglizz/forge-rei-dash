@@ -597,3 +597,10 @@ textarea.mbd-input { line-height:1.45; resize:vertical; }
 .mbd-creds small { margin-top:8px; color:var(--dc-muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
 .mbd-creds b { font:700 24px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dc-purple); letter-spacing:.06em; }
 /* ── end Daycare management ── */
+
+/* Workshop: open tap-card count on the Crew tab and the header bot; cards get 44px touch targets. */
+.m-badge { position:absolute; top:3px; left:calc(50% + 6px); min-width:18px; height:18px; padding:0 5px; box-sizing:border-box;
+  border-radius:9px; background:#EF4444; color:#fff; font-size:10.5px; font-weight:800; line-height:18px; text-align:center; }
+.mw-header-bot { position:relative; }
+.mw-header-bot .m-badge { top:-3px; left:auto; right:-3px; }
+.m-cards button { min-height:44px !important; }

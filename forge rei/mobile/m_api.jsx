@@ -41,17 +41,40 @@ function useApiM(path, opts) {
   return { data, error, loading, refresh: load };
 }
 
-async function apiPostM(path, body) {
-  const r = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body || {}),
-  });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || (j && j.error)) { hapticM("error"); throw new Error((j && j.error) || ("HTTP " + r.status)); }
-  hapticM("success");
-  if (window.ForgeLiveSync) window.ForgeLiveSync.signal(path);
-  return j;
+// opts.timeoutMs: abort after this long (default 120 s, a reply draft can run long; chat turns pass 330 s, the gateway's cap).
+// opts.signal: the caller's AbortSignal (a Cancel button). A timeout throws Error(code "timeout"),
+// a cancel throws Error(code "cancelled"); the server may still finish the work either way.
+async function apiPostM(path, body, opts) {
+  opts = opts || {};
+  const ctl = new AbortController();
+  let why = "";
+  const timer = setTimeout(() => { why = "timeout"; ctl.abort(); }, opts.timeoutMs || 120000);
+  const onCancel = () => { why = why || "cancelled"; ctl.abort(); };
+  if (opts.signal) { if (opts.signal.aborted) onCancel(); else opts.signal.addEventListener("abort", onCancel); }
+  try {
+    const r = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+      signal: ctl.signal,
+    });
+    const j = await r.json().catch((e) => { if (why) throw e; return {}; });
+    if (!r.ok || (j && j.error)) { hapticM("error"); throw new Error((j && j.error) || ("HTTP " + r.status)); }
+    hapticM("success");
+    if (window.ForgeLiveSync) window.ForgeLiveSync.signal(path);
+    return j;
+  } catch (e) {
+    if (why) {
+      const err = new Error(why === "timeout" ? "No answer in time" : "Cancelled");
+      err.code = why;
+      hapticM("error");
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    if (opts.signal) opts.signal.removeEventListener("abort", onCancel);
+  }
 }
 
 // Native iOS shell (ios/ForgeMobile) exposes a haptic bridge; a no-op in Safari/PWA.

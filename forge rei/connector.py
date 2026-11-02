@@ -3227,6 +3227,8 @@ ROUTES["/api/owner-actions"] = api_owner_actions
 NO_CACHE.add("/api/owner-actions")
 ROUTES["/api/mac/status"] = lambda q: mac_link.status()   # the same facts as the mac_status tool
 NO_CACHE.add("/api/mac/status")
+ROUTES["/api/chat/cards"] = lambda q: {"ok": True, "cards": dash_live.open_cards((q.get("business", [None]) or [None])[0])}
+NO_CACHE.add("/api/chat/cards")   # the phone's durable tap cards: still-open dashboard cards, read-only
 # --- /WP-C ---
 
 

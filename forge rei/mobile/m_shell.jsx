@@ -71,7 +71,7 @@ function MHeader(props) {
         </div>
         {props.sub && <div className="m-head-sub">{props.sub}</div>}
       </div>
-      {!onBack && <button className="mw-header-bot" onClick={() => window.mGoTab && window.mGoTab("agents")} aria-label="Open agents">🤖</button>}
+      {!onBack && <button className="mw-header-bot" onClick={() => window.mGoTab && window.mGoTab("agents")} aria-label="Open agents">🤖<MCrewBadge /></button>}
       {props.right || null}
     </div>
   );
@@ -85,6 +85,14 @@ const M_TABS = [
   { key: "more", label: "More", ico: "More" },
 ];
 
+// Count of open tap cards waiting on the owner (GET /api/chat/cards). Refreshes on live-sync signals
+// (every POST signals), so it adds no timer of its own.
+function MCrewBadge() {
+  const c = window.useApiM("/api/chat/cards" + (window.mBizActive ? "?business=" + window.mBizActive : ""));
+  const n = c.data && Array.isArray(c.data.cards) ? c.data.cards.length : 0;
+  return n ? <span className="m-badge" aria-label={n + " waiting on you"}>{n > 9 ? "9+" : n}</span> : null;
+}
+
 function MTabBar(props) {
   return (
     <div className="m-tabbar">
@@ -95,6 +103,7 @@ function MTabBar(props) {
             onClick={() => props.onTab(t.key)}>
             <Ico size={21} />
             <span>{t.label}</span>
+            {t.key === "crew" && <MCrewBadge />}
           </button>
         );
       })}

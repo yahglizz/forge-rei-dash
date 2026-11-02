@@ -578,9 +578,23 @@ Never put a dashboard route behind Funnel; the dashboard trusts loopback.
   Wholesale = Home·Inbox·Pipeline·Calc·Crew; Agency = Home·Calls·Requests·Approvals·Crew;
   Daycare = Home·Messages·Families·Logins (the **management app**, below). "Everything" = the classic 5-tab app, unchanged. The header
   mascot (⇄ badge) switches business; the choice persists (`localStorage.m_biz`, `?biz=` deep link).
-  Crew = `MAgentsPage business=<id>` (that business's agents only — Orion is in "Everything"; 2026-10-18). No PIN — the tailnet is
+  Crew = `MAgentsPage business=<id>` (that business's agent + Orion, who is in every crew; 2026-10-18, Orion everywhere 2026-11-01). No PIN — the tailnet is
   the lock, same as the dashboard. No keys in the app: every function is the same `/api/*` the desktop
   uses (connector holds env/keys/agents/brain). Outward actions stay tap + `confirm()` gated.
+  - **Mobile workshop (2026-11-01, `m_agents.jsx` + `m_tasks.jsx`, test `test_mobile_workshop.py`).** The crew screen is where
+    the owner runs agents from the phone. **Slow replies:** `apiPostM(path, body, {timeoutMs, signal})` aborts (default 120 s;
+    chat turns 330 s = the gateway's 315 s cap); the chat shows "working", "still working (Ns)" after 20 s, a 44px Cancel, and on
+    error/timeout/cancel a plain line with Retry that keeps the typed text (a late reply still lands in the thread). **Durable tap
+    cards:** `GET /api/chat/cards[?business=]` (`dash_live.open_cards`) rebuilds still-open dashboard cards from the
+    `telegram_agent` pending queue (chat `dash`, TTL 30 min, read-only, not agent-reachable); the tap is unchanged (single-use
+    `/api/chat/action/confirm`). A count badge sits on the Crew tab and the header bot (`MCrewBadge`, refreshes on live-sync, no
+    timer). **Tasks** chip in Crew: open tasks per agent, file one (`POST /api/hub/task`, Orion without `business`), Mark
+    done/Dismiss/Reopen (`/api/hub/task/update`); a done task shows its result (`agents_hub.update_task(result=)`, written only by
+    the office run). **Status line** per agent from the registry already polled (working / idle / waiting on you, open tasks,
+    approvals incl. open cards). **Mac state** (`GET /api/mac/status`) in the crew header, refreshed with the registry poll.
+    **Always listed:** a static roster (marcus, dyson, solomon, orion = `agents_hub.AGENTS` minus lanes and archived Midas) when
+    the registry call fails. **Orion** is in every crew; inside a portal he chats through `/api/office/chat` (floor-scoped; the hub
+    chat refuses him there); an agent in an unknown business is not offered, never defaulted to `/api/hub/chat`.
   - **Daycare management app (2026-09-24, `m_biz_daycare.jsx`).** Styled after the family/staff
     daycare app (purple `#5b2c8e` + gold, Fraunces/Manrope, emblem `assets/daycare-emblem.png`) via a
     `.biz-daycare` scope in `mobile.css` (MAPBiz root class `biz-<id>`) — no other business changes.
