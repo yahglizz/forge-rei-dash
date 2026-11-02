@@ -756,6 +756,8 @@ def tool_http(token, payload):
     name, inp = str(payload.get("name") or ""), payload.get("input")
     inp = inp if isinstance(inp, dict) else {}
     with ctx.setdefault("tool_lock", threading.Lock()):
+        if _given_up(ctx):                     # queued here when the wait ran out: the old path owns the turn
+            return 403, {"error": "job stopped"}
         out = (_workflow_tool if ctx["job"]["mode"] == "workflow" else _chat_tool)(ctx, name, inp)
     refused = isinstance(out, dict) and bool(out.pop("refused", False))
     text = ta._clip(ta.redact(out, pin=True)).replace("<", "\\u003c").replace(">", "\\u003e")

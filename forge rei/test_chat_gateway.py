@@ -561,6 +561,28 @@ def test_the_waiter_never_stops_a_job_that_is_already_ending():
     child.kill.assert_not_called()
 
 
+def test_a_tool_call_queued_on_a_given_up_job_is_refused():
+    """Past the token check, waiting on tool_lock, when the wait runs out: it must not run."""
+    reset()
+    lock = threading.Lock()
+    ctx = {"job": {"mode": "chat", "agent": "solomon", "origin": "dash"},
+           "col": {"actions": [], "done": [], "auto": 0, "consults": []},
+           "token": "queued-call", "finished": threading.Event(), "tool_lock": lock}
+    gw._TOKENS[ctx["token"]] = ctx
+    out = []
+    lock.acquire()
+    call = threading.Thread(target=lambda: out.append(gw.tool_http("queued-call", {
+        "name": "api_post", "input": {"path": AUTO, "body": {"agentId": "solomon", "title": "x"}, "summary": "Task"}})))
+    call.start()
+    time.sleep(0.2)
+    assert call.is_alive() and not out, "the call is queued on the lock, past the token check"
+    gw._give_up(ctx)
+    lock.release()
+    call.join(5)
+    assert out == [(403, {"error": "job stopped"})], out
+    assert not t.CALLS["posts"] and ctx["col"]["auto"] == 0, "the old path owns this write now"
+
+
 def test_only_the_owner_gets_the_gateway_on_telegram():
     reset()
     before = t.CALLS["model"]
