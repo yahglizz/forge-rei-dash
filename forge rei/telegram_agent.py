@@ -648,7 +648,8 @@ def chat(agent_id, text, history, chat_id, key=None, call=None):
     model = review_agent.SMART_MODEL
     system = [{"type": "text", "text": system_prompt(agent_id, business),
                "cache_control": {"type": "ephemeral"}}]
-    msgs, cards = _messages(history, text), []
+    import caveman
+    msgs, cards = _messages(history, text + caveman.TEXT_NUDGE), []
     for turn in range(MAX_TURNS + 1):
         payload = {"model": model, "system": system, "messages": msgs, "tools": TOOLS,
                    **review_agent.thinking_params(model, MAX_TOKENS, "low")}

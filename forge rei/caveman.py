@@ -98,6 +98,10 @@ _TEXT = (
 )
 
 
+# Sits on his newest message: a rule at the end of an 88k prompt loses to a thread of long replies.
+TEXT_NUDGE = "\n\n[Text back in one to three plain sentences, no bullets, unless I asked for a list.]"
+
+
 def text_block():
     """The owner-texting style, or '' when FORGE_CAVEMAN=0. Never raises."""
     return "" if os.environ.get("FORGE_CAVEMAN", "1") == "0" else _TEXT
