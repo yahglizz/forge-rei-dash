@@ -5,8 +5,8 @@
   "scope": "/mobile/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F2F6FF",
-  "theme_color": "#F2F6FF",
+  "background_color": "#080f19",
+  "theme_color": "#080f19",
   "icons": [
     { "src": "/assets/pwa-icon-180.png", "sizes": "180x180", "type": "image/png" },
     { "src": "/assets/pwa-icon-512.png", "sizes": "512x512", "type": "image/png" }

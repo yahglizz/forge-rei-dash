@@ -13,11 +13,16 @@ function MIco(props) {
   );
 }
 
-// Original FORGE house mascot, generated for this mobile UI.
+// FORGE brand mark: the desktop hex logo (shell.jsx Logo), tinted by --workspace-accent.
 function MForgePal(props) {
   const size = props.size || 42;
-  return <img className="m-forge-pal" src="forge-house-mascot.png" width={size} height={size}
-    alt="" aria-hidden="true" />;
+  const s = Math.round(size * 0.55);
+  return (
+    <svg className="m-forge-pal" width={s} height={s} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 2 3 7v10l9 5 9-5V7z" stroke="var(--workspace-accent,#4F7CFF)" strokeOpacity=".72" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M12 7v10M8 9l8 6M16 9l-8 6" stroke="var(--workspace-accent,#4F7CFF)" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  );
 }
 
 const MIcons = {
