@@ -51,6 +51,12 @@ function MTRow(props) {
           <div style={{ marginTop: 3, fontSize: 12, color: "var(--red, #EF4444)" }}>{String(t.error).slice(0, 120)}</div>
         )}
       </button>
+      {st === "open" && props.canRun && !run && (
+        <div style={{ padding: "0 12px 10px" }}>
+          <button className="m-btn" style={{ minHeight: 44, width: "100%" }} disabled={props.busy}
+            onClick={() => props.onRun(t)}>Run now</button>
+        </div>
+      )}
       {open && (
         <div style={{ padding: "0 12px 12px", fontSize: 13, lineHeight: 1.4 }}>
           {t.note && <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 8 }}>{t.note}</div>}
@@ -70,10 +76,7 @@ function MTRow(props) {
               </div>
             ) : st === "open" ? (
               <React.Fragment>
-                {props.canRun && (
-                  <button className="m-btn" style={{ minHeight: 44, flex: "1 1 100%" }} disabled={props.busy}
-                    onClick={() => props.onRun(t)}>Run now</button>
-                )}
+
                 <button className="m-btn" style={{ minHeight: 44, flex: 1 }} disabled={props.busy}
                   onClick={() => props.onSet(t, "done")}>Mark done</button>
                 <button className="m-btn ghost" style={{ minHeight: 44, flex: 1 }} disabled={props.busy}

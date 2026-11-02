@@ -229,7 +229,7 @@ input.m-input, textarea.m-input { font-size: 16px; } /* stops iOS zoom-on-focus 
 .mw-lead-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
 .mw-lead-main small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#8190A8;font-size:10px}
 .mw-call,.mw-mark{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0 11px;border:0;border-radius:14px;background:#E8F1FF;color:#3869D8;font-family:inherit;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer}
-.mw-mark{min-width:42px;background:#F0F4FA;color:#7383A0;font-size:16px}
+.mw-mark{min-width:44px;background:#F0F4FA;color:#7383A0;font-size:16px}
 .mw-warn{padding:10px 12px;border:1px solid #F3D99B;border-radius:14px;background:#FFF8E6;color:#835D18;font-size:12px}
 .mw-desktop-hint,.mw-response{padding-top:10px;color:#8592A9;font-size:11px}
 .mw-brief section{padding:9px 0;border-bottom:1px solid #EDF1F8}

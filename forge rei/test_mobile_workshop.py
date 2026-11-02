@@ -394,6 +394,28 @@ def test_double_tap_starts_one_job():
         _wait_job(ok[0]["jobId"])
 
 
+def test_live_qa_fixes():
+    d = (M / "m_biz_daycare.jsx").read_text()
+    tabs = d[d.index("window.M_BIZ.daycare = {"):]
+    assert tabs.count("label:") <= 5 and 'key: "crew", label: "Crew"' in tabs and "crew: MBDCrew" in tabs
+    assert '<window.MAgentsPage business="daycare" />' in d and "Talk to Solomon" in d
+    # Solomon on the daycare crew goes through the hub chat, like every other place he is offered
+    a = (M / "m_agents.jsx").read_text()
+    assert 'return { ep: "/api/hub/chat", business: portal };' in a[a.index("function MAChatTarget"):a.index("function MAState")]
+    # the feed is not the scroller: the composer under the newest line is scrolled into view
+    assert "composeRefMA.current.scrollIntoView" in a and 'ref={composeRefMA}' in a
+    for dep in ("busyId", "thread.length", "local", "acts", "sendErr"):
+        assert dep in a[a.index("scrollIntoView"):a.index("async function maSend")], dep
+    # "N agents" counts what the chips show: archived agents are left out
+    w = (M / "m_workspaces.jsx").read_text()
+    assert ".filter((a)=>a && !a.archived).length} agents" in w
+    # Run now sits on the open row itself, not inside the collapsed details
+    t = (M / "m_tasks.jsx").read_text()
+    assert t.index(">Run now</button>") < t.index("{open && (") and t.count(">Run now</button>") == 1
+    css = (M / "mobile.css").read_text()
+    assert ".mw-mark{min-width:44px;" in css and "min-width:42px" not in css
+
+
 def test_run_now_button_set_matches_the_office():
     t = (M / "m_tasks.jsx").read_text()
     ids = re.search(r"const MT_RUNNABLE = \[([^\]]*)\]", t).group(1)

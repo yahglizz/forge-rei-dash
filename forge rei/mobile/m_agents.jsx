@@ -187,6 +187,7 @@ function MAgentsPage(props) {
   const [local, setLocal] = useStateMA(null);     // {agentId, text} a reply the server does not store (offline / refused)
   const [acts, setActs] = useStateMA(null);       // {agentId, done, consults} from the latest reply
   const feedRefMA = useRefMA(null);
+  const composeRefMA = useRefMA(null);
   const ctlRefMA = useRefMA(null);                // AbortController of the running turn
   const seenRefMA = useRefMA({});                 // tok -> card: a tapped card keeps its result on screen until expiry
   const lastRegRefMA = useRefMA(null);
@@ -263,10 +264,12 @@ function MAgentsPage(props) {
   }, [busyId]);
   useEffectMA(() => () => { if (ctlRefMA.current) ctlRefMA.current.abort(); }, []);
 
-  // Auto-scroll the feed to the newest bubble.
+  // Scroll to the newest on send, on the working row and on the reply. The feed itself does not scroll
+  // (the page's .m-content does), so bring the composer, which sits under the newest line, into view.
   useEffectMA(() => {
     if (feedRefMA.current) feedRefMA.current.scrollTop = feedRefMA.current.scrollHeight;
-  }, [thread.length, busyId, agentId, view, hist.data, waited >= MA_SLOW_S, myCards.length, sendErr]);
+    if (composeRefMA.current && composeRefMA.current.scrollIntoView) composeRefMA.current.scrollIntoView({ block: "end" });
+  }, [thread.length, busyId, agentId, view, hist.data, waited >= MA_SLOW_S, myCards.length, sendErr, local, acts]);
 
   async function maSend(retryText) {
     const a = active;
@@ -471,7 +474,7 @@ function MAgentsPage(props) {
             </div>
 
             {/* Composer — Telegram pill + round send */}
-            <div className="m-tg-compose">
+            <div className="m-tg-compose" ref={composeRefMA}>
               <textarea className="m-input m-tg-input" rows={1} value={draft}
                 placeholder={"Message " + active.name + "…"}
                 style={{ minHeight: 46, maxHeight: 110, resize: "none" }}

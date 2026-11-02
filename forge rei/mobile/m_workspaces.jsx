@@ -31,7 +31,7 @@ function MPToday() {
         <button className="mw-business" onClick={()=>jump(b.id)} style={{"--biz":b.accent || "#4F7CFF"}}><span className="mw-business-icon">{b.id === "daycare" ? "♥" : b.id === "agency" ? "✳" : "⌂"}</span><span className="mw-business-copy"><b>{b.name}</b><small>{b.tag || b.statusLabel || "Open workspace"}</small>{b.metrics && <small>{b.metrics.slice(0,3).map((m)=>m.label + " " + m.value).join(" · ")}</small>}</span><span className="mw-business-go">›</span></button>
         {(b.attention || []).filter((a)=>a.sev === "warn").map((a,i)=><div className="mw-warn" key={i}>{a.text}</div>)}
       </div>)}
-      {registry.error ? <div className="mw-warn">Agent roster unavailable — retry.</div> : registry.data && <button className="mw-agent-strip" onClick={()=>window.mGoTab("agents")}><span>🤖</span><b>Agent crew</b><small>{(registry.data.agents || registry.data.items || []).length} agents · View roster</small><i>›</i></button>}
+      {registry.error ? <div className="mw-warn">Agent roster unavailable — retry.</div> : registry.data && <button className="mw-agent-strip" onClick={()=>window.mGoTab("agents")}><span>🤖</span><b>Agent crew</b><small>{(registry.data.agents || registry.data.items || []).filter((a)=>a && !a.archived).length} agents · View roster</small><i>›</i></button>}
     </div>
   </React.Fragment>;
 }

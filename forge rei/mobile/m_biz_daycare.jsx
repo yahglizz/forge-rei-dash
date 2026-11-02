@@ -5,8 +5,8 @@
 // Hook aliases for this file: BD. Top-level names: MBD*. Exports: MBDHome, MBDMessages,
 // MBDFamilies, MBDLogins + window.M_BIZ.daycare.
 //
-// Tabs: Home (diagnostics + Solomon) · Messages (GHL) · Families (enrollment) · Logins.
-// Solomon is the one daycare agent — Leads + Replies are his lanes; chat = Crew (🤖).
+// Tabs: Home (diagnostics + Solomon) · Messages (GHL) · Families (enrollment) · Logins · Crew.
+// Solomon is the one daycare agent — Leads + Replies are his lanes; chat = Crew tab (Orion is there too).
 // Every outward/irreversible action is an explicit tap + window.confirm (rule 2):
 //   POST /api/daycare/replies/approve {contact_id,text}   send Solomon's (edited) draft
 //   POST /api/daycare/ghl/reply       {contact_id,text}   owner-typed text
@@ -830,6 +830,9 @@ function MBDLogins() {
 }
 
 Object.assign(window, { MBDHome, MBDMessages, MBDFamilies, MBDLogins });
+// Crew = the same crew page as the other businesses: Solomon + Orion, tap cards with the tab badge, Tasks,
+// Mac and n8n lines. Solomon chats through the hub chat there, like everywhere else.
+const MBDCrew = () => (window.MAgentsPage ? <window.MAgentsPage business="daycare" /> : <window.MEmpty title="Crew unavailable" />);
 window.M_BIZ = window.M_BIZ || {};
 window.M_BIZ.daycare = {
   id: "daycare", name: "Daycare", tagline: "A Touch of Blessings · management", accent: "#5b2c8e", ico: "Heart",
@@ -838,6 +841,7 @@ window.M_BIZ.daycare = {
     { key: "messages", label: "Messages", ico: "Chat" },
     { key: "families", label: "Families", ico: "Heart" },
     { key: "logins", label: "Logins", ico: "Key" },
+    { key: "crew", label: "Crew", ico: "Bot" },
   ],
-  pages: { home: MBDHome, messages: MBDMessages, families: MBDFamilies, logins: MBDLogins },
+  pages: { home: MBDHome, messages: MBDMessages, families: MBDFamilies, logins: MBDLogins, crew: MBDCrew },
 };
