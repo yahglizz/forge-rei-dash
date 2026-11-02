@@ -3529,6 +3529,16 @@ def _daycare_at(session, q, fn):
         return fn(session)
 
 
+def _billing_at(session, loc, fn):
+    """Run one billing call AT the invoice's own center (compose/send/timeline used to look only at the
+    session's active center, so an invoice at another center read as "not found"). at_location checks the
+    caller's membership through the database, switches, and always switches back."""
+    if not loc:
+        return fn()
+    with daycare_supabase.at_location(session, daycare_supabase.require_uuid(loc, "location_id")):
+        return fn()
+
+
 def handle_marcus_post(path, body):
     if path == "/api/marcus/approve":
         return MARCUS.approve(body.get("id"), body.get("message"))
@@ -5158,9 +5168,11 @@ class Handler(BaseHTTPRequestHandler):
                 result = self._daycare_ghl_text_invoice(session, body)
             # --- Billing P0: pay link. compose = draft only; send = the owner's tap (the only text). ---
             elif path == "/api/daycare/billing/link/compose":
-                result = daycare_billing_link.compose(session, body.get("invoice_id"))
+                result = _billing_at(session, body.get("location_id"),
+                                     lambda: daycare_billing_link.compose(session, body.get("invoice_id")))
             elif path == "/api/daycare/billing/link/send":
-                result = daycare_billing_link.send(session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL)
+                result = _billing_at(session, body.get("location_id"), lambda: daycare_billing_link.send(
+                    session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL))
             elif path == "/api/daycare/billing/fee-link":           # mints a link + draft; sends nothing
                 result = daycare_fees.create(session, body)
             elif path == "/api/daycare/billing/reminders/run":      # QA Sandbox only; real centers refused inside
@@ -5358,8 +5370,9 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/adops/overview": lambda session: SOLOMON.adops_view(),
             "/api/daycare/adops/brief": lambda session: SOLOMON.adops_view(),
             "/api/daycare/adops/bus": lambda session: agent_bus.recent(30),
-            "/api/daycare/billing/timeline": lambda session: daycare_billing_link.timeline(
-                session, q.get("invoice_id", [None])[0], DAYCARE_GHL),
+            "/api/daycare/billing/timeline": lambda session: _billing_at(
+                session, q.get("location_id", [""])[0], lambda: daycare_billing_link.timeline(
+                    session, q.get("invoice_id", [None])[0], DAYCARE_GHL)),
             "/api/daycare/stripe/status": lambda session: self._daycare_stripe_status(
                 session, q.get("invoice_id", [None])[0]),
             "/api/daycare/locations": lambda session: daycare_supabase.list_locations(session),

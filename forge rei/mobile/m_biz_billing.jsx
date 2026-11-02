@@ -13,9 +13,9 @@
 //   GET  /api/daycare/ghl/conversations                 family search for the fee form
 // Writes:
 //   POST /api/daycare/billing/fee-link     {family,amount,purpose,contact_id?,location_id}  mints a link, sends nothing
-//   POST /api/daycare/billing/link/compose {invoice_id}                                      draft text, sends nothing
+//   POST /api/daycare/billing/link/compose {invoice_id,location_id}                                    draft text, sends nothing
 // Real texts to a parent: owner taps Send, then window.confirm, then the POST (rule 6):
-//   POST /api/daycare/billing/link/send    {invoice_id,message}   message keeps {{PAY_URL}} once
+//   POST /api/daycare/billing/link/send    {invoice_id,message,location_id}   message keeps {{PAY_URL}} once
 //   POST /api/daycare/ghl/reply            {contact_id,text}      fee link text
 // A failed read is shown as a warning and "-" in the tiles: Unknown, not zero.
 const { useState: useStateMBL, useEffect: useEffectMBL, useRef: useRefMBL } = React;
@@ -344,7 +344,7 @@ function MBLInvoiceSheet(props) {
   const [err, setErr] = useStateMBL("");
   const [note, setNote] = useStateMBL("");
   const [warn, setWarn] = useStateMBL(false);
-  async function loadTl() { setTl(await MBLGet("/api/daycare/billing/timeline?invoice_id=" + encodeURIComponent(inv.id))); }
+  async function loadTl() { setTl(await MBLGet("/api/daycare/billing/timeline?invoice_id=" + encodeURIComponent(inv.id) + "&location_id=" + encodeURIComponent(r.centerId))); }
   useEffectMBL(() => { loadTl(); }, [inv.id]);
   const why = r.cat === "paid" ? "Paid — nothing to collect." : r.cat === "void" ? "Void — nothing to collect."
     : r.cat === "draft" ? "Draft — issue it before texting a pay link." : "";
@@ -352,7 +352,7 @@ function MBLInvoiceSheet(props) {
   async function compose() {
     setBusy("compose"); setErr(""); setNote("");
     try {
-      const res = await window.apiPostM("/api/daycare/billing/link/compose", { invoice_id: inv.id });
+      const res = await window.apiPostM("/api/daycare/billing/link/compose", { invoice_id: inv.id, location_id: r.centerId });
       if (!res || res.ok === false || !res.message) throw new Error((res && (res.detail || res.error)) || "No draft came back");
       setDraft(res); setText(res.message);
     } catch (e) { setErr((e && e.message) || "Couldn't write the draft — retry."); }
@@ -367,7 +367,7 @@ function MBLInvoiceSheet(props) {
     if (!window.confirm("Text " + who + " the pay link for $" + bal + "? This sends a real text.")) return;
     setBusy("send"); setErr("");
     try {
-      const res = await window.apiPostM("/api/daycare/billing/link/send", { invoice_id: inv.id, message: body });
+      const res = await window.apiPostM("/api/daycare/billing/link/send", { invoice_id: inv.id, message: body, location_id: r.centerId });
       const bad = res && (res.status === "failed" || res.status === "undelivered");
       const w = res && typeof res.warning === "string" ? res.warning.trim() : "";
       setNote(bad ? "Link created but the text did not go out — check the timeline below." : "Pay link texted to " + who + "." + (w ? " " + w : ""));

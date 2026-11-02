@@ -243,6 +243,33 @@ def test_default_center_falls_back_to_the_callers_own_when_not_in_atob():
         MINE = keep
 
 
+def test_billing_calls_run_at_the_invoices_own_center():
+    import contextlib
+    import connector
+    seen = []
+
+    @contextlib.contextmanager
+    def fake_at(session, loc):
+        seen.append(("enter", loc))
+        yield
+        seen.append(("exit", loc))
+    with mock.patch.object(daycare_supabase, "at_location", fake_at):
+        assert connector._billing_at(SESS, "", lambda: "plain") == "plain" and seen == []       # no id: unchanged
+        assert connector._billing_at(SESS, QA, lambda: "at-qa") == "at-qa"
+        assert seen == [("enter", QA), ("exit", QA)], seen                                     # switched, then restored
+        try:
+            connector._billing_at(SESS, "not-a-uuid", lambda: "x")
+        except daycare_supabase.DaycareError as e:
+            assert e.status == 400
+        else:
+            raise AssertionError("bad center id accepted")
+    src = open(connector.__file__).read()
+    for needle in ('lambda: daycare_billing_link.compose(session, body.get("invoice_id"))',
+                   'session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL))',
+                   'q.get("location_id", [""])[0], lambda: daycare_billing_link.timeline('):
+        assert needle in src, needle
+
+
 def test_routes_are_wired_and_get_is_read_only():
     import connector
     src = open(connector.__file__).read()
