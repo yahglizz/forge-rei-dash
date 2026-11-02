@@ -307,5 +307,22 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(self.replies[-1][2][0][0]["callback_data"], "pgo:abc")
 
 
+class TextingStyle(unittest.TestCase):
+    def test_style_is_last_in_the_prompt_and_on_the_newest_message(self):
+        import caveman
+        sent = {}
+
+        def call(_key, payload):
+            sent.update(payload)
+            return {"content": [{"type": "text", "text": "3 this week."}], "stop_reason": "end_turn"}
+
+        ta.chat("solomon", "how many tours", [], "1", key="k", call=call)
+        self.assertTrue(sent["system"][0]["text"].endswith(caveman.text_block()))
+        self.assertNotIn("ONE concrete next action", sent["system"][0]["text"])
+        self.assertTrue(sent["messages"][0]["content"].endswith(caveman.TEXT_NUDGE))  # chat() appends its reply
+        with mock.patch.dict(os.environ, {"FORGE_CAVEMAN": "0"}):
+            self.assertEqual(caveman.text_block(), "")
+
+
 if __name__ == "__main__":
     unittest.main()
