@@ -90,11 +90,12 @@ def run_loop(until, seconds=20):
 
 def test_runs_a_command_and_posts_the_result():
     home = setup()
-    BOX["jobs"].append(job('pwd; echo "tmp=$TMPDIR"; echo err >&2; exit 3'))
+    BOX["jobs"].append(job('pwd; echo "tmp=$TMPDIR npm=$npm_config_cache pip=$PIP_CACHE_DIR"; echo err >&2; exit 3'))
     run_loop(lambda: BOX["results"])
     r = BOX["results"][0]
     assert r["id"] == "a" * 32 and r["exitCode"] == 3, r
     assert str(home / "work") in r["output"] and f"tmp={home}/work/_tmp" in r["output"], r
+    assert f"npm={home}/work/_tmp/npm-cache pip={home}/work/_tmp/pip-cache" in r["output"], r
     assert "err" in r["output"], "stderr too"
     assert BOX["polls"][0]["key"] == KEY and BOX["polls"][0]["path"] == "/api/mac/next"
     q = BOX["polls"][0]["query"]

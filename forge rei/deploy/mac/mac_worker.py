@@ -102,9 +102,12 @@ def run_command(command):
     child that keeps the pipe open must not hang the worker, and `yes` must not fill its memory."""
     mounted = is_mounted()
     env = dict(os.environ)
-    if mounted:
-        env["TMPDIR"] = os.path.join(WORK, "_tmp")
-        os.makedirs(env["TMPDIR"], exist_ok=True)
+    if mounted:                        # the Mac disk is usually full: temp files and caches go to the drive
+        tmp = os.path.join(WORK, "_tmp")
+        env.update(TMPDIR=tmp, npm_config_cache=tmp + "/npm-cache", PIP_CACHE_DIR=tmp + "/pip-cache",
+                   XDG_CACHE_HOME=tmp + "/cache", HOMEBREW_CACHE=tmp + "/brew-cache",
+                   CARGO_HOME=tmp + "/cargo", CLAUDE_CODE_TMPDIR=tmp)
+        os.makedirs(tmp, exist_ok=True)
     proc = subprocess.Popen(["/bin/zsh", "-lc", command], cwd=WORK if mounted else HOME, env=env,
                             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             start_new_session=True)
