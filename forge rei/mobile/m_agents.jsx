@@ -161,7 +161,9 @@ function MAState(a, cards) {
   const approvals = (Number(a.pendingApprovals) || 0) + cards;
   const tasks = Number(a.openTasks) || 0;
   let label = "";
+  // Trouble first: a failed or degraded agent must not read as "waiting on you" because a card is open.
   if (st === "RUNNING") label = "Working";
+  else if (st === "FAILED" || st === "DEGRADED" || st === "DISABLED") label = st.charAt(0) + st.slice(1).toLowerCase();
   else if (approvals > 0 || st === "WAITING FOR APPROVAL") label = "Waiting on you";
   else if (st === "IDLE") label = "Idle";
   else if (st) label = st.charAt(0) + st.slice(1).toLowerCase();

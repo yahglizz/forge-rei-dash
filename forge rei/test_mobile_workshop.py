@@ -81,6 +81,10 @@ def test_cards_route_is_not_agent_reachable():
         for biz in ta.SCOPE:
             assert not ta.allowed(biz, "GET", "/api/chat/cards")[0], biz
         assert not ta.allowed_read("/api/chat/cards")[0]
+    assert "/api/chat/" in ta.DENY, "belt: DENY names the whole tap-card family, scope aside"
+    for biz in ta.SCOPE:
+        for path in ("/api/chat/cards", "/api/chat/action/confirm"):
+            assert "off-limits" in ta.allowed(biz, "GET", path)[1], (biz, path)
 
 
 # ── task result ───────────────────────────────────────────────────────────────────────────
@@ -165,9 +169,77 @@ def test_tasks_screen_wiring():
 def test_api_post_has_a_timeout_and_cancel():
     s = (M / "m_api.jsx").read_text()
     body = s[s.index("async function apiPostM"):s.index("// Native iOS shell")]
-    assert "AbortController" in body and "signal: ctl.signal" in body and "opts.timeoutMs || 120000" in body
+    assert "AbortController" in body and "signal: ctl.signal" in body and "opts.timeoutMs ||" in body and "120000" in body
+    assert '/api/chat/action/' in body and "330000" in body, "card taps get the long cap"
     assert 'why = "timeout"' in body and 'why === "timeout"' in body and 'err.code = why' in body
     assert "removeEventListener" in body and "clearTimeout(timer)" in body
+
+
+def test_status_line_checks_status_before_approvals():
+    a = (M / "m_agents.jsx").read_text()
+    fn = a[a.index("function MAState"):a.index("function MAgentsPage")]
+    assert fn.index('"FAILED" || st === "DEGRADED"') < fn.index("approvals > 0 ||"), "trouble before 'waiting on you'"
+
+
+NODE_CHECK = r"""
+const http = require('http'), fs = require('fs');
+global.window = global;
+const src = fs.readFileSync(process.argv[2], 'utf8');
+const seen = [];
+const srv = http.createServer((req, res) => {
+  let b = ''; req.on('data', d => b += d);
+  req.on('end', () => setTimeout(() => {
+    seen.push(req.url); res.setHeader('content-type', 'application/json');
+    if (req.url.startsWith('/err')) { res.statusCode = 500; return res.end('{"error":"boom"}'); }
+    res.end('{"ok":true,"echo":' + b + '}');
+  }, req.url.startsWith('/slow') ? 400 : 0));
+});
+srv.listen(0, async () => {
+  const base = 'http://127.0.0.1:' + srv.address().port, real = fetch;
+  global.fetch = (u, o) => real(base + u, o);
+  const timers = [];
+  const st = global.setTimeout;
+  global.setTimeout = (f, ms, ...r) => { timers.push(ms); return st(f, ms, ...r); };
+  new Function(src + ';global.apiPostM = apiPostM;')();
+  const out = {};
+  out.fast = await apiPostM('/fast', { a: 1 });
+  const grab = async (path, opts) => { timers.length = 0; await apiPostM(path, {}, opts); return timers[0]; };
+  out.capDefault = await grab('/fast');
+  out.capTap = await grab('/api/chat/action/confirm');
+  out.capChat = await grab('/fast', { timeoutMs: 330000 });
+  const tryIt = async (path, opts) => { try { await apiPostM(path, {}, opts); return 'no throw'; } catch (e) { return e.code + ':' + e.message; } };
+  out.timeout = await tryIt('/slow', { timeoutMs: 100 });
+  const c = new AbortController(); st(() => c.abort(), 100);
+  out.cancel = await tryIt('/slow', { signal: c.signal });
+  const pre = new AbortController(); pre.abort();
+  out.pre = await tryIt('/slow', { signal: pre.signal });
+  out.err = await tryIt('/err');
+  console.log(JSON.stringify(out));
+  srv.close();
+});
+"""
+
+
+def test_api_post_timeout_and_cancel_run_for_real():
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        print("skip  test_api_post_timeout_and_cancel_run_for_real (no node)")
+        return
+    script = TMP / "api_check.js"
+    script.write_text(NODE_CHECK)
+    src = re.sub(r"^const \{[^}]*\} = React;", "", (M / "m_api.jsx").read_text(), flags=re.M)
+    jsx = TMP / "m_api_plain.js"
+    jsx.write_text(src)
+    r = subprocess.run([node, str(script), str(jsx)], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr[-500:]
+    out = json.loads(r.stdout.strip().splitlines()[-1])
+    assert out["fast"] == {"ok": True, "echo": {"a": 1}}, out
+    assert out["capDefault"] == 120000 and out["capTap"] == 330000 and out["capChat"] == 330000, out
+    assert out["timeout"] == "timeout:No answer in time", out
+    assert out["cancel"] == "cancelled:Cancelled" and out["pre"] == "cancelled:Cancelled", out
+    assert out["err"] == "undefined:boom", out
 
 
 def main():

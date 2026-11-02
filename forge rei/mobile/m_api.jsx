@@ -42,13 +42,15 @@ function useApiM(path, opts) {
 }
 
 // opts.timeoutMs: abort after this long (default 120 s, a reply draft can run long; chat turns pass 330 s, the gateway's cap).
+// A card tap (/api/chat/action/) gets 330 s too: a Mac command waits up to 125 s and a batch card runs its calls in
+// order, so a tap that worked must not read "No answer in time" with no retry.
 // opts.signal: the caller's AbortSignal (a Cancel button). A timeout throws Error(code "timeout"),
 // a cancel throws Error(code "cancelled"); the server may still finish the work either way.
 async function apiPostM(path, body, opts) {
   opts = opts || {};
   const ctl = new AbortController();
   let why = "";
-  const timer = setTimeout(() => { why = "timeout"; ctl.abort(); }, opts.timeoutMs || 120000);
+  const timer = setTimeout(() => { why = "timeout"; ctl.abort(); }, opts.timeoutMs || (String(path).indexOf("/api/chat/action/") === 0 ? 330000 : 120000));
   const onCancel = () => { why = why || "cancelled"; ctl.abort(); };
   if (opts.signal) { if (opts.signal.aborted) onCancel(); else opts.signal.addEventListener("abort", onCancel); }
   try {
