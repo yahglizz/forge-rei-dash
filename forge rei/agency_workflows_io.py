@@ -93,7 +93,7 @@ def _http_error_detail(e, limit=500):
     return str(detail or getattr(e, "reason", "") or "")[:limit]
 
 
-def _n8n_req(method, endpoint, body=None):
+def _n8n_req(method, endpoint, body=None, timeout=30, retries=3):
     """urllib request to n8n REST API — mirrors GHLClient._req style."""
     base = os.environ.get("N8N_BASE_URL", "").rstrip("/")
     key = os.environ.get("N8N_API_KEY", "")
@@ -107,10 +107,9 @@ def _n8n_req(method, endpoint, body=None):
     if data:
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    retries = 3
     for attempt in range(retries + 1):
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
                 raw = resp.read().decode("utf-8")
                 return json.loads(raw) if raw.strip() else {}
         except urllib.error.HTTPError as e:
@@ -176,46 +175,78 @@ def _connection():
     }
 
 
-MAX_EXEC_PAGES = 12          # 250 a page: past n8n's 2,500 runs a month, the scan stops and says capped
+MAX_EXEC_PAGES = 12          # 250 a page (the API's maximum): past n8n's 2,500 runs a month the scan stops, capped
+STATUS_DEADLINE = 15         # seconds, all requests together: the chat tool gives up at 90, a hang must never get there
+STATUS_TTL = 60              # one scan a minute however many agents ask
+_STATUS = {"key": None, "at": 0.0, "val": None}
+_STATUS_LOCK = threading.Lock()
+_FAILED = ("error", "crashed")
 
 
-def n8n_status(now=None):
+def n8n_status(now=None, deadline=STATUS_DEADLINE):
     """Read-only runs report for the agents (GET /api/system/n8n). Not connected -> exactly
     {"connected": False}. Fixed fields only: workflow name, status, times and counts. No error
-    text (it can quote a lead or a parent), no key, no base URL. The month is the UTC calendar month."""
-    if not _connection()["connected"]:
+    text (it can quote a lead or a parent), no key, no base URL. The month is the UTC calendar month.
+    One try per request, `deadline` seconds in total (then "partial": True with what it has), and the
+    result is cached for STATUS_TTL seconds, failures too, so a slow n8n costs one scan a minute."""
+    conn = _connection()
+    if not conn["connected"]:
         return {"connected": False}
-    from datetime import datetime, timezone
-    now = now or datetime.now(timezone.utc)
-    month = now.strftime("%Y-%m")
+    ident = (conn["baseUrl"], os.environ.get("N8N_API_KEY", ""), now is not None)
+    with _STATUS_LOCK:              # a second caller waits for the first scan, then reads its result
+        if _STATUS["key"] == ident and _STATUS["val"] is not None and time.time() - _STATUS["at"] < STATUS_TTL:
+            return dict(_STATUS["val"])
+        out = _scan_executions(now, deadline)
+        _STATUS.update(key=ident, at=time.time(), val=out)
+        return dict(out)
 
-    def when(row):
-        return str(row.get("startedAt") or "")[:19]
+
+def _scan_executions(now, deadline):
+    from datetime import datetime, timezone
+    month = (now or datetime.now(timezone.utc)).strftime("%Y-%m")
+    end = time.time() + deadline
+
+    def get(endpoint):
+        left = end - time.time()
+        if left <= 0:
+            raise TimeoutError("deadline")
+        return _n8n_req("GET", endpoint, timeout=max(1, min(8, left)), retries=0)
+    names, rows, cursor, why = {}, [], "", ""
     try:
-        names = {str(w["id"]): w["name"] for w in _live_workflows()}
-        rows, cursor = [], ""
+        names = {str(w.get("id")): str(w.get("name") or "") for w in get("/api/v1/workflows?limit=250").get("data") or []}
         for _ in range(MAX_EXEC_PAGES):
-            data = _n8n_req("GET", "/api/v1/executions?limit=250"
-                            + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else ""))
-            got = data.get("data") or []
-            this = [r for r in got if when(r).startswith(month)]
-            rows += this
+            data = get("/api/v1/executions?limit=250" + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else ""))
+            older = False
+            for r in data.get("data") or []:
+                started = str(r.get("startedAt") or "")[:19]
+                if not started:                  # queued, never started: neither this month's run nor the end of it
+                    continue
+                if started.startswith(month):
+                    rows.append(r)
+                elif started < month:
+                    older = True                 # newest first: the month is over
             cursor = data.get("nextCursor") or ""
-            if not cursor or len(this) < len(got):       # newest first: an older row ends the month
-                capped = False
+            if not cursor or older:
+                why = ""
                 break
         else:
-            capped = True
+            why = "capped"
     except Exception as e:  # noqa: BLE001 — the report never raises into a chat turn
-        return {"connected": False, "detail": _sanitize_conn_error(e)}
+        why = "deadline" if isinstance(e, TimeoutError) and str(e) == "deadline" else _sanitize_conn_error(e)
+        if not rows:
+            return {"connected": False, "detail": why}
 
     def row(r):
-        return {"workflow": str(names.get(str(r.get("workflowId")), "unknown workflow"))[:80],
-                "status": str(r.get("status") or ("success" if r.get("finished") else "unknown"))[:20],
+        return {"workflow": names.get(str(r.get("workflowId"))) or "unknown workflow",
+                "status": str(r.get("status") or "unknown")[:20],
                 "startedAt": r.get("startedAt"), "stoppedAt": r.get("stoppedAt")}
-    failed = [r for r in rows if str(r.get("status")) == "error"]
-    return {"connected": True, "month": month, "runsThisMonth": len(rows), "failedThisMonth": len(failed),
-            "capped": capped, "recent": [row(r) for r in rows[:10]], "recentFailures": [row(r) for r in failed[:10]]}
+    failed = [r for r in rows if str(r.get("status")) in _FAILED]
+    out = {"connected": True, "month": month, "runsThisMonth": len(rows), "failedThisMonth": len(failed),
+           "capped": why == "capped", "recent": [row(r) for r in rows[:10]],
+           "recentFailures": [row(r) for r in failed[:10]]}
+    if why and why != "capped":
+        out.update(partial=True, detail=why)     # what was read before the deadline or the error
+    return out
 
 
 def _load():

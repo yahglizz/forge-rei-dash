@@ -74,8 +74,8 @@ def test_n8n_route_is_a_no_taint_read_but_not_mac_clean():
 
 
 def _fake_n8n(pages, seen):
-    def req(method, endpoint, body=None):
-        seen.append((method, endpoint))
+    def req(method, endpoint, body=None, timeout=30, retries=3):
+        seen.append((method, endpoint, timeout, retries))
         if endpoint.startswith("/api/v1/workflows"):
             return {"data": [{"id": "w1", "name": "Daily Enrollment Organizer", "active": True, "nodes": []},
                              {"id": "w2", "name": "Tour Reply Watcher", "active": True, "nodes": []}]}
@@ -88,42 +88,101 @@ def _run(r, wid="w1", status="success", at="2026-11-02T01:00:00.000Z"):
             "finished": status == "success", "errorMessage": "Hill family 555-0100 wanted a tour"}
 
 
-def test_n8n_connected_counts_the_month_and_leaks_nothing():
-    from datetime import datetime, timezone
-    now = datetime(2026, 11, 2, 12, 0, tzinfo=timezone.utc)
-    os.environ.update(N8N_BASE_URL="https://n8n.example.test", N8N_API_KEY="n8n-KEY-0123456789")
-    real, seen = awio._n8n_req, []
-    pages = [{"data": [_run(5), _run(4, "w2", "error"), _run(3, "w1", "error"), _run(2, "w2"),
-                       _run(1, "w1", at="2026-10-31T23:59:00.000Z")], "nextCursor": "c1"}]
-    awio._n8n_req = _fake_n8n(pages, seen)
-    try:
-        out = awio.n8n_status(now)
-    finally:
-        awio._n8n_req = real
+class _Live:
+    """n8n 'connected' with a fake request function; the status cache starts empty."""
+    def __init__(self, fake):
+        self.fake = fake
+
+    def __enter__(self):
+        os.environ.update(N8N_BASE_URL="https://n8n.example.test", N8N_API_KEY="n8n-KEY-0123456789")
+        self.real = awio._n8n_req
+        awio._n8n_req = self.fake
+        awio._STATUS.update(key=None, at=0.0, val=None)
+
+    def __exit__(self, *a):
+        awio._n8n_req = self.real
         os.environ.pop("N8N_BASE_URL"), os.environ.pop("N8N_API_KEY")
-    assert out["connected"] is True and out["month"] == "2026-11"
-    assert (out["runsThisMonth"], out["failedThisMonth"], out["capped"]) == (4, 2, False), out
-    assert [r["workflow"] for r in out["recentFailures"]] == ["Tour Reply Watcher", "Daily Enrollment Organizer"]
+        awio._STATUS.update(key=None, at=0.0, val=None)
+
+
+NOW = __import__("datetime").datetime(2026, 11, 2, 12, 0, tzinfo=__import__("datetime").timezone.utc)
+
+
+def test_n8n_connected_counts_the_month_and_leaks_nothing():
+    seen = []
+    pages = [{"data": [_run(6), _run(5, "w2", "crashed"), _run(4, "w2", "error"), _run(3, "w1", "error"),
+                       _run(2, "w2"), _run(1, "w1", at="2026-10-31T23:59:00.000Z")], "nextCursor": "c1"}]
+    with _Live(_fake_n8n(pages, seen)):
+        out = awio.n8n_status(NOW)
+    assert out["connected"] is True and out["month"] == "2026-11" and "partial" not in out
+    assert (out["runsThisMonth"], out["failedThisMonth"], out["capped"]) == (5, 3, False), out
+    assert [r["workflow"] for r in out["recentFailures"]] == ["Tour Reply Watcher", "Tour Reply Watcher",
+                                                              "Daily Enrollment Organizer"]
+    assert [r["status"] for r in out["recentFailures"]][0] == "crashed", "crashed is a failure"
     assert out["recent"][0]["workflow"] == "Daily Enrollment Organizer"
     text = json.dumps(out)
     assert "n8n-KEY" not in text and "example.test" not in text, "no key, no host"
     assert "Hill" not in text and "555" not in text, "no execution error text"
-    assert all(m == "GET" for m, _ in seen), seen
-    assert len([e for _, e in seen if "executions" in e]) == 1, "an older row ends the scan after one page"
+    assert all(m == "GET" and retries == 0 and timeout <= 8 for m, _, timeout, retries in seen), seen
+    assert len([e for _, e, _, _ in seen if "executions" in e]) == 1, "an older row ends the scan after one page"
+
+
+def test_n8n_null_started_at_does_not_end_the_scan():
+    seen = []
+    queued = dict(_run(9), startedAt=None, stoppedAt=None, status="new")
+    pages = [{"data": [queued, _run(8)], "nextCursor": "c1"},
+             {"data": [_run(7), _run(6, "w2", "error")], "nextCursor": None}]
+    with _Live(_fake_n8n(pages, seen)):
+        out = awio.n8n_status(NOW)
+    assert (out["runsThisMonth"], out["failedThisMonth"]) == (3, 1), out    # the queued row is not a run
+    assert len([e for _, e, _, _ in seen if "executions" in e]) == 2, "read on to the second page"
+    assert "cursor=c1" in seen[-1][1]
+
+
+def test_n8n_is_cached_for_a_minute():
+    seen = []
+    pages = [{"data": [_run(2)], "nextCursor": None}, {"data": [_run(2), _run(1)], "nextCursor": None}]
+    with _Live(_fake_n8n(pages, seen)):
+        first = awio.n8n_status(NOW)
+        n = len(seen)
+        assert awio.n8n_status(NOW) == first and len(seen) == n, "second call inside 60 s hits no n8n"
+        awio._STATUS["at"] -= awio.STATUS_TTL + 1
+        assert awio.n8n_status(NOW)["runsThisMonth"] == 2 and len(seen) > n, "after 60 s it scans again"
+
+
+def test_n8n_deadline_returns_partial_and_never_hangs():
+    import time as _t
+    seen = []
+    pages = [{"data": [_run(i) for i in range(250, 0, -1)], "nextCursor": "c%d" % i} for i in range(5)]
+    inner = _fake_n8n(pages, seen)
+
+    def slow(method, endpoint, body=None, timeout=30, retries=3):
+        if "executions" in endpoint:
+            _t.sleep(0.15)
+        return inner(method, endpoint, body, timeout, retries)
+    with _Live(slow):
+        t0 = _t.time()
+        out = awio.n8n_status(NOW, deadline=0.4)
+        took = _t.time() - t0
+        again = awio.n8n_status(NOW, deadline=0.4)
+    assert took < 2, took
+    assert out["connected"] is True and out["partial"] is True and out["detail"] == "deadline", out
+    assert 0 < out["runsThisMonth"] < 5 * 250, out
+    assert again == out, "a partial result is cached too: a slow n8n costs one scan a minute"
+
+
+def test_n8n_requests_never_exceed_the_total_budget():
+    seen = []
+    with _Live(lambda *a, **k: seen.append(k) or (_ for _ in ()).throw(TimeoutError("slow"))):
+        out = awio.n8n_status(NOW)
+    assert out["connected"] is False and "slow" in out["detail"] and seen and seen[0]["retries"] == 0
 
 
 def test_n8n_fetch_failure_stays_clean():
-    os.environ.update(N8N_BASE_URL="https://n8n.example.test", N8N_API_KEY="n8n-KEY-0123456789")
-    real = awio._n8n_req
-
     def boom(*a, **k):
         raise RuntimeError("n8n 401: bad key n8n-KEY-0123456789 at https://n8n.example.test")
-    awio._n8n_req = boom
-    try:
+    with _Live(boom):
         out = awio.n8n_status()
-    finally:
-        awio._n8n_req = real
-        os.environ.pop("N8N_BASE_URL"), os.environ.pop("N8N_API_KEY")
     assert out["connected"] is False and "n8n-KEY" not in json.dumps(out) and "example.test" not in json.dumps(out)
 
 
@@ -148,6 +207,12 @@ def test_brain_is_only_on_the_scheduled_non_parent_task():
     for narrow in ("solomon.tour_followup", "dyson.lead_review"):       # a parent or a lead triggers these
         assert not brain & set(gw.TASKS[narrow]["get"]), narrow
     assert "/api/brain/search" in gw.TASKS["solomon.pipeline_review"]["prompt"]
+    spec = gw._workflow_spec({"job": {"task": "solomon.pipeline_review", "agent": "solomon", "workflow": "w"},
+                              "req": {}})
+    assert dash_live._DATA_RULE in spec["messages"][0]["content"], "brain notes are data, not instructions"
+    narrow = gw._workflow_spec({"job": {"task": "solomon.tour_followup", "agent": "solomon", "workflow": "w"},
+                                "req": {}})
+    assert dash_live._DATA_RULE not in narrow["messages"][0]["content"]
     real, seen = ta._http, []
     ta._http = lambda method, path, query=None, **k: seen.append((method, path, query)) or {}
     try:
