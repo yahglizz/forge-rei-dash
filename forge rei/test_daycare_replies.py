@@ -3,6 +3,7 @@ approve path's live re-check. No network, no Claude. Run: python3 test_daycare_r
 import os
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 import daycare_replies as dr
 
@@ -191,8 +192,27 @@ def test_ai_down_stops_sweep():
     assert len(calls) == 1 and "credit" in r["error"] and "credit" in dr.view()["error"], r
 
 
+def test_watcher_ping():
+    dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
+    sent = []
+    post = lambda url, key: sent.append(key) or True
+    conv = lambda age, way="inbound": [{"lastMessageDirection": way, "lastMessageDate": int((NOW - age) * 1000)}]
+    with mock.patch.dict(os.environ, {"N8N_TOUR_PING_URL": "https://x", "N8N_TOUR_PING_KEY": "k"}):
+        assert not dr.ping_watcher(conv(30, "outbound"), NOW, post), "staff text is not a ping"
+        assert not dr.ping_watcher(conv(3 * 3600), NOW, post), "too old for the Watcher to read"
+        assert dr.ping_watcher(conv(30), NOW, post) and len(sent) == 1
+        assert not dr.ping_watcher(conv(30), NOW + 60, post), "same text: no second execution"
+        assert not dr.ping_watcher(conv(10), NOW + 60, post), "burst: held by the gap"
+        assert dr.ping_watcher(conv(-200), NOW + 400, post) and len(sent) == 2, "held text goes after the gap"
+        assert not dr.ping_watcher(conv(-700), NOW + 800, lambda u, k: False), "failed ping is not seen"
+        assert dr.ping_watcher(conv(-700), NOW + 860, post) and len(sent) == 3, "...so it retries"
+    with mock.patch.dict(os.environ, {"N8N_TOUR_PING_URL": "", "N8N_TOUR_PING_KEY": ""}):
+        assert not dr.ping_watcher(conv(30), NOW + 2000, post), "unset = off"
+
+
 if __name__ == "__main__":
     os.environ.setdefault("FORGE_ACTION_LOG", str(Path(tempfile.mkdtemp()) / "a.jsonl"))
+    test_watcher_ping()
     test_channel_dnd()
     test_gate()
     test_flags()

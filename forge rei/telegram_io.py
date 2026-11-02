@@ -21,6 +21,7 @@ import json
 import os
 import re
 import threading
+import difflib
 import time
 import urllib.error
 import urllib.parse
@@ -789,6 +790,19 @@ _AGENT_TRIGGER = re.compile(
     r"(?:\s*[,:]\s*|\s+[—–-]\s+)(.*)$|"          # dash must be spaced: not "midas-touch"
     r"^(scout|marcus|atlas|dyson|eco|solomon|midas|orion)$",
     re.I | re.S)
+_AGENT_NAMES = tuple(_AGENT_ALIASES.values())
+
+
+def _named_agent(text):
+    """HQ only: "Solomon how many tours", or the phone typo "Solomom how…". -> (agent, rest) | None.
+    Business chats skip this: their default agent is already right, and a person named Marcus in
+    the daycare chat must stay plain chat. Short words need an exact hit ("echo" is not Eco)."""
+    first, _, rest = text.strip().partition(" ")
+    word = first.strip(",:;.!?").lower()
+    hit = [word] if word in _AGENT_NAMES else (
+        difflib.get_close_matches(word, _AGENT_NAMES, 1, 0.8) if len(word) >= 5 else [])
+    return (hit[0], rest.strip()) if hit else None
+
 
 # The full crew, one line each — /agents and the unified /help both read from this.
 _AGENT_ROSTER = (
@@ -1084,6 +1098,11 @@ def _handle_message(msg, reply_token=None):
             sess["agent"] = (m.group(1) or m.group(3)).lower()
             text = (m.group(2) or "").strip()
             switched = True
+    if not switched and not chat_biz:      # HQ DM: the name alone is enough, no comma needed
+        named = _named_agent(text)
+        if named:
+            sess["agent"], text = named
+            switched = True
     if switched and chat_biz and sess["agent"] == "orion":   # Orion = HQ only (cross-business)
         sess["agent"] = _BIZ_AGENT[chat_biz]
         reply_to(f"Orion works in the HQ chat (health, cost, what's down) — ask him there. "
@@ -1094,12 +1113,6 @@ def _handle_message(msg, reply_token=None):
         sess["agent"] = _BIZ_AGENT[chat_biz]
         reply_to(f"{_esc(_BIZ_LABEL.get(other, other))} work lives in its own chat — ask there. "
                  f"This chat is {_BIZ_LABEL[chat_biz]} with <b>{_BIZ_AGENT[chat_biz].title()}</b>.")
-        return
-    if switched and not chat_biz and _agent_business(sess["agent"]) in _biz_chats():
-        other = _agent_business(sess["agent"])
-        sess["agent"] = _default_agent(chat_id)
-        reply_to(f"{_esc(_BIZ_LABEL.get(other, other))} has its own chat now — talk to "
-                 f"{_esc(_BIZ_AGENT.get(other, 'them').title())} there. HQ is Orion: health, cost, what's down.")
         return
     if switched:
         aid = sess["agent"]
@@ -1209,7 +1222,7 @@ def _partner_turn(chat_id, agent_id, text, reply_token=None):
                     agents_history.record(agent_id, text, reply, via="telegram")
                 except Exception:  # noqa: BLE001
                     pass
-        _send_to(chat_id, f"<b>{agent_id.title()}</b>\n{_esc(reply)}", token=reply_token)
+        _send_to(chat_id, f"<b>{agent_id.title()}</b>\n{_esc(reply.replace('**', ''))}", token=reply_token)
         _send_cards(chat_id, cards, reply_token)
 
 

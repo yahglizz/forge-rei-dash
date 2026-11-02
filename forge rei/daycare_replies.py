@@ -35,6 +35,7 @@ import os
 import re
 import threading
 import time
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -55,6 +56,8 @@ _LOCK = threading.Lock()
 # (a bot tell), never the old 5-10 min. Sweep every 60 s; a fresh inbound waits GRACE_SEC so a
 # GHL workflow's stop-on-response or a person typing live is never raced.
 INTERVAL = int(os.environ.get("FORGE_DAYCARE_REPLIES_INTERVAL", "60"))
+WATCHER_WINDOW_SEC = 2 * 3600          # the n8n Watcher only reads texts this fresh
+WATCHER_GAP_SEC = 300                  # a parent's burst of texts = one n8n execution
 MODEL = os.environ.get("FORGE_DAYCARE_REPLY_MODEL", review_agent.SMART_MODEL)
 GRACE_SEC = int(os.environ.get("FORGE_DAYCARE_REPLY_GRACE_SEC", "90"))
 MAX_DRAFTS = int(os.environ.get("FORGE_DAYCARE_REPLY_MAX", "8"))   # Claude calls per sweep
@@ -406,6 +409,42 @@ def _contact(client, cid):
     return c if isinstance(c, dict) else {}
 
 
+def ping_watcher(convs, now, post=None):
+    """A new parent text runs the n8n Tour Reply Watcher once. This 60 s sweep is free; the
+    Watcher's own 15-minute schedule spent 2,880 of a 2,500 monthly execution plan. No parent data
+    goes out, only the ping. A failed ping stays unseen, so the next sweep retries it.
+    ponytail: a staff reply landing within the same 60 s hides that text; the next one catches it."""
+    url = os.environ.get("N8N_TOUR_PING_URL") or ""
+    key = os.environ.get("N8N_TOUR_PING_KEY") or ""
+    if not url or not key:
+        return False
+    newest = max((daycare_leads._sec(c.get("lastMessageDate")) or 0 for c in convs or []
+                  if c.get("lastMessageDirection") == "inbound"), default=0)
+    with _LOCK:
+        st = _load()
+        seen, pinged = st.get("watcherSeenAt") or 0, st.get("watcherPingAt") or 0
+    if newest <= seen or now - newest > WATCHER_WINDOW_SEC or now - pinged < WATCHER_GAP_SEC:
+        return False
+    if not (post or _post_ping)(url, key):
+        return False
+    with _LOCK:
+        st = _load()
+        st.update(watcherSeenAt=newest, watcherPingAt=now)
+        _save(st)
+    return True
+
+
+def _post_ping(url, key):
+    req = urllib.request.Request(url, data=b"{}", method="POST",
+                                 headers={"X-Forge-Ping": key, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status < 300
+    except Exception as e:  # noqa: BLE001 — the URL holds no secret, the key is a header
+        print(f"[daycare_replies] watcher ping failed: {type(e).__name__}")
+        return False
+
+
 def run_once(client, now=None, drafter=None):
     """One sweep: read, gate, draft, save. Sends nothing. Returns a summary dict."""
     now = now or time.time()
@@ -432,9 +471,14 @@ def run_once(client, now=None, drafter=None):
     held, drafted, reads, errors, ai_err = {}, 0, 0, 0, None
     convs = client.get("/conversations/search", {
         "locationId": client.location_id, "limit": 100, "sortBy": "last_message_date"})
+    conv_list = (convs.get("conversations") if isinstance(convs, dict) else None) or []
+    try:
+        ping_watcher(conv_list, now)
+    except Exception as e:  # noqa: BLE001 — the Watcher ping never fails the Replies lane
+        print(f"[daycare_replies] watcher ping: {type(e).__name__}")
     with _LOCK:
         drafts = dict(_load().get("drafts") or {})
-    for conv in (convs.get("conversations") if isinstance(convs, dict) else None) or []:
+    for conv in conv_list:
         cid = conv.get("contactId")
         last_at = daycare_leads._sec(conv.get("lastMessageDate")) or now
         if not cid:

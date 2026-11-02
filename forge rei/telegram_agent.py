@@ -597,7 +597,7 @@ def system_prompt(agent_id, business):
                      "here); /board shows the top 8 with no AI.")
     try:
         import caveman
-        parts.append(caveman.block())
+        parts.append(caveman.text_block())
     except Exception:  # noqa: BLE001
         pass
     return "".join(p for p in parts if p)

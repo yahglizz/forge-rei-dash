@@ -274,12 +274,23 @@ class RoutingTests(unittest.TestCase):
         self.assertIn("own chat", self.replies[-1][1])
         self.assertEqual(self.seen, [])
 
-    def test_hq_refuses_bound_business_agent(self):
+    def test_hq_reaches_any_agent_by_name(self):
         self.msg("/bind daycare")
-        with mock.patch("telegram_ops.route", return_value=False):
-            self.msg("solomon, how many kids", chat=OPERATOR)
-        self.assertIn("own chat", self.replies[-1][1])
-        self.assertEqual(self.seen, [])
+        for said in ("solomon, how many kids", "Solomon how many kids", "Solomom how many kids"):
+            tg._AGENT_SESS.clear()
+            with mock.patch("telegram_ops.route", return_value=False):
+                self.msg(said, chat=OPERATOR)
+            self.assertEqual(self.seen[-1][0], "solomon", said)
+
+    def test_named_agent_leaves_plain_words_alone(self):
+        self.assertEqual(tg._named_agent("Eco what's winning"), ("eco", "what's winning"))
+        for plain in ("echo that back", "what's broken?", "order more diapers", "status"):
+            self.assertIsNone(tg._named_agent(plain), plain)
+
+    def test_a_name_in_a_business_chat_stays_plain_chat(self):
+        self.msg("/bind daycare")
+        self.msg("Marcus called about the fence")
+        self.assertEqual(self.seen[-1][0], "solomon")
 
     def test_hq_defaults_to_orion(self):
         with mock.patch("telegram_ops.route", return_value=False):
