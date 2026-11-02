@@ -266,7 +266,9 @@ function MAgentsPage(props) {
 
   // Scroll to the newest on send, on the working row and on the reply. The feed itself does not scroll
   // (the page's .m-content does), so bring the composer, which sits under the newest line, into view.
+  // With cards waiting and nothing in flight, stay at the top so "Waiting on you" is the first thing he sees.
   useEffectMA(() => {
+    if (!busyId && !local && !sendErr && !acts && (window.MAWaitingN || 0) > 0) return;
     if (feedRefMA.current) feedRefMA.current.scrollTop = feedRefMA.current.scrollHeight;
     if (composeRefMA.current && composeRefMA.current.scrollIntoView) composeRefMA.current.scrollIntoView({ block: "end" });
   }, [thread.length, busyId, agentId, view, hist.data, waited >= MA_SLOW_S, myCards.length, sendErr, local, acts]);

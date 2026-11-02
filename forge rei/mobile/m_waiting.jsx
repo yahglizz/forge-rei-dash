@@ -65,8 +65,17 @@ function MAWaitingCard({ hide }) {   // hide = toks already on screen in the ope
   Object.keys(rows).forEach((k) => { if (!(rows[k].until > now)) delete rows[k]; });   // expired → row disappears
 
   const shown = Object.keys(rows).map((k) => rows[k]).filter((r) => !(hide || []).includes(r.c.tok)).sort((a, b) => (Number(b.c.ts) || 0) - (Number(a.c.ts) || 0));
-  if (!shown.length) return null;
   const n = shown.filter((r) => r.live).length;
+  window.MAWaitingN = n;               // m_agents reads it: with cards waiting, opening Crew stays at the top
+  const toppedRefWY = useRefWY(false);
+  useEffectWY(() => {                  // the chat may have scrolled down before this list loaded: once per open, go up
+    if (n > 0 && !toppedRefWY.current) {
+      toppedRefWY.current = true;
+      document.querySelectorAll(".m-content").forEach((el) => { el.scrollTop = 0; });
+      window.scrollTo(0, 0);
+    }
+  }, [n > 0]);
+  if (!shown.length) return null;
   return (
     <window.MCard title={n ? "Waiting on you (" + n + ")" : "Waiting on you: all answered"}
       right={<button className="m-tab" style={{ flex: "none", minWidth: 44, minHeight: 44, padding: 4 }}
