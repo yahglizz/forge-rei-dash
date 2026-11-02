@@ -149,6 +149,10 @@ def _owner_ids():
     return {x.strip() for x in (os.environ.get("FORGE_GATEWAY_OWNER_IDS") or "").split(",") if x.strip()}
 
 
+def is_owner(sender_id):
+    return str(sender_id or "") in _owner_ids()
+
+
 # ── job store ────────────────────────────────────────────────────────────────
 def _path(job_id):
     return JOBS / f"{job_id}.json"
@@ -278,7 +282,7 @@ def _chat_req(agent, message, key):
 
 def validate_chat(body):
     _clean_keyset(body, ("agent", "message", "sender_id", "idempotency_key"))
-    if str(body.get("sender_id") or "") not in _owner_ids():
+    if not is_owner(body.get("sender_id")):
         raise Refused(403, "sender is not the owner")
     return _chat_req(body.get("agent"), body.get("message"), body.get("idempotency_key"))
 
@@ -541,6 +545,8 @@ def _work(ctx):
             job["pid"] = child.pid
             _save(job)
             ctx["child"] = child
+            if _given_up(ctx):                 # the wait ran out during _build_spec
+                child.kill()
             try:
                 child.wait(timeout=WALL_SECONDS)
             except subprocess.TimeoutExpired:
@@ -593,6 +599,8 @@ def _check_self_test(ctx, result):
 
 def _finish(ctx, result):
     job = ctx["job"]
+    if ctx.setdefault("ended_by", "job") == "waiter":    # the old path owns this turn: no reply, no history
+        result = {**result, "lost": False, "reply": "", "error": "the caller stopped waiting"}
     error = str(result.get("error") or "")
     status = "lost" if result.get("lost") else "failed" if error else "done"
     if status == "done" and not result.get("reply"):
@@ -759,6 +767,22 @@ def _fall_back(agent, origin, why):
     print(f"   gateway: {origin} chat for {str(agent)[:40]} fell back to the old path: {why}", flush=True)
 
 
+def _given_up(ctx):
+    return ctx.get("ended_by") == "waiter"
+
+
+def _give_up(ctx):
+    """The wait ended with the job alive: it starts at submit, WALL_SECONDS only after _build_spec. Stop
+    the job so the old path's answer is the only one. setdefault is atomic: the job or the waiter ends
+    a turn, never both."""
+    if ctx.setdefault("ended_by", "waiter") != "waiter":
+        ctx["finished"].wait(STOP_GRACE)       # _finish got there first and is writing the result
+        return
+    _TOKENS.pop(ctx["token"], None)
+    if ctx.get("child"):
+        ctx["child"].kill()
+
+
 def _chat_result(ctx):
     """The ended job, shaped for its caller. None = nothing ran, so the old path can take the turn."""
     import dash_live
@@ -768,7 +792,7 @@ def _chat_result(ctx):
         if not col["auto"] and not col["actions"]:
             return None
         out["error"] = job["error"] or "it ran out of time"     # a replay would run those writes twice
-        ran = "; ".join(job.get("done") or [])
+        ran = "; ".join(d.get("summary", "") for d in col["done"])
         out["reply"] = "\n\n".join(x for x in (job["reply"], f"Stopped partway: {out['error']}. "
                                    + (f"Done, not repeated: {ran}. " if ran else "") + "Ask again for the rest.") if x)
     if job["origin"] == "dash":
@@ -779,13 +803,17 @@ def _chat_result(ctx):
     return out
 
 
+def chat_on():
+    return os.environ.get("FORGE_CHAT_GATEWAY") == "1"
+
+
 def chat_local(agent, message, origin, history=None):
     """One owner turn run in-process at 0 n8n executions: the job POST /v1/chat runs, same folder, same
-    gates. Blocks until it ends, WALL_SECONDS at most (+ STOP_GRACE to stop the child). Never raises.
+    gates. Blocks WALL_SECONDS + STOP_GRACE at most, then stops the job. Never raises.
     origin "dash" or "telegram". history = the caller's context, else the shared thread.
     -> {reply, agent, job} (+ actions/done/consults for "dash"; "telegram" cards already went out), or
     None = the caller runs its old path: flag off, refused, or the job failed before anything ran."""
-    if os.environ.get("FORGE_CHAT_GATEWAY") != "1":
+    if not chat_on():
         return None
     try:
         import dash_live
@@ -796,7 +824,7 @@ def chat_local(agent, message, origin, history=None):
         submit(req)
         ctx = req["ctx"]
         if not ctx["finished"].wait(WALL_SECONDS + STOP_GRACE):
-            _TOKENS.pop(ctx["token"], None)     # a stuck job can't write once the old path has the turn
+            _give_up(ctx)
         out = _chat_result(ctx)
         if out is None:
             _fall_back(agent, origin, f"{ctx['job']['id']} {ctx['job']['status']}: {ctx['job']['error'][:200]}")

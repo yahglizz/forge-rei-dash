@@ -39,6 +39,7 @@ telegram_io._AGENT_CHAT["fn"] = telegram_io._AGENCY_CHAT["fn"] = lambda *a: "old
 TAP = "/api/daycare/blast/send"
 AUTO = "/api/hub/task"
 ON = {"FORGE_CHAT_GATEWAY": "1"}
+OWNER = os.environ["FORGE_GATEWAY_OWNER_IDS"]
 
 
 def _req(path, body):
@@ -152,7 +153,7 @@ def test_telegram_turn_sends_the_card_to_the_business_chat_once():
     reset()
     script(t.tool("api_post", {"path": TAP, "body": {}, "summary": "Text all parents"}), t.text("Waiting on your tap."))
     with mock.patch.dict(os.environ, ON), mock.patch.object(ta, "chat", lambda *a, **k: 1 / 0):
-        telegram_io._partner_turn("owner-dm", "solomon", "text every parent")
+        telegram_io._partner_turn("owner-dm", "solomon", "text every parent", from_id=OWNER)
     assert t.SENT[0][0] == "chat-daycare" and "pgo:" in str(t.SENT[0][2]), t.SENT
     assert t.SENT[1][0] == "owner-dm" and "Waiting on your tap." in t.SENT[1][1], t.SENT
     assert len(t.SENT) == 2, "the job sends the card; the turn must not send it again"
@@ -182,7 +183,7 @@ def test_busy_gateway_falls_back_and_logs_it():
         assert "two" not in out.getvalue().split(), "the log never holds the message"
         with contextlib.redirect_stdout(io.StringIO()), mock.patch.object(ta, "chat", lambda *a, **k: {
                 "reply": "old telegram", "cards": []}):
-            telegram_io._partner_turn("chat-daycare", "solomon", "three")
+            telegram_io._partner_turn("chat-daycare", "solomon", "three", from_id=OWNER)
         assert "old telegram" in t.SENT[-1][1]
         gate.set()
         first.join(15)
@@ -225,7 +226,7 @@ def test_a_card_that_never_reached_telegram_says_so():
         {"error": "send failed"} if buttons else t.SENT.append((chat, text, None)) or {"ok": True})
     try:
         with mock.patch.dict(os.environ, ON), mock.patch.object(ta, "chat", lambda *a, **k: 1 / 0):
-            telegram_io._partner_turn("chat-daycare", "solomon", "text them")
+            telegram_io._partner_turn("chat-daycare", "solomon", "text them", from_id=OWNER)
     finally:
         telegram_io._send_to = real
     assert "could not reach Telegram" in t.SENT[-1][1], t.SENT
@@ -406,6 +407,199 @@ def test_the_n8n_door_is_unchanged():
             break
         time.sleep(0.05)
     assert rows()[-1]["via"] == "n8n", rows()
+
+
+def job_files():
+    return [json.loads(f.read_text()) for f in gw.JOBS.glob("*.json")]
+
+
+def wait_idle():
+    for _ in range(300):
+        if not gw._ACTIVE:
+            return
+        time.sleep(0.02)
+    raise AssertionError("the job never ended")
+
+
+def test_owner_commands_stay_deterministic():
+    reset()
+    before = t.CALLS["model"]
+    ran = []
+
+    def command(agent, text, source="dashboard"):
+        ran.append((agent, text))
+        return {"reply": "Tagged in code.", "agent": agent, "command": "tag"}
+    with mock.patch.dict(os.environ, ON), mock.patch.object(connector.telegram_ops, "handle_agent_command", command):
+        for agent, said in (("marcus", "tag Pat Test as hot"), ("scout", "move Pat Test to under contract"),
+                            ("atlas", "remove tag hot from Pat Test")):
+            code, res = _req("/api/hub/chat", {"agentId": agent, "message": said})
+            assert code == 200 and res["reply"] == "Tagged in code." and "job" not in res, (agent, res)
+    assert [r[0] for r in ran] == ["marcus"] * 3, "the parser ran, in code (agents_hub resolves a lane first)"
+    with mock.patch.dict(os.environ, ON), mock.patch.object(connector.telegram_ops, "_intent", lambda x: {
+            "action": "move_stage", "contact": "Pat", "stage": "new"}), old_hub("the model read it as a move"):
+        res = _req("/api/hub/chat", {"agentId": "marcus", "message": "shift Pat over to new"})[1]
+    assert res["reply"] == "the model read it as a move", "same intent reader as the old path"
+    with mock.patch.dict(os.environ, ON), mock.patch.object(connector.telegram_ops, "_intent", lambda x: None), \
+            old_hub("the sweep ran"):
+        res = _req("/api/hub/chat", {"agentId": "scout", "message": "go through my messages from last week"})[1]
+    assert res["reply"] == "the sweep ran", "Scout's audit ask stays on the old path"
+    assert t.CALLS["model"] == before and not job_files(), "no job for a command"
+
+    with mock.patch.dict(os.environ, ON), mock.patch.object(connector.telegram_ops, "_intent", lambda x: None):
+        res = _req("/api/hub/chat", {"agentId": "marcus", "message": "how many leads today?"})[1]
+    assert res["reply"] == "7 open" and res["job"], "a plain question is still a gateway turn"
+    with mock.patch.dict(os.environ, ON), mock.patch.object(
+            connector.telegram_ops, "_intent", lambda x: {"action": "text", "contact": "Pat"}):
+        res = _req("/api/hub/chat", {"agentId": "marcus", "message": "text Pat hello"})[1]
+    assert res.get("job"), "only move_stage and tag are commands, as in handle_agent_command"
+    with mock.patch.dict(os.environ, ON), mock.patch.object(connector.telegram_ops, "_command_intent", lambda x: 1 / 0):
+        assert _req("/api/hub/chat", {"agentId": "solomon", "message": "hi"})[1]["job"], "other agents don't classify"
+
+    with mock.patch.dict(os.environ, ON), mock.patch.object(connector.telegram_ops, "_command_intent",
+                                                            lambda x: 1 / 0), old_hub("old path answer"):
+        res = _req("/api/hub/chat", {"agentId": "marcus", "message": "hi"})[1]
+    assert res["reply"] == "old path answer", "a broken classifier never kills the message"
+
+    with mock.patch.object(connector.telegram_ops, "_command_intent", lambda x: 1 / 0), old_hub():
+        assert _req("/api/hub/chat", {"agentId": "marcus", "message": "hi"})[0] == 200, "flag off spends nothing here"
+
+
+def test_a_slow_spec_build_leaves_one_answer():
+    """The wait starts at submit, WALL_SECONDS only after _build_spec. The child is alive when the wait
+    ends and would answer at t=3.8, after the old path already did."""
+    reset()
+    start = time.time()
+    build = gw._build_spec
+
+    def slow(ctx):
+        time.sleep(1)
+        return build(ctx)
+
+    def late(p):
+        time.sleep(max(0, start + 3.8 - time.time()))
+        return t.text("late reply")
+    t.MODEL["fn"] = late
+    gw._build_spec = slow
+    wall, grace = gw.WALL_SECONDS, gw.STOP_GRACE
+    gw.WALL_SECONDS, gw.STOP_GRACE = 3, 0
+    try:
+        with mock.patch.dict(os.environ, ON), old_hub("old path answer"), contextlib.redirect_stdout(io.StringIO()):
+            res = _req("/api/hub/chat", {"agentId": "solomon", "message": "slow one"})[1]
+        assert res["reply"] == "old path answer", res
+        wait_idle()
+        stopped = time.time() - start
+        time.sleep(1)                      # past the moment the child would have answered
+    finally:
+        gw._build_spec = build
+        gw.WALL_SECONDS, gw.STOP_GRACE = wall, grace
+    assert stopped < 3.6, ("the child is stopped when the wait ends, not when it answers", stopped)
+    assert [r["text"] for r in rows()] == ["slow one", "old path answer"], rows()
+    job = job_files()[0]
+    assert job["status"] == "failed" and job["reply"] == "" and "stopped waiting" in job["error"], job
+    assert not gw._ACTIVE and not gw._TOKENS, "the slot and the token are free"
+
+
+def test_a_spec_build_slower_than_the_wait_never_reaches_the_model():
+    reset()
+    before = t.CALLS["model"]
+    build = gw._build_spec
+
+    def slow(ctx):
+        time.sleep(1.5)
+        return build(ctx)
+    gw._build_spec = slow
+    wall, grace = gw.WALL_SECONDS, gw.STOP_GRACE
+    gw.WALL_SECONDS, gw.STOP_GRACE = 1, 0
+    try:
+        with mock.patch.dict(os.environ, ON), contextlib.redirect_stdout(io.StringIO()):
+            assert gw.chat_local("solomon", "stuck", "dash") is None
+        wait_idle()
+    finally:
+        gw._build_spec = build
+        gw.WALL_SECONDS, gw.STOP_GRACE = wall, grace
+    assert t.CALLS["model"] == before, "no child, no model call"
+    assert job_files()[0]["status"] == "failed" and not rows()
+
+
+def test_a_timed_out_job_that_wrote_reports_and_never_replays():
+    reset()
+    build = gw._build_spec
+    gate = threading.Event()
+    steps = [t.tool("api_post", {"path": AUTO, "body": {"agentId": "solomon", "title": "x"}, "summary": "Task"})]
+
+    def model(p):
+        if steps:
+            return steps.pop()
+        gate.wait(20)
+        return t.text("too late")
+
+    def slow(ctx):
+        time.sleep(1)
+        return build(ctx)
+    t.MODEL["fn"] = model
+    gw._build_spec = slow
+    wall, grace = gw.WALL_SECONDS, gw.STOP_GRACE
+    gw.WALL_SECONDS, gw.STOP_GRACE = 3, 0
+    try:
+        with mock.patch.dict(os.environ, ON), old_hub("REPLAYED"):
+            res = _req("/api/hub/chat", {"agentId": "solomon", "message": "file it"})[1]
+        wait_idle()
+    finally:
+        gate.set()
+        gw._build_spec = build
+        gw.WALL_SECONDS, gw.STOP_GRACE = wall, grace
+    assert res["reply"] != "REPLAYED" and "Task" in res["reply"] and res["error"], res
+    assert [d["summary"] for d in res["done"]] == ["Task"] and t.CALLS["posts"] == [AUTO], res
+    assert not rows(), "the abandoned job records nothing"
+
+
+def test_the_waiter_never_stops_a_job_that_is_already_ending():
+    child = mock.Mock()
+    ctx = {"ended_by": "job", "finished": threading.Event(), "token": "x", "child": child}
+    ctx["finished"].set()
+    gw._give_up(ctx)
+    child.kill.assert_not_called()
+
+
+def test_only_the_owner_gets_the_gateway_on_telegram():
+    reset()
+    before = t.CALLS["model"]
+    card = {"tok": "abc", "agent": "solomon", "path": TAP, "body": {}, "summary": "Text"}
+    old = mock.patch.object(ta, "chat", lambda *a, **k: {"reply": "old telegram", "cards": [card]})
+    with mock.patch.dict(os.environ, {**ON, "TELEGRAM_ALLOWED_IDS": f"{OWNER},555"}), old:
+        telegram_io._partner_turn("team-chat", "solomon", "hi", from_id="555")
+        telegram_io._partner_turn("team-chat", "solomon", "hi again")
+    assert t.CALLS["model"] == before and not job_files(), "an allowlisted teammate never reaches AUTO"
+    assert "pgo:abc" in str(t.SENT[-1][2]), "he stays on the old card path"
+    assert [r["via"] for r in rows()] == ["telegram"] * 4
+
+    reset()
+    with mock.patch.dict(os.environ, {**ON, "FORGE_GATEWAY_OWNER_IDS": ""}), old:
+        telegram_io._partner_turn("team-chat", "solomon", "hi", from_id=OWNER)
+    assert not job_files(), "no owner set = nobody gets it"
+
+
+def test_the_sender_reaches_the_turn_from_a_real_message():
+    reset()
+    telegram_io._AGENT_SESS.clear()
+    telegram_io._AGENT_SESS["t-team"] = {"agent": "solomon", "history": []}
+
+    def say(sender):
+        t.SENT.clear()
+        telegram_io._handle_message({"chat": {"id": "t-team", "type": "supergroup"}, "from": {"id": sender},
+                                     "text": "how many open?"})
+        for _ in range(500):
+            if t.SENT:
+                return t.SENT[-1][1]
+            time.sleep(0.02)
+        raise AssertionError("no reply")
+    with mock.patch.dict(os.environ, {**ON, "TELEGRAM_ALLOWED_IDS": f"{OWNER},555"}), \
+            mock.patch.object(ta, "chat", lambda *a, **k: {"reply": "old telegram", "cards": []}), \
+            mock.patch("telegram_ops.route", return_value=False):
+        assert "old telegram" in say("555")
+        assert not job_files()
+        assert "7 open" in say(OWNER)
+        assert len(job_files()) == 1
 
 
 def test_a_turn_over_real_http_through_the_real_connector():

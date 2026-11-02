@@ -1172,14 +1172,14 @@ def _handle_message(msg, reply_token=None):
     # The partner runs on its own thread (named for the agent, so cost_tracker bills it to
     # that agent): a tool loop can take minutes and must not stall ✅ taps, other chats or
     # the poll heartbeat. One turn at a time per chat keeps its history in order.
-    threading.Thread(target=_partner_turn, args=(chat_id, agent_id, text, reply_token),
+    threading.Thread(target=_partner_turn, args=(chat_id, agent_id, text, reply_token, from_id),
                      daemon=True, name=agent_id).start()
 
 
 _CHAT_LOCKS = {}
 
 
-def _partner_turn(chat_id, agent_id, text, reply_token=None):
+def _partner_turn(chat_id, agent_id, text, reply_token=None, from_id=""):
     lock = _CHAT_LOCKS.setdefault(chat_id, threading.Lock())
     with lock:
         try:
@@ -1201,7 +1201,9 @@ def _partner_turn(chat_id, agent_id, text, reply_token=None):
         try:
             import agent_gateway
             import telegram_agent
-            out = agent_gateway.chat_local(agent_id, text, "telegram", history=hist)
+            # The gateway runs AUTO writes, so only the owner gets it. An allowlisted teammate stays on cards.
+            out = (agent_gateway.chat_local(agent_id, text, "telegram", history=hist)
+                   if agent_gateway.is_owner(from_id) else None)
             recorded = out is not None                 # that job recorded the turn + sent its cards
             out = out or telegram_agent.chat(agent_id, text, hist, chat_id)
             reply, cards = out.get("reply") or "", out.get("cards") or []

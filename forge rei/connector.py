@@ -2412,13 +2412,28 @@ dash_live.set_consult(lambda _aid, _q: agents_hub._flag_error(agents_hub._chat(
 
 def _gateway_chat(agent_id, message, history, business=None):
     """A dashboard/mobile turn from the agent's own folder (FORGE_CHAT_GATEWAY=1): the job records it
-    in agents_history. None = run the old path, which also answers a wrong-workspace chat."""
-    if business and agents_hub.wrong_workspace(agent_id, business):
+    in agents_history. None = run the old path, which also answers a wrong-workspace chat and runs
+    owner commands in code."""
+    if not agent_gateway.chat_on() or (business and agents_hub.wrong_workspace(agent_id, business)):
+        return None
+    if isinstance(message, str) and message.strip() and _owner_command(agent_id, message):
         return None
     out = agent_gateway.chat_local(agent_id, message, "dash", history=history)
-    if out and not out.get("error") and out["agent"].lower() in agency_agents._AGENTS:
+    if out and not out.get("error") and telegram_agent.AGENT_BUSINESS.get(out["agent"].lower()) == "agency":
         agency_agents.record_turn(out["agent"].lower(), message.strip(), out["reply"])   # the phone's agency thread
     return out
+
+
+def _owner_command(agent_id, message):
+    """What agents_chat.chat runs in code before any model. Those stay certain, not up to a model."""
+    if agent_id not in ("marcus", "scout", "atlas"):
+        return False
+    try:
+        if (telegram_ops._command_intent(message) or {}).get("action") in ("move_stage", "tag"):
+            return True
+        return agent_id == "scout" and agents_chat._detect_audit_window(message)[0]
+    except Exception:  # noqa: BLE001 — the old path reports a command it can't read
+        return True
 
 
 def _dash_tap_history(_chat, agent_id, text):
