@@ -270,6 +270,80 @@ def test_billing_calls_run_at_the_invoices_own_center():
         assert needle in src, needle
 
 
+def test_a_mothers_touch_never_gets_a_fee_link_on_the_shared_key():
+    st = FakeStripe()
+    try:
+        run(st, fees.create, None, mk(location_id=AMT))
+    except fees.FeeError as e:
+        assert e.status == 409 and e.code == "no_center_stripe" and "Mother" in e.message
+    else:
+        raise AssertionError("fee link minted for A Mother's Touch on A Touch of Blessings' Stripe key")
+    assert st.calls == []
+
+
+def test_a_paid_fee_stays_paid_no_matter_how_old():
+    st = FakeStripe([sess("cs_old", "paid", ago=400 * 86400)])           # paid > 1 year ago
+    out = run(st, fees.list_fees, None, q(ATOB2))
+    assert out["fees"][0]["status"] == "paid" and out["totals"]["unpaidCount"] == 0
+    sess_calls = [c for c in st.calls if c[1] == "/checkout/sessions"]
+    assert sess_calls and all("created[gte]" not in (c[2] or {}) for c in sess_calls), "no date window"
+
+
+def test_truncated_history_is_flagged_not_silently_unpaid():
+    class More(FakeStripe):
+        def __call__(self, method, path, params=None, key=None):
+            r = super().__call__(method, path, params, key)
+            return dict(r, has_more=True) if method == "GET" and path == "/checkout/sessions" else r
+    st = More([sess("cs_1", "unpaid")])
+    out = run(st, fees.list_fees, None, q(ATOB2))
+    assert out["truncated"] is True
+    assert len([c for c in st.calls if c[1] == "/checkout/sessions"]) == fees.MAX_PAGES
+
+
+def test_new_links_close_after_one_payment():
+    st = FakeStripe()
+    run(st, fees.create, None, mk())
+    post = [c for c in st.calls if c[0] == "POST"][0][2]
+    assert post["restrictions"] == {"completed_sessions": {"limit": "1"}}
+
+
+def test_nan_and_infinite_amounts_are_a_400_not_a_500():
+    for bad in ("nan", "NaN", "inf", float("nan"), float("inf")):
+        st = FakeStripe()
+        try:
+            run(st, fees.create, None, mk(amount=bad))
+        except fees.FeeError as e:
+            assert e.status == 400
+        else:
+            raise AssertionError(f"amount {bad!r} accepted")
+        assert st.calls == []
+
+
+def test_a_sent_text_is_never_reported_as_failed_because_the_switch_back_failed():
+    import contextlib
+    import connector
+
+    @contextlib.contextmanager
+    def restore_fails(session, loc):
+        yield
+        raise daycare_supabase.DaycareError(502, "Daycare database is temporarily unavailable", "upstream_unavailable")
+    with mock.patch.object(daycare_supabase, "at_location", restore_fails):
+        out = connector._billing_at(SESS, QA, lambda: {"ok": True, "status": "sent"})
+        assert out["ok"] is True and out["status"] == "sent" and "switch back" in out["warning"]
+        try:                                                       # the call ITSELF failing still raises
+            connector._billing_at(SESS, QA, lambda: (_ for _ in ()).throw(daycare_supabase.DaycareError(400, "no", "x")))
+        except daycare_supabase.DaycareError as e:
+            assert e.status == 400
+        else:
+            raise AssertionError("a failed call was swallowed")
+
+
+def test_phone_pay_link_send_is_refused_for_a_mothers_touch():
+    import connector
+    src = open(connector.__file__).read()
+    assert 'daycare_fees.AMT:\n                    raise daycare_billing_link.BillingLinkError(409, daycare_fees.NO_AMT_STRIPE' in src
+
+
 def test_routes_are_wired_and_get_is_read_only():
     import connector
     src = open(connector.__file__).read()

@@ -3532,11 +3532,30 @@ def _daycare_at(session, q, fn):
 def _billing_at(session, loc, fn):
     """Run one billing call AT the invoice's own center (compose/send/timeline used to look only at the
     session's active center, so an invoice at another center read as "not found"). at_location checks the
-    caller's membership through the database, switches, and always switches back."""
+    caller's membership through the database, switches, and switches back.
+    If the call itself succeeded but the switch BACK failed, the result still comes back (a sent text must
+    never read as "Not sent"), flagged with a warning. ponytail: at_location holds the process-wide
+    LOCATION_LOCK for the whole call, Stripe + GHL included; split reads from sends if it ever starves."""
     if not loc:
         return fn()
-    with daycare_supabase.at_location(session, daycare_supabase.require_uuid(loc, "location_id")):
-        return fn()
+    result = None
+    try:
+        with daycare_supabase.at_location(session, daycare_supabase.require_uuid(loc, "location_id")):
+            result = fn()
+    except daycare_supabase.DaycareError:
+        if result is None:
+            raise
+        _log_billing_restore_failed()
+        return dict(result, warning="Done, but could not switch back to your center. Open Home to reset it.") \
+            if isinstance(result, dict) else result
+    return result
+
+
+def _log_billing_restore_failed():
+    try:
+        print("[daycare] billing call finished but the center switch-back failed", flush=True)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def handle_marcus_post(path, body):
@@ -5171,6 +5190,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = _billing_at(session, body.get("location_id"),
                                      lambda: daycare_billing_link.compose(session, body.get("invoice_id")))
             elif path == "/api/daycare/billing/link/send":
+                if str(body.get("location_id") or "").lower() == daycare_fees.AMT:
+                    raise daycare_billing_link.BillingLinkError(409, daycare_fees.NO_AMT_STRIPE, "no_center_stripe")
                 result = _billing_at(session, body.get("location_id"), lambda: daycare_billing_link.send(
                     session, body.get("invoice_id"), body.get("message"), DAYCARE_GHL))
             elif path == "/api/daycare/billing/fee-link":           # mints a link + draft; sends nothing

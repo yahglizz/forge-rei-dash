@@ -249,7 +249,7 @@ function MBLFeeSheet(props) {
   const [err, setErr] = useStateMBL("");
   const [made, setMade] = useStateMBL(null);
   const usd = parseFloat(amount);
-  const fixed = !!props.contactId;                       // opened from a thread: the family is already known
+  const fixed = !!props.contactId && !!String(props.name || "").trim();   // from a named thread: the family is known
   async function make() {
     if (family.trim().length < 2) return setErr("Enter the family name.");
     if (!(usd >= 1)) return setErr("Amount must be at least $1.");
@@ -272,6 +272,9 @@ function MBLFeeSheet(props) {
     </React.Fragment>
     : <div className="mbd-form">
       {fixed ? <div className="m-card"><b>{family}</b><div className="m-fade" style={{ marginTop: 4 }}>From this conversation · the text can go to them.</div></div>
+        : props.contactId ? <label className="mbd-field"><span>Family name</span>
+          <input className="m-input" placeholder="Family name" value={family} autoCapitalize="words" onChange={(e) => setFamily(e.target.value)} />
+          <small className="m-fade">From this conversation · the text can go to them.</small></label>
         : <div className="mbd-field"><span>Family</span>
           <MBLFamilyPick value={family} picked={!!contact}
             onType={(v) => { setFamily(v); setContact(""); }} onPick={(n, id) => { setFamily(n); setContact(id); }} /></div>}
@@ -346,7 +349,8 @@ function MBLInvoiceSheet(props) {
   const [warn, setWarn] = useStateMBL(false);
   async function loadTl() { setTl(await MBLGet("/api/daycare/billing/timeline?invoice_id=" + encodeURIComponent(inv.id) + "&location_id=" + encodeURIComponent(r.centerId))); }
   useEffectMBL(() => { loadTl(); }, [inv.id]);
-  const why = r.cat === "paid" ? "Paid — nothing to collect." : r.cat === "void" ? "Void — nothing to collect."
+  const why = r.centerId === MBL_AMT ? "A Mother's Touch has no Stripe account of its own yet — send this from the desktop."
+    : r.cat === "paid" ? "Paid — nothing to collect." : r.cat === "void" ? "Void — nothing to collect."
     : r.cat === "draft" ? "Draft — issue it before texting a pay link." : "";
   const tokens = text.split(MBL_TOKEN).length - 1;
   async function compose() {
@@ -454,6 +458,7 @@ function MBLBilling() {
           onClick={() => setScopeKey(s.key)}>{s.label}</button>)}
       </div>
       {scope.test && <div className="mbd-note">TEST data only — nothing here is a real family.</div>}
+      {d.src.some((s) => s.fee.ok && s.fee.truncated) && <div className="mw-warn">Older fee history was not loaded, so some paid items may be missing. Totals may be incomplete.</div>}
       {!auth && bad.map(([what, where, x], i) => <div className="mw-warn" key={i}>{what} unavailable for {where} — {String(x.detail)}. Totals marked — are Unknown, not zero.</div>)}
 
       <div className="mbl-tiles">

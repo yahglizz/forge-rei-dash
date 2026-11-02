@@ -14,6 +14,7 @@ A Mother's Touch (4444) is a separate legal entity — a fee only ever shows at 
 """
 from __future__ import annotations
 
+import math
 import re
 import threading
 import time
@@ -24,10 +25,13 @@ import daycare_supabase
 import stripe_io
 
 ATOB = "11111111-1111-1111-1111-111111111111"          # A Touch of Blessings (921 N 18th) — the default
+AMT = "44444444-4444-4444-4444-444444444444"           # A Mother's Touch — separate legal entity
+NO_AMT_STRIPE = ("A Mother's Touch has no Stripe account of its own yet, so fee links are blocked for it "
+                 "(stripe_io would put the money in A Touch of Blessings' account).")
 PURPOSES = {"registration-fee": "registration fee", "deposit": "deposit", "supply-fee": "supply fee",
             "late-fee": "late fee", "other": "fee"}
 MAX_USD = 2000.0
-LOOKBACK_DAYS = 120
+MAX_PAGES = 5               # x100 rows; past that the result says so (never silently 'unpaid')
 CACHE_SECONDS = 30
 _TAG_BY_ID = {v: k for k, v in daycare_ghl.LOCATION_ID_BY_TAG.items()}
 _CACHE: dict = {}          # center id -> (at, result)
@@ -76,8 +80,9 @@ def _center_of(meta: dict) -> str | None:
     return daycare_ghl.LOCATION_ID_BY_TAG.get(str(meta.get("location") or ""))
 
 
-def _pages(path: str, params: dict, key: str, cap: int = 3) -> list:
-    out, after = [], None
+def _pages(path: str, params: dict, key: str, cap: int = MAX_PAGES):
+    """(rows, truncated). truncated = Stripe had more than `cap` pages we did not read."""
+    out, after, more = [], None, False
     for _ in range(cap):
         q = dict(params, limit=100)
         if after:
@@ -85,10 +90,11 @@ def _pages(path: str, params: dict, key: str, cap: int = 3) -> list:
         page = stripe_io._req("GET", path, q, key=key)
         data = page.get("data") or []
         out += data
-        if not page.get("has_more") or not data:
+        more = bool(page.get("has_more")) and bool(data)
+        if not more:
             break
         after = data[-1]["id"]
-    return out
+    return out, more
 
 
 def list_fees(session, q=None) -> dict:
@@ -99,9 +105,9 @@ def list_fees(session, q=None) -> dict:
         return hit[1]
     try:
         key = stripe_io.key_for_location(center)
-        since = int(time.time()) - LOOKBACK_DAYS * 86400
-        sessions = _pages("/checkout/sessions", {"created[gte]": since}, key)
-        links = _pages("/payment_links", {"active": "true"}, key)
+        # No date window: a window shorter than the links' life turns a paid fee back into "Unpaid".
+        sessions, cut_s = _pages("/checkout/sessions", {}, key)
+        links, cut_l = _pages("/payment_links", {"active": "true"}, key)
     except stripe_io.StripeError as e:
         raise FeeError(e.status if e.status < 600 else 502, e.message, e.code) from None
     rows: dict = {}
@@ -125,7 +131,7 @@ def list_fees(session, q=None) -> dict:
     result = {"ok": True, "centerId": center, "fees": out,
               "totals": {"paidCents": sum(r["amountCents"] or 0 for r in paid), "paidCount": len(paid),
                          "unpaidCents": sum(r["amountCents"] or 0 for r in unpaid), "unpaidCount": len(unpaid)},
-              "testMode": stripe_io.is_test_key(key)}
+              "testMode": stripe_io.is_test_key(key), "truncated": bool(cut_s or cut_l)}
     _CACHE[center] = (time.time(), result)
     return result
 
@@ -164,13 +170,15 @@ def create(session, body) -> dict:
         usd = float(body.get("amount"))
     except (TypeError, ValueError):
         raise FeeError(400, "Amount must be a number", "validation_error") from None
-    if usd < 1 or usd > MAX_USD:
+    if not math.isfinite(usd) or usd < 1 or usd > MAX_USD:
         raise FeeError(400, f"Amount must be between $1 and ${MAX_USD:,.0f}", "validation_error")
     cents = int(round(usd * 100))
     contact = str(body.get("contact_id") or "").strip()
     if contact and not _GHL_ID.match(contact):
         raise FeeError(400, "Contact id looks wrong", "validation_error")
     center = _center(session, body.get("location_id"))
+    if center == AMT:
+        raise FeeError(409, NO_AMT_STRIPE, "no_center_stripe")
     guard = (contact or family.lower(), purpose, cents, center)
     with _LOCK:
         hit = _RECENT.get(guard)
@@ -189,6 +197,7 @@ def create(session, body) -> dict:
                                 "quantity": 1}],
                 "metadata": meta, "allow_promotion_codes": "false",
                 "invoice_creation": {"enabled": "true"},        # a real receipt for the books
+                "restrictions": {"completed_sessions": {"limit": "1"}},   # pay once: a paid link closes itself
             }, key=key)
         except stripe_io.StripeError as e:
             hint = " The Stripe key needs write access to Payment Links." if e.status == 403 else ""
