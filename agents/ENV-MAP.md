@@ -29,7 +29,7 @@
 | Env var | Read by | master.env name | Status |
 |---|---|---|---|
 | `TELEGRAM_BOT_TOKEN` | `telegram_io.py` | same | OK |
-| `TELEGRAM_AGENT_BOT_TOKEN` | `telegram_io.py` | same | OK |
+| `TELEGRAM_AGENT_BOT_TOKEN` | `telegram_io.py` | same | Unset on the box since 2026-11-02: `@Forgeagentsbot` DMs run through n8n (`FORGE Agent Chat`), and a webhook and box polling can't share a bot. To move the DM back: delete the webhook, restore this line, restart |
 | `TELEGRAM_CHAT_ID` | `telegram_io.py` | same | CONFIG |
 | `TELEGRAM_ALLOWED_IDS` | `telegram_io.py` | same | EMPTY (not blocking: when empty, only `TELEGRAM_CHAT_ID` is authorized, `telegram_io.py` `_msg_authorized`) |
 | `FORGE_SELF_IMPROVE` | `review_agent.py` (`self_improve_on`) | n/a (knob) | knob, default off: gates every automatic `learn()` and `deploy/daily_learn.sh` |

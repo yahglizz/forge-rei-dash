@@ -6164,6 +6164,8 @@ def main():
             print("   Telegram agent bot: on — DM it to talk to the whole crew")
             at = threading.Thread(target=telegram_io.run_agent_bot_forever, daemon=True, name="telegram_agent")
             at.start()
+        else:
+            forge_heartbeat.retire("telegram_agent")   # n8n owns this bot's webhook; off on purpose
         # Watchdog — watches every loop's heartbeat; one Telegram+bus alert on silent death.
         print(f"   Watchdog: loop heartbeat monitor · checks every "
               f"{max(60, int(os.environ.get('FORGE_WATCHDOG_SEC', '300')))}s")
