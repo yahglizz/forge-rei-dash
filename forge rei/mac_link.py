@@ -16,6 +16,7 @@ flight, which the audit log's start row still shows. Self-check: python3 test_ma
 """
 import hashlib
 import hmac
+import html
 import json
 import os
 import re
@@ -33,17 +34,23 @@ OFFLINE_AFTER = 30                     # no heartbeat this long = offline
 PICKUP_SECONDS = 30                    # unclaimed this long = dropped, so it can't run on wake
 WAIT_SECONDS = 125                     # the worker kills at 120
 MAX_OUTPUT = 20000
-MAX_COMMAND = 2000                     # a card must show all of it, and Telegram stops near 4,096
+MAX_COMMAND = 2000                     # a card must show all of it
+MAX_ESCAPED_COMMAND = 2600             # _send_to cuts at 4,000 after escaping; `<` alone grows fourfold
 MAX_RESULT_BODY = 256 * 1024
 
 # ponytail: a speed bump against model mistakes, not a boundary. A shell can spell any of these
 # another way; the tap on a turn that read outside text is the wall. Upgrade: none here, narrow the worker.
 RISKY = re.compile(
-    r"\b(?:sudo|rm|ssh|scp|rsync|osascript|security|launchctl|vercel)\b"
+    r"\b(?:sudo|rm|ssh|scp|rsync|osascript|security|launchctl|vercel|eval)\b"
     r"|\bgit\b[^;&|\n]*\bpush\b"
-    r"|\b(?:curl|wget)\b[^;&|\n]*\s(?:--(?:data|form|json|upload|post|body|method|request)"
+    r"|\b(?:curl|wget)\b[^\n]*\s(?:--(?:data|form|json|upload|post|body|method|request)"   # to end of line: a URL holds &
     r"|(?-i:-[a-zA-Z]*[dFTX]))"        # case-sensitive: -f and -t are harmless, -F and -T send data
-    r"|\bmaster\.env\b|\.ssh\b|\.agent-keys\b",
+    r"|\|&?\s*(?:[\w./-]*/)?(?:ba|z|da|k)?sh\b"              # a pipe into a shell
+    r"|\bbase64\b[^\n;|]*\s(?:-[a-zA-Z]*d\b|--decode)"
+    r"|\bpython[\d.]*\b[^\n;|]*\s-[a-zA-Z]*c\b"
+    r"|\bperl\b[^\n;|]*\s-[a-zA-Z]*e\b|\bnode\b[^\n;|]*\s(?:-[a-zA-Z]*e\b|--eval)"
+    r"|\bfind\b[^\n]*\s-delete\b"
+    r"|\bmaster\.env\b|\.env\b|\.agents\.env\b|\.ssh\b|\.agent-keys\b|\.forge-mac\b",
     re.I)
 
 _SECRETS = (
@@ -51,10 +58,14 @@ _SECRETS = (
     re.compile(r"\bsk-ant-[\w-]+|\bsk-[\w-]{20,}|\b[sr]k_(?:live|test)_\w+|\bgh[pousr]_\w{10,}|\bgithub_pat_\w+"
                r"|\bxox[bp]-[\w-]+|\bAKIA[0-9A-Z]{12,}"),
     re.compile(r"\bBearer\s+\S+", re.I),
+    re.compile(r"(?<![\w-])[\w-]{64}(?![\w-])"),            # the Mac key's own shape; a sha256 goes too
+    re.compile(r"\b[a-z][a-z0-9+.-]{1,20}://[^\s:/@]+:[^\s@/]+@", re.I),   # postgres://user:pass@
+    re.compile(r"\beyJ[\w-]{8,2048}\.[\w-]{8,2048}\.[\w-]*"),   # a bare JWT, bounded: this runs on outside text
+    re.compile(r"\bAIza[\w-]{30,}"),
 )
 # The name is bounded and has no leading wildcard: output is outside text, and an unbounded [\w.-]* is
 # quadratic on one long word, which would hang the box.
-_NAMED_SECRET = re.compile(r"(?i)((?:key|token|secret|passw(?:or)?d)[\w.-]{0,64}[\"']?[ \t]{0,8}[=:][ \t]*)[^\n]+")
+_NAMED_SECRET = re.compile(r"(?i)((?:key|token|secret|passw(?:or)?d|authorization)[\w.-]{0,64}[\"']?[ \t]{0,8}[=:][ \t]*)[^\n]+")
 
 _lock = threading.Lock()
 _seen = {}                             # the last heartbeat
@@ -107,8 +118,12 @@ def bad_command(command):
         return "command is required"
     if len(command) > MAX_COMMAND:
         return f"command over {MAX_COMMAND} chars: the owner must see all of it, so shorten it"
-    if any(unicodedata.category(c) in ("Cc", "Cf") and c not in "\n\t" for c in command):
+    if len(html.escape(command, quote=False)) > MAX_ESCAPED_COMMAND:
+        return "command too long for a card once escaped: shorten it"
+    if any(unicodedata.category(c) in ("Cc", "Cf", "Zl", "Zp") and c not in "\n\t" for c in command):
         return "command holds invisible characters, so a card couldn't show what runs"
+    if re.search(r"[^\S\n]{40,}|(?:\n[^\S\n]*){4,}", command):
+        return "command holds long blank padding, which could push part of it off a card"
     return ""
 
 

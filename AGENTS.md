@@ -97,12 +97,20 @@ system alerts (Anthropic credits/auth, clock, sync, graph builder) and Orion.
 ## The owner's Mac (`mac_run`)
 
 Owner decision 2026-11-01, written risk accepted. In his own chats an agent can run a real shell
-command on his Mac while it is awake. Orion, Dyson and Eco run a clean, non-risky command at once from
-a gateway chat. Solomon, Marcus, Scout and Atlas get a ✅ card every time, because their prompts carry
-lead and seller text. So does any agent that read outside text in the last 30 minutes, or just ran a
-command. Workflow jobs, teammate consults and the old Telegram path never get the tool. Only the
-owner's tap runs a card. Rules: `CLAUDE.md` section 2 (Mac shell) and section 8a (Mac link). Kill:
-`FORGE_MAC=0`, clock-out, `~/.forge-mac/off`, or `launchctl bootout`.
+command on his Mac while it is awake, through a ✅ card showing the exact command. Only the owner's
+tap runs a card.
+
+**Auto-run, with no tap, is the narrow exception.** All of these must hold: Orion, Dyson or Eco; a
+gateway chat from the dashboard, phone or box Telegram, not n8n; no lanes, open tasks or
+caller-supplied history in the prompt; every replayed history row flagged `clean`; nothing read this
+turn but `mac_status` or `/api/cost/status`; the agent not tainted; `FORGE_CHAT_AUTO` on; and the
+command misses the risky list. `clean` is earned only on a turn that already met those rules, so one
+outside read, one old row or one auto-run keeps that agent's thread on cards until the thread is
+reset. Solomon, Marcus, Scout and Atlas always get a card, because their prompts carry lead and seller
+text. Workflow jobs, teammate consults and the old Telegram path never get the tool.
+
+Rules: `CLAUDE.md` section 2 (Mac shell) and section 8a (Mac link). Kill: `FORGE_MAC=0`, clock-out,
+`~/.forge-mac/off`, or `launchctl bootout`.
 
 ---
 

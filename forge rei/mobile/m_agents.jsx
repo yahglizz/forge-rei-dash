@@ -280,7 +280,10 @@ function MAgentsPage(props) {
     setActs(null);
     try {
       // business = the portal we're in; the hub refuses an agent outside its home workspace.
-      const body = { agentId: a.id, message: q, history };
+      // Hub chat replays the server's own thread: the Mac gate needs its clean flags, which this copy
+      // lacks. The agency's old path has no store to fall back on, so it still takes this context.
+      const body = { agentId: a.id, message: q };
+      if (a.ep !== "/api/hub/chat") body.history = history;
       if (a.sendBiz) body.business = a.sendBiz;
       const d = await window.apiPostM(a.ep, body, { timeoutMs: MA_TIMEOUT_MS, signal: ctl.signal });
       // The reply's own cards show at once; the server queue (cardsM) confirms them and keeps them across a reload.

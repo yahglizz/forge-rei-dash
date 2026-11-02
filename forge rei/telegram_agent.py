@@ -88,6 +88,8 @@ DENY = (
     "/api/gateway/",
     # the Mac worker's queue and its status: mac_run and mac_status are the only way in
     "/api/mac/",
+    # tap cards: /api/chat/cards holds card tokens and Mac commands, and a token must never reach a model
+    "/api/chat/",
 )
 _SECRET_KEY = re.compile(r"token|secret|api_?key|password|passwd|authorization", re.I)
 _RISKY = (("dismiss", "🙈 dismisses"), ("reset-pin", "🔐 resets a login"), ("blast", "📣 mass text"),
@@ -379,16 +381,36 @@ def _run_mac(p):
     return out
 
 
-def _mac_result_text(p, out):
-    body = out.get("error") or out.get("message") or ""
-    return (f"🖥 <b>Mac result</b> for {_esc(p['agent'].title())}\n<code>{_esc(p['mac']['command'][:200])}</code>\n"
-            f"<pre>{_esc(body[:3000])}</pre>")
+MAC_DM_CAP = 3200                      # _send_to cuts at 4,000 after escaping, which would break the HTML
+
+
+def _mac_output_text(p, out):
+    """The owner's copy. Cut after escaping, never inside an entity, and it says so."""
+    body = _esc(out.get("message") or "")
+    note = ""
+    if len(body) > MAC_DM_CAP:
+        body = re.sub(r"&[a-z]*$", "", body[:MAC_DM_CAP])
+        note = "\nCut for Telegram. The rest was not kept: rerun it narrower."
+    return f"🖥 <b>Mac output</b> for {_esc(p['agent'].title())}\n<code>{_esc(p['mac']['command'][:200])}</code>\n<pre>{body}</pre>{note}"
+
+
+def _deliver_mac(p, out):
+    """Staff can sit in a business chat, so output goes to the owner's own id and the chat gets the exit
+    code. With no id to reach it, the output is not sent anywhere."""
+    import agent_gateway
+    import telegram_io
+    if out.get("error"):               # the box's own words, never command output
+        return telegram_io._send_to(p["chat"], f"🖥 Mac: {_esc(out['error'])}")
+    sent = [telegram_io._send_to(i, _mac_output_text(p, out)) for i in sorted(agent_gateway._owner_ids())]
+    reached = any(not (s or {}).get("error") for s in sent)
+    telegram_io._send_to(p["chat"], f"🖥 Mac: exit {out.get('exitCode')}"
+                         + ("" if reached else ". The output did not reach the owner's DM."))
 
 
 def _confirm_mac(p):
     """✅ on a Mac card: the stored command, nothing a model can send now, with the kill switches read
     again here. A Telegram tap runs inside the poll loop, so its wait moves to a thread and the result
-    follows as a message. Output goes to the owner only, never into the agent's thread."""
+    follows as messages. Output goes to the owner only, never into the agent's thread."""
     import mac_link
     why = mac_link.refused()
     if why:
@@ -397,11 +419,14 @@ def _confirm_mac(p):
         return _run_mac(p)
 
     def work():
-        import telegram_io
-        telegram_io._send_to(p["chat"], _mac_result_text(p, _run_mac(p)))
+        try:
+            out = _run_mac(p)
+        except Exception as e:  # noqa: BLE001 — a tap must never end in silence
+            out = {"error": f"The Mac run failed on the box ({type(e).__name__}). It may not have run."}
+        _deliver_mac(p, out)
 
     threading.Thread(target=work, name=p["agent"], daemon=True).start()   # cost_tracker style: named for the agent
-    return {"ok": True, "message": "Running on the Mac. The result follows here."}
+    return {"ok": True, "message": "Running on the Mac. The exit code follows here, the output goes to the owner's DM."}
 
 
 def cancel(tok, chat_id=None):

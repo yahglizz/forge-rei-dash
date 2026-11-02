@@ -156,6 +156,32 @@ def test_a_background_child_holding_the_pipe_cannot_hang_the_worker():
     assert BOX["results"][0]["exitCode"] == 0 and "quick" in BOX["results"][0]["output"]
 
 
+def test_redirected_output_still_dies_at_the_timeout():
+    """`npm run dev > log 2>&1`: the pipe hits EOF at once and the process runs on."""
+    home = setup()
+    w.COMMAND_TIMEOUT = 1
+    marker = home / "survived"
+    BOX["jobs"].append(job(f"(sleep 3; touch {marker}) > {home}/log 2>&1"))
+    BOX["jobs"].append(job("echo polling-again", "b" * 32))
+    t0 = time.time()
+    run_loop(lambda: len(BOX["results"]) >= 2)
+    assert time.time() - t0 < 6, "the worker stopped polling"
+    assert BOX["results"][0]["timedOut"] is True and BOX["results"][0]["exitCode"] != 0, BOX["results"][0]
+    assert "polling-again" in BOX["results"][1]["output"]
+    time.sleep(3)
+    assert not marker.exists(), "it outlived the kill"
+
+
+def test_a_silent_background_child_does_not_outlive_the_command():
+    home = setup()
+    marker = home / "survived"
+    BOX["jobs"].append(job(f"(sleep 2; touch {marker}) > /dev/null 2>&1 & echo quick"))
+    run_loop(lambda: BOX["results"])
+    assert BOX["results"][0]["exitCode"] == 0 and "quick" in BOX["results"][0]["output"]
+    time.sleep(2.5)
+    assert not marker.exists(), "a background child outlived its command"
+
+
 def test_huge_output_is_capped_without_filling_memory():
     setup()
     w.COMMAND_TIMEOUT = 2

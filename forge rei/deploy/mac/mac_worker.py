@@ -2,8 +2,8 @@
 """mac_worker.py — runs on the owner's Mac. It dials out to the box; nothing listens here.
 
 Every 5 seconds it asks the box for work over the tailnet, which also serves as the heartbeat. A
-command runs in zsh with stdin closed, in its own process group, and the group is killed at 120
-seconds. One at a time. Output goes to the box, which redacts it; only the command and its exit
+command runs in zsh with stdin closed, in its own process group. The group is killed at 120 seconds,
+and when the command ends, so a background child doesn't outlive it. One at a time. Output goes to the box, which redacts it; only the command and its exit
 code land in ~/Library/Logs/forge-mac-worker.log.
 
 Switches: touch ~/.forge-mac/off (heartbeats as off, runs nothing), or launchctl bootout.
@@ -90,6 +90,13 @@ def call(method, path, key, body=None):
         return json.loads(r.read().decode() or "{}")
 
 
+def kill_group(pgid):
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):   # gone, or only zombies left, which macOS answers with EPERM
+        pass
+
+
 def run_command(command):
     """-> {exitCode, output, truncated, timedOut}. Reads with select, not communicate(): a background
     child that keeps the pipe open must not hang the worker, and `yes` must not fill its memory."""
@@ -108,10 +115,6 @@ def run_command(command):
         left = deadline - time.monotonic()
         if left <= 0:
             timed_out = True
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
             break
         ready = select.select([fd], [], [], min(left, 0.25))[0]
         if ready:
@@ -126,7 +129,13 @@ def run_command(command):
         elif proc.poll() is not None:  # the shell is done; a silent background child may hold the pipe
             break
     proc.stdout.close()
-    code = proc.wait()
+    try:                               # EOF isn't the end: `npm run dev > log` closes the pipe and keeps running
+        code = proc.wait(0 if timed_out else max(0.0, deadline - time.monotonic()))
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        kill_group(proc.pid)
+        code = proc.wait()
+    kill_group(proc.pid)               # nothing outlives the command, so `sleep 999 &` can't linger
     text = b"".join(keep).decode("utf-8", "replace")
     return {"exitCode": code, "output": text[:MAX_OUTPUT], "truncated": overflow or len(text) > MAX_OUTPUT,
             "timedOut": timed_out}

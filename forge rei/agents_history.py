@@ -39,20 +39,23 @@ def _save(data):
     forge_atomic.atomic_write_json(STATE, data)
 
 
-def record(agent_id, user_text, reply_text, via="dash"):
-    """Append one operator turn + one agent turn. Best-effort, never raises."""
+def record(agent_id, user_text, reply_text, via="dash", clean=False):
+    """Append one operator turn + one agent turn. Best-effort, never raises. clean=True only from
+    agent_gateway._after, on a turn that stayed free of outside text: the Mac gate reads it, and a row
+    without it (every other writer, every old row) counts as outside text."""
     try:
         aid = str(agent_id or "marcus").strip().lower()
         now = _now()
         with _LOCK:
             data = _load()
             thread = list(data["threads"].get(aid) or [])
+            flag = {"clean": True} if clean else {}
             if str(user_text or "").strip():
                 thread.append({"role": "user", "text": str(user_text).strip(),
-                               "ts": now, "via": via})
+                               "ts": now, "via": via, **flag})
             if str(reply_text or "").strip():
                 thread.append({"role": "ai", "text": str(reply_text).strip(),
-                               "ts": now, "via": via})
+                               "ts": now, "via": via, **flag})
             data["threads"][aid] = thread[-MAX_PER_AGENT:]
             _save(data)
     except Exception:  # noqa: BLE001 — history must never break a chat reply
@@ -70,7 +73,10 @@ def history(agent_id, limit=60):
     return {"agentId": aid, "history": thread[-lim:], "count": len(thread)}
 
 
-def recent_for_context(agent_id, limit=8):
+REPLAY = 8                             # rows a chat replays into its prompt
+
+
+def recent_for_context(agent_id, limit=REPLAY):
     """Last N turns shaped for agents_chat's history= param ({role, text})."""
     rows = history(agent_id, limit).get("history") or []
     return [{"role": r.get("role"), "text": r.get("text")} for r in rows]

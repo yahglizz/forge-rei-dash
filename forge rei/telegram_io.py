@@ -1207,9 +1207,10 @@ def _partner_turn(chat_id, agent_id, text, reply_token=None, from_id=""):
         # and it survives restarts); the in-memory session only when the store is empty.
         try:
             import agents_history
-            hist = agents_history.recent_for_context(agent_id) or list(sess["history"])
+            stored = agents_history.recent_for_context(agent_id)
+            hist = stored or list(sess["history"])
         except Exception:  # noqa: BLE001
-            agents_history, hist = None, list(sess["history"])
+            agents_history, stored, hist = None, [], list(sess["history"])
         # The business partner: a tool-using agent that reads live data and queues writes as
         # ✅ cards (telegram_agent). The old text-only brains stay as the fallback.
         cards, recorded = [], False
@@ -1217,7 +1218,8 @@ def _partner_turn(chat_id, agent_id, text, reply_token=None, from_id=""):
             import agent_gateway
             import telegram_agent
             # The gateway runs AUTO writes, so only the owner gets it. An allowlisted teammate stays on cards.
-            out = (agent_gateway.chat_local(agent_id, text, "telegram", history=hist)
+            # Stored rows are left for the job to read itself: it needs their `clean` flags for the Mac gate.
+            out = (agent_gateway.chat_local(agent_id, text, "telegram", history=None if stored else hist)
                    if agent_gateway.is_owner(from_id) else None)
             recorded = out is not None                 # that job recorded the turn + sent its cards
             out = out or telegram_agent.chat(agent_id, text, hist, chat_id)

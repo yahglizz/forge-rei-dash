@@ -304,6 +304,42 @@ def _taint_ttl():
         return 1800
 
 
+# Mac gate only. NO_TAINT_PREFIXES serves AUTO writes and holds routes with free text in them (ACE, the
+# registry, the enrolled audit), so it says nothing about a shell. A read stays clean only here: numbers,
+# nothing a person typed. /api/system/health and /api/health are out because their lastError strings are
+# raw exceptions, which can quote lead or seller data. Every other tool result is dirty by default.
+MAC_CLEAN_PREFIXES = ("/api/cost/status",)
+_TAINT_UNSAVED = {}                    # agent -> ts: a taint the file didn't take. The Mac gate still sees it
+
+
+def _mac_clean_call(name, inp):
+    if name in ("mac_status", "mac_run"):   # facts in fixed shapes; a run taints the agent itself
+        return True
+    path = str(inp.get("path") or "").split("?", 1)[0].rstrip("/")
+    return name == "api_get" and any(path == p or path.startswith(p + "/") for p in MAC_CLEAN_PREFIXES)
+
+
+def _mac_tainted(agent_id):
+    """_recently_tainted for a shell: a state file it can't read counts as tainted."""
+    key = _cap_key(agent_id)
+    if time.time() - _TAINT_UNSAVED.get(key, 0) < _taint_ttl():
+        return True
+    try:
+        return time.time() - int(json.loads(TAINT_STATE.read_text()).get(key) or 0) < _taint_ttl()
+    except FileNotFoundError:
+        return False
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def mac_clean_turn(col, agent_id):
+    """Did this turn stay free of outside text? macAuto covers its prompt and every replayed row, so a
+    reply built on an unclean row is never stored clean: a model that copied an injection forward
+    would otherwise launder it past the check once the original row aged out."""
+    return bool(col.get("macAuto")) and not col.get("macDirty") and not col.get("tainted") \
+        and not _mac_tainted(agent_id)
+
+
 def _mark_tainted(agent_id):
     """Remember (on disk, per agent) that this agent has third-party text in context."""
     try:
@@ -316,7 +352,7 @@ def _mark_tainted(agent_id):
             d[_cap_key(agent_id)] = int(time.time())
             forge_atomic.atomic_write_json(TAINT_STATE, d)
     except Exception:  # noqa: BLE001 — can't record it: the in-message flag still holds
-        pass
+        _TAINT_UNSAVED[_cap_key(agent_id)] = time.time()
 
 
 def _recently_tainted(agent_id):
@@ -523,14 +559,16 @@ def pipeboard_read(inp, agent_id):
 
 # ── the owner's Mac (spec 2026-11-01 section 4; the queue and kill switches are mac_link) ───────
 def _mac_why_tap(command, agent_id, col):
-    """Why this command needs the owner's tap, or "". Taint only sees tool reads, so auto-run also takes
-    col["macAuto"], which only the gateway sets, and only for a prompt with no lane state. On the old
-    path marcus_chat, agents_chat and agency_agents put seller threads and client requests in the prompt;
-    on the gateway Solomon's and Marcus's lanes quote lead names and reasons. Those agents get a card."""
-    if col.get("tainted") or _recently_tainted(agent_id):
+    """Why this command needs the owner's tap, or "". Fails closed: any tool result not on
+    MAC_CLEAN_PREFIXES dirties the turn, and auto-run also takes col["macAuto"], which only
+    agent_gateway._chat_spec sets, for an agent and a prompt it can vouch for. On the old path
+    marcus_chat, agents_chat and agency_agents put seller threads and client requests in the prompt."""
+    if col.get("tainted") or _mac_tainted(agent_id):
         return "outside text is in this agent's context"
+    if col.get("macDirty"):
+        return "this turn read data that can hold outside text"
     if not col.get("macAuto"):
-        return "this agent's prompt can carry lead, parent or seller text"
+        return "this agent's prompt or chat history can carry outside text"
     if not auto_enabled():
         return "auto actions are off (FORGE_CHAT_AUTO=0)"
     if mac_link.risky(command):
@@ -870,13 +908,14 @@ def tools(agent_id):
 
 def run_tool(name, inp, agent_id):
     """One tool call. Reads run now; writes + consults only inside an interactive chat (writes_on)."""
+    col = _col()
+    if col is not None and not _mac_clean_call(name, inp):
+        col["macDirty"] = True         # before it runs: a failed read may still have returned text
     if name in ("mac_status", "mac_run"):
-        col = _col()
         if col is None or col.get("ro") or not write_business(agent_id):
             return {"error": f"{name} is not available in this chat"}
         return mac_link.status() if name == "mac_status" else mac_run(inp, agent_id, col)
     if name == "ask_agent":
-        col = _col()
         if col is None or not consult_on(agent_id):
             return {"error": "ask_agent is not available here (a consulted teammate can't consult back) — "
                              "answer from your own tools"}
