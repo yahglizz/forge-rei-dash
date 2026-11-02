@@ -8,8 +8,9 @@
 //   POST /api/hub/task        {agentId,title,note,business?}
 //   POST /api/hub/task/update {id,status: open|done|dismissed|failed}
 //   POST /api/office/task     {agentId,title,note,taskId,business?}  "Run now": runs THAT open task through the
-//        agent's own brain (agent_office job, same gates as chat: AUTO writes named in the result, TAP writes
-//        become cards in Crew). Default stays file only; nothing runs until the owner taps Run now.
+//        agent's own brain (agent_office job). The task text can carry outside text, so the run starts tainted:
+//        every write it wants becomes a card in Crew for your tap; nothing writes by itself. Default stays
+//        file only; nothing runs until the owner taps Run now.
 //   GET  /api/office/jobs[?business=]  -> running jobs (polled every 3 s only while one runs)
 const { useState: useStateMT, useEffect: useEffectMT, useRef: useRefMT } = React;
 

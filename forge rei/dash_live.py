@@ -160,9 +160,13 @@ def set_consult(fn):
     _CONSULT["fn"] = fn
 
 
-def begin():
-    """Open this request thread's action collector (the five interactive chat routes)."""
+def begin(tainted=False):
+    """Open this request thread's action collector (the five interactive chat routes).
+    tainted=True: outside text is in the prompt (a filed task's title and note), so every write in this
+    run is a tap card. It lives on the collector only; the agent's on-disk taint flag is not touched."""
     _TL.c = {"actions": [], "done": [], "auto": 0, "consults": []}
+    if tainted:
+        _TL.c["tainted"] = True
 
 
 def take():

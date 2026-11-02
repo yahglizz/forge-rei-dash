@@ -509,30 +509,35 @@ def dispatch(agent_id, title, note="", chat_fn=None, directed_by="", business=No
         return {"error": "task is too long"}
     if directed_by and (agent_id == "orion" or DEPT_OF[agent_id] in _archived()):
         return {"error": "Orion can direct active team agents only"}
-    if _live_job(agent_id):
-        return {"error": f"{_card(agent_id)['name']} is already on a task"}
-
-    task_id = existing["id"] if existing else ""
-    try:
-        import agents_hub
-        # Every agent on the floor is a hub agent now, so every task gets a store row.
-        if not existing and agent_id in _hub_agents():
-            out = agents_hub.send_task(agent_id, title, note)
-            task_id = ((out or {}).get("task") or {}).get("id", "")
-    except Exception:
-        pass
-
+    # The live check and the insert share one lock hold, so a double tap can't start two jobs for one agent.
+    # The row goes in first (no task id yet); the store row is filed after, and the id is set on the job
+    # before its thread starts. A refused second tap files nothing.
     now = int(time.time() * 1000)
     with _LOCK:
+        if any(j["agentId"] == agent_id and j["status"] == "running" for j in _JOBS):
+            return {"error": f"{_card(agent_id)['name']} is already on a task"}
         _SEQ += 1
         job = {"id": f"j{_SEQ}_{now}", "agentId": agent_id,
                "agentName": _card(agent_id)["name"], "dept": DEPT_OF[agent_id],
-               "title": title, "note": note.strip(), "taskId": task_id,
+               "title": title, "note": note.strip(), "taskId": existing["id"] if existing else "",
                "directedBy": directed_by,
                "status": "running", "startedAt": now, "steps": [],
                "result": "", "error": ""}
         _JOBS.insert(0, job)
         del _JOBS[MAX_JOBS:]
+
+    task_id = job["taskId"]
+    if not existing:
+        try:
+            import agents_hub
+            # Every agent on the floor is a hub agent now, so every task gets a store row.
+            if agent_id in _hub_agents():
+                out = agents_hub.send_task(agent_id, title, note)
+                task_id = ((out or {}).get("task") or {}).get("id", "")
+        except Exception:
+            pass
+        with _LOCK:
+            job["taskId"] = task_id
 
     if directed_by:
         try:

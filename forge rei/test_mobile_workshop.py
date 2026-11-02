@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from unittest import mock
@@ -325,6 +326,74 @@ def test_run_now_runs_the_existing_task_with_chat_gates():
         assert len(seen) == n
 
 
+def test_run_now_is_tainted_so_an_auto_write_becomes_a_card():
+    """A filed task's title and note can carry outside text, so a Run now job's collector starts tainted:
+    a write that is AUTO tier in plain chat is a tap card here, and nothing runs."""
+    agents_hub.TASKS = TMP / "hub_tasks_taint.json"
+    ta.STATE = TMP / "pending_taint.json"
+    ta.STATE.write_text("{}")
+    http = []
+    tag = {"path": "/api/daycare/ghl/tag", "body": {"contact_id": "c1", "add": ["enrolled-2026"]}, "summary": "Tag a parent"}
+    fake_http = lambda method, path, query=None, body=None, timeout=90: http.append((method, path)) or {"ok": True}  # noqa: E731
+
+    def fake_chat(ghl_get, loc, agent_id, message, **kw):
+        out = dash_live._write("api_post", tag, "solomon", dash_live._col())
+        return {"reply": "Tried a tag: " + json.dumps(out)[:80], "agent": agent_id}
+
+    row = agents_hub.send_task("solomon", "Tag the new families (from an outside note)", "x", business="daycare")["task"]
+    with mock.patch.object(ta, "catalog", lambda: {"GET": set(), "POST": {"/api/daycare/ghl/tag"}}), \
+            mock.patch.object(ta, "_http", fake_http), \
+            mock.patch.object(dash_live, "DAY_STATE", TMP / "day_taint.json"), \
+            mock.patch.object(dash_live, "TAINT_STATE", TMP / "taint_taint.json"), \
+            mock.patch.object(agent_office, "AUTO_CHECKIN", False), \
+            mock.patch.object(agent_bus, "STATE", TMP / "bus_taint.json"), \
+            mock.patch.object(agents_hub, "chat", fake_chat), \
+            mock.patch.object(agents_history, "record", lambda *a, **k: None), \
+            mock.patch.object(forge_ops, "paused", lambda: False):
+        # control: the same write on a plain interactive chat collector runs by itself (AUTO tier)
+        dash_live.begin()
+        assert dash_live._write("api_post", tag, "solomon", dash_live._col()).get("done"), "AUTO in plain chat"
+        dash_live.take()
+        assert http == [("POST", "/api/daycare/ghl/tag")]
+        del http[:]
+        dash_live.TAINT_STATE.unlink(missing_ok=True)
+
+        res = _post("/api/office/task", {"agentId": "solomon", "title": "x", "taskId": row["id"], "business": "daycare"})[1]
+        assert res["ok"], res
+        job = _wait_job(res["jobId"])
+        assert http == [], "a Run now write must not run by itself: %s" % http
+        assert "1 card(s) are waiting for your tap" in job["result"] and "Did:" not in job["result"], job["result"]
+        queued = json.loads(ta.STATE.read_text())
+        assert len(queued) == 1 and next(iter(queued.values()))["chat"] == "dash", "one dash card, durable"
+        assert len(_get("/api/chat/cards")[1]["cards"]) == 1
+        assert not dash_live.TAINT_STATE.exists() and not dash_live._recently_tainted("solomon"), \
+            "the collector is tainted, not the agent on disk"
+
+
+def test_double_tap_starts_one_job():
+    agents_hub.TASKS = TMP / "hub_tasks_dbl.json"
+    agent_office._JOBS.clear()
+    gate = threading.Event()
+
+    def slow_chat(aid, msg):
+        gate.wait(5)
+        return {"reply": "done", "agent": aid}
+
+    with mock.patch.object(agent_office, "AUTO_CHECKIN", False), mock.patch.object(agent_bus, "STATE", TMP / "bus_dbl.json"):
+        before = len(agents_hub.tasks()["tasks"])
+        outs = []
+        ts = [threading.Thread(target=lambda: outs.append(agent_office.dispatch("marcus", "Same job", "", slow_chat)))
+              for _ in range(6)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+        gate.set()
+        ok = [o for o in outs if o.get("ok")]
+        assert len(ok) == 1 and sum("already on a task" in str(o.get("error")) for o in outs) == 5, outs
+        assert len(agents_hub.tasks()["tasks"]) == before + 1, "a refused tap files no task row"
+        assert ok[0]["taskId"] and agent_office.job(ok[0]["jobId"])["job"]["taskId"] == ok[0]["taskId"]
+        _wait_job(ok[0]["jobId"])
+
+
 def test_run_now_button_set_matches_the_office():
     t = (M / "m_tasks.jsx").read_text()
     ids = re.search(r"const MT_RUNNABLE = \[([^\]]*)\]", t).group(1)
@@ -334,6 +403,7 @@ def test_run_now_button_set_matches_the_office():
     assert '"/api/office/task"' in t and "taskId: t.id" in t and '"/api/office/jobs"' in t
     assert "setInterval" in t and "[anyRunning]" in t, "polls only while a run is live"
     assert "Filing a task only saves it" in t, "default stays file only"
+    assert "dash_live.begin(tainted=True)" in (HERE / "connector.py").read_text()
 
 
 # ── Mac tap + dropped connection ────────────────────────────────────────────────────────

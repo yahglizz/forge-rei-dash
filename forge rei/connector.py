@@ -4009,10 +4009,12 @@ class Handler(BaseHTTPRequestHandler):
                     return out
 
                 def _office_chat_cards(_aid, _msg):
-                    # "Run now" on a filed task (phone): the run gets chat's own gates. AUTO writes run and
-                    # are named in the result; TAP writes queue as cards (durable, /api/chat/cards) and the
-                    # result says how many wait. A plain office dispatch stays read-only.
-                    dash_live.begin()
+                    # "Run now" on a filed task (phone): chat's own gates, with the collector tainted from the
+                    # start, because the task's title and note can carry outside text (Telegram /task, agent-filed
+                    # tasks). So no write runs by itself: each queues as a card (durable, /api/chat/cards) and the
+                    # result says how many wait. Collector only; the agent's on-disk taint flag stays as it was.
+                    # A plain office dispatch stays read-only.
+                    dash_live.begin(tainted=True)
                     try:
                         out = _office_chat(_aid, _msg)
                     finally:
