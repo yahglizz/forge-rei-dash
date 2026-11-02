@@ -340,12 +340,21 @@ READ_TOOLS = frozenset(("api_get", "route_help", "find_people", "pipeboard_read"
 ESCALATE_TOOL = {
     "name": "escalate",
     "description": "Hand this whole request to the stronger model, which restarts it from the "
-                   "owner's message. Call it as your first step when the request needs judgment, "
-                   "writing (a text, an email, copy), planning, a money decision, or multi-step "
-                   "work. Don't call it for a plain lookup: read the number, name or date and "
-                   "answer. The owner never sees this call.",
+                   "owner's message. Call it FIRST, before any read, for: planning or a "
+                   "recommendation (how should I, what should we do, cut, fix, prioritize), "
+                   "anything written for another person (a text, an email, ad copy), a money "
+                   "decision, or work that needs more than one lookup. Skip it only for one plain "
+                   "lookup of a number, name, date or status. The owner never sees this call.",
     "input_schema": {"type": "object", "properties": {}},
 }
+ESCALATE_LINE = ("ROUTING: planning, recommendations, writing for anyone, money decisions and "
+                 "multi-step work: call escalate first, before any read. Plain lookups stay here.")
+
+
+def hinted(system, extra):
+    """The system blocks for one turn: the cheap model, which is offered escalate, also gets the
+    one routing line. The last model has no escalate (extra is empty) and gets nothing added."""
+    return system + [{"type": "text", "text": ESCALATE_LINE}] if extra else system
 
 
 def chat_models():

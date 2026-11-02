@@ -94,7 +94,8 @@ def _run_turn(spec, system, model, extra, out):
     """One model's tool loop, from the job's original messages. review_agent.ESCALATED = start over."""
     msgs, last = list(spec["messages"]), spec["max_turns"]
     for turn in range(last + 1):
-        payload = {"model": model, "system": system, "messages": msgs, "tools": spec["tools"] + extra,
+        payload = {"model": model, "system": review_agent.hinted(system, extra), "messages": msgs,
+                   "tools": spec["tools"] + extra,
                    **review_agent.thinking_params(model, spec["max_tokens"], "low")}
         if turn == last:                       # cap: answer from what was read, no more tools
             payload["tool_choice"] = {"type": "none"}

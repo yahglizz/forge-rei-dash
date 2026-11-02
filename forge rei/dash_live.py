@@ -795,7 +795,10 @@ _HINT = {
                  "/api/prep/list, /api/deals/list, /api/pipeline.\n",
     "agency": "- Agency reads: /api/agency/clients, /api/agency/requests, /api/agency/ads (agency Meta), "
               "/api/agency/approvals, /api/agency/callsheet.\n",
-    "hq": "- HQ reads: /api/system/health, /api/cost/status, /api/agents/registry, /api/owner-actions.\n",
+    "hq": "- HQ reads: /api/system/health, /api/cost/status, /api/agents/registry, /api/owner-actions; "
+          "/api/system/n8n (automation runs + failures), /api/stripe/status + /api/stripe/offers (billing, "
+          "every business), /api/daycare/calendar (tours + first days), /api/brain/search?q= + "
+          "/api/brain/recent (the notes).\n",
 }
 
 
@@ -955,11 +958,12 @@ def run_tool(name, inp, agent_id):
                      "tell the owner which button or Telegram tap does it"}
 
 
-def _can_line(agent_id, bizs, writes=False, consult=False):
+def _can_line(agent_id, bizs, writes=False, consult=False, mac=False):
     """One line for 'what can you do?' — answered as 3-5 bullets from this, nothing invented."""
     key = write_business(agent_id) or "hq"
     look, propose, tap = CAN.get(key, ("", "", ""))
-    look += "" if key == "hq" else " — plus read-only lookups in every other business"
+    look += ("" if key == "hq" else " — plus read-only lookups in every other business") \
+        + ", Stripe, the daycare Calendar, n8n runs, the brain" + (", the owner's Mac" if mac else "")
     blurb = ""
     try:
         import agents_hub
@@ -1012,7 +1016,7 @@ def live_block(agent_id):
             + "".join(_HINT.get(b, "") for b in bizs)
             + (_board_hint(writes) if write_business(agent_id) == "daycare" else "")
             + (_HINT["daycare_w"] if writes and write_business(agent_id) == "daycare" else "")
-            + _can_line(agent_id, bizs, writes, "ask_agent" in names)
+            + _can_line(agent_id, bizs, writes, "ask_agent" in names, "mac_run" in names)
             + "GET ROUTES (every business — read-only): " + " ".join(routes(bizs))
             + ("\nYOUR POST ROUTES (AUTO = runs now; every other = ✅ card): AUTO: "
                + " ".join(p for p in ta._scoped(write_business(agent_id), "POST") if p in AUTO_PATHS)
@@ -1053,7 +1057,8 @@ def ask(key, system, user, agent_id, max_tokens=700, effort="low", history_msgs=
     def run(model, extra):
         msgs = list(start)
         for turn in range(turns + 1):
-            payload = {"model": model, "system": payload_system, "messages": msgs, "tools": tl + extra,
+            payload = {"model": model, "system": review_agent.hinted(payload_system, extra), "messages": msgs,
+                       "tools": tl + extra,
                        **review_agent.thinking_params(model, max_tokens, effort)}
             if turn == turns:                   # cap: answer from what was read, no more tools
                 payload["tool_choice"] = {"type": "none"}

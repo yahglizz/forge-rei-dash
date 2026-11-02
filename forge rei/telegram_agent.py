@@ -70,7 +70,9 @@ SCOPE = {
                   "/api/goals/") + _SHARED,
     "hq": ("/api/system/", "/api/health", "/api/cost/", "/api/agents/", "/api/actions/",
            "/api/sync", "/api/businesses", "/api/spend/", "/api/ops/", "/api/mission-control",
-           "/api/brief", "/api/recap") + _SHARED,
+           "/api/brief", "/api/recap",
+           # Stripe, read-only: the two GETs by name, never the /api/stripe/ prefix (/link is a POST)
+           "/api/stripe/status", "/api/stripe/offers") + _SHARED,
 }
 DENY = (
     "/auth/", "/api/agency/reset", "/api/notify/", "/api/portal/",
@@ -730,7 +732,8 @@ def chat(agent_id, text, history, chat_id, key=None, call=None):
     def run(model, extra):
         msgs = list(start)
         for turn in range(MAX_TURNS + 1):
-            payload = {"model": model, "system": system, "messages": msgs, "tools": TOOLS + extra,
+            payload = {"model": model, "system": review_agent.hinted(system, extra), "messages": msgs,
+                       "tools": TOOLS + extra,
                        **review_agent.thinking_params(model, MAX_TOKENS, "low")}
             if turn == MAX_TURNS:               # cap: answer from what was read, no more tools
                 payload["tool_choice"] = {"type": "none"}

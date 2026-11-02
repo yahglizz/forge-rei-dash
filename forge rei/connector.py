@@ -3003,6 +3003,7 @@ def api_stripe_status(_q):
 ROUTES = {
     "/api/stripe/status": api_stripe_status,
     "/api/stripe/offers": lambda q: __import__("stripe_links").offers(),
+    "/api/system/n8n": lambda q: agency_workflows_io.n8n_status(),   # read-only; {"connected": false} until keyed
     "/api/sync": api_sync,
     "/api/health": api_health,
     "/api/system/health": api_system_health,
@@ -3135,7 +3136,7 @@ ROUTES = {
 
 # Marcus endpoints are real-time — never serve them from the 45s cache.
 # (retell_io keeps its own 30s cache, so /api/outbound/* skip the connector cache.)
-NO_CACHE = {"/api/stripe/status", "/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status", "/api/autopilot/status",
+NO_CACHE = {"/api/stripe/status", "/api/system/n8n", "/api/sync", "/api/health", "/api/system/health", "/api/mission-control", "/api/mission-control/brief", "/api/ace/state", "/api/ace/status", "/api/autopilot/status",
             "/api/cost/status", "/api/spend/status", "/api/skillforge/pending",
             "/api/hub/roster", "/api/hub/tasks", "/api/hub/bus", "/api/hub/history",
             "/api/office/state", "/api/office/job", "/api/office/jobs", "/api/office/checkins",

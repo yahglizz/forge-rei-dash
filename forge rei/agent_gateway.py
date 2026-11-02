@@ -106,12 +106,15 @@ FIXED_QUERY = {"/api/agency/eco": {"account": "act_2344043939684594"}}
 TEST_WORKFLOW = "FORGE Agent Tests"
 TASKS = {
     "solomon.pipeline_review": {
-        "agent": "solomon", "get": ["/api/daycare/pipeline", "/api/daycare/board"],
+        "agent": "solomon", "get": ["/api/daycare/pipeline", "/api/daycare/board", "/api/brain/search",
+                                   "/api/brain/recent"],
         "workflows": ("ATOB + AMT Daycare - Daily Enrollment Pipeline Organizer", TEST_WORKFLOW),
         "prompt": "The nightly enrollment organizer just ran. `data` lists what it moved or flagged. "
                   "Review it against the live pipeline. In under 120 words say what changed, which "
                   "families are stuck and the one move that matters most tomorrow. If one follow-up "
-                  "needs the owner, propose it with file_task. Never claim anything was sent."},
+                  "needs the owner, propose it with file_task. Search the brain (/api/brain/search?q=) for what we "
+                  "already decided about a stuck family; /api/brain/recent shows the newest notes. "
+                  "Never claim anything was sent."},
     "solomon.tour_followup": {
         "agent": "solomon", "get": ["/api/daycare/board"],
         "workflows": ("ATOB Tour - Reply Watcher (yes = calendar)", TEST_WORKFLOW),

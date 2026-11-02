@@ -176,6 +176,48 @@ def _connection():
     }
 
 
+MAX_EXEC_PAGES = 12          # 250 a page: past n8n's 2,500 runs a month, the scan stops and says capped
+
+
+def n8n_status(now=None):
+    """Read-only runs report for the agents (GET /api/system/n8n). Not connected -> exactly
+    {"connected": False}. Fixed fields only: workflow name, status, times and counts. No error
+    text (it can quote a lead or a parent), no key, no base URL. The month is the UTC calendar month."""
+    if not _connection()["connected"]:
+        return {"connected": False}
+    from datetime import datetime, timezone
+    now = now or datetime.now(timezone.utc)
+    month = now.strftime("%Y-%m")
+
+    def when(row):
+        return str(row.get("startedAt") or "")[:19]
+    try:
+        names = {str(w["id"]): w["name"] for w in _live_workflows()}
+        rows, cursor = [], ""
+        for _ in range(MAX_EXEC_PAGES):
+            data = _n8n_req("GET", "/api/v1/executions?limit=250"
+                            + (f"&cursor={urllib.parse.quote(cursor)}" if cursor else ""))
+            got = data.get("data") or []
+            this = [r for r in got if when(r).startswith(month)]
+            rows += this
+            cursor = data.get("nextCursor") or ""
+            if not cursor or len(this) < len(got):       # newest first: an older row ends the month
+                capped = False
+                break
+        else:
+            capped = True
+    except Exception as e:  # noqa: BLE001 — the report never raises into a chat turn
+        return {"connected": False, "detail": _sanitize_conn_error(e)}
+
+    def row(r):
+        return {"workflow": str(names.get(str(r.get("workflowId")), "unknown workflow"))[:80],
+                "status": str(r.get("status") or ("success" if r.get("finished") else "unknown"))[:20],
+                "startedAt": r.get("startedAt"), "stoppedAt": r.get("stoppedAt")}
+    failed = [r for r in rows if str(r.get("status")) == "error"]
+    return {"connected": True, "month": month, "runsThisMonth": len(rows), "failedThisMonth": len(failed),
+            "capped": capped, "recent": [row(r) for r in rows[:10]], "recentFailures": [row(r) for r in failed[:10]]}
+
+
 def _load():
     if STATE.exists():
         try:

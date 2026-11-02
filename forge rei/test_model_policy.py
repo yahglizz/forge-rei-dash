@@ -381,8 +381,10 @@ def check_router():
     os.environ.pop("FORGE_CHAT_ROUTER", None)
     assert ra.chat_models() == [H, S]
     esc = ra.ESCALATE_TOOL["description"].lower()
-    for word in ("judgment", "writing", "planning", "money", "multi-step"):
+    for word in ("planning", "recommendation", "written for another person", "money", "more than one lookup", "first"):
         assert word in esc, word
+    assert "Plain lookups stay here" in ra.ESCALATE_LINE and "escalate first" in ra.ESCALATE_LINE
+    assert ra.hinted([{"type": "text", "text": "s"}], []) == [{"type": "text", "text": "s"}]
 
     for loop in LOOPS:
         # A lookup stays on Haiku the whole way and never touches Sonnet.
@@ -395,6 +397,9 @@ def check_router():
         reply, ps, ran = _run(loop, [_use("escalate"), _text("the plan")])
         assert reply == "the plan" and [p["model"] for p in ps] == [H, S] and ran == [], (loop, ps)
         assert not _offers(ps[1]), loop
+        # Haiku, which is offered escalate, also carries the routing line; Sonnet's system text has none.
+        assert ra.ESCALATE_LINE in json.dumps(ps[0]["system"]), loop
+        assert ra.ESCALATE_LINE not in json.dumps(ps[1]["system"]), loop
 
         # escalate after a read: restart from the ORIGINAL messages, no Haiku transcript or thinking.
         think = {"type": "thinking", "thinking": "", "signature": "sig"}
