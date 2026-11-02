@@ -98,9 +98,10 @@ system alerts (Anthropic credits/auth, clock, sync, graph builder) and Orion.
 
 Owner decision 2026-11-01, written risk accepted. In his own chats an agent can run a real shell
 command on his Mac while it is awake, through a ✅ card showing the exact command. Only the owner's
-tap runs a card.
+tap runs a card. **At launch every command is a tap, for every agent on every surface.**
 
-**Auto-run, with no tap, is the narrow exception.** All of these must hold: Orion, Dyson or Eco; a
+**`FORGE_MAC_AUTO=1` allows auto-run, default off.** It must stay off until the vault playbook is
+hash-pinned, because that playbook is in every gateway prompt. With it on, all of these must hold: Orion, Dyson or Eco; a
 gateway chat from the dashboard, phone or box Telegram, not n8n; no lanes, open tasks or
 caller-supplied history in the prompt; every replayed history row flagged `clean`; nothing read this
 turn but `mac_status` or `/api/cost/status`; the agent not tainted; `FORGE_CHAT_AUTO` on; and the
@@ -108,6 +109,8 @@ command misses the risky list. `clean` is earned only on a turn that already met
 outside read, one old row or one auto-run keeps that agent's thread on cards until the thread is
 reset. Solomon, Marcus, Scout and Atlas always get a card, because their prompts carry lead and seller
 text. Workflow jobs, teammate consults and the old Telegram path never get the tool.
+
+A long-running process doesn't survive: `nohup … &` dies with the command's group.
 
 Rules: `CLAUDE.md` section 2 (Mac shell) and section 8a (Mac link). Kill: `FORGE_MAC=0`, clock-out,
 `~/.forge-mac/off`, or `launchctl bootout`.

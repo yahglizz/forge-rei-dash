@@ -154,6 +154,7 @@ Suggested MCPs (not read from code): brain, scheduled-tasks, Vercel (runtime log
 | `FORGE_GATEWAY_OWNER_IDS` | same | Telegram user ids allowed in owner chat |
 | `FORGE_MAC_KEY_SHA256` | `mac_link.py` | Hash of the Mac worker's key. Unset = the Mac link is off and every key fails |
 | `FORGE_MAC` | same | `0` = the Mac link is off, even with the hash set |
+| `FORGE_MAC_AUTO` | `dash_live.py` | `1` = a clean gateway turn may run a Mac command with no tap. Unset = every command is a tap. Stays off until the vault playbook is hash-pinned |
 
 Plain keys live only in n8n credentials and `~/.agent-keys/forge-gateway.env`. Each job's child gets
 exactly one Anthropic key plus a per-job token.

@@ -28,6 +28,7 @@ for _k in ("FORGE_CHAT_GATEWAY", "FORGE_CHAT_LIVE", "FORGE_CHAT_ACTIONS", "FORGE
     os.environ.pop(_k, None)
 MAC_KEY = "mac-" + "c" * 40
 os.environ["FORGE_MAC_KEY_SHA256"] = hashlib.sha256(MAC_KEY.encode()).hexdigest()
+os.environ["FORGE_MAC_AUTO"] = "1"     # the clean-turn gate below sits behind this flag; off is tested on its own
 
 import test_agent_gateway as t  # noqa: E402  (env, fake model, fake connector, Telegram stubs)
 
@@ -292,6 +293,76 @@ def test_every_gate_row_through_a_real_child():
     assert not mac.ran and res["actions"][0]["command"] == CMD, res
 
 
+# ── FORGE_MAC_AUTO: at launch every command is a tap ─────────────────────────
+@contextlib.contextmanager
+def auto_flag(value=None):
+    with mock.patch.dict(os.environ):
+        os.environ.pop("FORGE_MAC_AUTO", None)
+        if value is not None:
+            os.environ["FORGE_MAC_AUTO"] = value
+        yield
+
+
+def test_flag_unset_makes_a_clean_orion_turn_a_card():
+    """The vault playbook reaches the prompt, so an empty thread proves nothing until it's hash-pinned."""
+    reset()
+    with auto_flag():
+        mac, res = turn()
+    assert not mac.ran and res["actions"][0]["command"] == CMD, res
+    assert "tap" in res["actions"][0]["why"], res
+
+
+def test_flag_off_covers_every_agent_and_surface():
+    for agent in gw.AGENTS:
+        for origin in ("dash", "telegram", "n8n"):
+            reset()
+            with auto_flag():
+                mac, res = turn(agent=agent, origin=origin)
+            assert not mac.ran, (agent, origin, res)
+            assert res.get("actions") or any(CMD in x[1] for x in t.SENT), (agent, origin, res)
+
+
+def test_only_exactly_1_turns_the_flag_on():
+    for value in ("0", "", "true", "yes", "on", "2", " 1"):
+        reset()
+        with auto_flag(value):
+            mac, res = turn()
+        assert not mac.ran, repr(value)
+
+
+def test_flag_off_stores_no_clean_row():
+    reset()
+    with auto_flag():
+        quiet_turn()
+    assert rows() and not any(r.get("clean") for r in rows()), rows()
+
+
+def test_flag_on_keeps_the_clean_turn_gate():
+    reset()
+    with auto_flag("1"):
+        mac, res = turn()
+        assert len(mac.ran) == 1, res
+    reset()
+    with auto_flag("1"):
+        mac, res = turn(before=[("api_get", {"path": "/api/ace/state"})])
+    assert not mac.ran and res["actions"], res
+    reset()
+    with auto_flag("1"):
+        mac, res = turn(agent="solomon")
+    assert not mac.ran and res["actions"], res
+
+
+def test_flag_comment_says_when_it_may_turn_on():
+    src = (Path(mac_link.__file__).parent / "dash_live.py").read_text()
+    i = src.index("def mac_auto_enabled")
+    assert "hash-pinned" in src[max(0, i - 400):i + 400] and "FORGE_MAC_AUTO" in src[i:i + 400]
+
+
+def test_tool_text_never_promises_a_command_runs():
+    text = next(x["description"] for x in dash_live.MAC_TOOLS if x["name"] == "mac_run")
+    assert "NOT run until" in text and "A risky command" not in text, text
+
+
 # ── Critical 1: outside text behind routes AUTO writes trust ─────────────────
 OUTSIDE_READS = [("api_get", {"path": p}) for p in (
     "/api/ace/callready", "/api/ace/state", "/api/ace/status", "/api/ace/digest", "/api/autopilot/status",
@@ -364,6 +435,22 @@ def test_a_haiku_read_keeps_the_turn_dirty_after_the_restart():
 
 
 # ── Critical 2: history and open tasks ───────────────────────────────────────
+def test_chat_actions_off_still_dirties_the_job():
+    """FORGE_CHAT_ACTIONS=0: _col() is None, so run_tool can't mark anything. The job's own collector can."""
+    reset()
+    ta._CATALOG["GET"].add("/api/ace/state")
+    with mock.patch.dict(os.environ, {"FORGE_CHAT_ACTIONS": "0"}):
+        quiet_turn(before=[("api_get", {"path": "/api/ace/state"})])
+    assert rows() and not any(r.get("clean") for r in rows()), rows()
+
+
+def test_chat_actions_off_keeps_a_clean_read_clean():
+    reset()
+    with mock.patch.dict(os.environ, {"FORGE_CHAT_ACTIONS": "0"}):
+        quiet_turn(before=[("api_get", {"path": "/api/cost/status"})])
+    assert rows() and all(r.get("clean") for r in rows()), rows()
+
+
 def test_a_clean_turn_stores_the_flag_and_the_next_can_run():
     reset()
     quiet_turn()
@@ -1143,6 +1230,22 @@ def test_telegram_output_fits_one_message_and_says_when_cut():
         assert len(text) <= 4000 and text.count("<pre>") == text.count("</pre>") == 1, len(text)
         body = text.split("<pre>")[1].split("</pre>")[0]
         assert "Cut for Telegram" in text and not re.search(r"&[a-z]*$", body), body[-12:]
+
+
+def test_the_dm_fits_with_the_worst_legal_command_and_output():
+    reset()
+    command = "&" * 400
+    assert not mac_link.bad_command(command)
+    c = col(chat="chat-daycare", tainted=True)
+    with Mac():
+        call("mac_run", {"command": command, "reason": "x"}, c, "orion")
+    t.SENT.clear()
+    with Mac(output="<" * 20000):
+        ta.confirm(c["actions"][0]["tok"], "chat-daycare")
+        wait_sent(2)
+    text = next(x[1] for x in t.SENT if x[0] == OWNER_ID)
+    assert len(text) <= 4000, len(text)
+    assert text.count("<pre>") == text.count("</pre>") == 1 and "Cut for Telegram" in text, text[-80:]
 
 
 def test_a_card_with_the_worst_legal_command_fits_after_escaping():

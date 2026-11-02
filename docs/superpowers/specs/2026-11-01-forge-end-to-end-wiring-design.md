@@ -126,11 +126,20 @@ A small stdlib Python worker runs as a launchd agent under the owner's own macOS
 
 `mac_run` takes any shell command. What happens to a command depends on the turn:
 
+**At launch every command is a tap.** `FORGE_MAC_AUTO` (default off) is the only way to auto-run, and it must stay off until the vault playbook is hash-pinned: the playbook is in every gateway prompt and `learn()` writes it from real encounters, so even an empty thread can carry outside text.
+
+| Turn | Command | Result |
+|---|---|---|
+| Owner chat, `FORGE_MAC_AUTO` off (launch) | Any command | Tap card showing the exact command |
+| Workflow job or teammate consult | Any | Tool not offered |
+
+With `FORGE_MAC_AUTO=1`, the table below applies. "Clean" is the full list in `CLAUDE.md` section 2: Orion, Dyson or Eco, not n8n, no outside text in the prompt, the replayed history or this turn.
+
 | Turn | Command | Result |
 |---|---|---|
 | Clean owner chat | Normal command | Runs right away |
 | Clean owner chat | Risky pattern | Tap card showing the exact command |
-| Has read parent, seller, lead or email text (existing taint check) | Any command | Tap card showing the exact command |
+| Anything else, including any turn that read parent, seller, lead or email text | Any command | Tap card showing the exact command |
 | Workflow job or teammate consult | Any | Tool not offered |
 
 The tap keeps full capability. Only the owner's tap runs a command that outside text could have shaped.
@@ -215,7 +224,7 @@ Every test reads run logs, not a reply that looks right.
 | 1 | Policy test blocks an Opus and a Fable ID set by env. Real calls on both tiers return text, with cost logged at the right price. A tool-loop chat works on Haiku 5.5. A planning question escalates to Sonnet; a lookup does not. Reply length measured before and after. Full test suite passes |
 | 2 | A note made on each side appears on the other within 15 minutes. `Skills/` and the fake notes did not move. Daycare notes stop showing as newer. Box git shows the commit |
 | 3 | Owner sends one real message from the phone. Job log shows the agent's folder files with sha256. Tap card shows on the phone. Forced 429 falls back to the old path. Full test suite passes |
-| 4 | A harmless command runs from an owner chat on the phone. A risky pattern gives a card. A tainted turn gives a card with the exact command, and it runs only after a tap. Workflow job has no `mac_run`. Worker stopped gives "Mac offline" within 30 seconds. Both kill switches work. Both logs hold the command and no output |
+| 4 | A harmless command from an owner chat on the phone gives a card and runs on the tap, with `FORGE_MAC_AUTO` off. A risky pattern gives a card. A tainted turn gives a card with the exact command, and it runs only after a tap. Workflow job has no `mac_run`. Worker stopped gives "Mac offline" within 30 seconds. Both kill switches work. Both logs hold the command and no output |
 | 5 | An agent uses the brain without being told to. Monthly count matches n8n's usage page |
 
 No test sends a parent or seller SMS, taps a live business card, or writes to Meta. Mac tests use harmless commands in a scratch folder on AgentDrive.

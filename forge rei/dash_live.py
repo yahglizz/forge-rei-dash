@@ -16,8 +16,8 @@ the same plumbing as the Telegram partners (telegram_agent):
                              brain, read-only (a ro sub-collector: no writes, no consult back),
                              ≤3 per message + 30/agent/ET day; every answer taints the asker
   mac_status()               the owner's Mac: online, last seen, drive, disk
-  mac_run(command, reason)   a real shell on his Mac: runs now on a clean gateway turn, else a ✅ card
-                             with the exact command (_mac_why_tap); never in a workflow or a consult
+  mac_run(command, reason)   a real shell on his Mac: a ✅ card with the exact command. FORGE_MAC_AUTO=1
+                             lets a clean gateway turn run it (_mac_why_tap); never in a workflow or a consult
 
 Tiers (2026-10-18, CLAUDE.md §2 "Dashboard chat AUTO tier"): AUTO_PATHS = internal +
 reversible writes (tags, notes, stage marks, dismisses, tasks, engine runs, drafts) run
@@ -123,9 +123,9 @@ MAC_TOOLS = [
     {"name": "mac_status", "description": "Is the owner's Mac reachable? Online or offline, last seen, whether "
      "AgentDrive is mounted, disk free. Read-only.", "input_schema": {"type": "object", "properties": {}}},
     {"name": "mac_run", "description": "Run one zsh command on the owner's Mac, as him, from "
-     "/Volumes/AgentDrive/claude, 120 seconds at most. Only for something his own message asks for. A risky "
-     "command, or any command once outside text is in your context, becomes a ✅ card that is NOT run until "
-     "he taps. reason = one line on why he wants it.",
+     "/Volumes/AgentDrive/claude, 120 seconds at most. Only for something his own message asks for. It "
+     "normally becomes a ✅ card that is NOT run until he taps; the result says which happened. reason = one "
+     "line on why he wants it.",
      "input_schema": {"type": "object", "properties": {
          "command": {"type": "string"}, "reason": {"type": "string"}}, "required": ["command", "reason"]}},
 ]
@@ -309,6 +309,15 @@ def _taint_ttl():
 # nothing a person typed. /api/system/health and /api/health are out because their lastError strings are
 # raw exceptions, which can quote lead or seller data. Every other tool result is dirty by default.
 MAC_CLEAN_PREFIXES = ("/api/cost/status",)
+
+
+# FORGE_MAC_AUTO must stay off until the vault playbook is hash-pinned. agent_gateway._layers puts it in
+# every gateway prompt and learn() writes it from real encounters, so even an empty thread can carry
+# outside text the clean-turn gate can't see. Off, the default, every mac_run is a tap card.
+def mac_auto_enabled():
+    return os.environ.get("FORGE_MAC_AUTO") == "1"
+
+
 _TAINT_UNSAVED = {}                    # agent -> ts: a taint the file didn't take. The Mac gate still sees it
 
 
@@ -568,7 +577,8 @@ def _mac_why_tap(command, agent_id, col):
     if col.get("macDirty"):
         return "this turn read data that can hold outside text"
     if not col.get("macAuto"):
-        return "this agent's prompt or chat history can carry outside text"
+        return ("this agent's prompt or chat history can carry outside text" if mac_auto_enabled()
+                else "every Mac command needs your tap for now")
     if not auto_enabled():
         return "auto actions are off (FORGE_CHAT_AUTO=0)"
     if mac_link.risky(command):

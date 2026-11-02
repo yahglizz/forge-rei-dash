@@ -383,17 +383,20 @@ def _run_mac(p):
     return out
 
 
-MAC_DM_CAP = 3200                      # _send_to cuts at 4,000 after escaping, which would break the HTML
+MAC_DM_MAX = 3900                      # _send_to cuts at 4,000 after escaping, which would break the HTML
+MAC_DM_CUT = "\nCut for Telegram. The rest was not kept: rerun it narrower."
 
 
 def _mac_output_text(p, out):
-    """The owner's copy. Cut after escaping, never inside an entity, and it says so."""
+    """The owner's copy. Room comes from the whole message, the cut never lands inside an entity, and
+    it says so."""
+    head = (f"🖥 <b>Mac output</b> for {_esc(p['agent'].title())}\n<code>{_esc(p['mac']['command'][:200])}</code>\n"
+            "<pre>")
+    room = MAC_DM_MAX - len(head) - len("</pre>") - len(MAC_DM_CUT)
     body = _esc(out.get("message") or "")
-    note = ""
-    if len(body) > MAC_DM_CAP:
-        body = re.sub(r"&[a-z]*$", "", body[:MAC_DM_CAP])
-        note = "\nCut for Telegram. The rest was not kept: rerun it narrower."
-    return f"🖥 <b>Mac output</b> for {_esc(p['agent'].title())}\n<code>{_esc(p['mac']['command'][:200])}</code>\n<pre>{body}</pre>{note}"
+    if len(body) <= room:
+        return f"{head}{body}</pre>"
+    return head + re.sub(r"&[a-z]*$", "", body[:room]) + "</pre>" + MAC_DM_CUT
 
 
 def _deliver_mac(p, out):

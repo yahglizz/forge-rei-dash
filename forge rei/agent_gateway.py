@@ -481,7 +481,8 @@ def _chat_spec(ctx):
     lanes, tasks = agents_hub._lanes_block(agent), agents_hub.open_tasks_block(agent)
     rows = agents_history.history(agent, agents_history.REPLAY)["history"]     # one read: what replays is what's checked
     col["surface"], col["macAuto"] = origin, (       # dash_live._mac_why_tap: outside text no tool read taints
-        agent in MAC_AUTO_AGENTS and origin != "n8n"  # /v1/chat takes a caller-supplied sender_id
+        dash_live.mac_auto_enabled()                  # off at launch: every command is a tap
+        and agent in MAC_AUTO_AGENTS and origin != "n8n"   # /v1/chat takes a caller-supplied sender_id
         and not lanes and not tasks and not req.get("history") and all(r.get("clean") for r in rows))
     dash_live._TL.c = col                 # tools()/live_block() look at this thread's collector
     try:
@@ -751,6 +752,8 @@ def _workflow_tool(ctx, name, inp):
 def _chat_tool(ctx, name, inp):
     import dash_live
     col, seen = ctx["col"], len(ctx["col"]["actions"])
+    if not dash_live._mac_clean_call(name, inp):    # here too: FORGE_CHAT_ACTIONS=0 hides col from run_tool
+        col["macDirty"] = True
     dash_live._TL.c = col                 # per-job collector: each tool call lands on a new request thread
     try:
         out = dash_live.run_tool(name, inp, ctx["job"]["agent"])
