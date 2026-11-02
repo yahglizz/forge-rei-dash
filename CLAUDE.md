@@ -248,7 +248,8 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 > import, everything else in `claude_urlopen`, the one function every Anthropic request passes. Opus and
 > Fable can't be reached; to change the policy, change the code. **Rule:** Sonnet if the output reaches
 > a parent, seller or client or drives a money decision, plans and briefs Sonnet, everything else Haiku
-> at effort `low`. Sonnet sites keep their named effort (`"low"`, or `"medium"` on briefs, `learn()`,
+> at effort `low`. The legit-check verdict (gates seller SMS) and a consult round's final reply are
+> Sonnet. Sonnet sites keep their named effort (`"low"`, or `"medium"` on briefs, `learn()`,
 > underwriting). An unnamed call site gets FAST. Model knobs: `FORGE_FAST_MODEL`, `FORGE_SMART_MODEL`,
 > `FORGE_DRAFT_MODEL`, `FORGE_REVIEW_MODEL`, `FORGE_DAYCARE_REPLY_MODEL`; all stay inside the allowlist.
 > **Chat router:** tool-loop chats (`dash_live.ask`, `telegram_agent.chat`, gateway chat via

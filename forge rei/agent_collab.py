@@ -118,7 +118,7 @@ def consult_round(asker, system, user, reply, key, max_tokens=600,
         user2 = (user + f"\n\n[{target.upper()} ANSWERED]: {answer}\n\n"
                  "Now give your final answer to the operator (do not consult again):")
         final = (review_agent._claude(key, system, user2, max_tokens=max_tokens,
-                                      model=review_agent.FAST_MODEL, effort="low")
+                                      model=review_agent.SMART_MODEL, effort="low")
                  or "").strip()
         if final:
             return final + f"\n\n🤝 consulted {target.title()}"

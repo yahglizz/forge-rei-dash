@@ -108,7 +108,7 @@ def verdict(scout, conv_id, name=""):
                 f"{_thread_text(msgs)}\n\nJudge it now.")
         try:
             raw = review_agent._claude(key, _SYS, user, max_tokens=180,
-                                       model=review_agent.FAST_MODEL, effort="low")
+                                       model=review_agent.SMART_MODEL, effort="low")
             m = re.search(r"\{.*\}", raw, re.S)
             j = json.loads(m.group(0)) if m else {}
             legit = bool(j.get("legit"))

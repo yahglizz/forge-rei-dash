@@ -85,9 +85,11 @@ def check_agent_calls_named():
 
 # The audit's Haiku list (rule: Sonnet if it reaches a parent, seller or client, or drives a money
 # decision; plans and briefs Sonnet; everything else Haiku). Two unnamed sites default to FAST.
+# Not here, on purpose: agent_collab.consult_round (the operator's final reply, can restate deal
+# numbers) and legit_check.verdict (gates every non-operator seller SMS, sms_guard + autopilot).
 FAST_SITES = sorted([
-    ("agency_agents.py", "learn"), ("agent_collab.py", "ask"), ("agent_collab.py", "consult_round"),
-    ("agents_chat.py", "chat"), ("agents_chat.py", "chat"), ("legit_check.py", "verdict"),
+    ("agency_agents.py", "learn"), ("agent_collab.py", "ask"),
+    ("agents_chat.py", "chat"), ("agents_chat.py", "chat"),
     ("marcus_lead.py", "directives"), ("marcus_screening.py", "screen"),
     ("scout_triage.py", "_claude_batch"), ("scout_triage.py", "retro_audit"),
 ])
@@ -118,6 +120,8 @@ def check_tiers():
     assert sorted(sites[None]) == UNNAMED_SITES, sorted(sites[None])
     assert ("toolkit_calc.py", "find_arv") in sites["SMART_MODEL"], "ARV is a money input"
     assert ("scout_triage.py", "learn") in sites["SMART_MODEL"]
+    assert ("agent_collab.py", "consult_round") in sites["SMART_MODEL"], "operator's final reply"
+    assert ("legit_check.py", "verdict") in sites["SMART_MODEL"], "gates seller-facing SMS"
     # Haiku runs at low effort: no FAST site may ask for more.
     for p in HERE.glob("*.py"):
         if not p.name.startswith("test_"):
@@ -160,9 +164,30 @@ class _Records(logging.Handler):
         self.lines.append(record.getMessage())
 
 
+def _door_problems(src, name):
+    """Every function holding the Anthropic URL or version header is a door. It must call
+    claude_urlopen and must not open the socket itself. The header catches a URL read from env."""
+    bad = []
+
+    def called(fn):
+        return {getattr(c.func, "attr", getattr(c.func, "id", None)) for c in ast.walk(fn) if isinstance(c, ast.Call)}
+
+    def walk(n, fn):
+        for c in ast.iter_child_nodes(n):
+            hit = isinstance(c, ast.Constant) and isinstance(c.value, str) and " " not in c.value and (
+                "api.anthropic.com" in c.value or c.value == "anthropic-version")
+            if hit and fn is None:
+                bad.append(f"{name}:{c.lineno} module-level door")
+            elif hit and ("claude_urlopen" not in called(fn) or "urlopen" in called(fn)):
+                bad.append(f"{name}:{c.lineno} {fn.name} goes around the gate")
+            walk(c, c if isinstance(c, (ast.FunctionDef, ast.AsyncFunctionDef)) else fn)
+    walk(ast.parse(src), None)
+    return bad
+
+
 def check_every_door_goes_through_the_gate():
-    """Find every path to Anthropic; each one must call claude_urlopen, the gate."""
-    doors = set()
+    """Find every path to Anthropic; each one must call claude_urlopen, and it must run the gate."""
+    doors, bad = set(), []
     for p in HERE.glob("*.py"):
         src = p.read_text()
         if p.name.startswith("test_"):
@@ -170,8 +195,23 @@ def check_every_door_goes_through_the_gate():
         assert not re.search(r"^\s*(import|from) anthropic\b", src, re.M), f"SDK bypass in {p.name}"
         if "api.anthropic.com" in src:
             doors.add(p.name)
-            assert "claude_urlopen(req" in src, f"{p.name} calls Anthropic around the gate"
+        bad += _door_problems(src, p.name)
+    assert not bad, bad
     assert doors == {"agent_runner.py", "marcus_engine.py", "review_agent.py"}, doors
+    # The gate runs first in claude_urlopen, before anything can reach the socket.
+    tree = ast.parse((HERE / "review_agent.py").read_text())
+    fn = next(n for n in tree.body if getattr(n, "name", "") == "claude_urlopen")
+    assert getattr(fn.body[1].value.func, "id", None) == "_enforce_model", ast.dump(fn.body[1])
+    # The checker itself: a second ungated door beside a real claude_urlopen def is caught.
+    real = "def claude_urlopen(req, timeout):\n    _enforce_model(req)\n"
+    sneaky = ('def f(key):\n    req = Request("https://api.anthropic.com/v1/messages")\n'
+              "    return urllib.request.urlopen(req)\n")
+    assert _door_problems(real + sneaky, "x") == ["x:4 f goes around the gate"], "direct urlopen"
+    assert _door_problems(real + 'U = "https://api.anthropic.com/v1/messages"\n', "x") == ["x:3 module-level door"]
+    assert _door_problems(real + 'def g(u):\n    return urlopen(Request(u, headers={"anthropic-version": "1"}))\n',
+                          "x"), "URL from a variable"
+    assert not _door_problems(real + 'def h():\n    return claude_urlopen(Request("https://api.anthropic.com/x"), 5)\n',
+                              "x"), "a gated door passes"
     print("every door gated OK")
 
 
@@ -409,6 +449,23 @@ def check_router():
     print("router OK")
 
 
+def check_consult_round_final_is_sonnet():
+    import agent_collab
+    import review_agent as ra
+    seen, real_claude, real_ask = [], ra._claude, agent_collab.ask
+
+    def fake(key, system, user, max_tokens=1200, tools=None, model=None, effort="low"):
+        seen.append((model, effort))
+        return "final answer"
+    ra._claude, agent_collab.ask = fake, lambda *a, **k: "3 hot"
+    try:
+        out = agent_collab.consult_round("marcus", "SYS", "u", "[ASK SCOUT] how many hot?", "k")
+    finally:
+        ra._claude, agent_collab.ask = real_claude, real_ask
+    assert out.startswith("final answer") and seen == [(ra.SMART_MODEL, "low")], (out, seen)
+    print("consult round OK")
+
+
 def check_gateway_spec_routes_chat_only():
     import agent_gateway as gw
     src = (HERE / "agent_gateway.py").read_text()
@@ -496,6 +553,7 @@ if __name__ == "__main__":
     check_allowlist()
     check_env_cannot_reach_a_banned_model()
     check_router()
+    check_consult_round_final_is_sonnet()
     check_gateway_spec_routes_chat_only()
     check_pause_turn_passes_thinking_back()
     check_max_tokens_never_ends_empty()
