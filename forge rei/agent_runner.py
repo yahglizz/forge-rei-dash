@@ -90,34 +90,34 @@ def call_model(spec, payload):
         raise err from None
 
 
-def run(spec):
-    folder_text, files = load_files(spec["files"], spec["root"])
-    out = {"cwd": str(Path.cwd().resolve()), "files": files, "reply": "", "tools": [],
-           "usage": {"in": 0, "out": 0, "cacheWrite": 0, "cacheRead": 0}, "turns": 0, "modelCalled": False,
-           "secretEnvNames": sorted(k for k in os.environ if _SECRET_NAME.search(k))}
-    system = [{"type": "text", "cache_control": {"type": "ephemeral"},
-               "text": spec["head"] + "\n\n=== YOUR FOLDER FILES (read from " + out["cwd"] + ") ==="
-               + folder_text + spec["tail"]}]
-    out["systemChars"] = len(system[0]["text"])
+def _run_turn(spec, system, model, extra, out):
+    """One model's tool loop, from the job's original messages. review_agent.ESCALATED = start over."""
     msgs, last = list(spec["messages"]), spec["max_turns"]
     for turn in range(last + 1):
-        payload = {"model": spec["model"], "system": system, "messages": msgs, "tools": spec["tools"],
-                   **review_agent.thinking_params(spec["model"], spec["max_tokens"], "low")}
+        payload = {"model": model, "system": system, "messages": msgs, "tools": spec["tools"] + extra,
+                   **review_agent.thinking_params(model, spec["max_tokens"], "low")}
         if turn == last:                       # cap: answer from what was read, no more tools
             payload["tool_choice"] = {"type": "none"}
         data = call_model(spec, payload)
-        out["modelCalled"], out["turns"] = True, turn + 1
+        out["modelCalled"], out["model"] = True, model
+        out["turns"] += 1
         u = data.get("usage") or {}
-        out["usage"]["in"] += int(u.get("input_tokens") or 0)
-        out["usage"]["out"] += int(u.get("output_tokens") or 0)
-        out["usage"]["cacheWrite"] += int(u.get("cache_creation_input_tokens") or 0)
-        out["usage"]["cacheRead"] += int(u.get("cache_read_input_tokens") or 0)
+        call = {"in": int(u.get("input_tokens") or 0), "out": int(u.get("output_tokens") or 0),
+                "cacheWrite": int(u.get("cache_creation_input_tokens") or 0),
+                "cacheRead": int(u.get("cache_read_input_tokens") or 0)}
+        for k, v in call.items():
+            out["usage"][k] += v
+        out["calls"].append({"model": model, **call})      # priced per request: the rate depends on its size
         content = data.get("content") or []
         said = "".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
         uses = [b for b in content if b.get("type") == "tool_use"]
-        if not uses or turn == last or data.get("stop_reason") in ("max_tokens", "refusal"):
+        final = not uses or turn == last or data.get("stop_reason") in ("max_tokens", "refusal")
+        if extra and review_agent.hand_up(uses, said, final):
+            out["escalated"] = True
+            return review_agent.ESCALATED
+        if final:
             out["reply"], out["stop"] = said, data.get("stop_reason")
-            break
+            return out
         msgs.append({"role": "assistant", "content": content})
         results = []
         for use in uses:
@@ -127,6 +127,19 @@ def run(spec):
             results.append({"type": "tool_result", "tool_use_id": use["id"],
                             "content": "<data>" + str(res.get("result") or "") + "</data>"})
         msgs.append({"role": "user", "content": results})
+
+
+def run(spec):
+    folder_text, files = load_files(spec["files"], spec["root"])
+    out = {"cwd": str(Path.cwd().resolve()), "files": files, "reply": "", "tools": [],
+           "usage": {"in": 0, "out": 0, "cacheWrite": 0, "cacheRead": 0}, "calls": [], "turns": 0,
+           "modelCalled": False, "escalated": False,
+           "secretEnvNames": sorted(k for k in os.environ if _SECRET_NAME.search(k))}
+    system = [{"type": "text", "cache_control": {"type": "ephemeral"},
+               "text": spec["head"] + "\n\n=== YOUR FOLDER FILES (read from " + out["cwd"] + ") ==="
+               + folder_text + spec["tail"]}]
+    out["systemChars"] = len(system[0]["text"])
+    review_agent.routed(lambda model, extra: _run_turn(spec, system, model, extra, out), spec["models"])
     if spec.get("foreign_probe"):              # the isolation check runs in code, not on the model's word
         probe = call_tool(spec, "api_get", {"path": spec["foreign_probe"]})
         out["foreignProbe"] = {"path": spec["foreign_probe"], "refused": bool(probe.get("refused"))}

@@ -201,8 +201,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0, co
         import dash_live   # live read-only tools for the operator; a teammate consult stays plain
         reply = dash_live.ask(
             key, system + _hub_tasks("marcus") + _hub_lanes("marcus") + caveman.block(), user,
-            "marcus" if _depth == 0 else None, max_tokens=600,
-            model=review_agent.SMART_MODEL, effort="low")
+            "marcus" if _depth == 0 else None, max_tokens=600, effort="low")
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}"}
     if _depth == 0 and not consult:
@@ -210,7 +209,7 @@ def chat(ghl_get, location_id, question, days=7, scan=100, keep=12, _depth=0, co
         # both sides on the bus). Guarded — collab errors never break a normal reply.
         try:
             reply = agent_collab.consult_round(
-                "marcus", system, user, reply, key, max_tokens=600,
+                "marcus", system + caveman.block(), user, reply, key, max_tokens=600,
                 ghl_get=ghl_get, location_id=location_id)
         except Exception:  # noqa: BLE001
             pass

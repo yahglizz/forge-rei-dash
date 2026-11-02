@@ -912,14 +912,14 @@ class MarcusEngine:
             # sys_prompt (north star + creed + rubric + playbooks + brain notes) is
             # the biggest, most-repeated system prompt in the app — it's rebuilt fresh
             # on every seller reply. cache_control lets Anthropic skip re-processing
-            # the unchanged prefix (~90% cheaper on a hit); below the ~2k-token Haiku
-            # minimum it's silently a no-op, so always safe to send.
+            # the unchanged prefix (~90% cheaper on a hit); below the model's minimum
+            # it's silently a no-op, so always safe to send.
             system_payload = (
                 [{"type": "text", "text": sys_prompt, "cache_control": {"type": "ephemeral"}}]
                 if len(sys_prompt) >= 1200 else sys_prompt)
             import review_agent   # shared model/thinking + transient retry (<=2, 429/5xx/529/network only)
             # Inbound seller replies run on DRAFT_MODEL (SMART); re-engage bumps
-            # (reengage_draft / reengage_copy) pass model=SMART_MODEL since 2026-10-17.
+            # (reengage_draft / reengage_copy) pass model=SMART_MODEL: both are seller-facing.
             draft_model = model or review_agent.DRAFT_MODEL
             payload = {
                 "model": draft_model,

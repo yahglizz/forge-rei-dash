@@ -238,21 +238,29 @@ hypothesis, ranked falsifiable hypotheses, checkable completion criteria.
 > `agents_hub.LANE_OF`/`main_agent()` resolve a lane id to its owner for chat, tasks, the office and
 > the registry. **Scheduled briefs are cut** (morning brief, recap, Orion's CEO brief, Solomon's
 > daily brief): agents exist to close deals and win speed-to-lead, not to write digests. All scheduled
-> self-improvement is OFF too. Two model tiers (`review_agent.FAST_MODEL` Haiku 4.5 / `SMART_MODEL`
-> Sonnet 5.5): small jobs — scoring, screening, underwriting, follow-up bumps, parsing — run FAST;
-> only seller/parent reply drafts and chats with the main agents run SMART. Opus/Fable never.
-> Switches (all default OFF): `FORGE_BRIEFS`, `FORGE_SOLOMON_BRIEF`, `FORGE_SELF_IMPROVE`,
-> `FORGE_SKILL_FORGE`. Model knobs: `FORGE_FAST_MODEL`, `FORGE_SMART_MODEL`, `FORGE_DRAFT_MODEL`.
-> Guard: `test_model_policy.py`. Expected spend: ~$90–150/mo typical (was $150–300).
-> **2026-10-17 (owner): every agent brain now runs SMART (Sonnet 5.5) at an explicit effort** — Scout
-> scoring + missed-leads audit, Marcus screening + directives, Atlas, legit-check, re-engage bumps,
-> style_agent, skill_forge, every `learn()`, the daycare ads judge, the weekly review, agent consults.
-> `"low"` by default, `"medium"` where the call already said so. FAST (Haiku) remains only the default
-> for a call site that names no model. Extra spend is expected to be small — an **estimate, not
-> measured**: per-token price doubles on those calls (Haiku $1/$5 → Sonnet 5.5 $2/$10 per M) plus
-> low-effort thinking output; Scout scoring is the volume line to watch on Costs → Spend by agent.
-> Guard: `test_model_policy.py` `check_agent_calls_named` (every `_claude()` in those files names
-> `model=` and `effort=`).
+> self-improvement is OFF too. Switches (all default OFF): `FORGE_BRIEFS`, `FORGE_SOLOMON_BRIEF`,
+> `FORGE_SELF_IMPROVE`, `FORGE_SKILL_FORGE`.
+>
+> **Model policy (2026-11-01, supersedes the 2026-09-30 and 2026-10-17 notes).** Two tiers and a hard
+> allowlist: `review_agent.FAST_MODEL` = `claude-haiku-5-5` ($0.10/$0.50 per M up to a 100K prompt,
+> $0.50/$2.50 above), `SMART_MODEL` = `claude-sonnet-5-5` ($2/$10). `ALLOWED_MODELS` is exactly those two.
+> Any other id, from env or code, becomes `SMART_MODEL` with a warning (logger `forge.models`): knobs at
+> import, everything else in `claude_urlopen`, the one function every Anthropic request passes. Opus and
+> Fable can't be reached; to change the policy, change the code. **Rule:** Sonnet if the output reaches
+> a parent, seller or client or drives a money decision, plans and briefs Sonnet, everything else Haiku
+> at effort `low`. Sonnet sites keep their named effort (`"low"`, or `"medium"` on briefs, `learn()`,
+> underwriting). An unnamed call site gets FAST. Model knobs: `FORGE_FAST_MODEL`, `FORGE_SMART_MODEL`,
+> `FORGE_DRAFT_MODEL`, `FORGE_REVIEW_MODEL`, `FORGE_DAYCARE_REPLY_MODEL`; all stay inside the allowlist.
+> **Chat router:** tool-loop chats (`dash_live.ask`, `telegram_agent.chat`, gateway chat via
+> `agent_runner`) start on Haiku with an `escalate` tool. `review_agent.routed()` restarts the turn on
+> Sonnet from the original messages, at most once, when Haiku calls `escalate`, reaches for any tool
+> outside `READ_TOOLS` (so Haiku never writes or consults a teammate, and nothing runs twice), or ends
+> with no text. Sonnet is never offered `escalate`. `FORGE_CHAT_ROUTER=0` sends chat straight to Sonnet.
+> No tool loop: `dash_live._plain` stays Sonnet (nothing to escalate from); Scout's missed-leads rundown
+> and the Retell persona chat run Haiku; gateway workflow jobs stay Sonnet.
+> Guard: `test_model_policy.py` (allowlist per env knob, every door gated, tiers, router on all three
+> loops, thinking blocks passed back unchanged, every `_claude()` in the agent files names `model=` and
+> `effort=`). Expected spend is an **estimate, not measured**; re-baseline on Costs after deploy.
 
 **CURRENT STATE (verified 2026-09-30 against `/api/businesses` + `/api/agents/registry`):**
 ONE agent per business, plus the CEO. **Active businesses: Wholesale (REI), Agency, Daycare.
@@ -333,7 +341,7 @@ and a new Claude call per cycle.
 | **Orion** (`mission_control_agent.py`) | Cross-business | Daily "attack today" CEO brief on Mission Control (brief thread, 07:00; `FORGE_MISSION_BRIEF_HOUR`), learns after 10 briefs. *(Documented 2026-09-22 — was missing.)* | Reads only; optional Telegram push (`FORGE_MISSION_BRIEF_TELEGRAM=1`). |
 | **Midas** (`dropship_director.py`) | Dropship | **HEAD e-com director — runs the whole store.** Reads it all (Shopify + AutoDS + Meta + the brief FIRST) → ranked operating brief (Attention Now / Winners / Money / Ops / Ads / Delegations), plus three on-demand lanes: **product research** (`research`, `watch_score`), **creative & ads** (`meta_overview`, `analyze_ads` — agency Meta engine via a locked env-swap), **fulfillment & support** (`fulfillment_check`). | Never acts outward — no launch, budget change, supplier order, listing edit, customer message, or refund. Proposes only. Self-improves. |
 
-Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls — **default FAST = Haiku 4.5; SMART = Sonnet 5.5 (adaptive thinking) only where a site opts in with `model=review_agent.SMART_MODEL`** — see the 2026-09-30 consolidation note above; **since 2026-10-17 every agent brain call opts in (SMART + explicit effort), so FAST is only the fallback for unnamed call sites**; older note: Sonnet 5, adaptive thinking, explicit effort: `effort="low"` default for chat/drafts/extraction, `"medium"` for briefs, `learn()` rewrites, Atlas, screening; Scout scoring stays Haiku [superseded 2026-10-17: Sonnet 5.5, low]; never call Sonnet 5 without an effort — it defaults to `high`. New judgment-heavy call site → pass `effort="medium"`), `brain_io`
+Shared infra: `review_agent._claude` + `review_agent.MODEL` (Claude calls — **default FAST = Haiku 5.5; SMART = Sonnet 5.5; allowlist of exactly those two, chat router, and which site runs where: see the 2026-11-01 model policy note above**. Adaptive thinking at an explicit effort on both; `effort="low"` default, `"medium"` on Sonnet for briefs, `learn()` rewrites, Atlas; never call Sonnet 5.5 without an effort — it defaults to `high`. New judgment-heavy call site → `model=review_agent.SMART_MODEL`), `brain_io`
 (vault read/write + git), `agent_bus.py` (inter-agent messages), key resolvers fall back
 (agent's own key → wholesale `ghl.env` / agency `agency.env`).
 
@@ -1121,7 +1129,9 @@ number, and the reasoning that changes the decision — **short, never wrong.**
 
 **Agent side (already wired — `forge rei/caveman.py`):** `caveman.block(level)` is appended
 to operator-facing chat prompts ONLY — Scout/Atlas (`agents_chat`), Solomon
-(`agents_hub`), Dyson/Eco (`agency_agents`), Marcus screening chat (`marcus_chat`). It is
+(`agents_hub`), Dyson/Eco (`agency_agents`), Marcus screening chat (`marcus_chat`), and the final
+reply of a consult round (`agent_collab.consult_round`, passed in by those chats). Telegram partners
+and gateway chat use `caveman.text_block()` instead. It is
 **NEVER** on seller-facing SMS drafts (`marcus_engine._ai_draft` — voice-critical), internal
 scoring/underwriting, briefs, or the creed. Intensity: `FORGE_CAVEMAN_LEVEL=lite|full|ultra`;
 kill switch: `FORGE_CAVEMAN=0`. **ADHD shape (2026-10-18):** the same block adds the owner's ADHD reading rules

@@ -58,7 +58,7 @@ _LOCK = threading.Lock()
 INTERVAL = int(os.environ.get("FORGE_DAYCARE_REPLIES_INTERVAL", "60"))
 WATCHER_WINDOW_SEC = 2 * 3600          # the n8n Watcher only reads texts this fresh
 WATCHER_GAP_SEC = 300                  # a parent's burst of texts = one n8n execution
-MODEL = os.environ.get("FORGE_DAYCARE_REPLY_MODEL", review_agent.SMART_MODEL)
+MODEL = review_agent.allowed_model(os.environ.get("FORGE_DAYCARE_REPLY_MODEL", review_agent.SMART_MODEL))
 GRACE_SEC = int(os.environ.get("FORGE_DAYCARE_REPLY_GRACE_SEC", "90"))
 MAX_DRAFTS = int(os.environ.get("FORGE_DAYCARE_REPLY_MAX", "8"))   # Claude calls per sweep
 MAX_READS = 40                         # thread GETs per sweep

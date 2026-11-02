@@ -8,6 +8,7 @@ from pathlib import Path
 
 os.environ.setdefault("FORGE_ACTION_LOG", str(Path(tempfile.mkdtemp()) / "actions.jsonl"))
 os.environ.pop("FORGE_CHAT_LIVE", None)
+os.environ["FORGE_CHAT_ROUTER"] = "0"   # these scripts play one model; the router: test_model_policy.py
 
 import caveman
 import dash_live

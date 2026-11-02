@@ -844,12 +844,12 @@ def _plain(key, system, user, max_tokens, model, effort):
     return review_agent._claude(key, system, user, max_tokens=max_tokens, model=model, effort=effort)
 
 
-def ask(key, system, user, agent_id, max_tokens=700, model=None, effort="low", history_msgs=None):
-    """review_agent._claude with live tools (+ actions inside an interactive chat).
+def ask(key, system, user, agent_id, max_tokens=700, effort="low", history_msgs=None):
+    """review_agent._claude with live tools (+ actions inside an interactive chat), on the chat
+    router. Off the tool loop there is nothing to escalate from, so it stays on SMART.
     -> reply text; raises on API error."""
-    model = model or review_agent.SMART_MODEL
     if not active(agent_id):
-        return _plain(key, system, user, max_tokens, model, effort)
+        return _plain(key, system, user, max_tokens, review_agent.SMART_MODEL, effort)
     if writes_on(agent_id):     # a 50-call batch is ~1.5k output tokens; a cap, not a cost
         max_tokens = max(max_tokens, 2500)
     live = live_block(agent_id)
@@ -860,29 +860,37 @@ def ask(key, system, user, agent_id, max_tokens=700, model=None, effort="low", h
         cb = ""
     system = (system[:-len(cb)] + live + cb) if cb and system.endswith(cb) else system + live
     payload_system = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
-    msgs = ta._messages(history_msgs, user) if history_msgs else [{"role": "user", "content": user}]
+    start = ta._messages(history_msgs, user) if history_msgs else [{"role": "user", "content": user}]
     tl = tools(agent_id)
     turns = MAX_TOOL_TURNS * 2 if writes_on(agent_id) else MAX_TOOL_TURNS   # an audit reads a lot
-    for turn in range(turns + 1):
-        payload = {"model": model, "system": payload_system, "messages": msgs, "tools": tl,
-                   **review_agent.thinking_params(model, max_tokens, effort)}
-        if turn == turns:                   # cap: answer from what was read, no more tools
-            payload["tool_choice"] = {"type": "none"}
-        data = review_agent.post_messages(key, payload)
-        content = data.get("content") or []
-        said = "".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
-        uses = [b for b in content if b.get("type") == "tool_use"]
-        if not uses or turn == turns or data.get("stop_reason") in ("max_tokens", "refusal"):
-            if not said and msgs[-1]["role"] == "user" and turn:     # read it all, said nothing: ask once more
-                msgs.append({"role": "assistant", "content": [{"type": "text", "text": "…"}]})
-                msgs.append({"role": "user", "content": "Answer now in plain text from what you read."})
-                said = "".join(b.get("text", "") for b in (review_agent.post_messages(key, {
-                    **payload, "messages": msgs, "tool_choice": {"type": "none"}}).get("content") or [])
-                    if b.get("type") == "text").strip()
-            return said or "No answer came back on that one. Ask again, narrower."
-        msgs.append({"role": "assistant", "content": content})
-        msgs.append({"role": "user", "content": [
-            {"type": "tool_result", "tool_use_id": u["id"],
-             "content": "<data>" + ta._clip(ta.redact(run_tool(u["name"], u.get("input") or {},
-                                                               agent_id), pin=True)) + "</data>"}
-            for u in uses]})
+
+    def run(model, extra):
+        msgs = list(start)
+        for turn in range(turns + 1):
+            payload = {"model": model, "system": payload_system, "messages": msgs, "tools": tl + extra,
+                       **review_agent.thinking_params(model, max_tokens, effort)}
+            if turn == turns:                   # cap: answer from what was read, no more tools
+                payload["tool_choice"] = {"type": "none"}
+            data = review_agent.post_messages(key, payload)
+            content = data.get("content") or []
+            said = "".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
+            uses = [b for b in content if b.get("type") == "tool_use"]
+            final = not uses or turn == turns or data.get("stop_reason") in ("max_tokens", "refusal")
+            if extra and review_agent.hand_up(uses, said, final):
+                return review_agent.ESCALATED
+            if final:
+                if not said and msgs[-1]["role"] == "user" and turn:     # read it all, said nothing: ask once more
+                    msgs.append({"role": "assistant", "content": [{"type": "text", "text": "…"}]})
+                    msgs.append({"role": "user", "content": "Answer now in plain text from what you read."})
+                    said = "".join(b.get("text", "") for b in (review_agent.post_messages(key, {
+                        **payload, "messages": msgs, "tool_choice": {"type": "none"}}).get("content") or [])
+                        if b.get("type") == "text").strip()
+                return said or "No answer came back on that one. Ask again, narrower."
+            msgs.append({"role": "assistant", "content": content})
+            msgs.append({"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": u["id"],
+                 "content": "<data>" + ta._clip(ta.redact(run_tool(u["name"], u.get("input") or {},
+                                                                   agent_id), pin=True)) + "</data>"}
+                for u in uses]})
+
+    return review_agent.routed(run)

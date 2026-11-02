@@ -515,10 +515,9 @@ class ScoutEngine:
         user = "Seller messages:\n" + "\n".join(lines)
         try:
             # Structured intent/motivation/price extraction. Highest-volume Claude call
-            # in the system — owner moved it to SMART at low effort 2026-10-17; watch
-            # /api/cost/status byAgent "scout" if the bill moves.
+            # in the system; watch /api/cost/status byAgent "scout" if the bill moves.
             raw = review_agent._claude(key, system, user, max_tokens=1500,
-                                       model=review_agent.SMART_MODEL, effort="low")
+                                       model=review_agent.FAST_MODEL, effort="low")
         except Exception as e:  # noqa: BLE001
             self.last_error = f"claude: {e}"
             self.ai_error = str(e)[:200]
@@ -950,7 +949,7 @@ class ScoutEngine:
             "connected": True,
             "aiScoring": bool(_scout_key()),
             "aiError": self.ai_error,
-            "model": review_agent.SMART_MODEL,
+            "model": review_agent.FAST_MODEL,
             "lastRun": self.last_run,
             "lastError": self.last_error,
             "total": len(self._active()),
@@ -1294,7 +1293,7 @@ class ScoutEngine:
                     user = "Threads to judge:\n\n" + "\n\n".join(blocks)
                     try:
                         raw = review_agent._claude(key, base_system, user, max_tokens=1500,
-                                                   model=review_agent.SMART_MODEL, effort="low")
+                                                   model=review_agent.FAST_MODEL, effort="low")
                     except Exception as ex:  # noqa: BLE001
                         self.last_error = f"claude: {ex}"
                         continue

@@ -432,8 +432,7 @@ def _director_chat(agent_id, message, history, floor=None):
     user = _history_block(history) + f"OPERATOR: {message}\nYOU:"
     try:
         reply = dash_live.ask(key, system + caveman.block(), user, agent_id,   # live read-only tools
-                              max_tokens=1400 if agent_id == "orion" else 700,
-                              model=review_agent.SMART_MODEL, effort="low")
+                              max_tokens=1400 if agent_id == "orion" else 700, effort="low")
     except Exception as e:  # noqa: BLE001
         return {"reply": f"Hit an error reaching my brain: {e}", "error": str(e),
                 "agent": meta["name"]}

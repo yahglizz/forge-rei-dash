@@ -94,7 +94,7 @@ Hard never-rules (code-enforced):
 
 ## 8. Cost
 
-Claude: yes. Screening (Sonnet 5 medium effort, 1400 tok) runs on the unnamed auto-screen thread → bucket **`operator`**. Drafts (Sonnet 5 low effort via `FORGE_DRAFT_MODEL`, 300 tok + thinking headroom) bill to the caller's thread (`followup`, `telegram`, `operator`). `marcus` bucket only on the legacy SMS loop.
+Claude: yes. Screening (Haiku 5.5 low effort, 1400 tok + thinking headroom) runs on the unnamed auto-screen thread → bucket **`operator`**. Drafts (Sonnet 5 low effort via `FORGE_DRAFT_MODEL`, 300 tok + thinking headroom) bill to the caller's thread (`followup`, `telegram`, `operator`). `marcus` bucket only on the legacy SMS loop.
 
 ## 9. Verify it's alive
 

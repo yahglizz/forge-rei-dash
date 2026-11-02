@@ -13,6 +13,7 @@ from pathlib import Path
 
 TMP = Path(tempfile.mkdtemp(prefix="chat-injection-"))
 os.environ["FORGE_ACTION_LOG"] = str(TMP / "actions.jsonl")
+os.environ["FORGE_CHAT_ROUTER"] = "0"   # these scripts play one model; the router: test_model_policy.py
 for _k in ("FORGE_CHAT_LIVE", "FORGE_CHAT_ACTIONS", "FORGE_CHAT_AUTO"):
     os.environ.pop(_k, None)
 

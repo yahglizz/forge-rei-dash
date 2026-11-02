@@ -15,6 +15,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+os.environ["FORGE_CHAT_ROUTER"] = "0"   # these scripts play one model; the router: test_model_policy.py
 from unittest import mock
 
 TMP = Path(tempfile.mkdtemp(prefix="agent-consult-test-"))

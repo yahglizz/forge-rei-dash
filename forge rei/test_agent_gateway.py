@@ -18,7 +18,8 @@ os.environ.update(FORGE_GATEWAY_WORKFLOW_KEY_SHA256=hashlib.sha256(WORKFLOW_KEY.
                   FORGE_GATEWAY_OWNER_KEY_SHA256=hashlib.sha256(OWNER_KEY.encode()).hexdigest(),
                   FORGE_GATEWAY_OWNER_IDS="8506156626", ANTHROPIC_API_KEY="test-key-not-real",
                   GHL_API_KEY="must-not-reach-the-child", STRIPE_SECRET_KEY="must-not-reach-the-child",
-                  FORGE_AGENT_MAX_USD="1000")
+                  FORGE_AGENT_MAX_USD="1000",
+                  FORGE_CHAT_ROUTER="0")   # one scripted model per job; router jobs set it back to "1"
 
 import agent_gateway as gw  # noqa: E402
 import agent_runner  # noqa: E402
@@ -346,6 +347,56 @@ def test_owner_chat_rules():
             break
         time.sleep(0.05)
     assert rows and rows[-1]["via"] == "n8n", rows
+
+
+def test_chat_router_restarts_on_sonnet_and_bills_each_model():
+    """Real child process: FORGE_CHAT_ROUTER lives in the connector, the choice travels in the spec."""
+    billed = []
+    real = cost_tracker.record_anthropic
+    cost_tracker.record_anthropic = lambda *a, **k: billed.append((a, k))
+    os.environ["FORGE_CHAT_ROUTER"] = "1"
+    seen = []
+
+    def model(p):
+        seen.append((p["model"], [t["name"] for t in p["tools"]], p["messages"]))
+        fast = len(seen) == 1
+        out = tool("escalate", {}) if fast else text("Here is the plan")
+        return {**out, "usage": {"input_tokens": 10, "output_tokens": 2}}
+    MODEL["fn"] = model
+    try:
+        body = {"agent": "solomon", "message": "plan next week", "sender_id": "8506156626",
+                "idempotency_key": "chat-router-1"}
+        _, job = api("POST", "/v1/chat", OWNER_KEY, body)
+        job = wait(job["id"], OWNER_KEY)
+        assert job["status"] == "done" and job["reply"] == "Here is the plan", job
+        assert [s[0] for s in seen] == ["claude-haiku-5-5", "claude-sonnet-5-5"], seen
+        assert "escalate" in seen[0][1] and "escalate" not in seen[1][1]
+        assert seen[1][2] == seen[0][2], "the restart starts from the original messages"
+        assert job["receipts"]["model"] == "claude-sonnet-5-5" and job["receipts"]["escalated"] is True
+        for _ in range(100):           # billed just after the job turns final
+            if billed:
+                break
+            time.sleep(0.05)
+        assert [b[0][0] for b in billed] == ["claude-haiku-5-5", "claude-sonnet-5-5"], billed
+    finally:
+        cost_tracker.record_anthropic = real
+        os.environ["FORGE_CHAT_ROUTER"] = "0"
+
+
+def test_workflow_jobs_stay_on_sonnet_with_no_escalate():
+    os.environ["FORGE_CHAT_ROUTER"] = "1"
+    seen = []
+
+    def model(p):
+        seen.append((p["model"], [t["name"] for t in p["tools"]]))
+        return self_test_model(p)
+    MODEL["fn"] = model
+    try:
+        _, job = run("orion.self_test", "router-wf-1")
+        assert wait(job["id"])["status"] == "done"
+        assert {s[0] for s in seen} == {"claude-sonnet-5-5"} and not any("escalate" in s[1] for s in seen), seen
+    finally:
+        os.environ["FORGE_CHAT_ROUTER"] = "0"
 
 
 def test_chat_outward_write_is_a_card_in_the_business_chat():

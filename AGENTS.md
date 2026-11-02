@@ -52,8 +52,11 @@ Source of truth: `forge rei/agents_hub.py` (`AGENTS`, `LANE_OF`) and live `GET /
 + `GET /api/agents/registry`. A lane id (scout, atlas, eco, daycare_replies…) resolves to its
 main agent for chat, tasks, the office and the registry. **Scheduled briefs and scheduled
 self-improvement are OFF** (owner decision 2026-09-30); Scout's sweep, Follow-up, Atlas and the
-daycare lanes are the always-on machinery. Models: small jobs on Haiku 4.5, seller/parent reply
-drafts and main-agent chat on Sonnet 5.5; Opus/Fable never (`test_model_policy.py`).
+daycare lanes are the always-on machinery. Models: Haiku 5.5 at low effort for scoring, triage,
+screening, parsing and lookups; Sonnet 5.5 for seller/parent replies, money, plans and briefs. Chat
+starts on Haiku and restarts on Sonnet when it needs judgment, writing or any write
+(`FORGE_CHAT_ROUTER=0` goes straight to Sonnet). Opus/Fable can't be reached: hard allowlist in
+`review_agent`, enforced in `test_model_policy.py`.
 
 Per-agent cards (triggers, reads, gates, cost, how to verify): [`agents/`](agents/).
 

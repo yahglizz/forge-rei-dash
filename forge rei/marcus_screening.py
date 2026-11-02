@@ -414,8 +414,8 @@ class Screener:
         user = (triage + "\n\nSELLER TEXT THREAD (oldest first):\n" + transcript
                 + "\n\nReturn the screening report JSON now.")
         try:
-            raw = review_agent._claude(key, system, user, max_tokens=1400, effort="medium",
-                                       model=review_agent.SMART_MODEL)
+            raw = review_agent._claude(key, system, user, max_tokens=1400, effort="low",
+                                       model=review_agent.FAST_MODEL)
         except Exception as e:  # noqa: BLE001
             self.last_error = f"claude: {e}"
             return {"error": f"claude: {e}"}
@@ -833,7 +833,7 @@ class Screener:
         return {
             "connected": True,
             "aiScreening": bool(_marcus_key()),
-            "model": review_agent.SMART_MODEL,
+            "model": review_agent.FAST_MODEL,
             "autoScreen": AUTO_SCREEN,
             "total": len(self.screenings),
             "lastError": self.last_error,

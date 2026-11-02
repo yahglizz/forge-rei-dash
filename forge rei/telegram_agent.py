@@ -645,39 +645,45 @@ def chat(agent_id, text, history, chat_id, key=None, call=None):
                          "(/status, /starts, /logins, /pin).", "cards": []}
     import review_agent
     call = call or review_agent.post_messages
-    model = review_agent.SMART_MODEL
     system = [{"type": "text", "text": system_prompt(agent_id, business),
                "cache_control": {"type": "ephemeral"}}]
     import caveman
-    msgs, cards = _messages(history, text + caveman.TEXT_NUDGE), []
-    for turn in range(MAX_TURNS + 1):
-        payload = {"model": model, "system": system, "messages": msgs, "tools": TOOLS,
-                   **review_agent.thinking_params(model, MAX_TOKENS, "low")}
-        try:
-            data = call(key, payload)
-        except Exception as e:  # noqa: BLE001
-            return {"reply": f"Couldn't reach my brain: {e}\nSlash commands still work "
-                             "(/status, /starts, /logins, /pin).", "cards": cards,
-                    "error": str(e)}
-        content = data.get("content") or []
-        msgs.append({"role": "assistant", "content": content})
-        said = "".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
-        uses = [b for b in content if b.get("type") == "tool_use"]
-        stop = data.get("stop_reason")
-        if stop in ("max_tokens", "refusal") or not uses:
-            if not said:
-                said = {"max_tokens": "That got too long for one go — ask for a smaller piece.",
-                        "refusal": "I can't help with that one."}.get(
-                    stop, "I didn't get to an answer — try rephrasing.")
-            return {"reply": said, "cards": cards}
-        if turn == MAX_TURNS:
-            break
-        msgs.append({"role": "user", "content": [
-            {"type": "tool_result", "tool_use_id": u["id"],
-             "content": "<data>" + _clip(redact(_run_tool(u["name"], u.get("input") or {},
-                                        agent_id, business, chat_id, cards), pin=True)) + "</data>"}
-            for u in uses]})
-    return {"reply": "Ran out of steps on that one — say “keep going”.", "cards": cards}
+    start, cards = _messages(history, text + caveman.TEXT_NUDGE), []
+
+    def run(model, extra):
+        msgs = list(start)
+        for turn in range(MAX_TURNS + 1):
+            payload = {"model": model, "system": system, "messages": msgs, "tools": TOOLS + extra,
+                       **review_agent.thinking_params(model, MAX_TOKENS, "low")}
+            if turn == MAX_TURNS:               # cap: answer from what was read, no more tools
+                payload["tool_choice"] = {"type": "none"}
+            try:
+                data = call(key, payload)
+            except Exception as e:  # noqa: BLE001
+                return {"reply": f"Couldn't reach my brain: {e}\nSlash commands still work "
+                                 "(/status, /starts, /logins, /pin).", "cards": cards,
+                        "error": str(e)}
+            content = data.get("content") or []
+            msgs.append({"role": "assistant", "content": content})
+            said = "".join(b.get("text", "") for b in content if b.get("type") == "text").strip()
+            uses = [b for b in content if b.get("type") == "tool_use"]
+            stop = data.get("stop_reason")
+            final = stop in ("max_tokens", "refusal") or not uses or turn == MAX_TURNS
+            if extra and review_agent.hand_up(uses, said, final):
+                return review_agent.ESCALATED
+            if final:
+                if not said:
+                    said = {"max_tokens": "That got too long for one go — ask for a smaller piece.",
+                            "refusal": "I can't help with that one."}.get(
+                        stop, "I didn't get to an answer — try rephrasing.")
+                return {"reply": said, "cards": cards}
+            msgs.append({"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": u["id"],
+                 "content": "<data>" + _clip(redact(_run_tool(u["name"], u.get("input") or {},
+                                            agent_id, business, chat_id, cards), pin=True)) + "</data>"}
+                for u in uses]})
+
+    return review_agent.routed(run)
 
 
 # ── zero-Claude slash commands (work with credits out) ───────────────────────

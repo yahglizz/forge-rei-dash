@@ -2,8 +2,10 @@
 
 Appended LAST to OPERATOR-FACING CHAT system prompts ONLY: Scout/Atlas/Retell chat
 (agents_chat.py), Solomon/Midas/Orion chat (agents_hub.py), agency Dyson/Eco chat
-(agency_agents.py), Marcus chat (marcus_chat.py), the Telegram partners
-(telegram_agent.py). Cuts Anthropic OUTPUT tokens on every operator reply.
+(agency_agents.py), Marcus chat (marcus_chat.py), the consult-round final reply
+(agent_collab.py, passed in by those chats); text_block() goes on the Telegram partners
+(telegram_agent.py) and gateway chat (agent_gateway.py). Cuts Anthropic OUTPUT tokens on
+every operator reply.
 
 NEVER used on: seller-facing SMS drafts (`marcus_engine._ai_draft` — voice +
 quality critical), internal scoring/screening/underwriting jobs, briefs, the
@@ -81,6 +83,8 @@ _ADHD = (
 _TEXT = (
     "\n\n=== HOW YOU TEXT THE OWNER (this beats every style rule above) ===\n"
     "You are his assistant, texting him on his phone. Sound like a sharp person, not a report.\n"
+    "Your first word starts the answer: no opener ('Sure', 'Got it', 'Good news'), no restating his "
+    "question.\n"
     "Earlier replies in this thread may be long and formatted. Never copy them or mention them.\n"
     "Example. He asks: how many tours this week\n"
     "You text: 3 this week, all at 2318: Ana Mon 1:30, Ben Tue 1:00, Cara Fri 1:00.\n"

@@ -13,6 +13,7 @@ from unittest import mock
 
 TMP = Path(tempfile.mkdtemp(prefix="chat-actions-test-"))
 os.environ["FORGE_ACTION_LOG"] = str(TMP / "actions.jsonl")
+os.environ["FORGE_CHAT_ROUTER"] = "0"   # these scripts play one model; the router: test_model_policy.py
 os.environ.setdefault("FORGE_MARCUS", "0")
 for _k in ("FORGE_CHAT_LIVE", "FORGE_CHAT_ACTIONS", "FORGE_CHAT_AUTO"):
     os.environ.pop(_k, None)
@@ -669,6 +670,22 @@ def test_board_routes():
         for p in ("/api/daycare/board/run", "/api/daycare/board/snooze", "/api/daycare/board/done"):
             assert p in REAL_CATALOG["POST"] and ta.path_business(p) == "daycare", p
             assert ta.allowed("daycare", "POST", p)[0] and not ta.allowed("agency", "POST", p)[0], p
+
+
+def test_taint_from_a_haiku_read_survives_the_restart_on_sonnet():
+    """Haiku reads outside text, then wants to write: the turn restarts on Sonnet, and the read
+    still counts, so the write is a card. The restart must not launder the taint."""
+    reset()
+    os.environ["FORGE_CHAT_ROUTER"] = "1"
+    tagw = post("/api/daycare/ghl/tag", {"contact_id": "c1", "add": ["enrolled"]}, "t", tid="t2")
+    try:
+        _, acts = turn("solomon", tool("api_get", {"path": "/api/daycare/replies"}),
+                       tagw,                                         # Haiku: write -> restart
+                       tagw, text("queued"))                         # Sonnet goes straight to the write
+    finally:
+        os.environ["FORGE_CHAT_ROUTER"] = "0"
+    assert [c["model"] for c in CALLS] == ["claude-haiku-5-5"] * 2 + ["claude-sonnet-5-5"] * 2, CALLS
+    assert posts() == [] and len(acts["actions"]) == 1, (HTTP, acts)
 
 
 def test_taint_is_fail_closed_and_lasts_across_messages():

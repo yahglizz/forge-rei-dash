@@ -33,6 +33,7 @@
 | `TELEGRAM_CHAT_ID` | `telegram_io.py` | same | CONFIG |
 | `TELEGRAM_ALLOWED_IDS` | `telegram_io.py` | same | EMPTY (not blocking: when empty, only `TELEGRAM_CHAT_ID` is authorized, `telegram_io.py` `_msg_authorized`) |
 | `FORGE_SELF_IMPROVE` | `review_agent.py` (`self_improve_on`) | n/a (knob) | knob, default off: gates every automatic `learn()` and `deploy/daily_learn.sh` |
+| `FORGE_CHAT_ROUTER` | `review_agent.py` (`chat_models`) | n/a (knob) | knob, default on: tool-loop chat starts on Haiku and restarts on Sonnet; `0` = straight to Sonnet |
 | `FORGE_CHAT_LIVE` | `dash_live.py` | n/a (knob) | knob, default on: `0` turns the read-only live-data chat tools off |
 
 ## Marcus (wholesale), lanes Scout, Atlas, Follow-up, ACE, Autopilot

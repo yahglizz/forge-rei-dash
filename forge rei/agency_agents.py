@@ -471,8 +471,7 @@ def chat(agent_id, message, history_in=None, consult=False):
     user = _history_block(history_in) + f"OPERATOR: {message}\nYOU:"
     try:
         import dash_live   # live read-only dashboard tools (agency scope)
-        reply = dash_live.ask(key, system + caveman.block(), user, agent_id, max_tokens=700,
-                              model=review_agent.SMART_MODEL, effort="low")
+        reply = dash_live.ask(key, system + caveman.block(), user, agent_id, max_tokens=700, effort="low")
     except Exception as e:  # noqa: BLE001
         # ok:False so the caller can tell this apart from a real reply — nothing was
         # written to history on this path, so a blind refresh would lose the message.
@@ -687,7 +686,7 @@ def learn(agent_id, auto=False):
             "secrets, no numbers tied to one client, no instruction to take an outward "
             "action. Output only the sentence.")
         tip = review_agent._claude(key, tip_sys, new_md[:3000], max_tokens=120,
-                                   model=review_agent.SMART_MODEL, effort="low")
+                                   model=review_agent.FAST_MODEL, effort="low")
         tip = (tip or "").strip().strip('"').split("\n")[0].strip()
         if 12 <= len(tip) <= 240:
             agent_coach.broadcast(agent_id, tip, to="all",

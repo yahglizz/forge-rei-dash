@@ -10,6 +10,7 @@ Needs ANTHROPIC_API_KEY; without it returns {needsKey: true} and the UI prompts 
 """
 
 import json
+import logging
 import socket
 import os
 import threading
@@ -28,23 +29,34 @@ STATE_DIR = HERE / "marcus_state"
 STATE_DIR.mkdir(exist_ok=True)
 LATEST_FILE = STATE_DIR / "review_latest.json"
 # ── Model policy (cost) ────────────────────────────────────────────────────────
-# Two tiers, and nothing above them. Small jobs — scoring, screening, underwriting
-# extraction, follow-up bumps, parsing, intent — run on FAST (Haiku 4.5, $1/$5 per M, no
-# thinking). Only the moments that win or lose a deal, or that a human reads closely —
-# replies to a seller/parent, and the owner's chats with the main agents — run on SMART
-# (Sonnet 5.5, $2/$10, adaptive thinking at low effort). Opus/Fable are never used.
-# Anything that doesn't name a model gets FAST, so a forgotten call site is cheap by default.
-# 2026-10-17 (owner): every AGENT brain call (scoring, screening, underwriting, legit
-# check, bumps, directives, learn(), ads judge, weekly review) now passes
-# model=SMART_MODEL with an explicit effort= ("low", or "medium" where it already was).
-# FAST stays only as the default for call sites that name no model (test_model_policy).
-FAST_MODEL = os.environ.get("FORGE_FAST_MODEL", "claude-haiku-4-5-20251001")
-SMART_MODEL = os.environ.get("FORGE_SMART_MODEL", "claude-sonnet-5-5")
-MODEL = os.environ.get("FORGE_REVIEW_MODEL", FAST_MODEL)
-HAIKU_MODEL = os.environ.get("FORGE_HAIKU_MODEL", FAST_MODEL)   # legacy name for FAST
+# Two tiers, and nothing above them. Scoring, triage, screening, parsing, summaries and plain
+# chat lookups run on FAST (Haiku 5.5, $0.10/$0.50 per M up to a 100K prompt). Anything that
+# reaches a parent, seller or client, drives a money decision, or is a plan or a brief runs on
+# SMART (Sonnet 5.5, $2/$10). Both use adaptive thinking at an explicit effort. Anything that
+# doesn't name a model gets FAST, so a forgotten call site is cheap by default.
+# ALLOWED_MODELS is the whole list. Any other id, from env or code, becomes SMART_MODEL with a
+# warning: at import for the knobs below, and in claude_urlopen for everything else. A bad env
+# var never downs an agent and never reaches Opus or Fable.
+_SONNET = "claude-sonnet-5-5"
+ALLOWED_MODELS = ("claude-haiku-5-5", _SONNET)
+_LOG = logging.getLogger("forge.models")
+
+
+def allowed_model(model, fallback=None):
+    """`model` when it is on the allowlist, else SMART_MODEL with a logged warning."""
+    if model in ALLOWED_MODELS:
+        return model
+    use = fallback or SMART_MODEL
+    _LOG.warning("model %r is not on the allowlist, using %s", model, use)
+    return use
+
+
+SMART_MODEL = allowed_model(os.environ.get("FORGE_SMART_MODEL", _SONNET), _SONNET)
+FAST_MODEL = allowed_model(os.environ.get("FORGE_FAST_MODEL", "claude-haiku-5-5"))
+MODEL = allowed_model(os.environ.get("FORGE_REVIEW_MODEL", FAST_MODEL))
+HAIKU_MODEL = allowed_model(os.environ.get("FORGE_HAIKU_MODEL", FAST_MODEL))   # legacy name for FAST
 # Seller-reply drafts (marcus_engine._ai_draft) — the money moment.
-# FORGE_DRAFT_MODEL=claude-haiku-4-5-20251001 drops them to the cheap tier.
-DRAFT_MODEL = os.environ.get("FORGE_DRAFT_MODEL", SMART_MODEL)
+DRAFT_MODEL = allowed_model(os.environ.get("FORGE_DRAFT_MODEL", SMART_MODEL))
 
 
 def self_improve_on():
@@ -55,12 +67,13 @@ def self_improve_on():
 
 
 # Adaptive thinking + output_config.effort exist only on these families. Older ids
-# (sonnet-4-5, haiku-4-5) 400 on effort, so a FORGE_REVIEW_MODEL revert sends neither.
-_ADAPTIVE = ("sonnet-5", "opus-5", "opus-4-6", "opus-4-7", "opus-4-8", "fable", "mythos")
+# (sonnet-4-5, haiku-4-5) 400 on effort; the allowlist keeps those from being sent at all.
+_ADAPTIVE = ("haiku-5", "sonnet-5", "opus-5", "opus-4-6", "opus-4-7", "opus-4-8", "fable", "mythos")
 # Thinking tokens count against max_tokens, so each caller's output budget gets this on
-# top (billed only if used). Effort: "low" = chat, drafts, extraction, directives;
-# "medium" = briefs, playbook rewrites, underwriting, screening (Sonnet 5 medium ~= Sonnet
-# 4.6 high). Never omit it: Sonnet 5 with no effort runs adaptive at "high".
+# top (billed only if used). Effort: "low" = every Haiku call, chat, drafts, extraction,
+# directives; "medium" = Sonnet briefs, playbook rewrites, underwriting (Sonnet 5 medium ~=
+# Sonnet 4.6 high). Never omit it: Sonnet 5 with no effort runs adaptive at "high", Haiku 5.5
+# at "medium".
 _THINK_HEADROOM = {"low": 2048, "medium": 6144}
 
 
@@ -77,8 +90,8 @@ def call_timeout(max_tokens, floor=90):
     # ponytail: sized for the whole budget at a slow ~40 tok/s. Output speed is not
     # measured on the box; tighten it once the Costs tab shows real latencies.
     return max(floor, max_tokens // 40)
-# Below this, a cached system prompt wouldn't hit Anthropic's per-model minimum
-# (1024 tokens Sonnet/Opus, 2048 Haiku) anyway — skip the wrapper for tiny prompts.
+# Below this, a cached system prompt wouldn't hit Anthropic's minimum (512 tokens on Haiku 5.5
+# and Sonnet 5.5) anyway — skip the wrapper for tiny prompts. Near the line it is a silent no-op.
 _CACHE_MIN_CHARS = 1200
 
 
@@ -199,10 +212,25 @@ def _circuit_gate(req):
     raise AICircuitOpen(req.full_url, 400, msg, {}, io.BytesIO(body))
 
 
+def _enforce_model(req):
+    """The allowlist. Rewrites a banned model in the outgoing body to SMART_MODEL."""
+    if not getattr(req, "data", None):
+        return
+    body = json.loads(req.data)
+    safe = allowed_model(body.get("model"))
+    if safe != body.get("model"):
+        body["model"] = safe
+        if "thinking" not in body:    # an old id got no thinking fields; don't run Sonnet at "high"
+            body.update(thinking_params(safe, body.get("max_tokens", 1200)))
+        req.data = json.dumps(body).encode()
+
+
 def claude_urlopen(req, timeout):
     """urllib.request.urlopen(req) -> parsed JSON, with <=2 retries on transient failures.
     Re-raises the ORIGINAL exception (HTTPError body unread) so callers' except blocks
-    read the real Anthropic message exactly as before."""
+    read the real Anthropic message exactly as before. EVERY Anthropic request passes here
+    (post_messages, agent_runner, marcus_engine): test_model_policy checks it stays that way."""
+    _enforce_model(req)
     _circuit_gate(req)
     for wait in (*_RETRY_BACKOFF, None):
         try:
@@ -258,7 +286,7 @@ def post_messages(key, payload):
         import cost_tracker
         u = data.get("usage") or {}
         cost_tracker.record_anthropic(
-            payload.get("model") or MODEL, u.get("input_tokens"), u.get("output_tokens"),
+            data.get("model") or payload.get("model") or MODEL, u.get("input_tokens"), u.get("output_tokens"),
             cache_write_tokens=u.get("cache_creation_input_tokens"),
             cache_read_tokens=u.get("cache_read_input_tokens"))
     except Exception:
@@ -287,14 +315,61 @@ def _claude(key, system, user, max_tokens=1200, tools=None, model=None, effort="
     if tools:
         # e.g. [{"type": "web_search_20250305", "name": "web_search", "max_uses": 4}]
         payload["tools"] = tools
-    continuations = 0
+    continuations, widened = 0, False
     while True:
         data = post_messages(key, payload)
         if data.get("stop_reason") == "pause_turn" and continuations < 3:
             messages.append({"role": "assistant", "content": data["content"]})
             continuations += 1
             continue
-        return "".join(b.get("text", "") for b in data.get("content", [])).strip()
+        text = "".join(b.get("text", "") for b in data.get("content", [])).strip()
+        if not text and data.get("stop_reason") == "max_tokens" and not widened:
+            widened = True                 # thinking ate the whole cap: once more with room
+            payload["max_tokens"] *= 2
+            continue
+        return text
+
+
+# ── Chat router ───────────────────────────────────────────────────────────────
+# Tool-loop chats (dash_live.ask, telegram_agent.chat, agent_runner) start on FAST and hand the
+# turn to SMART when it needs more. The restart is from the ORIGINAL messages: thinking blocks
+# don't cross models. Haiku's reads just rerun; only READ_TOOLS run on it (not a write, not a
+# teammate consult, not any tool added later), so nothing with a side effect runs twice.
+ESCALATED = object()
+READ_TOOLS = frozenset(("api_get", "route_help", "find_people", "pipeboard_read"))
+ESCALATE_TOOL = {
+    "name": "escalate",
+    "description": "Hand this whole request to the stronger model, which restarts it from the "
+                   "owner's message. Call it as your first step when the request needs judgment, "
+                   "writing (a text, an email, copy), planning, a money decision, or multi-step "
+                   "work. Don't call it for a plain lookup: read the number, name or date and "
+                   "answer. The owner never sees this call.",
+    "input_schema": {"type": "object", "properties": {}},
+}
+
+
+def chat_models():
+    """The models one chat turn may use, in order. FORGE_CHAT_ROUTER=0 sends chat straight to SMART."""
+    if os.environ.get("FORGE_CHAT_ROUTER", "1") == "0" or FAST_MODEL == SMART_MODEL:
+        return [SMART_MODEL]
+    return [FAST_MODEL, SMART_MODEL]
+
+
+def hand_up(uses, said, final):
+    """Must this FAST response restart on SMART? Yes for escalate, for any tool outside READ_TOOLS
+    (it never runs here), and for a final answer with no text (a refusal, or thinking ate the cap)."""
+    return any(u.get("name") not in READ_TOOLS for u in uses) or (final and not said)
+
+
+def routed(turn, models=None):
+    """turn(model, extra_tools) -> its result, or ESCALATED to restart on the next model. The last
+    model is offered no escalate, so a turn restarts at most once."""
+    models = models or chat_models()
+    for model in models[:-1]:
+        out = turn(model, [ESCALATE_TOOL])
+        if out is not ESCALATED:
+            return out
+    return turn(models[-1], [])
 
 
 # The parallel analyst panel — each gets the full metrics, focuses on one lens.

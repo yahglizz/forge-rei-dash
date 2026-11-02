@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+os.environ["FORGE_CHAT_ROUTER"] = "0"   # these scripts play one model; the router: test_model_policy.py
+
 import telegram_agent as ta
 import telegram_io as tg
 

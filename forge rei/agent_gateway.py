@@ -442,6 +442,7 @@ def _chat_spec(ctx):
     import agents_hub
     import caveman
     import dash_live
+    import review_agent
     job, req = ctx["job"], ctx["req"]
     agent, col = job["agent"], ctx["col"]
     col["chat"] = _chat_id(job["business"])
@@ -455,7 +456,8 @@ def _chat_spec(ctx):
             + dash_live._DATA_RULE)
     extra = rule + agents_hub._lanes_block(agent) + agents_hub.open_tasks_block(agent) + live + caveman.text_block()
     msgs = ta._messages(agents_history.recent_for_context(agent), req["message"] + caveman.TEXT_NUDGE)
-    return {"messages": msgs, "tools": tools, "tail_extra": extra, "max_turns": 10, "foreign_probe": None}
+    return {"messages": msgs, "tools": tools, "tail_extra": extra, "max_turns": 10, "foreign_probe": None,
+            "models": review_agent.chat_models()}
 
 
 def _chat_id(business):
@@ -470,7 +472,8 @@ def _build_spec(ctx):
     built = (_workflow_spec if job["mode"] == "workflow" else _chat_spec)(ctx)
     extra = built.pop("tail_extra")
     return {**built, "head": head, "tail": tail + FOLDER_RULE + extra, "layers": layers,
-            "root": str(ROOT), "files": AGENTS[job["agent"]]["files"], "model": review_agent.SMART_MODEL,
+            "root": str(ROOT), "files": AGENTS[job["agent"]]["files"],
+            "models": built.pop("models", [review_agent.SMART_MODEL]),      # workflow jobs stay on SMART
             "max_tokens": 2500, "port": ta._H.get("port", 7799),
             "api_url": os.environ.get("FORGE_GATEWAY_ANTHROPIC_URL") if forge_atomic.under_test() else None,
             "result_path": str(RUN / f"{job['id']}.result.json")}
@@ -495,7 +498,7 @@ def _work(ctx):
             STATE.chmod(0o711)                 # the child can reach run/ and nothing beside it
             shutil.chown(RUN, user)
         spec = _build_spec(ctx)
-        job["receipts"] = {"layers": spec["layers"], "model": spec["model"]}
+        job["receipts"] = {"layers": spec["layers"], "model": spec["models"][0]}
         fd = os.open(spec_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             json.dump(spec, f)
@@ -570,8 +573,8 @@ def _finish(ctx, result):
     if status == "done" and ctx.get("card_failed"):
         status, error = "failed", "a tap card could not reach Telegram"
     job["receipts"] = {**job.get("receipts", {}), **{k: result[k] for k in (
-        "cwd", "files", "tools", "usage", "turns", "secretEnvNames", "systemChars", "foreignProbe")
-        if k in result}}
+        "cwd", "files", "tools", "usage", "turns", "secretEnvNames", "systemChars", "foreignProbe",
+        "model", "escalated") if k in result}}
     if job["mode"] == "workflow" and TASKS[job["task"]].get("self_test") and status == "done":
         job["checks"] = _check_self_test(ctx, result)
         if not all(job["checks"].values()):
@@ -601,8 +604,9 @@ def _after(ctx, result, status, error):
     if result.get("modelCalled") and u:
         def cost():
             import cost_tracker
-            cost_tracker.record_anthropic(job["receipts"].get("model"), u["in"], u["out"],
-                                          cache_write_tokens=u["cacheWrite"], cache_read_tokens=u["cacheRead"])
+            for c in result.get("calls") or []:
+                cost_tracker.record_anthropic(c["model"], c["in"], c["out"],
+                                              cache_write_tokens=c["cacheWrite"], cache_read_tokens=c["cacheRead"])
         steps.append(cost)
 
     def health():

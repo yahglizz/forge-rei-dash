@@ -27,7 +27,7 @@ _KEEP_DAYS = 92          # rolling window of per-day rows
 _DEFAULT_SMS_RATE = 0.0083   # USD per outbound SMS segment (LC Phone default-ish; operator-tunable)
 
 # USD per MILLION tokens, matched by substring on the model id (first hit wins).
-# Raw tokens are stored per day, so editing this table re-prices history automatically.
+# USD is fixed when a call is logged: editing this table changes new calls, never old rows.
 PRICES = (
     ("fable", (10.0, 50.0)),
     ("mythos", (10.0, 50.0)),
@@ -37,14 +37,18 @@ PRICES = (
     # that said it ended 2026-08-31 was stale; re-check on the Anthropic pricing page).
     ("sonnet-5", (2.0, 10.0)),
     ("sonnet", (3.0, 15.0)),
-    ("haiku", (1.0, 5.0)),
+    ("haiku-5", (0.10, 0.50)),
+    ("haiku", (1.0, 5.0)),      # Haiku 4.5 and older
 )
 _DEFAULT_PRICE = (3.0, 15.0)
+# Haiku 5.5's second rate card: a prompt over 100K tokens (fresh + cached) bills the whole call here.
+LONG_PROMPT_TOKENS = 100_000
+_LONG_PRICES = (("haiku-5", (0.50, 2.50)),)
 
 
-def _price_for(model):
+def _price_for(model, prompt_tokens=0):
     m = (model or "").lower()
-    for frag, p in PRICES:
+    for frag, p in (_LONG_PRICES + PRICES if prompt_tokens > LONG_PROMPT_TOKENS else PRICES):
         if frag in m:
             return p
     return _DEFAULT_PRICE
@@ -124,7 +128,7 @@ def record_anthropic(model, input_tokens, output_tokens,
         cw, cr = int(cache_write_tokens or 0), int(cache_read_tokens or 0)
         if i <= 0 and o <= 0 and cw <= 0 and cr <= 0:
             return
-        pin, pout = _price_for(model)
+        pin, pout = _price_for(model, i + cw + cr)
         usd = (i * pin + o * pout + cw * pin * _CACHE_WRITE_MULT
                + cr * pin * _CACHE_READ_MULT) / 1_000_000.0
         who = _who()

@@ -22,6 +22,22 @@ class CostTrackerTest(unittest.TestCase):
         self.assertAlmostEqual(18.0, s["today"]["claudeUSD"], places=2)
         self.assertEqual(1_000_000, s["today"]["claudeIn"])
 
+    def test_haiku_5_5_has_two_rate_cards_split_at_a_100k_prompt(self):
+        day = lambda: cost_tracker.status()["today"]["claudeUSD"]
+        self.assertEqual((0.10, 0.50), cost_tracker._price_for("claude-haiku-5-5"))
+        self.assertEqual((0.10, 0.50), cost_tracker._price_for("claude-haiku-5-5", 100_000))
+        self.assertEqual((0.50, 2.50), cost_tracker._price_for("claude-haiku-5-5", 100_001))
+        self.assertEqual((1.0, 5.0), cost_tracker._price_for("claude-haiku-4-5-20251001", 900_000))
+        self.assertEqual((2.0, 10.0), cost_tracker._price_for("claude-sonnet-5-5", 900_000))
+        cost_tracker.record_anthropic("claude-haiku-5-5", 100_000, 1_000_000)      # $0.01 + $0.50
+        self.assertAlmostEqual(0.51, day(), places=4)
+        before = day()                                                             # cached tokens count
+        cost_tracker.record_anthropic("claude-haiku-5-5", 1, 0, cache_read_tokens=100_000)
+        self.assertAlmostEqual(0.005, day() - before, places=4)                    # 0.1 x $0.50 card
+        before = day()
+        cost_tracker.record_anthropic("claude-haiku-5-5", 0, 0, cache_write_tokens=1_000_000)
+        self.assertAlmostEqual(0.625, day() - before, places=4)                    # 1.25 x $0.50 card
+
     def test_haiku_priced_cheaper_than_sonnet(self):
         cost_tracker.record_anthropic("claude-haiku-4-5-20251001", 1_000_000, 0)
         s = cost_tracker.status()
