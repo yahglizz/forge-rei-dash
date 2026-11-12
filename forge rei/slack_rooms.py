@@ -183,12 +183,14 @@ def on_refresh(after, location_id=None, board=BOARD) -> int:
                      if c.get("opportunityId") and now_map[c["opportunityId"]] != known.get(c["opportunityId"])]
             posts = [(c, STAGE_TOPIC.get(now_map[c["opportunityId"]].strip().lower())) for c in moved]
             both = _board_contacts("amt") or set()     # a family also on the AMT board stays out
-            posts = [(c, t) for c, t in posts if t and _room(t) and not _test(c.get("name"))
-                     and c.get("contactId") not in both]
+            posts = [(c, t) for c, t in posts if t and _room(t) and c.get("contactId") not in both]
             failed = set()
             for c, topic in posts[:MAX_EVENTS]:
                 was = known.get(c["opportunityId"])
-                text = (f"<b>{_esc(c['name'])}</b> → {_esc(c['stageName'])}"
+                # A ZZ test family still posts (marked), so a real GHL move can be checked end to end
+                # without touching a real family. Rosters keep hiding them.
+                text = (("🧪 test family · " if _test(c.get("name")) else "")
+                        + f"<b>{_esc(c['name'])}</b> → {_esc(c['stageName'])}"
                         + (f" (was {_esc(was)})" if was else " (new)"))
                 if slack_io.send(text, channel=_room(topic),
                                  buttons=_buttons(topic, c.get("contactId"), location_id),

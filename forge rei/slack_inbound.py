@@ -405,6 +405,48 @@ def _handle_text(text, channel, chat_biz, thread, slash, user=""):
     _turn(chat, sess["agent"], text, post, user)
 
 
+_BULLET = re.compile(r"^\s*(?:[-•*]|\d{1,2}[.)])\s+")
+_ABBR = {"mr", "mrs", "ms", "dr", "st", "ave", "no", "vs", "etc", "approx", "a.m", "p.m", "e.g", "i.e",
+         "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+         "mon", "tue", "tues", "wed", "thu", "thur", "thurs", "fri", "sat", "sun"}
+MAX_SENTENCES, MAX_BULLETS = 2, 5
+_MORE = " (more: just ask)"
+
+
+def _sentences(text) -> list[str]:
+    """Split prose into sentences. An initial ("Cecil B. Moore"), a known abbreviation ("Nov. 13",
+    "St.") or a number ("2.5") never ends one."""
+    out, start = [], 0
+    for m in re.finditer(r"[.!?][\"”’)]*\s+(?=[\"“(]?[A-Z0-9])", text):
+        word = re.split(r"[\s(\"“]", text[start:m.start()])[-1].lower()
+        if text[m.start()] == "." and (len(word) <= 1 or word in _ABBR or word[-1:].isdigit() and text[m.end():m.end() + 1].isdigit()):
+            continue
+        out.append(text[start:m.end()].strip())
+        start = m.end()
+    tail = text[start:].strip()
+    return out + ([tail] if tail else [])
+
+
+def clamp(reply) -> str:
+    """The Slack reply cap, enforced here because a prompt alone drifts: at most MAX_SENTENCES
+    sentences, or (when the agent answered with a list) its lead line + MAX_BULLETS bullets and
+    nothing after them. A cut reply ends with "(more: just ask)" so nothing is hidden silently."""
+    text = str(reply or "").strip()
+    lines = [ln for ln in text.split("\n") if ln.strip()]
+    marks = [bool(_BULLET.match(ln)) for ln in lines]
+    if sum(marks) >= 2:
+        first = marks.index(True)
+        lead = lines[:first][-1:]                       # one lead line at most
+        bullets = [ln for ln, b in zip(lines[first:], marks[first:]) if b]
+        last = len(lines) - 1 - marks[::-1].index(True)
+        cut = len(bullets) > MAX_BULLETS or last < len(lines) - 1 or first > 1
+        return "\n".join(lead + bullets[:MAX_BULLETS]) + (_MORE if cut else "")
+    sents = _sentences(" ".join(lines))
+    if len(sents) <= MAX_SENTENCES:
+        return text
+    return " ".join(sents[:MAX_SENTENCES]) + _MORE
+
+
 def _turn(chat, agent_id, text, post, user=""):
     """One partner turn, inline on the listener's worker thread (renamed for the agent so
     cost_tracker bills it like a Telegram turn). One turn at a time per chat. The owner's turn
@@ -437,7 +479,7 @@ def _turn(chat, agent_id, text, post, user=""):
             out = {"reply": f"({agent_id.title()} hit an error: {type(e).__name__})", "error": True}
         finally:
             me.name = name
-        reply, cards = out.get("reply") or "On it.", out.get("cards") or []
+        reply, cards = clamp(out.get("reply") or "On it."), out.get("cards") or []
         if not out.get("error"):                # an outage message is not a conversation turn
             sess["history"] = (sess["history"] + [{"role": "user", "text": text},
                                                   {"role": "assistant", "text": reply}])[-12:]

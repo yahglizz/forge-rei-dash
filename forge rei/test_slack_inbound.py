@@ -334,6 +334,23 @@ class InboundTests(unittest.TestCase):
         slack_inbound.handle_message_event(msg("/task x", channel=DAYCARE, user=STRANGER))
         self.assertEqual(len(self.chats), n + 1)                       # strangers still ignored
 
+    def test_reply_clamp(self):
+        c = slack_inbound.clamp
+        two = "Call Ija Henry first at 2318 Cecil B. Moore on Nov. 13 at 10 a.m. sharp. I did not check the rest."
+        self.assertEqual(c(two), two)                                  # initials + abbreviations do not split
+        self.assertEqual(c("One. Two. Three. Four."), "One. Two. (more: just ask)")
+        self.assertEqual(c("Yes."), "Yes.")
+        self.assertEqual(c("It is 2.5 hours. Fine."), "It is 2.5 hours. Fine.")
+        bl = "Top three:\n1. A thing\n2. B thing\n3. C thing"
+        self.assertEqual(c(bl), bl)
+        self.assertEqual(c(bl + "\nI only read the top of the board."), bl + " (more: just ask)")
+        many = "\n".join(f"• item {i}" for i in range(8))
+        self.assertEqual(c(many).count("•"), 5)
+        self.assertTrue(c(many).endswith("(more: just ask)"))
+        self.reply = {"reply": "A. B is next. C too. D also.", "cards": []}
+        slack_inbound.handle_message_event(msg("anything?"))
+        self.assertIn("(more: just ask)", self.posts()[0][2])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -95,10 +95,11 @@ class RoomTests(unittest.TestCase):
         after = [card("1", "Ava", "Tour Scheduled"), card("2", "Ben", "Tour Scheduled"),
                  card("3", "ZZChild 9", "Enrolled"), card("4", "Cy", "Application Sent"), card("5", "Di", "Lost")]
         self.assertEqual(slack_rooms.on_refresh(before, "LOC1"), 0)                    # first run: snapshot only
-        self.assertEqual(slack_rooms.on_refresh(after, "LOC1"), 2)
+        self.assertEqual(slack_rooms.on_refresh(after, "LOC1"), 3)
         self.assertEqual(slack_rooms.on_refresh(after, "LOC1"), 0)                     # announced: nothing new
-        (c1, t1, b1), (c2, t2, _) = self.posts()
-        self.assertEqual((c1, c2), (TOURS, QUOTES))
+        (c1, t1, b1), (c3, t3, _), (c2, t2, _) = self.posts()
+        self.assertEqual((c1, c2, c3), (TOURS, QUOTES, ENROLLED))
+        self.assertIn("test family", t3)                                               # ZZ family: posted, marked
         self.assertIn("*Ava* → Tour Scheduled (was Contacted)", t1)
         self.assertIn("(new)", t2)
         els = b1[-1]["elements"]
