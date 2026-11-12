@@ -98,20 +98,35 @@ RATES = [(0, "Infants (6 weeks-12 months)", 135, 195), (12, "Young Toddlers (1-2
          (24, "Older Toddlers (2-3 years)", 115, 165), (36, "Preschool (3-5 years)", 100, 145),
          (60, "Young School Age (5-8 years)", 85, 120), (108, "Older School Age (9-12 years)", 75, 110)]
 MAX_QUOTE_MONTHS = 156                 # sheet stops at 12 years
+MIN_QUOTE_MONTHS = 6 / 4.345           # 6 weeks (a whole-month DOB age of 1 stays below it: no guess)
+CF_CHILD_AGE = "KW7sDqefOml0Iym7MH5c"  # website form: "2 Years" / "8 Months" / "6 Weeks" [+ " (+1 sibling)"]
+_FORM_AGE_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(weeks?|months?|years?)\b", re.I)
+_UNIT_MONTHS = {"week": 1 / 4.345, "month": 1, "year": 12}   # same table as website api/enroll.js
 
 
 def rate_row(months):
     """The sheet row (start, group, part-time, full-time) for a child's age in months, or None."""
-    if months is None or months < 2 or months >= MAX_QUOTE_MONTHS:
+    if months is None or months < MIN_QUOTE_MONTHS or months >= MAX_QUOTE_MONTHS:
         return None
     return [r for r in RATES if r[0] <= months][-1]
 
 
 def age_text(months):
-    return "not on file" if months is None else (f"{months} months" if months < 36 else f"{months // 12} years")
+    if months is None:
+        return "not on file"
+    if months >= 36 or (months >= 12 and months % 12 == 0):
+        return f"{int(months // 12)} years" if months >= 24 else f"{int(months // 12)} year"
+    if months == int(months):
+        return f"{int(months)} months"
+    return f"{round(months * 4.345)} weeks"
 
 
-def quote_basis(label, brand, months):
+def _is_ccis(contact):
+    """The website form's payment answer was "CCIS Subsidy" (tag pay-ccis-subsidy)."""
+    return "pay-ccis-subsidy" in {str(t).strip().lower() for t in (contact or {}).get("tags") or []}
+
+
+def quote_basis(label, brand, months, siblings=False, ccis=False):
     """Pure: (text for the drafter, set of dollar amounts a draft may state). The drafter never
     does age math or picks a rate itself; no amounts means no number may be quoted."""
     if not label:
@@ -119,14 +134,19 @@ def quote_basis(label, brand, months):
     if "Mother" in (brand or ""):
         return ("NO NUMBER: A Mother's Touch (1923) is a separate entity and the ATOB rate sheet is not "
                 "confirmed for it. Say you'll confirm and put it in unknowns.", set())
+    if ccis:
+        return ("NO NUMBER: the form says Child Care Works (CCIS), so private-pay rates don't apply. Offer to "
+                "go over their copay on a quick call.", set())
     if months is None:
         return "NO NUMBER yet: child's age unknown. Ask how old the child is.", set()
     row = rate_row(months)
     if row is None:
         return "NO NUMBER: child's age is outside the rate sheet (6 weeks to 12 years). Put it in unknowns.", set()
     start, group, pt, ft = row
+    more = (" The form lists more than one child: quote only this child's rate and say you'll confirm the "
+            "sibling's." if siblings else "")
     return (f"{group}: part-time (up to 3 days/week) ${pt}/week; full-time (4-5 days/week) ${ft}/week. "
-            "Private pay only. Never quote this to a family on Child Care Works.", {float(pt), float(ft)})
+            "Private pay only. Never quote this to a family on Child Care Works." + more, {float(pt), float(ft)})
 
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
@@ -410,6 +430,22 @@ def _system():
             + "\n\n=== HOW ATOB TEXTS (voice) ===\n" + voice)
 
 
+def _child_age(contact, now):
+    """-> (months, source, siblings). A date of birth (family form) wins: whole months, "dob". Else the
+    website form's age text ("2 Years", "8 Months", "6 Weeks"), "form" (age when they filled it in).
+    A range ("1-2 Years") or nothing -> (None, "", False): no guess."""
+    m = _child_months(contact, now)
+    if m is not None:
+        return m, "dob", False
+    raw = str(daycare_ghl._cf_map(contact or {}).get(CF_CHILD_AGE) or "")
+    hit = _FORM_AGE_RE.match(raw)
+    if not hit:
+        return None, "", False
+    months = float(hit.group(1)) * _UNIT_MONTHS[hit.group(2).lower().rstrip("s")]
+    months = int(months) if months == int(months) else months
+    return (months, "form", "sibling" in raw.lower()) if 0 <= months < 240 else (None, "", False)
+
+
 def _child_months(contact, now):
     """The child's age in whole months from the form's date of birth, or None."""
     cf = daycare_ghl._cf_map(contact or {})
@@ -423,6 +459,11 @@ def _child_months(contact, now):
         except ValueError:
             continue
     return None
+
+
+def _quote_age(contact, now):
+    months, _src, sib = _child_age(contact, now)
+    return months, sib, _is_ccis(contact)
 
 
 def _form_facts(contact, now):
@@ -460,7 +501,7 @@ def _prompt(contact, ev, now):
             + ("Already known from the enrollment form (NEVER ask these again): "
                + "; ".join(_form_facts(contact, now)) + "\n" if _form_facts(contact, now) else "")
             + "Private-pay quote basis (the ONLY rates you may state; see rubric): "
-            + quote_basis(label, brand, _child_months(contact, now))[0] + "\n"
+            + quote_basis(label, brand, *_quote_age(contact, now))[0] + "\n"
             + f"Texts we have already sent this family: {sum(1 for e in ev if e['dir'] == 'outbound')}\n\n"
             "Thread, oldest first (the last PARENT line is what you are answering):\n"
             + "\n".join(lines)
@@ -483,8 +524,8 @@ def draft_reply(contact, ev, now, key=None):
     if action == "draft" and not text:
         action = "escalate"
     label, brand = _center({str(t).strip().lower() for t in (contact or {}).get("tags") or []})
-    months = _child_months(contact, now)
-    basis, allowed = quote_basis(label, brand, months)
+    months, src, sib = _child_age(contact, now)
+    basis, allowed = quote_basis(label, brand, months, siblings=sib, ccis=_is_ccis(contact))
     row = rate_row(months) if allowed else None
     fl = flags(text)
     if any(float(a) not in allowed for a in _AMOUNT_RE.findall(text)):
@@ -494,7 +535,8 @@ def draft_reply(contact, ev, now, key=None):
             "unknowns": [str(u)[:160] for u in (out.get("unknowns") or [])][:6],
             "flags": fl, "quoteBasis": basis if allowed else "", "model": MODEL,
             "noNumber": "" if allowed else basis.replace("NO NUMBER:", "").replace("NO NUMBER yet:", "").strip(),
-            "childAge": age_text(months), "quoteGroup": row[1] if row else "",
+            "childAge": age_text(months) + (" (age given on the form)" if src == "form" else "")
+                        + (" + a sibling" if sib else ""), "quoteGroup": row[1] if row else "",
             "quoteRates": f"part-time ${row[2]} · full-time ${row[3]} per week (private pay)" if row else ""}
 
 

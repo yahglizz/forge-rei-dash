@@ -347,6 +347,10 @@ def test_age_from_website_form():
     t, a = dr.quote_basis("2318 Cecil B Moore", "A Touch of Blessings", 24, siblings=True)
     assert a == {115.0, 165.0} and "sibling" in t
     assert dr.age_text(24) == "2 years" and dr.age_text(8) == "8 months" and dr.age_text(6 / 4.345) == "6 weeks"
+    # the form said Child Care Works: no private rate (owner rule), whatever the age
+    t, a = dr.quote_basis("2318 Cecil B Moore", "A Touch of Blessings", 24, ccis=True)
+    assert a == set() and t.startswith("NO NUMBER") and "Child Care Works" in t
+    assert dr._is_ccis({"tags": ["pay-ccis-subsidy"]}) and not dr._is_ccis({"tags": ["pay-private-pay"]})
 
 
 def test_owner_handoff():
