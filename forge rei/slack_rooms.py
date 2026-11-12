@@ -94,9 +94,15 @@ def roster(topic, now=None) -> tuple[str, list]:
                     if r.get("status") != "sent" and _ATOB_CENTER.search(str(r.get("center") or ""))
                     and not _AMT_TEXT.search(str(r.get("center") or ""))
                     and not _test(r.get("childName") or r.get("parentName"))]
+            from datetime import datetime, timezone, timedelta
+            today = (datetime.fromtimestamp(now_ms / 1000, timezone.utc) - timedelta(hours=5)).date().isoformat()  # ET, ±1 h
+            soon = [r for r in rows if (r.get("startDate") or "") >= today]
+            past = len(rows) - len(soon)
             lines = [f"• {_esc(r.get('childName') or r.get('parentName') or '?')} — {_esc(r.get('startDate') or '?')} "
-                     f"({_esc(r.get('status') or '?')})" for r in rows[:MAX_ROWS]]
-            return ("\n".join([f"<b>{TITLE[topic]}</b> — {len(rows)}"] + (lines or ["Nobody has a start date set."])),
+                     f"({_esc(r.get('status') or '?')})" for r in soon[:MAX_ROWS]]
+            if past:
+                lines.append(f"\n{past} more have a start date already past and unconfirmed — fix them on the dashboard.")
+            return ("\n".join([f"<b>{TITLE[topic]}</b> — {len(soon)}"] + (lines or ["Nobody has a start date set."])),
                     _buttons(topic))
         if topic == "tours":
             import daycare_calendar

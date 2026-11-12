@@ -154,14 +154,17 @@ class RoomTests(unittest.TestCase):
               {"kind": "tour", "date": "2026-11-15", "time": None, "center": None, "tag": None, "who": "Nowhere Kid"}]
         starts = [{"childName": "Ok Kid", "startDate": "2026-11-20", "status": "proposed", "center": "2318 Cecil B Moore"},
                   {"childName": "Amt Kid", "startDate": "2026-11-20", "status": "proposed", "center": "1923 Cecil B Moore (AMT)"},
-                  {"childName": "Lost Kid", "startDate": "2026-11-20", "status": "proposed", "center": "Center unknown"}]
+                  {"childName": "Lost Kid", "startDate": "2026-11-20", "status": "proposed", "center": "Center unknown"},
+                  {"childName": "Old Kid", "startDate": "2020-01-01", "status": "proposed", "center": "921 N 18th St"}]
         with mock.patch.object(daycare_calendar, "view", lambda now=None: {"upcoming": up}), \
                 mock.patch.object(daycare_starts, "view", lambda now=None: {"starts": starts}), \
                 mock.patch.object(slack_rooms, "_stage_cards", lambda s: ([], None)):
             tours, start = slack_rooms.roster("tours")[0], slack_rooms.roster("starting")[0]
         self.assertIn("Ayries A.", tours)
         self.assertIn("Ok Kid", start)
-        for bad in ("Amt Kid", "Nowhere Kid", "Lost Kid"):
+        self.assertIn("— 1", start.split("\n")[0])
+        self.assertIn("1 more have a start date already past", start)
+        for bad in ("Amt Kid", "Nowhere Kid", "Lost Kid", "Old Kid"):
             self.assertNotIn(bad, tours + start)
 
     def test_flood_is_capped_and_unroomed_moves_take_no_slot(self):
