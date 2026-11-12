@@ -497,10 +497,10 @@ def _with_reads(row):
     """An earlier answer of yours, with the tools it really ran (rows written before this existed
     carry no record and replay unchanged)."""
     text = row.get("text")
-    if row.get("role") != "ai" or "reads" not in row:
-        return text
     reads = [str(x) for x in row.get("reads") or []]
-    return f"{text}\n[system record: for that answer you ran: {', '.join(reads) if reads else 'no tool'}]"
+    if row.get("role") != "ai" or not reads:
+        return text                        # a follow-up that needed no tool is not an unbacked answer
+    return f"{text}\n[system record: that answer was backed by these reads: {', '.join(reads)}]"
 
 
 # Rides on the owner's own message (the strongest spot): Slack replies stay phone-short.
