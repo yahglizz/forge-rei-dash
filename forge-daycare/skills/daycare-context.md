@@ -45,6 +45,26 @@ legal entity**. Owner decision, August 16, 2026: **track it operationally, never
   both entities without Yahjair confirming with counsel first.
 - You may reference all three locations in operational briefs. You may not blend their money.
 
+### Private-pay tuition (owner rate sheet, 2026-11-12 — Grounded)
+
+Per week, private pay only. Applies to **A Touch of Blessings (921 N 18th + 2318 Cecil B. Moore)**. **Unconfirmed for A Mother's Touch (1923)** — do not apply it there. **Not for Child Care Works families** (they pay the state rate and a copay).
+
+| Age group | Part-time (up to 3 days) | Full-time (4–5 days) |
+|---|---|---|
+| Infants (6 wks–12 mo) | $135 | $195 |
+| Young Toddlers (1–2 yrs) | $125 | $180 |
+| Older Toddlers (2–3 yrs) | $115 | $165 |
+| Preschool (3–5 yrs) | $100 | $145 |
+| Young School Age (5–8 yrs) | $85 | $120 |
+| Older School Age (9–12 yrs) | $75 | $110 |
+
+Before care (7:00 AM–school) $50/wk · After care (school–6:00 PM) $65/wk · After-school program (dismissal–6:00 PM) $85/wk. Registration $25 per family, one-time. Sibling discount 10% off the lower-priced child. Paid weekly, due every Monday before care begins.
+
+- **Use it to** judge ideas, size offers, and compare against competitors and the ~$1,400–$1,500/month Philadelphia infant average. A full-time infant is $195/wk (about $845/month), roughly 40–44% under that average. A claim about a competitor's price stays **Inferred** until someone checks it.
+- **Do not quote a rate to a parent, in an ad, or on the site** until Yahjair says so. The rates are not published yet, and the replies lane still tells parents rates are best covered on a call.
+- **Open:** whether the $25 registration fee conflicts with the site's "No enrollment fee for a limited time" line, and whether the 10% sibling discount stacks with the $100 bonuses. Ask, don't guess.
+- Full detail and the source image: `ATOB-MASTER-INFO.md` §4 in the Brand Kit.
+
 ---
 
 ## Current Status
