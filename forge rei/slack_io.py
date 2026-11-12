@@ -521,7 +521,11 @@ def _deliver(html_text, business, buttons, dedupe_key, image_url=None,
     if not channel and business in TOPICS:     # a mirrored alert goes to its room when it has one
         room = next((k for pre, k in _TOPIC_BY_KEY if str(dedupe_key or "").startswith(pre)
                      and k.startswith(business + "-")), None)
-        channel = topic_channel(room) if room else None
+        try:                                   # A Mother's Touch never enters a room (fail closed)
+            import slack_rooms
+            channel = topic_channel(room) if room and slack_rooms.room_ok(dedupe_key, html_text) else None
+        except Exception:  # noqa: BLE001
+            channel = None
     channel = channel or chat_for(business)
     if not token:
         return _fail("not configured (no SLACK_BOT_TOKEN)", channel)
@@ -694,9 +698,25 @@ def _interaction(payload, envelope_id):
         print(f"[slack] tap REFUSED user={user} channel={channel} card={card_id}", flush=True)
         return _refuse(channel, user, "Not authorized")
     if action in LIVE_ACTIONS:            # menu / room buttons: every tap runs, the card stays
-        import slack_inbound                # own thread: an agent turn must not hold the tap pool
-        threading.Thread(target=slack_inbound.handle_button, args=(action, arg, user, channel),
-                         daemon=True, name="slack-button").start()
+        key = (value, channel)
+        with _LOCK:
+            if key in _LIVE_BUSY:              # a double tap must not start a second agent turn
+                busy = True
+            else:
+                busy = False
+                _LIVE_BUSY.add(key)
+        if busy:
+            return _refuse(channel, user, "Already working on that one.", "busy")
+        print(f"[slack] button {action} arg={arg[:40]!r} user={user} channel={channel}", flush=True)
+
+        def run():                             # own thread: an agent turn must not hold the tap pool
+            try:
+                import slack_inbound
+                slack_inbound.handle_button(action, arg, user, channel)
+            finally:
+                with _LOCK:
+                    _LIVE_BUSY.discard(key)
+        threading.Thread(target=run, daemon=True, name="slack-button").start()
         return {"ok": True, "result": action}
     if card.get("consumed"):
         return _refuse(channel, user, "Already handled.", "already handled")
@@ -766,6 +786,7 @@ _ROUTED = ("interactive", "slash_commands", "events_api")
 # Buttons that never consume their card: "cmd:<command>" runs that command, "draft:<contactId>"
 # asks the channel's agent for a reply draft (which itself comes back as a ✅ card).
 LIVE_ACTIONS = ("cmd", "draft")
+_LIVE_BUSY = set()                        # (button value, channel) running right now (guarded by _LOCK)
 _ENV_TTL = 10 * 60
 _ENV_MAX = 500
 _BACKOFF_MIN, _BACKOFF_MAX = 1.0, 60.0

@@ -329,6 +329,8 @@ class InboundTests(unittest.TestCase):
         n = len(self.chats)
         slack_inbound.handle_message_event(msg("/home/user/file.txt is odd", channel=DAYCARE))
         self.assertEqual(len(self.chats), n + 1)                       # not a command: plain chat
+        slack_inbound.handle_message_event(msg("/forge bind agency", channel="GNEWAG1"))   # unbound channel
+        self.assertEqual(slack_io.business_of("GNEWAG1"), "agency")
         slack_inbound.handle_message_event(msg("/task x", channel=DAYCARE, user=STRANGER))
         self.assertEqual(len(self.chats), n + 1)                       # strangers still ignored
 

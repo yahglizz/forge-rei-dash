@@ -19,6 +19,7 @@ Slack-only (rooms don't exist in Telegram); inert while FORGE_CHAT_TRANSPORT=tel
 from __future__ import annotations
 
 import html
+import re
 import threading
 
 import slack_io
@@ -87,14 +88,20 @@ def roster(topic, now=None) -> tuple[str, list]:
     lines, note = [], None
     try:
         if topic == "starting":
-            import telegram_agent
-            out = telegram_agent.quick("/starts", "", "slack", "daycare")
-            body = "\n".join(ln for ln in (out[0] if out else "").split("\n")[1:] if "ZZChild" not in ln)
-            return (f"<b>{TITLE[topic]}</b>\n{body or 'Nobody has a start date set.'}", _buttons(topic))
+            import daycare_starts
+            v = daycare_starts.view()
+            rows = [r for r in (v.get("starts") if isinstance(v, dict) else v) or []
+                    if r.get("status") != "sent" and not _AMT_TEXT.search(str(r.get("center") or ""))
+                    and not _test(r.get("childName") or r.get("parentName"))]
+            lines = [f"• {_esc(r.get('childName') or r.get('parentName') or '?')} — {_esc(r.get('startDate') or '?')} "
+                     f"({_esc(r.get('status') or '?')})" for r in rows[:MAX_ROWS]]
+            return ("\n".join([f"<b>{TITLE[topic]}</b> — {len(rows)}"] + (lines or ["Nobody has a start date set."])),
+                    _buttons(topic))
         if topic == "tours":
             import daycare_calendar
             v = daycare_calendar.view()
-            for u in [u for u in v.get("upcoming") or [] if u.get("kind") == "tour"][:MAX_ROWS]:
+            for u in [u for u in v.get("upcoming") or [] if u.get("kind") == "tour"
+                      and not _AMT_TEXT.search(f"{u.get('center')} {u.get('tag')}")][:MAX_ROWS]:
                 at = (u.get("time") or "")[11:16]
                 lines.append(f"• {_esc(u['date'])}{' ' + at if at else ''} {_esc(u.get('tag') or '')} "
                              f"{_esc(u.get('who') or 'name not loaded yet')}".rstrip())
@@ -117,36 +124,63 @@ def roster(topic, now=None) -> tuple[str, list]:
     return ("\n".join([head] + (lines or ["Nobody here right now."])), _buttons(topic))
 
 
+# ── A Mother's Touch never enters a room ──────────────────────────────────────
+_AMT_TEXT = re.compile(r"\bAMT\b|\b1923\b|Mother.{0,3}s Touch", re.I)
+
+
+def _amt_contacts() -> set:
+    import daycare_pipeline
+    return {c.get("contactId") for c in daycare_pipeline._load("amt").get("cards") or []}
+
+
+def room_ok(dedupe_key, text) -> bool:
+    """May this mirrored daycare alert go to a room? No when it names AMT / 1923, or when a contact
+    id inside its dedupe key (leads, replies, tours carry one) is on the AMT board. Raises = caller
+    keeps it in the main daycare channel (fail closed)."""
+    if _AMT_TEXT.search(str(text or "")):
+        return False
+    ids = set(re.findall(r"[A-Za-z0-9]{12,}", str(dedupe_key or "")))
+    return not (ids and ids & _amt_contacts())
+
+
 # ── stage moves + first-run seed ──────────────────────────────────────────────
-def on_refresh(before, after, location_id=None, board=BOARD) -> int:
-    """before/after = the board's cards before and after one GHL read (before=None on the very
-    first read: nothing to compare, so no events). -> messages posted. Never raises."""
+def on_refresh(after, location_id=None, board=BOARD) -> int:
+    """after = the ATOB board's cards from one GHL read. A family whose stage differs from the last
+    one ANNOUNCED (slack_rooms.json, so the owner's own dashboard moves count too) gets one line in
+    the new stage's room. First run only records the snapshot. -> messages posted. Never raises."""
     try:
         if board != BOARD or slack_io.mode() == "telegram":
             return 0
         sent = _seed()
-        old = {c.get("opportunityId"): (c.get("stageName") or "") for c in before or []}
-        if not old:                        # first read (or an empty board): nothing to compare
-            return sent
-        moved = [c for c in after
-                 if c.get("opportunityId") and not _test(c.get("name"))
-                 and (c.get("stageName") or "") != old.get(c["opportunityId"])
-                 and STAGE_TOPIC.get((c.get("stageName") or "").strip().lower())]
-        for c in moved[:MAX_EVENTS]:
-            topic = STAGE_TOPIC[c["stageName"].strip().lower()]
-            room = _room(topic)
-            if not room:
-                continue
-            was = old.get(c["opportunityId"])
-            text = (f"<b>{_esc(c['name'])}</b> → {_esc(c['stageName'])}"
-                    + (f" (was {_esc(was)})" if was else " (new)"))
-            if slack_io.send(text, channel=room, buttons=_buttons(topic, c.get("contactId"), location_id),
-                             dedupe_key=f"room:{c['opportunityId']}:{c.get('stageId')}"):
-                sent += 1
-        if len(moved) > MAX_EVENTS:
-            hq = slack_io.chat_for("daycare")
-            slack_io.send(f"…and {len(moved) - MAX_EVENTS} more stage changes this round — see the dashboard board.",
-                          channel=hq)
+        with _LOCK:
+            st = slack_io._read(_STATE)
+            known = st.get("announced")
+            now_map = {c["opportunityId"]: (c.get("stageName") or "") for c in after if c.get("opportunityId")}
+            if known is None:                  # first run: nothing to compare against
+                st["announced"] = now_map
+                slack_io._write(_STATE, st)
+                return sent
+            moved = [c for c in after
+                     if c.get("opportunityId") and now_map[c["opportunityId"]] != known.get(c["opportunityId"])]
+            posts = [(c, STAGE_TOPIC.get(now_map[c["opportunityId"]].strip().lower())) for c in moved]
+            posts = [(c, t) for c, t in posts if t and _room(t) and not _test(c.get("name"))]
+            failed = set()
+            for c, topic in posts[:MAX_EVENTS]:
+                was = known.get(c["opportunityId"])
+                text = (f"<b>{_esc(c['name'])}</b> → {_esc(c['stageName'])}"
+                        + (f" (was {_esc(was)})" if was else " (new)"))
+                if slack_io.send(text, channel=_room(topic),
+                                 buttons=_buttons(topic, c.get("contactId"), location_id),
+                                 dedupe_key=f"room:{c['opportunityId']}:{c.get('stageId')}"):
+                    sent += 1
+                else:
+                    failed.add(c["opportunityId"])       # stays un-announced: retried next read
+            if len(posts) > MAX_EVENTS:
+                slack_io.send(f"…and {len(posts) - MAX_EVENTS} more stage changes this round — see the "
+                              "dashboard board.", channel=slack_io.chat_for("daycare"))
+            st["announced"] = {k: (known[k] if k in failed and k in known else v)
+                               for k, v in now_map.items() if k not in failed or k in known}
+            slack_io._write(_STATE, st)
         return sent
     except Exception as e:  # noqa: BLE001 — a room post never blocks the pipeline lane
         print(f"[slack_rooms] on_refresh failed: {type(e).__name__}", flush=True)
@@ -154,20 +188,26 @@ def on_refresh(before, after, location_id=None, board=BOARD) -> int:
 
 
 def _seed() -> int:
-    """Post each room's roster once, the first time that room has a channel."""
-    sent = 0
+    """Post each room's roster once, the first time that room has a channel. A failed post (bot
+    not in the channel, archived) is retried at most once an hour."""
+    import time
+    sent, now = 0, time.time()
     with _LOCK:
         st = slack_io._read(_STATE)
-        seeded = st.setdefault("seeded", {})
+        seeded, tried = st.setdefault("seeded", {}), st.setdefault("seedTried", {})
+        dirty = False
         for topic in TITLE:
             room = _room(topic)
-            if not room or seeded.get(topic) == room:
+            if not room or seeded.get(topic) == room or now - (tried.get(topic) or 0) < 3600:
                 continue
             text, buttons = roster(topic)
             if slack_io.send(text, channel=room, buttons=buttons):
                 seeded[topic] = room
                 sent += 1
-        if sent:
+            else:
+                tried[topic] = now
+            dirty = True
+        if dirty:
             slack_io._write(_STATE, st)
     return sent
 
@@ -180,10 +220,13 @@ def draft(contact_id, channel, user) -> None:
     cards = (daycare_pipeline._load(BOARD).get("cards") or [])
     card = next((c for c in cards if c.get("contactId") == str(contact_id)), None)
     post = slack_inbound._poster(channel)
+    if not re.fullmatch(r"[A-Za-z0-9]{6,40}", str(contact_id or "")):
+        card = None
     if not card:
         post("That family is no longer on the board. Tap 📋 Roster for the current list.")
         return
+    # Only the id goes in: this text runs with the owner's authority, and a family name is typed
+    # by a parent on a web form. Solomon looks the family up himself through his tools.
     slack_inbound._turn(f"slack:{channel}", "solomon",
-                        f"Draft a reply text to the family of {card['name']} (GHL contact {contact_id}, "
-                        f"stage {card.get('stageName') or 'unknown'}). Read their thread first. "
-                        "Queue it as a card for my tap. Do not send.", post, user)
+                        f"Draft a reply text to the family on GHL contact {contact_id}. Read their thread "
+                        "first. Queue it as a card for my tap. Do not send.", post, user)

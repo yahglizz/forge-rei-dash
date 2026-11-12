@@ -198,9 +198,10 @@ def _message(ev):
     if not text or not channel or not _owner(user):
         return
     biz = slack_io.business_of(channel)
-    if ev.get("channel_type") != "im" and biz is None:
-        return                                  # not a FORGE channel
     first, _, rest = text.partition(" ")
+    if ev.get("channel_type") != "im" and biz is None \
+            and not (first.lower() == "/forge" and rest.lower().startswith("bind ")):
+        return                                  # not a FORGE channel (a typed bind may make it one)
     if first.startswith("/") and first[1:].lower() in _COMMANDS():
         # Slack runs no slash commands in threads, on some phones, or when its popup swallowed the
         # command: the literal "/task x" arrives as a message. Run it as the command it is.
