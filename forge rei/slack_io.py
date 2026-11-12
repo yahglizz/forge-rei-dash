@@ -783,6 +783,14 @@ def _interaction(payload, envelope_id):
         pass
 
     summary = _redact(tio._result_text(action, result))
+    if result.get("retry"):                # transient failure: give the card back, keep its buttons
+        with _LOCK:
+            cards = _read("slack_cards.json")
+            if isinstance(cards.get(card_id), dict):
+                cards[card_id].update(consumed=False, consumedAt=None, consumedBy=None)
+                _write("slack_cards.json", cards)
+        _ephemeral(channel, user, summary[:300])
+        return {"ok": False, "result": summary}
     kept = [b for b in ((payload.get("message") or {}).get("blocks") or [])
             if isinstance(b, dict) and b.get("type") != "actions"]
     res = _api("chat.update", _token(), channel=channel,

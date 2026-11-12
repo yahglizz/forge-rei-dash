@@ -100,6 +100,17 @@ RATES = [(0, "Infants (6 weeks-12 months)", 135, 195), (12, "Young Toddlers (1-2
 MAX_QUOTE_MONTHS = 156                 # sheet stops at 12 years
 
 
+def rate_row(months):
+    """The sheet row (start, group, part-time, full-time) for a child's age in months, or None."""
+    if months is None or months < 2 or months >= MAX_QUOTE_MONTHS:
+        return None
+    return [r for r in RATES if r[0] <= months][-1]
+
+
+def age_text(months):
+    return "not on file" if months is None else (f"{months} months" if months < 36 else f"{months // 12} years")
+
+
 def quote_basis(label, brand, months):
     """Pure: (text for the drafter, set of dollar amounts a draft may state). The drafter never
     does age math or picks a rate itself; no amounts means no number may be quoted."""
@@ -110,9 +121,10 @@ def quote_basis(label, brand, months):
                 "confirmed for it. Say you'll confirm and put it in unknowns.", set())
     if months is None:
         return "NO NUMBER yet: child's age unknown. Ask how old the child is.", set()
-    if months < 2 or months >= MAX_QUOTE_MONTHS:
+    row = rate_row(months)
+    if row is None:
         return "NO NUMBER: child's age is outside the rate sheet (6 weeks to 12 years). Put it in unknowns.", set()
-    start, group, pt, ft = [r for r in RATES if r[0] <= months][-1]
+    start, group, pt, ft = row
     return (f"{group}: part-time (up to 3 days/week) ${pt}/week; full-time (4-5 days/week) ${ft}/week. "
             "Private pay only. Never quote this to a family on Child Care Works.", {float(pt), float(ft)})
 
@@ -213,42 +225,66 @@ def flags(draft):
     return f
 
 
+def pricing_card(d, esc):
+    """Pure: the owner's card for a price question -> (html text, buttons). Same sections every time:
+    who, child, what they asked, the rates (or why there is no number), the draft, the next step.
+    A Send quote button only when the draft's figures are all on the rate sheet for this child."""
+    who = d.get("parentName") or "A parent"
+    center = f" · {esc(d['center'])}" if d.get("center") else ""
+    quote = bool(_MONEY_RE.search(d.get("draft") or ""))
+    unverified = "money_unverified" in (d.get("flags") or [])
+    head = ("💲 <b>Quote ready: your tap sends it</b>" if quote and not unverified
+            else "⚠ <b>Price draft needs a fix</b>" if quote else "💬 <b>Price question: no number yet</b>")
+    child = esc(d.get("childAge") or "not on file") + (f" · {esc(d['quoteGroup'])}" if d.get("quoteGroup") else "")
+    lines = [head, f"<b>Parent:</b> {esc(who)}{center}", f"<b>Child:</b> {child}",
+             f"<b>Asked:</b> “{esc((d.get('inboundText') or '')[:200])}”"]
+    if d.get("quoteRates"):
+        lines.append(f"<b>Rates:</b> {esc(d['quoteRates'])}")
+    elif d.get("noNumber"):
+        lines.append(f"<b>Why no number:</b> {esc(d['noNumber'][:200])}")
+    lines += ["", f"<b>Draft (NOT sent):</b> “{esc((d.get('draft') or '')[:480])}”", ""]
+    buttons = None
+    if quote and not unverified:
+        lines.append("<b>Next:</b> tap Send quote to text exactly this draft, or edit it in the Messages tab. Nothing goes out until you tap.")
+        buttons = [[{"text": "💲 Send quote", "callback_data": f"quotesend:{d.get('contactId')}:{quote_token(d.get('draft'))}"}]]
+    elif quote:
+        lines.append("<b>Next:</b> a dollar figure here is not on the rate sheet for this child. No send button. Fix it in the Messages tab.")
+    else:
+        lines.append("<b>Next:</b> no rate can be quoted yet. Add the child's date of birth in GHL so the next text drafts a quote, or answer by hand in the Messages tab.")
+    return "\n".join(lines), buttons
+
+
 def notify_owner(d):
-    """Telegram the owner when Solomon needs a human: a question he can't answer from the
-    verified fact sheet (`unknowns`) or an escalation topic (safety/custody/medical/billing
-    dispute/complaint). Deduped per inbound message. Never raises, never sends to the parent."""
+    """Telegram/Slack the owner when Solomon needs a human: a price question (one organized card), a
+    question he can't answer from the verified fact sheet (`unknowns`) or an escalation topic
+    (safety/custody/medical/billing dispute/complaint). Deduped per inbound message. Never raises,
+    never sends to the parent."""
     try:
         if d.get("action") == "no_reply":
             return False
         unknowns = [u for u in (d.get("unknowns") or []) if u]
-        quote = d.get("action") == "draft" and _MONEY_RE.search(d.get("draft") or "") and d.get("status") != "no_reply"
-        if d.get("action") != "escalate" and not unknowns and not quote:
+        pricing = d.get("action") == "draft" and d.get("category") == "pricing" and d.get("status") != "no_reply"
+        if d.get("action") != "escalate" and not unknowns and not pricing:
             return False
         import html
         import telegram_io
         e = lambda x: html.escape(str(x or ""))          # Telegram message is HTML
-        head = ("🚨 Solomon · needs you NOW" if d.get("action") == "escalate"
-                else "🙋 Solomon · a parent asked something he doesn't know" if unknowns
-                else "💲 Solomon · quote waiting for your tap")
-        who = d.get("parentName") or "A parent"
-        parts = [f"{head}\n{e(who)}" + (f" · {e(d['center'])}" if d.get("center") else "") + f" texted:\n“{e((d.get('inboundText') or '')[:300])}”"]
-        if unknowns:
-            parts.append("He didn't state: " + e("; ".join(u[:120] for u in unknowns[:4])))
         buttons = None
-        if quote and not unknowns and d.get("action") != "escalate":
-            parts.append(f"Basis: {e(d.get('quoteBasis') or 'none')}")
-            parts.append(f"Quote draft (NOT sent — only your tap sends it): “{e(d['draft'][:480])}”")
-            if "money_unverified" in (d.get("flags") or []):
-                parts.append("⚠ A dollar figure here is not on the rate sheet for this child. No send button: fix it in the Messages tab.")
-            else:
-                parts.append("Tap Send quote to text exactly this draft, or edit it in the Messages tab. Nothing goes out until you tap.")
-                buttons = [[{"text": "💲 Send quote", "callback_data": f"quotesend:{d.get('contactId')}:{quote_token(d.get('draft'))}"}]]
+        if pricing:
+            text, buttons = pricing_card(d, e)
         else:
+            head = ("🚨 Solomon · needs you NOW" if d.get("action") == "escalate"
+                    else "🙋 Solomon · a parent asked something he doesn't know")
+            who = d.get("parentName") or "A parent"
+            parts = [f"{head}\n{e(who)}" + (f" · {e(d['center'])}" if d.get("center") else "") + f" texted:\n“{e((d.get('inboundText') or '')[:300])}”"]
+            if unknowns:
+                parts.append("He didn't state: " + e("; ".join(u[:120] for u in unknowns[:4])))
             if d.get("draft"):
                 parts.append(("Holding line " + ("auto-sent" if d.get("autoEligible") and AUTO else "drafted")
                               + f": “{e(d['draft'][:240])}”"))
             parts.append("Step in: Messages tab (or reply in GHL — he stops as soon as you do).")
-        telegram_io.send_biz("daycare", "\n".join(parts), buttons=buttons,
+            text = "\n".join(parts)
+        telegram_io.send_biz("daycare", text, buttons=buttons,
                              dedupe_key=f"dcreply:{d.get('contactId')}:{d.get('inboundId')}")
         return True
     except Exception as e:  # noqa: BLE001
@@ -275,10 +311,13 @@ def send_quote_tap(client, arg, now=None):
         return {"ok": False, "error": "that draft changed since the card. Review the new one in the Messages tab."}
     if "money_unverified" in (d.get("flags") or []) or not d.get("quoteBasis"):
         return {"ok": False, "error": "this quote is not backed by the rate sheet. Edit it in the Messages tab."}
+    if not daycare_leads.in_hours(now or time.time()):
+        return {"ok": False, "retry": True, "error": "Texts go out 8am-9pm ET only. Tap again after 8am."}
     res = approve(client, cid, text=d["draft"], now=now)
     if res.get("ok"):
-        res = dict(res, message="Quote sent.")
-    return res
+        return dict(res, message="Quote sent.")
+    still = ((_load().get("drafts") or {}).get(cid) or {}).get("status") == "pending"
+    return dict(res, retry=True) if still else res         # a transient failure keeps the card tappable
 
 
 def auto_eligible(res, kind):
@@ -441,14 +480,19 @@ def draft_reply(contact, ev, now, key=None):
     if action == "draft" and not text:
         action = "escalate"
     label, brand = _center({str(t).strip().lower() for t in (contact or {}).get("tags") or []})
-    basis, allowed = quote_basis(label, brand, _child_months(contact, now))
+    months = _child_months(contact, now)
+    basis, allowed = quote_basis(label, brand, months)
+    row = rate_row(months) if allowed else None
     fl = flags(text)
     if any(float(a) not in allowed for a in _AMOUNT_RE.findall(text)):
         fl.append("money_unverified")          # a dollar figure the rate sheet did not give for this child
     return {"action": action, "category": str(out.get("category") or "other")[:30],
             "draft": text, "why": str(out.get("why") or "")[:300],
             "unknowns": [str(u)[:160] for u in (out.get("unknowns") or [])][:6],
-            "flags": fl, "quoteBasis": basis if allowed else "", "model": MODEL}
+            "flags": fl, "quoteBasis": basis if allowed else "", "model": MODEL,
+            "noNumber": "" if allowed else basis.replace("NO NUMBER:", "").replace("NO NUMBER yet:", "").strip(),
+            "childAge": age_text(months), "quoteGroup": row[1] if row else "",
+            "quoteRates": f"part-time ${row[2]} · full-time ${row[3]} per week (private pay)" if row else ""}
 
 
 # ── state ─────────────────────────────────────────────────────────────────────

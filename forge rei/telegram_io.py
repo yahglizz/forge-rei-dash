@@ -855,9 +855,13 @@ def _handle_callback(cq, token=None, agent_chat=False):
     # ack the button (clears the spinner)
     try:
         _api("answerCallbackQuery",
-             {"callback_query_id": cq_id, "text": summary[:200]}, timeout=10, token=token)
+             {"callback_query_id": cq_id, "text": summary[:200],
+              "show_alert": bool(isinstance(result, dict) and result.get("retry"))}, timeout=10, token=token)
     except Exception:  # noqa: BLE001
         pass
+
+    if isinstance(result, dict) and result.get("retry"):
+        return        # a transient failure (e.g. outside texting hours): keep the buttons so the owner can tap again
 
     # append the outcome to the original message so the operator sees what happened
     if chat_id and message_id is not None and message.get("photo"):
