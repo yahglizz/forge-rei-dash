@@ -163,6 +163,64 @@ def test_auto_send():
     dr.AUTO = False
 
 
+def test_quote_only_on_owner_tap():
+    """Owner rule 2026-11-12: a rate quote waits for his tap. Never auto-sent, rates come from
+    the sheet by the child's age, and any other dollar figure is flagged."""
+    q = lambda label, brand, m: dr.quote_basis(label, brand, m)
+    t, a = q("921 N 18th St", "A Touch of Blessings", 8)
+    assert a == {135.0, 195.0} and "Infants" in t
+    assert q("921", "A Touch of Blessings", 14)[1] == {125.0, 180.0}
+    assert q("921", "A Touch of Blessings", 24)[1] == {115.0, 165.0}        # 2nd birthday = older toddler
+    assert q("921", "A Touch of Blessings", 36)[1] == {100.0, 145.0}
+    assert q("2318", "A Touch of Blessings", 72)[1] == {85.0, 120.0}
+    assert q("2318", "A Touch of Blessings", 120)[1] == {75.0, 110.0}
+    for no in (q("", "", 8), q("1923", "A Mother's Touch", 8), q("921", "A Touch of Blessings", None),
+               q("921", "A Touch of Blessings", 1), q("921", "A Touch of Blessings", 160)):
+        assert no[1] == set() and no[0].startswith("NO NUMBER"), no
+    # sheet-driven draft: two stated rates are legal, anything else is flagged, never auto
+    import review_agent
+    kid = {"id": "c1", "tags": ["loc-921-n-18th", "form-type-new-inquiry"],
+           "customFields": [{"id": dr.daycare_ghl.CF_CHILD_DOB, "value": "2026-03-01"}]}
+    ev = [{"id": "m1", "dir": "inbound", "body": "how much for infant care?", "t": NOW, "auto": False}]
+    def draft(contact, body):
+        orig = review_agent._claude
+        review_agent._claude = lambda *a, **k: '{"action":"draft","category":"pricing","draft":"%s"}' % body
+        try:
+            return dr.draft_reply(contact, ev, NOW + 86400 * 400, key="k")
+        finally:
+            review_agent._claude = orig
+    kid["customFields"][0]["value"] = dr.datetime.fromtimestamp(NOW + 86400 * 400 - 86400 * 30 * 8, dr.daycare_leads.ET).strftime("%Y-%m-%d")
+    good = draft(kid, "Infants are $135/week part-time or $195/week full-time.")
+    assert "money" in good["flags"] and "money_unverified" not in good["flags"] and good["quoteBasis"]
+    assert not dr.auto_eligible(good, "lead")                                   # never by itself
+    bad = draft(kid, "Infants are $250/week.")
+    assert "money_unverified" in bad["flags"]
+    amt = draft(dict(kid, tags=["loc-1923-cecil-b-moore"]), "Infants are $135/week.")
+    assert "money_unverified" in amt["flags"] and amt["quoteBasis"] == ""
+    assert "pricing" not in dr.AUTO_SAFE_CATEGORIES
+    assert not dr.auto_eligible({"action": "draft", "category": "pricing", "draft": "call us", "flags": []}, "lead")
+    # auto-send ON still sends nothing for a priced draft; the owner gets a "waiting for your tap" ping
+    dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
+    dr.daycare_leads.in_hours = lambda now: True
+    dr._contact = lambda client, cid: {"id": cid, "tags": ["form-type-new-inquiry"]}
+    conv = {"id": "v9", "contactId": "c9", "lastMessageDirection": "inbound",
+            "lastMessageDate": int((NOW - 3 * MIN) * 1000)}
+    cl = FakeClient([conv], [msg(1, "inbound", "how much is infant care?", 3 * MIN)])
+    pings = []
+    import telegram_io
+    telegram_io.send_biz = lambda biz, text, **kw: pings.append(text) or {"ok": True}
+    fake = lambda contact, ev, now: {"action": "draft", "category": "pricing", "flags": ["money"], "why": "",
+                                     "draft": "Infants are $135/week part-time or $195/week full-time.",
+                                     "unknowns": [], "quoteBasis": "Infants...", "model": "t"}
+    dr.AUTO = True
+    try:
+        r = dr.run_once(cl, now=NOW, drafter=fake)
+        assert r["drafted"] == 1 and cl.sent == [] and r["auto"]["sent"] == 0
+    finally:
+        dr.AUTO = False
+    assert pings and "quote waiting for your tap" in pings[0] and "NOT sent" in pings[0] and "$135" in pings[0]
+
+
 def test_owner_handoff():
     sent = []
     import telegram_io
@@ -219,5 +277,6 @@ if __name__ == "__main__":
     test_sweep_and_approve()
     test_auto_send()
     test_owner_handoff()
+    test_quote_only_on_owner_tap()
     test_ai_down_stops_sweep()
     print("test_daycare_replies: all passed")

@@ -73,7 +73,8 @@ AUTO = os.environ.get("FORGE_DAYCARE_REPLY_AUTO", "0") == "1"
 AUTO_CAP = int(os.environ.get("FORGE_DAYCARE_AUTO_CAP", "30"))            # auto sends per ET day
 AUTO_PER_CONTACT = 3                                                      # per contact per 24 h
 AUTO_MAX_AGE_SEC = 12 * 3600                                              # don't text a stale draft
-AUTO_SAFE_CATEGORIES = {"tour", "subsidy", "availability", "enroll", "pricing"}
+# "pricing" is deliberately NOT here (owner rule 2026-11-12): a quote goes out only on his tap.
+AUTO_SAFE_CATEGORIES = {"tour", "subsidy", "availability", "enroll"}
 
 STL_TAGS = {"speed-to-lead-trigger", "speed-to-lead-trigger-amt"}
 # Carrier / GHL keyword auto-replies own these words — never answer them.
@@ -88,6 +89,31 @@ MAX_CHARS = 480                        # 3 SMS segments
 _PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?(?:\d{4}|KIDS)", re.I)
 _MONEY_RE = re.compile(r"\$\s?\d")
 _EMOJI_RE = re.compile("[\U0001F300-\U0001FAFF☀-➿]")
+_AMOUNT_RE = re.compile(r"\$\s?(\d+(?:\.\d+)?)")
+
+# Private-pay weekly tuition, owner rate sheet 2026-11-12 (Brand Kit brand/ATOB-MASTER-INFO.md §4).
+# (starts at month, group, part-time up to 3 days/wk, full-time 4-5 days/wk). ATOB 921 + 2318 ONLY.
+RATES = [(0, "Infants (6 weeks-12 months)", 135, 195), (12, "Young Toddlers (1-2 years)", 125, 180),
+         (24, "Older Toddlers (2-3 years)", 115, 165), (36, "Preschool (3-5 years)", 100, 145),
+         (60, "Young School Age (5-8 years)", 85, 120), (108, "Older School Age (9-12 years)", 75, 110)]
+MAX_QUOTE_MONTHS = 156                 # sheet stops at 12 years
+
+
+def quote_basis(label, brand, months):
+    """Pure: (text for the drafter, set of dollar amounts a draft may state). The drafter never
+    does age math or picks a rate itself; no amounts means no number may be quoted."""
+    if not label:
+        return "NO NUMBER: center unknown. Ask which center.", set()
+    if "Mother" in (brand or ""):
+        return ("NO NUMBER: A Mother's Touch (1923) is a separate entity and the ATOB rate sheet is not "
+                "confirmed for it. Say you'll confirm and put it in unknowns.", set())
+    if months is None:
+        return "NO NUMBER yet: child's age unknown. Ask how old the child is.", set()
+    if months < 2 or months >= MAX_QUOTE_MONTHS:
+        return "NO NUMBER: child's age is outside the rate sheet (6 weeks to 12 years). Put it in unknowns.", set()
+    start, group, pt, ft = [r for r in RATES if r[0] <= months][-1]
+    return (f"{group}: part-time (up to 3 days/week) ${pt}/week; full-time (4-5 days/week) ${ft}/week. "
+            "Private pay only. Never quote this to a family on Child Care Works.", {float(pt), float(ft)})
 
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
@@ -194,20 +220,28 @@ def notify_owner(d):
         if d.get("action") == "no_reply":
             return False
         unknowns = [u for u in (d.get("unknowns") or []) if u]
-        if d.get("action") != "escalate" and not unknowns:
+        quote = d.get("action") == "draft" and _MONEY_RE.search(d.get("draft") or "") and d.get("status") != "no_reply"
+        if d.get("action") != "escalate" and not unknowns and not quote:
             return False
         import html
         import telegram_io
         e = lambda x: html.escape(str(x or ""))          # Telegram message is HTML
-        head = "🚨 Solomon · needs you NOW" if d.get("action") == "escalate" else "🙋 Solomon · a parent asked something he doesn't know"
+        head = ("🚨 Solomon · needs you NOW" if d.get("action") == "escalate"
+                else "🙋 Solomon · a parent asked something he doesn't know" if unknowns
+                else "💲 Solomon · quote waiting for your tap")
         who = d.get("parentName") or "A parent"
         parts = [f"{head}\n{e(who)}" + (f" · {e(d['center'])}" if d.get("center") else "") + f" texted:\n“{e((d.get('inboundText') or '')[:300])}”"]
         if unknowns:
             parts.append("He didn't state: " + e("; ".join(u[:120] for u in unknowns[:4])))
-        if d.get("draft"):
-            parts.append(("Holding line " + ("auto-sent" if d.get("autoEligible") and AUTO else "drafted")
-                          + f": “{e(d['draft'][:240])}”"))
-        parts.append("Step in: Messages tab (or reply in GHL — he stops as soon as you do).")
+        if quote and not unknowns and d.get("action") != "escalate":
+            parts.append(f"Basis: {e(d.get('quoteBasis') or 'none')}")
+            parts.append(f"Quote draft (NOT sent — only your tap sends it): “{e(d['draft'][:480])}”")
+            parts.append("Approve or edit: Messages tab. Nothing goes out until you tap.")
+        else:
+            if d.get("draft"):
+                parts.append(("Holding line " + ("auto-sent" if d.get("autoEligible") and AUTO else "drafted")
+                              + f": “{e(d['draft'][:240])}”"))
+            parts.append("Step in: Messages tab (or reply in GHL — he stops as soon as you do).")
         telegram_io.send_biz("daycare", "\n".join(parts),
                              dedupe_key=f"dcreply:{d.get('contactId')}:{d.get('inboundId')}")
         return True
@@ -303,21 +337,27 @@ def _system():
             + "\n\n=== HOW ATOB TEXTS (voice) ===\n" + voice)
 
 
-def _form_facts(contact, now):
-    """What the enrollment form already told us — so the desk never re-asks it."""
+def _child_months(contact, now):
+    """The child's age in whole months from the form's date of birth, or None."""
     cf = daycare_ghl._cf_map(contact or {})
-    out = []
     dob = str(cf.get(daycare_ghl.CF_CHILD_DOB) or "").strip()
     for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y"):
         try:
             b = datetime.strptime(dob[:10], fmt).date()
             t = datetime.fromtimestamp(now, daycare_leads.ET).date()
             m = (t.year - b.year) * 12 + (t.month - b.month) - (t.day < b.day)
-            if 0 <= m < 240:
-                out.append(f"Child age: {m} months" if m < 36 else f"Child age: {m // 12} years")
-            break
+            return m if 0 <= m < 240 else None
         except ValueError:
             continue
+    return None
+
+
+def _form_facts(contact, now):
+    """What the enrollment form already told us — so the desk never re-asks it."""
+    out = []
+    m = _child_months(contact, now)
+    if m is not None:
+        out.append(f"Child age: {m} months" if m < 36 else f"Child age: {m // 12} years")
     try:
         import daycare_starts
         f = daycare_starts.form_date(contact or {}, now)
@@ -346,6 +386,8 @@ def _prompt(contact, ev, now):
             f"Center: {label or 'Unknown'} — sign as: {brand or 'Unknown (ask which center)'}\n"
             + ("Already known from the enrollment form (NEVER ask these again): "
                + "; ".join(_form_facts(contact, now)) + "\n" if _form_facts(contact, now) else "")
+            + "Private-pay quote basis (the ONLY rates you may state; see rubric): "
+            + quote_basis(label, brand, _child_months(contact, now))[0] + "\n"
             + f"Texts we have already sent this family: {sum(1 for e in ev if e['dir'] == 'outbound')}\n\n"
             "Thread, oldest first (the last PARENT line is what you are answering):\n"
             + "\n".join(lines)
@@ -367,10 +409,15 @@ def draft_reply(contact, ev, now, key=None):
     text = str(out.get("draft") or "").strip()
     if action == "draft" and not text:
         action = "escalate"
+    label, brand = _center({str(t).strip().lower() for t in (contact or {}).get("tags") or []})
+    basis, allowed = quote_basis(label, brand, _child_months(contact, now))
+    fl = flags(text)
+    if any(float(a) not in allowed for a in _AMOUNT_RE.findall(text)):
+        fl.append("money_unverified")          # a dollar figure the rate sheet did not give for this child
     return {"action": action, "category": str(out.get("category") or "other")[:30],
             "draft": text, "why": str(out.get("why") or "")[:300],
             "unknowns": [str(u)[:160] for u in (out.get("unknowns") or [])][:6],
-            "flags": flags(text), "model": MODEL}
+            "flags": fl, "quoteBasis": basis if allowed else "", "model": MODEL}
 
 
 # ── state ─────────────────────────────────────────────────────────────────────
