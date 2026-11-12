@@ -327,6 +327,28 @@ def test_pricing_card_layout_and_retry():
     assert not r["ok"] and not r.get("retry") and len(cl.sent) == 1             # sent: final, no resend
 
 
+def test_age_from_website_form():
+    """Website inquiries carry the age as text in childAge ("2 Years", "8 Months", "6 Weeks"), not a
+    date of birth. The quote must use it (live miss 2026-11-12: a lead with "2 Years" got no number)."""
+    age = lambda v, dob=None: {"id": "c", "tags": ["loc-2318-cecil-b-moore"], "customFields":
+                               [{"id": dr.CF_CHILD_AGE, "value": v}] + ([{"id": dr.daycare_ghl.CF_CHILD_DOB, "value": dob}] if dob else [])}
+    assert dr._child_age(age("2 Years"), NOW) == (24, "form", False)
+    assert dr._child_age(age("8 Months"), NOW) == (8, "form", False)
+    assert dr._child_age(age("2 Years (+1 sibling)"), NOW) == (24, "form", True)
+    assert dr._child_age(age("1-2 Years"), NOW) == (None, "", False)            # legacy range: no guess
+    assert dr._child_age(age(""), NOW) == (None, "", False)
+    m, src, _ = dr._child_age(age("6 Weeks"), NOW)
+    assert src == "form" and dr.rate_row(m)[1].startswith("Infants")
+    assert dr.rate_row(dr._child_age(age("5 Weeks"), NOW)[0]) is None           # under 6 weeks: no rate
+    assert dr.rate_row(1) is None and dr.rate_row(2) is not None                 # DOB whole months stay safe
+    assert dr.rate_row(24)[1].startswith("Older Toddlers") and dr.rate_row(12)[1].startswith("Young Toddlers")
+    born = dr.datetime.fromtimestamp(NOW - 86400 * 400, dr.daycare_leads.ET).strftime("%Y-%m-%d")
+    assert dr._child_age(age("2 Years", dob=born), NOW)[1] == "dob"             # a real DOB wins
+    t, a = dr.quote_basis("2318 Cecil B Moore", "A Touch of Blessings", 24, siblings=True)
+    assert a == {115.0, 165.0} and "sibling" in t
+    assert dr.age_text(24) == "2 years" and dr.age_text(8) == "8 months" and dr.age_text(6 / 4.345) == "6 weeks"
+
+
 def test_owner_handoff():
     sent = []
     import telegram_io
@@ -386,5 +408,6 @@ if __name__ == "__main__":
     test_quote_only_on_owner_tap()
     test_send_quote_button_end_to_end()
     test_pricing_card_layout_and_retry()
+    test_age_from_website_form()
     test_ai_down_stops_sweep()
     print("test_daycare_replies: all passed")
