@@ -341,12 +341,14 @@ def confirm(tok, chat_id=None, hook=True):
         return {"error": why}
     res = _http("POST", p["path"], body=p.get("body") or {})
     failed = _failed(res)
-    text = f"{p['summary']}\n{_clip(redact(res), 1500)}"      # footer: PIN shown once
+    title = describe(p["path"], p.get("body")) or p["summary"]
+    foot = footer(res)                                          # footer: PIN shown once
+    text = f"{title}\n{foot}" if foot else title
     _log_tap(p, p["path"], res)
     _hook(hook, p, ("FAILED: " if failed else "DONE: ")
           + f"{p['summary']}\n{_clip(redact(res, pin=True), 1500)}")
     if failed:
-        return {"error": f"{p['summary']} — {res.get('error') or res.get('detail') or 'failed'}"}
+        return {"error": f"{title} — {res.get('error') or res.get('detail') or 'failed'}"}
     return {"ok": True, "message": text}
 
 
@@ -446,6 +448,75 @@ def cancel(tok, chat_id=None):
     return {"ok": True, "message": "Cancelled"} if p else {"error": "already gone"}
 
 
+_CENTER_NAME = {"loc-921-n-18th": "921 N 18th", "loc-2318-cecil-b-moore": "2318 Cecil B. Moore",
+                "loc-1923-cecil-b-moore": "1923 Cecil B. Moore (AMT)"}
+
+
+def _family_name(contact_id):
+    """A contact's name from the pipeline boards' saved state (no network), else None."""
+    try:
+        import daycare_pipeline
+        for board in ("enrollment", "amt"):
+            for c in daycare_pipeline._load(board).get("cards") or []:
+                if c.get("contactId") == contact_id and c.get("name"):
+                    return str(c["name"])
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def describe(path, body):
+    """One plain line built from the REQUEST itself (never the model's words), so what the owner reads is
+    exactly what the tap runs. None = no template for this route (the card shows the model's summary and a
+    short detail line instead)."""
+    body = body if isinstance(body, dict) else {}
+    path = str(path or "")
+    if path == "/api/daycare/ghl/tag":
+        who = _family_name(str(body.get("contact_id") or "")) or "a contact"
+        add, rem = body.get("add") or [], body.get("remove") or []
+        if not isinstance(add, list) or not isinstance(rem, list):
+            return None
+        out = []
+        if add and all(str(t).lower() in _CENTER_NAME for t in add):
+            out.append(f"Tag {who} → " + ", ".join(_CENTER_NAME[str(t).lower()] for t in add))
+        elif add:
+            out.append(f"Add tag {', '.join(map(str, add))} to {who}")
+        if rem:
+            out.append(f"Remove tag {', '.join(map(str, rem))} from {who}")
+        return " · ".join(out) or None
+    if path == "/api/hub/task":
+        return f"Task for {str(body.get('agentId') or 'an agent').title()}: {str(body.get('title') or '')[:140]}"
+    if path == "/api/knowledge/post":
+        return f"Add a note to #forge-knowledge: “{str(body.get('text') or '')[:140]}”"
+    return None
+
+
+def _compact(path, body):
+    """The route and its arguments on one short line (no JSON braces) for routes with no template."""
+    bits = []
+    for k, v in (body if isinstance(body, dict) else {}).items():
+        v = ", ".join(map(str, v)) if isinstance(v, list) else (json.dumps(v, default=str) if isinstance(v, dict) else v)
+        bits.append(f"{k}: {v}")
+    return (str(path).replace("/api/", "", 1) + (" · " + ", ".join(bits) if bits else ""))[:200]
+
+
+def line(path, body):
+    """HTML-escaped one-liner for a queued call: its template, else the compact route + arguments."""
+    return _esc(describe(path, body) or _compact(path, body))
+
+
+_BORING = {"ok", "contactId", "contact_id", "added", "removed", "id", "ids", "success", "done", "queued", "path"}
+
+
+def footer(res):
+    """What a done tap shows under its title: nothing for a plain success, the facts when the result carries
+    something the owner needs (a PIN, a link, a count, an error)."""
+    if not isinstance(res, dict):
+        return _clip(redact(res), 600)
+    extra = {k: v for k, v in res.items() if k not in _BORING and v not in (None, "", [], {})}
+    return _clip(redact(extra), 800) if extra else ""
+
+
 def card(c):
     """(text, buttons) for a queued write."""
     if c.get("mac"):
@@ -457,10 +528,11 @@ def card(c):
                 f"<pre>{_esc(m['command'])}</pre>",
                 [[{"text": "✅ Run it", "callback_data": f"pgo:{c['tok']}"},
                   {"text": "❌ Cancel", "callback_data": f"pno:{c['tok']}"}]])
-    body = json.dumps(c.get("body") or {}, default=str)
     risk = next((label for key, label in _RISKY if key in c["path"]), "✏️ writes data")
-    return (f"🟡 <b>{_esc(c['agent'].title())} wants to:</b> {_esc(c['summary'])}\n"
-            f"{risk}\n<code>POST {_esc(c['path'])}</code>\n<code>{_esc(body)}</code>",
+    plain = describe(c["path"], c.get("body"))
+    return (f"🟡 <b>{_esc(c['agent'].title())} wants to:</b> {_esc(plain or c['summary'])}"
+            + (f"\n{risk}" if risk != "✏️ writes data" else "")
+            + ("" if plain else f"\n<i>{_esc(_compact(c['path'], c.get('body')))}</i>"),
             [[{"text": "✅ Do it", "callback_data": f"pgo:{c['tok']}"},
               {"text": "❌ Cancel", "callback_data": f"pno:{c['tok']}"}]])
 

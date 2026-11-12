@@ -545,7 +545,9 @@ def tag_needs_tap(add=None, remove=None) -> bool:
     dashboard chat sends those to the owner's tap (security review 2026-10-18): the
     form/lead/family tags feed the Parent Logins inbox + auto-enroll, `loc-`/`location:`
     keep the centers apart, the confirm/review tags drive the confirmation flow. The ONLY
-    AUTO edit is ADDING an enrolled tag (it marks a family the daycare has; nothing reads it as intake)."""
+    AUTO edit is ADDING an enrolled tag (it marks a family the daycare has; nothing reads it as intake).
+    Owner carve-out 2026-11-12: ADDING one ATOB center tag to a provably untagged ATOB family is also
+    automatic; that check needs the boards, so it lives in dash_live._arg_needs_tap (daycare_center_tag)."""
     guarded = {t.lower() for t in (FAMILY_TAG, FORM_TAG, LEAD_TAG, CONFIRM_PENDING_TAG, CONFIRMED_TAG,
                                    *REVIEW_TAGS)}
     try:

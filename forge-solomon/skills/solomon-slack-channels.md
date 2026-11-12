@@ -34,7 +34,11 @@ From the board, never from what a parent typed: a family belongs to a site only 
 carries exactly one location tag (`loc-921-n-18th` or `loc-2318-cecil-b-moore`) and no AMT mark
 (`entity-amt` or a `1923` tag), and it is not on the A Mother's Touch board. A family with no
 location tag shows in no site channel, and the brief counts it. When you see one, the fix is to
-tag the center in GHL (a tag edit that touches center tags is the owner's tap). Never guess a site.
+tag the center in GHL. A family whose own form fields (Preferred Location, Tour Location, SMS Center) name exactly
+one ATOB center is tagged automatically by the box; for one you can prove from the board, add ONE center tag
+yourself (`api_post /api/daycare/ghl/tag {contact_id, add: [loc-921-n-18th]}`): it runs without a card unless
+third-party text is in your context. Never loc-1923, never when the family already has a loc- tag, never a
+guess. Intake and login tags still need the owner's tap.
 
 ## 3. #forge-knowledge — your second brain in Slack
 

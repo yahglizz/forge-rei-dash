@@ -303,6 +303,13 @@ def refresh(client, now=None, board=DEFAULT_BOARD):
                              args=(list(st.get("cards") or []), getattr(client, "location_id", None), board)).start()
         except Exception:  # noqa: BLE001
             pass
+        if board == DEFAULT_BOARD:         # auto center tags: untagged ATOB families whose own form fields
+            try:                           # name one center get it, no tap (daycare_center_tag; box only)
+                import daycare_center_tag
+                threading.Thread(target=daycare_center_tag.run, daemon=True, name="center-tag",
+                                 args=(list(st.get("cards") or []), client)).start()
+            except Exception:  # noqa: BLE001
+                pass
     return {"ok": error is None, "error": error, "total": st.get("total", 0)}
 
 

@@ -746,10 +746,10 @@ def _send_card(ctx, tok):
     import telegram_io
     card = {**ta._load()[tok], "tok": tok}
     if card.get("calls"):
-        rows = "\n".join(f"<code>POST {ta._esc(c['path'])}</code>\n<code>{ta._esc(json.dumps(c['body'], default=str))}"
-                         "</code>" for c in card["calls"][:6])
+        rows = "\n".join("• " + ta.line(c["path"], c["body"]) for c in card["calls"][:6])
+        more = f"\n…and {len(card['calls']) - 6} more" if len(card["calls"]) > 6 else ""
         text = (f"🟡 <b>{ta._esc(card['agent'].title())} wants to:</b> {ta._esc(card['summary'])}\n"
-                f"{len(card['calls'])} writes\n{rows}")
+                f"{len(card['calls'])} writes\n{rows}{more}")
         buttons = [[{"text": "✅ Do it", "callback_data": f"pgo:{tok}"},
                     {"text": "❌ Cancel", "callback_data": f"pno:{tok}"}]]
     else:

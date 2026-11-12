@@ -422,7 +422,16 @@ def _arg_needs_tap(path, body):
     """An AUTO route whose ARGUMENTS can reach an important effect goes to the tap instead."""
     if path == "/api/daycare/ghl/tag":
         import daycare_ghl
-        return daycare_ghl.tag_needs_tap(body.get("add"), body.get("remove"))
+        if not daycare_ghl.tag_needs_tap(body.get("add"), body.get("remove")):
+            return False
+        # Owner 2026-11-12: a center tag is automatic when it can't cross entities. ONE ATOB center tag,
+        # add-only, onto a family the boards prove is untagged ATOB (no loc- tag, no AMT mark). Anything
+        # else that touches centers, intake, logins or confirmations stays a card.
+        add, remove = daycare_ghl._tag_list(body.get("add")), daycare_ghl._tag_list(body.get("remove"))
+        if add and len(add) == 1 and remove == []:
+            import daycare_center_tag
+            return not daycare_center_tag.safe_to_add(body.get("contact_id"), add[0])[0]
+        return True
     return False
 
 

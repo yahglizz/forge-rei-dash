@@ -109,6 +109,12 @@ Solomon, Marcus, Dyson and Orion add notes on their own (`POST /api/knowledge/po
 a ✅ card once their context holds outside text). No names, phones, emails or keys. Exception and
 gates: `CLAUDE.md` §2.
 
+**Center tags are automatic (2026-11-12).** A family with no `loc-` tag whose own form fields name exactly
+one A Touch of Blessings center gets that tag by itself (`daycare_center_tag.py`), and Solomon can add
+one center tag to a provably untagged family without a card. Never Mother's Touch, never a move, never
+when two centers are named. Intake and login tags still need your tap. Tap cards are one plain line
+("Tag Seara Peterson → 2318 Cecil B. Moore") with ✅ Do it / ❌ Cancel.
+
 ---
 
 ## The owner's Mac (`mac_run`)
