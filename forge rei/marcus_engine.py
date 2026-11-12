@@ -1212,6 +1212,9 @@ class MarcusEngine:
                 "contactId": p["contactId"],
                 "message": message,
             })
+            # The SMS is out: drop the proposal before any later write can fail, so a
+            # second tap finds nothing to send.
+            self.proposals.pop(pid, None)
             if p.get("tag"):
                 try:
                     self.ghl_post(f"/contacts/{p['contactId']}/tags", {"tags": [p["tag"]]})
@@ -1227,7 +1230,6 @@ class MarcusEngine:
                               contact_id=p["contactId"], message=message,
                               kind="marcus_nrn" if p.get("classification") == "NRN" else "marcus_approve")
             self._log("sent", f"Replied to {p['name']} ({p['classification']})", {"id": pid})
-            self.proposals.pop(pid, None)
             return {"ok": True}
         except Exception as e:  # noqa: BLE001
             safety_release = getattr(self, "safety_release", None)

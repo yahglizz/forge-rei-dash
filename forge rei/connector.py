@@ -504,6 +504,12 @@ def api_health(_q):
         "businessTimezone": BUSINESS_TZ,
         "ops": forge_ops.status(),
     }
+    if os.environ.get("FORGE_SLACK", "0") != "0":
+        try:
+            import slack_io
+            out["slack"] = slack_io.status()      # connected · last_error (redacted) · started_at
+        except Exception:  # noqa: BLE001
+            pass
     # Real liveness probe: the Scout poll loop bumps last_run every sweep (even when there
     # are no new leads). If it's older than 3 sweeps the loop is wedged or can't reach GHL
     # — surface it so an external uptime check (or the operator) can catch a silent death.
@@ -2495,6 +2501,8 @@ telegram_io.set_actions({
     # Business-partner chat (telegram_agent): ✅ runs the queued API write, ❌ drops it.
     "pgo": telegram_agent.confirm,
     "pno": telegram_agent.cancel,
+    # Slack migration E2E: a harmless tap that only edits its own card (slack_io.handle_interaction).
+    "slackselftest": lambda _a=None: {"ok": True, "result": "slack self-test ok"},
     # Solomon · Ads cards (daycare chat): apply/skip/undo a proposal, build/alt/drop a concept,
     # launch at $10/$20 per day / keep paused. Every Meta write is behind one of these taps.
     **daycare_ads_tg.handlers(),
@@ -6333,6 +6341,15 @@ def main():
             at.start()
         else:
             forge_heartbeat.retire("telegram_agent")   # n8n owns this bot's webhook; off on purpose
+        # Slack — Socket Mode listener (taps, /forge, agent chat). Opt-in, default off; a Slack
+        # failure can never stop the connector (slack_io.run_forever never raises).
+        if os.environ.get("FORGE_SLACK", "0") != "0":
+            try:
+                import slack_io
+                threading.Thread(target=slack_io.run_forever, daemon=True, name="slack").start()
+                print("   Slack listener: starting (FORGE_SLACK=1)")
+            except Exception as e:  # noqa: BLE001
+                print(f"   Slack listener: not started ({type(e).__name__})")
         # Watchdog — watches every loop's heartbeat; one Telegram+bus alert on silent death.
         print(f"   Watchdog: loop heartbeat monitor · checks every "
               f"{max(60, int(os.environ.get('FORGE_WATCHDOG_SEC', '300')))}s")

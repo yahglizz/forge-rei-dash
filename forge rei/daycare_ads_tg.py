@@ -40,6 +40,7 @@ MAX_CARDS = 200
 AUTO_CONCEPTS_PER_DAY = 3
 MAX_PENDING_CONCEPTS = 3
 CONCEPT_TTL = 3 * 86400            # an un-actioned concept card stops counting as pending after 3 days
+LAUNCH_CARD_MAX_AGE = 6 * 3600     # seconds; a launch tap on an older card is refused (stale tap = spend)
 _LOCK = threading.RLock()
 _SYNC = False                      # tests: run "background" work inline
 FINAL = ("applied", "skipped", "failed", "built", "launched", "kept", "discarded", "replaced",
@@ -59,13 +60,15 @@ def _load() -> dict:
         return {"cards": []}
 
 
-def _save(d: dict) -> None:
+def _save(d: dict) -> bool:
+    """True when the store was written. Callers that gate an outward action must check it."""
     d["cards"] = (d.get("cards") or [])[-MAX_CARDS:]
     try:
         Path(STORE).parent.mkdir(parents=True, exist_ok=True)
         forge_atomic.atomic_write_json(STORE, d)
+        return True
     except Exception:  # noqa: BLE001
-        pass
+        return False
 
 
 def _new(kind: str, ref: str, **kw) -> dict:
@@ -105,7 +108,8 @@ def _claim(cid: str, kinds: tuple, to: str = "working") -> tuple:
         if c.get("state") != "pending":
             return None, f"already handled ({c.get('state')})"
         c.update(state=to, updatedAt=int(time.time() * 1000))
-        _save(d)
+        if not _save(d):   # fail closed: an unrecorded claim would let a 2nd tap run it again
+            return None, "could not record the tap — nothing run"
         return dict(c), None
 
 
@@ -580,6 +584,14 @@ def _parse_amt(arg: str) -> tuple:
         return cid, None
 
 
+def _too_old(card: dict) -> dict | None:
+    """Refuse (and retire) a launch card older than LAUNCH_CARD_MAX_AGE. Call after _claim."""
+    if time.time() * 1000 - (card.get("createdAt") or 0) <= LAUNCH_CARD_MAX_AGE * 1000:
+        return None
+    _set(card["id"], state="expired")
+    return {"error": "card too old — nothing launched; build a fresh launch card"}
+
+
 def h_launch(arg: str) -> dict:
     if (no := _off_refusal()):
         return no
@@ -590,6 +602,8 @@ def h_launch(arg: str) -> dict:
     card, err = _claim(cid, ("launch",))
     if err:
         return {"error": err}
+    if (old := _too_old(card)):
+        return old
     _bg(lambda: _launch_work(card, usd, False))
     return {"message": f"Launching at ${usd}/day — guards + Meta verify first; receipt follows"}
 
@@ -604,6 +618,8 @@ def h_again(arg: str) -> dict:
     card, err = _claim(cid, ("launch2",))
     if err:
         return {"error": err}
+    if (old := _too_old(card)):
+        return old
     _bg(lambda: _launch_work(card, usd, True))
     return {"message": f"Launching a second ad at ${usd}/day — receipt follows"}
 

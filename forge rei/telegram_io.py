@@ -205,14 +205,17 @@ def _save(state):
         pass
 
 
+_SLACK_TOKEN_RE = re.compile(r"x(?:ox[abposr]|app)-[A-Za-z0-9-]+")
+
+
 def _redact(s):
     """Strip the bot token from any string before it's stored/returned (errors can contain
-    the /bot<TOKEN>/ URL)."""
+    the /bot<TOKEN>/ URL). Slack tokens (xoxb-/xoxp-/xapp-…) are masked too."""
     s = "" if s is None else str(s)
     for tok in (_token(), _agent_token()):
         if tok and tok in s:
             s = s.replace(tok, "***")
-    return s
+    return _SLACK_TOKEN_RE.sub("***", s)
 
 
 def _set_error(err):
@@ -331,12 +334,66 @@ def _dedupe_commit(dedupe_key):
         _save(st)
 
 
+# ── Slack mirror (FORGE_CHAT_TRANSPORT = telegram (default) | both | slack) ────
+# telegram: nothing below runs past the mode check. both: every delivered Telegram message is
+# copied to Slack on a daemon thread (never delays or breaks the Telegram send). slack: send /
+# send_photo / _send_to skip Telegram and return slack_io's result in Telegram's {ok}/{error}
+# shape. origin_chat = the Telegram chat a card (and its pgo token) was issued for, so a Slack
+# tap can confirm it (slack_io.handle_interaction).
+def _slack_mode():
+    try:
+        import slack_io
+        return slack_io.mode()
+    except Exception:  # noqa: BLE001 — a broken slack_io must never touch Telegram
+        return "telegram"
+
+
+def _slack_send(kind, kw):
+    """One slack_io delivery. kind: send | send_photo | send_to. -> bool. Never raises."""
+    try:
+        import slack_io
+        kw = dict(kw)
+        if kind == "send_to":                 # raw chat id -> that chat's business (HQ otherwise)
+            chat = str(kw.pop("chat_id"))
+            kw["business"] = _business_of_chat(chat)
+            kw.setdefault("origin_chat", chat)
+            kind = "send"
+        if kind == "send_photo":
+            return bool(slack_io.send_photo(kw.pop("image_url"), kw.pop("caption"), **kw))
+        return bool(slack_io.send(kw.pop("text"), **kw))
+    except Exception as e:  # noqa: BLE001 — type only: the error text could carry the body
+        print(f"[slack] mirror {kind} failed: {type(e).__name__}", flush=True)
+        return False
+
+
+def _mirror(kind, **kw):
+    """Copy a delivered Telegram message to Slack (fire-and-forget). No-op in telegram mode."""
+    try:
+        if _slack_mode() != "telegram":
+            threading.Thread(target=_slack_send, args=(kind, kw), daemon=True,
+                             name="slack-mirror").start()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _slack_only(kind, **kw):
+    """FORGE_CHAT_TRANSPORT=slack: Slack is the only transport (synchronous, like Telegram).
+    A failure is returned and recorded (lastError; slack_io logged the reason), never dropped."""
+    if _slack_send(kind, kw):
+        return {"ok": True, "slack": True}
+    _set_error("slack send failed")
+    return {"error": "slack send failed"}
+
+
 def send(text, buttons=None, dedupe_key=None, business=None):
     """Send an HTML message to `business`'s own chat (HQ when none/unbound). Returns {ok}
     or {error}.
 
     buttons = list[list[{text, callback_data}]] -> inline_keyboard. Dedupe: if dedupe_key
     was sent in the last ~15 min, skip (returns {ok, skipped}). Never raises."""
+    if _slack_mode() == "slack":
+        return _slack_only("send", text=text, business=business, buttons=buttons,
+                           dedupe_key=dedupe_key, origin_chat=chat_for(business) or None)
     if not configured():
         return {"error": "telegram not configured"}
     # dedupe is checked here but only COMMITTED after a successful send, so a transient
@@ -364,6 +421,9 @@ def send(text, buttons=None, dedupe_key=None, business=None):
             st["lastError"] = None
             _save(st)
         result = resp.get("result") or {}
+        _mirror("send", text=text, business=business, buttons=buttons, dedupe_key=dedupe_key,
+                origin_chat=payload["chat_id"], tg_message_id=result.get("message_id"),
+                tg_chat_id=payload["chat_id"])
         return {"ok": True, "messageId": result.get("message_id")}
     except Exception as e:  # noqa: BLE001
         _set_error(e)
@@ -383,6 +443,10 @@ def send_photo(business, image_url, caption, buttons=None, dedupe_key=None):
     send_biz. Caption is cut to 1024 chars. If Telegram refuses the photo (bad/expired URL,
     unsupported type) it falls back to a text message carrying the link, buttons kept.
     Returns {ok, messageId, photo:bool} or {error}. Never raises."""
+    if _slack_mode() == "slack":
+        return _slack_only("send_photo", image_url=image_url, caption=caption, business=business,
+                           buttons=buttons, dedupe_key=dedupe_key,
+                           origin_chat=chat_for(business) or None)
     if not configured():
         return {"error": "telegram not configured"}
     if _dedupe_seen(dedupe_key):
@@ -402,8 +466,12 @@ def send_photo(business, image_url, caption, buttons=None, dedupe_key=None):
                 st["lastSentAt"] = int(time.time())
                 st["lastError"] = None
                 _save(st)
-            return {"ok": True, "photo": True,
-                    "messageId": (resp.get("result") or {}).get("message_id")}
+            mid = (resp.get("result") or {}).get("message_id")
+            # success only: the failure path below falls back to send(), which mirrors itself
+            _mirror("send_photo", image_url=image_url, caption=caption, business=business,
+                    buttons=buttons, dedupe_key=dedupe_key, origin_chat=payload["chat_id"],
+                    tg_message_id=mid, tg_chat_id=payload["chat_id"])
+            return {"ok": True, "photo": True, "messageId": mid}
         err = (resp.get("description") if isinstance(resp, dict) else None) or "sendPhoto failed"
     except Exception as e:  # noqa: BLE001
         err = str(e)
@@ -681,6 +749,17 @@ def _foreign_mac_tap(tok, from_id):
     return telegram_agent.is_mac_card(tok) and not agent_gateway.is_owner(from_id)
 
 
+def _slack_claim(chat_id, message_id):
+    """slack_io.claim_for_telegram, called when the Slack transport is on or its card registry
+    exists (a rollback to telegram mode). It raising (it should not) = "unreadable": the card
+    may have been used in Slack, so refuse (fail closed) but keep the buttons."""
+    try:
+        import slack_io
+        return slack_io.claim_for_telegram(chat_id, message_id)
+    except Exception:  # noqa: BLE001
+        return "unreadable"
+
+
 def _handle_callback(cq, token=None, agent_chat=False):
     """Authorize, dispatch to a registered action, then ack + edit the message.
 
@@ -722,6 +801,31 @@ def _handle_callback(cq, token=None, agent_chat=False):
                                          "text": "Only the owner can run a Mac command"}, timeout=10, token=token)
         except Exception:  # noqa: BLE001
             pass
+        return
+    # C4 claim: whenever Slack's card registry exists (M1: also after a rollback to telegram
+    # mode) or the transport is on. No registry + transport off = exactly today's flow.
+    claim = ("free" if message_id is None
+             or not (os.path.exists(STATE.parent / "slack_cards.json") or _slack_mode() != "telegram")
+             else _slack_claim(chat_id, message_id))
+    if claim == "unreadable":
+        # Couldn't check the Slack copy (registry unreadable): run nothing, keep the buttons.
+        try:
+            _api("answerCallbackQuery", {"callback_query_id": cq_id, "show_alert": True,
+                                         "text": "Couldn't check the Slack copy. Try again in a moment."},
+                 timeout=10, token=token)
+        except Exception:  # noqa: BLE001
+            pass
+        return
+    if claim == "taken":
+        # C4: this card's Slack copy was already used. Run nothing; drop these buttons too.
+        for method, body in (("answerCallbackQuery", {"callback_query_id": cq_id, "show_alert": True,
+                                                       "text": "Already handled in Slack"}),
+                             ("editMessageReplyMarkup", {"chat_id": chat_id, "message_id": message_id,
+                                                         "reply_markup": {"inline_keyboard": []}})):
+            try:
+                _api(method, body, timeout=10, token=token)
+            except Exception:  # noqa: BLE001
+                pass
         return
     fn = _ACTIONS.get(action)
     if not fn:
@@ -939,7 +1043,11 @@ def _msg_authorized(from_id):
 def _send_to(chat_id, text, buttons=None, token=None, reply_markup=None):
     """sendMessage to a specific chat (the agent chat). No dedupe. Never raises.
     `token` lets the dedicated agent bot reply through its own token. `reply_markup`
-    (a raw keyboard/remove_keyboard dict) wins over `buttons` (inline keyboard rows)."""
+    (a raw keyboard/remove_keyboard dict) wins over `buttons` (inline keyboard rows).
+    Agent-gateway and Mac cards (pgo tokens bound to `chat_id`) come through here, so the
+    Slack mirror carries chat_id as the card's origin_chat. reply_markup is Telegram-only."""
+    if chat_id and _slack_mode() == "slack":
+        return _slack_only("send_to", chat_id=chat_id, text=text, buttons=buttons)
     if not (token or _token()) or not chat_id:
         return {"error": "no chat"}
     payload = {"chat_id": str(chat_id), "text": text[:4000], "parse_mode": "HTML",
@@ -952,6 +1060,9 @@ def _send_to(chat_id, text, buttons=None, token=None, reply_markup=None):
         resp = _api("sendMessage", payload, timeout=12, token=token)
         if not isinstance(resp, dict) or not resp.get("ok", False):
             return {"error": "send failed"}
+        _mirror("send_to", chat_id=chat_id, text=text, buttons=buttons,
+                tg_message_id=(resp.get("result") or {}).get("message_id"), tg_chat_id=str(chat_id),
+                tg_bot="agent" if token and token == _agent_token() else None)
         return {"ok": True}
     except Exception as e:  # noqa: BLE001
         _set_error(e)

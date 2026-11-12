@@ -590,6 +590,10 @@ def decision(draft_id, action, note=None):
         dr = next((x for x in d.get("drafts", []) if x.get("id") == draft_id), None)
         if not dr:
             return {"error": "draft not found"}
+        # Single-use: a stale or mirrored tap must not flip a decided draft
+        # (e.g. reject -> approve would ship a rejected change).
+        if dr.get("status") not in ("draft", "revision"):
+            return {"error": f"already {dr.get('status')}"}
         dr["status"] = state_map[action]
         _save(d)
         draft_snapshot = dict(dr)
