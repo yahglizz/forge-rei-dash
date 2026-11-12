@@ -62,3 +62,25 @@ Do not start this without the owner's yes. Each step changes a live system.
 
 - Whether the soak is running on the box right now. Check `/api/health` and the logs.
 - Current n8n run count for this month. Check the n8n instance.
+
+## Daycare rooms + commands (added 2026-11-12)
+
+Rooms (private, owner-only, created by `forge-slack/bootstrap_channels.py`, ids in `slack-channels.env` as `SLACK_CHANNEL_DAYCARE_<TOPIC>`):
+
+| Room | Gets |
+|---|---|
+| `#daycare-alerts` | new leads, parent replies that need the owner, families entering **New Lead** |
+| `#daycare-tours` | tour reminders, families entering **Tour Scheduled** |
+| `#daycare-quotes` | families entering **Application Sent** |
+| `#daycare-starting` | start dates to confirm |
+| `#daycare-enrolled` | families entering **Enrolled** |
+
+- Code: `forge rei/slack_rooms.py` (stage moves, rosters, seed), topic routing in `slack_io._deliver`. Zero Claude, GHL or n8n calls: it reads the box lanes' own state.
+- **A Touch of Blessings only.** An alert enters a room only when a contact id in its dedupe key is on the ATOB board and the AMT board has been read and does not hold it. Anything else stays in `#forge-daycare`.
+- A room is its business: talk to Solomon in any of them; ✅ cards tap there.
+- Unbound room = its alerts fall back to `#forge-daycare`. Rebind: `/forge bind daycare-tours` inside the channel.
+- State: `marcus_state/slack_rooms.json` (`seeded`, `announced`). Delete `seeded` to re-post rosters; delete `announced` to re-snapshot (no posts).
+- Commands: every Telegram command as `/forge <cmd>` or its own slash command (`forge-slack/slash-commands.yaml`, applied with `add_slash_commands.py` + a one-time App Configuration Token). Plus `/forge roster [room]`, `/forge menu` (buttons), `/forge chats`. `/roster` and `/menu` are not registered as their own commands yet.
+- Buttons that never consume their card: `cmd:<command>` and `draft:<contactId>` (`slack_io.LIVE_ACTIONS`). Draft reply asks Solomon; any send still comes back as a ✅ card.
+- Owner in Slack = `SLACK_OWNER_IDS` when set, else `SLACK_ALLOWED_USER_IDS`. Set `SLACK_OWNER_IDS` before allowlisting a teammate.
+- Log lines: `[slack] slash /x verb=… channel=… owner=…`, `[slack] button …`, `[slack_rooms] on_refresh failed: …`.
