@@ -157,7 +157,10 @@ class RoomTests(unittest.TestCase):
         nocen = card("3", "C", "New Lead", cid="ATOBnocenter0001")
         mis = dict(card("4", "D", "New Lead", cid="ATOBtagged1923a"), center="loc-1923-cecil-b-moore")
         both = card("5", "E", "New Lead", cid="BOTHboards00001")
-        atob = {"fetchedAt": 1, "cards": [c921, c2318, nocen, mis, both]}
+        multi = dict(card("6", "F", "New Lead", cid="MULTItag0000001"), center="",
+                     centers=["loc-1923-cecil-b-moore", "loc-921-n-18th"])      # two loc- tags: AMT wins
+        ent = dict(card("7", "G", "New Lead", cid="ENTITYamt000001"), center="loc-921-n-18th", amt=True)
+        atob = {"fetchedAt": 1, "cards": [c921, c2318, nocen, mis, both, multi, ent]}
         amtb = {"fetchedAt": 1, "cards": [card("9", "K", "New Lead", cid="AMTcontact000001"), both]}
         boards = lambda b=None: amtb if b == "amt" else atob
         with mock.patch.object(daycare_pipeline, "_load", boards):
@@ -168,19 +171,22 @@ class RoomTests(unittest.TestCase):
             slack_io.send("reply", business="daycare", dedupe_key="dcreply:AMTcontact000001:i")                # AMT, unbound: main
             slack_io.send("reply", business="daycare", dedupe_key="dcreply:BOTHboards00001:i")                 # both boards: main
             slack_io.send("lead (1923 Cecil B Moore (AMT))", business="daycare", dedupe_key="daycare-lead:ATOB921contact01:b")
+            slack_io.send("lead", business="daycare", dedupe_key="daycare-lead:MULTItag0000001:a")             # 921+1923 tags: main
+            slack_io.send("reply", business="daycare", dedupe_key="dcreply:ENTITYamt000001:i")                 # entity-amt: main
             with mock.patch.dict(os.environ, {"SLACK_CHANNEL_DAYCARE_AMT": amt_ch}):
                 slack_io.send("reply", business="daycare", dedupe_key="dcreply:AMTcontact000001:j")            # AMT channel
                 slack_io.send("reply 921", business="daycare", dedupe_key="dcreply:ATOB921contact01:j")        # ATOB stays ATOB
                 self.assertIsNone(slack_io.business_of(amt_ch))          # not a room: no Solomon chat there
                 self.assertNotIn(amt_ch, slack_io._channels())           # no taps there
         self.assertEqual([p[0] for p in self.posts()],
-                         [one, two, TOURS, DAYCARE, DAYCARE, DAYCARE, DAYCARE, amt_ch, one])
+                         [one, two, TOURS, DAYCARE, DAYCARE, DAYCARE, DAYCARE, DAYCARE, DAYCARE, amt_ch, one])
         self.assertEqual(slack_io.business_of(one), "daycare")           # an ATOB site channel is a room
         self.api.clear()                                                 # a stage move for an AMT-tagged card: no room post
         with mock.patch.object(daycare_pipeline, "_load", boards):
             slack_io._write("slack_rooms.json", {"seeded": {t: slack_rooms._room(t) for t in slack_rooms.TITLE},
-                                                 "announced": {"4": "Tour Scheduled"}})
-            self.assertEqual(slack_rooms.on_refresh([dict(mis, stageName="Enrolled")]), 0)
+                                                 "announced": {"4": "Tour Scheduled", "6": "New Lead", "7": "New Lead"}})
+            self.assertEqual(slack_rooms.on_refresh([dict(mis, stageName="Enrolled"), dict(multi, stageName="Enrolled"),
+                                                     dict(ent, stageName="Enrolled")]), 0)
         self.assertEqual(self.posts(), [])
 
     def test_rosters_list_only_atob_centers(self):

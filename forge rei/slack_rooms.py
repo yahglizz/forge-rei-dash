@@ -163,9 +163,15 @@ def room_ok(dedupe_key, text) -> bool:
     atob, amt = _board_contacts(BOARD), _board_contacts("amt")
     if not ids or atob is None or amt is None or not ids & atob or ids & amt:
         return False
-    import daycare_pipeline                    # an AMT site tag on an ATOB card still fails closed
-    return not any("1923" in str(c.get("center") or "") for c in daycare_pipeline._load(BOARD).get("cards") or []
+    import daycare_pipeline                    # ANY AMT tag on an ATOB card still fails closed
+    return not any(_amt_card(c) for c in daycare_pipeline._load(BOARD).get("cards") or []
                    if c.get("contactId") in ids)
+
+
+def _amt_card(c) -> bool:
+    """A board card that carries any A Mother's Touch mark (entity-amt or a 1923 loc- tag, even
+    next to an ATOB one)."""
+    return bool(c.get("amt")) or any("1923" in str(t) for t in (c.get("centers") or []) + [c.get("center") or ""])
 
 
 SITE_BY_CENTER = {"loc-921-n-18th": "atob-one", "loc-2318-cecil-b-moore": "atob-two"}
@@ -185,8 +191,9 @@ def site_of(dedupe_key, text) -> str | None:
     if not room_ok(dedupe_key, text):
         return None
     import daycare_pipeline
-    centers = {c.get("center") for c in daycare_pipeline._load(BOARD).get("cards") or [] if c.get("contactId") in ids}
-    return SITE_BY_CENTER.get(centers.pop()) if len(centers) == 1 else None
+    cards = [c for c in daycare_pipeline._load(BOARD).get("cards") or [] if c.get("contactId") in ids]
+    centers = {t for c in cards for t in (c.get("centers") or [c.get("center")])}    # exactly one ATOB tag
+    return SITE_BY_CENTER.get(centers.pop()) if len(centers) == 1 and not any(map(_amt_card, cards)) else None
 
 
 # ── stage moves + first-run seed ──────────────────────────────────────────────
@@ -211,7 +218,7 @@ def on_refresh(after, location_id=None, board=BOARD) -> int:
             posts = [(c, STAGE_TOPIC.get(now_map[c["opportunityId"]].strip().lower())) for c in moved]
             both = _board_contacts("amt") or set()     # a family also on the AMT board stays out
             posts = [(c, t) for c, t in posts if t and _room(t) and c.get("contactId") not in both
-                     and "1923" not in str(c.get("center") or "")]
+                     and not _amt_card(c)]
             failed = set()
             for c, topic in posts[:MAX_EVENTS]:
                 was = known.get(c["opportunityId"])

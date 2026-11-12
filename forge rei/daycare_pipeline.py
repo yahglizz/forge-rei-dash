@@ -194,7 +194,9 @@ def card_from(opp, stages):
         "proposedStageId": prop["id"] if prop else None,
         "proposedStageName": prop["name"] if prop else None,
         "proposeTags": proposal_tags(tags),
-        "center": locs.pop() if len(locs) == 1 else "",      # the site's loc- tag; "" = none or several
+        "center": next(iter(locs)) if len(locs) == 1 else "",   # the site's loc- tag; "" = none or several
+        "centers": sorted(locs),                                  # every loc- tag (AMT guard reads all)
+        "amt": any("1923" in t for t in locs) or any(str(t).strip().lower() == "entity-amt" for t in tags),
     }
 
 
