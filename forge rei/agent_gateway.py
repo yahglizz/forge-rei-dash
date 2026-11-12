@@ -83,7 +83,7 @@ AGENTS = {
     "solomon": {"folder": "forge-solomon", "files": [
         "CLAUDE.md", "AGENTS.md", "skills/solomon-playbook.md", "skills/solomon-decision-loop.md",
         "skills/solomon-director-craft.md", "skills/solomon-orchestrator-craft.md",
-        "skills/solomon-enrollment-pipelines.md", "../forge-daycare/AGENTS.md",
+        "skills/solomon-enrollment-pipelines.md", "skills/solomon-slack-channels.md", "../forge-daycare/AGENTS.md",
         "../forge-daycare/skills/daycare-context.md", "../forge-daycare/skills/daycare-parent-reply.md",
         "../forge-daycare/skills/daycare-voice.md"]},
     "orion": {"folder": "forge-mission", "files": ["CLAUDE.md", "skills/orion-playbook.md"]},
@@ -523,6 +523,9 @@ def _chat_spec(ctx):
         dash_live.mac_auto_enabled()                  # off at launch: every command is a tap
         and agent in MAC_AUTO_AGENTS and origin != "n8n"   # /v1/chat takes a caller-supplied sender_id
         and not lanes and not tasks and not req.get("history") and all(r.get("clean") for r in rows))
+    # #forge-knowledge notes run AUTO only from a prompt with no lane state, open tasks, caller history
+    # or n8n sender (outside text the taint flag can't see); every other path files a card (fail-closed).
+    col["promptClean"] = not (lanes or tasks or req.get("history") or origin == "n8n")
     dash_live._TL.c = col                 # tools()/live_block() look at this thread's collector
     try:
         tools, live = dash_live.tools(agent), dash_live.live_block(agent)

@@ -54,9 +54,10 @@ _ROLE = {"solomon": "director", "dyson": "build lead", "eco": "ads lead",
          "marcus": "acquisitions lead", "scout": "lead-triage lead", "atlas": "underwriter",
          "midas": "store director", "orion": "chief of staff"}
 
-# Shared by every business: the brain, owner actions, hub tasks (agent → agent assignments) and
-# the coaching network (§11 — cross-business by design; its POSTs stay ✅ cards).
-_SHARED = ("/api/brain/", "/api/owner-actions", "/api/hub/task", "/api/coach/")
+# Shared by every business: the brain, owner actions, hub tasks (agent → agent assignments), the
+# coaching network (§11 — cross-business by design; its POSTs stay ✅ cards) and #forge-knowledge
+# (Slack knowledge base; its POST is AUTO for the four writers, dash_live._write).
+_SHARED = ("/api/brain/", "/api/owner-actions", "/api/hub/task", "/api/coach/", "/api/knowledge")
 SCOPE = {
     "daycare": ("/api/daycare/",) + _SHARED,
     "agency": ("/api/agency/",) + _SHARED,
@@ -560,6 +561,12 @@ def _run_tool(name, inp, agent_id, business, chat_id, cards):
             body = inp.get("body") if isinstance(inp.get("body"), dict) else {}
             if path == "/api/hub/task":
                 body = task_body(body, agent_id)
+            if path == "/api/knowledge/post":         # the writer is who runs the tool, never the body
+                import slack_knowledge
+                body = {"text": body.get("text"), "agent": agent_id}
+                why = slack_knowledge.check(body["text"], agent_id)[1]
+                if why:
+                    return {"error": why}
             summary = str(inp.get("summary") or path)[:200]
             if len(json.dumps(body, default=str)) > MAX_BODY:
                 return {"error": f"body over {MAX_BODY} chars — the owner must see all of it; "

@@ -1,23 +1,25 @@
-"""slack_rooms.py — the daycare rooms in Slack: one channel per kind of enrollment news.
+"""slack_rooms.py — the daycare channels in Slack, organized by site.
 
-  #daycare-alerts    new leads + parent replies that need the owner   (stage "New Lead")
-  #daycare-tours     tours booked, tour reminders                     (stage "Tour Scheduled")
-  #daycare-quotes    application / tuition quote sent                 (stage "Application Sent")
-  #daycare-starting  start dates to confirm                           (daycare_starts)
-  #daycare-enrolled  new enrollments                                  (stage "Enrolled")
+  Per site (the specifics), A Touch of Blessings only:
+    #daycare-921  / #daycare-2318              new leads + parent replies (stage "New Lead")
+    #921-tours    / #2318-tours                tours booked, tour reminders (stage "Tour Scheduled")
+    #921-quotes   / #2318-quotes               application / tuition quote sent (stage "Application Sent")
+    #921-enrolled / #2318-enrolled             new enrollments + start dates to confirm
+  #amt-1923  A Mother's Touch alerts only (separate legal entity; not a room).
+  All sites (the overview): #daycare-alerts / -tours / -quotes / -starting / -enrolled get the 8 AM and
+  6 PM briefs only (slack_briefs), never single events. #forge-daycare = per-site brief + anything urgent
+  or not provably tied to a site.
 
 Zero Claude calls, zero GHL calls, zero n8n runs: it only reads what the box lanes already
 hold (daycare_pipeline state, daycare_calendar.view, /starts) and posts to Slack.
   on_refresh()  daycare_pipeline.refresh calls it after each read: a family that changed stage
-                gets one line in the new stage's room, with buttons. The first read after a
-                room is created posts that room's roster once (seed).
-  roster()      the current list for a room: `/forge roster` in the room, or the Roster button.
+                gets one line in its site's channel for the new stage, with buttons. A family with no
+                provable site gets no line (the brief counts it). The first read after a site channel
+                is created posts that channel's roster once (seed). Then the briefs tick.
+  roster()      the current list for a room or site channel: `/forge roster`, or the Roster button.
   draft()       the "Draft reply" button: asks Solomon; his text comes back as a ✅ card.
-Site channels (site_of): #daycare-921 / #daycare-2318 get that ATOB site's alerts (lead, parent
-reply, tour reminder, start date) when the family's board card proves the site; those win over
-the rooms above. #amt-1923 gets alerts for families on the AMT board only.
-A Touch of Blessings board only. A Mother's Touch is a separate legal entity: never posted in an
-ATOB room or site channel.
+Site is proven from the boards (site_of / _card_site), never from alert text. A Mother's Touch is a
+separate legal entity: never posted in an ATOB room or site channel.
 Slack-only (rooms don't exist in Telegram); inert while FORGE_CHAT_TRANSPORT=telegram.
 """
 from __future__ import annotations
@@ -86,19 +88,26 @@ def roster(topic, now=None) -> tuple[str, list]:
     """-> (Telegram-HTML text, buttons) for one room. Never raises."""
     import time
     topic = str(topic or "").strip().lower()
-    if topic in SITE_TITLE:
-        return site_roster(topic)
+    site, sub = split_site(topic)
+    if site and (not sub or sub in SUB_STAGE):
+        return site_roster(site, sub)
     if topic not in TITLE:
-        return ("Which room? <code>/forge roster tours</code> (alerts · tours · quotes · starting · enrolled)", [])
+        return ("Which list? <code>/forge roster tours</code> (all sites: alerts · tours · quotes · starting · "
+                "enrolled) or <code>/forge roster atob-one-tours</code> (921: atob-one, 2318: atob-two; "
+                "add -tours · -quotes · -enrolled)", [])
     now_ms = int((now or time.time()) * 1000)
     lines, note = [], None
     try:
+        if topic in ("starting", "tours"):        # the board proves the family's site, never a center label
+            sites, why = site_cards(None)
+            if sites is None:
+                return (f"<b>{TITLE[topic]}</b>\n⚠️ {why} Tap Refresh on the dashboard board, then try again.", [])
+            proven = {c.get("contactId") for by in sites.values() for cs in by.values() for c in cs}
         if topic == "starting":
             import daycare_starts
             v = daycare_starts.view()
             rows = [r for r in (v.get("starts") if isinstance(v, dict) else v) or []
-                    if r.get("status") != "sent" and _ATOB_CENTER.search(str(r.get("center") or ""))
-                    and not _AMT_TEXT.search(str(r.get("center") or ""))
+                    if r.get("status") != "sent" and r.get("contactId") in proven
                     and not _test(r.get("childName") or r.get("parentName"))]
             from datetime import datetime, timezone, timedelta
             today = (datetime.fromtimestamp(now_ms / 1000, timezone.utc) - timedelta(hours=5)).date().isoformat()  # ET, ±1 h
@@ -114,8 +123,7 @@ def roster(topic, now=None) -> tuple[str, list]:
             import daycare_calendar
             v = daycare_calendar.view()
             for u in [u for u in v.get("upcoming") or [] if u.get("kind") == "tour"
-                      and _ATOB_CENTER.search(f"{u.get('center')} {u.get('tag')}")
-                      and not _AMT_TEXT.search(f"{u.get('center')} {u.get('tag')}")][:MAX_ROWS]:
+                      and u.get("contactId") in proven][:MAX_ROWS]:
                 at = (u.get("time") or "")[11:16]
                 lines.append(f"• {_esc(u['date'])}{' ' + at if at else ''} {_esc(u.get('tag') or '')} "
                              f"{_esc(u.get('who') or 'name not loaded yet')}".rstrip())
@@ -139,7 +147,30 @@ def roster(topic, now=None) -> tuple[str, list]:
 
 
 SITE_TITLE = {"atob-one": "🏠 ATOB · 921 N 18th", "atob-two": "🏠 ATOB · 2318 Cecil B. Moore"}
+SITE_SHORT = {"atob-one": "921", "atob-two": "2318"}
+SUB_STAGE = {"tours": "tour scheduled", "quotes": "application sent", "enrolled": "enrolled"}
+STAGE_SUB = {v: k for k, v in SUB_STAGE.items()}
 _SITE_SKIP = ("lost", "not interested")           # closed-out stages are not a site's working list
+
+
+def split_site(topic):
+    """"atob-one-tours" -> ("atob-one", "tours"); "atob-two" -> ("atob-two", None); else (None, None)."""
+    t = str(topic or "").strip().lower()
+    site = next((x for x in SITE_TITLE if t == x or t.startswith(x + "-")), None)
+    return (site, t[len(site) + 1:] or None) if site else (None, None)
+
+
+def site_target(site, stage_name):
+    """-> (channel, roster topic) for a family of this site that just entered this stage. The site's
+    sub-channel (tours / quotes / enrolled) when bound, else the site channel; (None, None) when the
+    site has no channel at all. New Lead goes to the site channel itself."""
+    sub = STAGE_SUB.get(str(stage_name or "").strip().lower())
+    if sub:
+        ch = slack_io.topic_channel(f"daycare-{site}-{sub}")
+        if ch:
+            return ch, f"{site}-{sub}"
+    ch = slack_io.topic_channel(f"daycare-{site}")
+    return (ch, site) if ch else (None, None)
 
 
 def _card_site(c):
@@ -148,42 +179,52 @@ def _card_site(c):
     return SITE_BY_CENTER.get(next(iter(tags))) if len(tags) == 1 and not _amt_card(c) else None
 
 
-def site_roster(site) -> tuple[str, list]:
-    """-> (text, buttons): the ATOB families at ONE site, by stage. A card counts only when its
-    single ATOB loc- tag is this site's, it has no AMT mark, and the AMT board (if read) does not
-    hold the contact: same proof as site_of, so AMT/unknown families never show. Never raises."""
+def site_cards(site=None):
+    """-> ({stage name: [cards]}, error) of ATOB families at one site (or keyed by site when site is None:
+    {site: {stage: [cards]}}), test families hidden. Same proof as site_of; None cards when either board
+    has never been read (fail closed: an unread AMT board proves nothing)."""
+    import daycare_pipeline
+    v = daycare_pipeline.view(board=BOARD)
+    amt, atob = _board_contacts("amt"), _board_contacts(BOARD)
+    if amt is None or atob is None:
+        return None, "Can't prove which families are ATOB yet (a board hasn't been read)."
+    out = {}
+    for col in v.get("stages") or []:
+        for c in col.get("cards") or []:
+            where = _card_site(c)
+            if where and not _test(c.get("name")) and c.get("contactId") not in amt and (site is None or where == site):
+                out.setdefault(where, {}).setdefault(col["name"], []).append(c)
+    return (out if site is None else out.get(site, {})), (v.get("error") if v.get("stale") or v.get("error") else None)
+
+
+def site_roster(site, sub=None) -> tuple[str, list]:
+    """-> (text, buttons): the ATOB families at ONE site, by stage (or one stage for a sub-channel).
+    A card counts only when its single ATOB loc- tag is this site's, it has no AMT mark, and the AMT
+    board does not hold the contact. Never raises."""
+    title = SITE_TITLE[site] + (f" · {sub}" if sub else "")
+    topic = f"{site}-{sub}" if sub else site
     try:
-        import daycare_pipeline
-        v = daycare_pipeline.view(board=BOARD)
-        amt, atob = _board_contacts("amt"), _board_contacts(BOARD)
-        if amt is None or atob is None:               # fail closed, like site_of: an unread board proves nothing
-            return (f"<b>{SITE_TITLE[site]}</b>\n⚠️ Can't prove which families are ATOB yet (a board hasn't been "
-                    "read). Tap Refresh on the dashboard board, then try again.", [])
+        by_stage, note = site_cards(site)
+        if by_stage is None:
+            return (f"<b>{title}</b>\n⚠️ {note} Tap Refresh on the dashboard board, then try again.", [])
         lines, total = [], 0
-        for col in v.get("stages") or []:
-            if col["name"].strip().lower() in _SITE_SKIP:
-                continue
-            mine = [c for c in col.get("cards") or [] if not _test(c.get("name"))
-                    and c.get("contactId") not in amt and _card_site(c) == site]
-            if not mine:
+        for name, mine in by_stage.items():
+            low = name.strip().lower()
+            if low in _SITE_SKIP or (sub and low != SUB_STAGE[sub]):
                 continue
             total += len(mine)
             names = ", ".join(_esc(c["name"]) for c in mine[:6]) + (f" +{len(mine) - 6}" if len(mine) > 6 else "")
-            lines.append(f"• <b>{_esc(col['name'])}</b> {len(mine)} — {names}")
-        note = v.get("error") if v.get("stale") or v.get("error") else None
+            lines.append(f"• <b>{_esc(name)}</b> {len(mine)} — {names}")
         if note:
             lines.append(f"⚠️ {_esc(str(note)[:160])}")
-        return ("\n".join([f"<b>{SITE_TITLE[site]}</b> — {total} families"] + (lines or ["Nobody here right now."])),
-                [[{"text": "📋 Roster", "callback_data": f"cmd:roster {site}"}]])
+        return ("\n".join([f"<b>{title}</b> — {total} families"] + (lines or ["Nobody here right now."])),
+                [[{"text": "📋 Roster", "callback_data": f"cmd:roster {topic}"}]])
     except Exception as e:  # noqa: BLE001
-        return (f"<b>{SITE_TITLE[site]}</b>\n⚠️ Couldn't read it ({type(e).__name__}).", [])
+        return (f"<b>{title}</b>\n⚠️ Couldn't read it ({type(e).__name__}).", [])
 
 
 # ── A Mother's Touch never enters a room ──────────────────────────────────────
 _AMT_TEXT = re.compile(r"\bAMT\b|\b1923\b|Mother.{0,3}s Touch", re.I)
-
-
-_ATOB_CENTER = re.compile(r"\b(921|2318)\b")      # A Touch of Blessings centers; anything else is not provably ATOB
 
 
 def _board_contacts(board):
@@ -242,66 +283,88 @@ def site_of(dedupe_key, text) -> str | None:
 # ── stage moves + first-run seed ──────────────────────────────────────────────
 def on_refresh(after, location_id=None, board=BOARD) -> int:
     """after = the ATOB board's cards from one GHL read. A family whose stage differs from the last
-    one ANNOUNCED (slack_rooms.json, so the owner's own dashboard moves count too) gets one line in
-    the new stage's room. First run only records the snapshot. -> messages posted. Never raises."""
+    one ANNOUNCED (slack_rooms.json, so the owner's own dashboard moves count too) gets one line in its
+    site's channel for the new stage (site_target). A family with no provable site gets no line (the
+    brief counts it). First run only records the snapshot. Then the 8 AM / 6 PM briefs tick.
+    -> messages posted. Never raises."""
     try:
         if board != BOARD or slack_io.mode() == "telegram":
             return 0
-        sent = _seed()
-        with _LOCK:
-            st = slack_io._read(_STATE)
-            known = st.get("announced")
-            now_map = {c["opportunityId"]: (c.get("stageName") or "") for c in after if c.get("opportunityId")}
-            if known is None:                  # first run: nothing to compare against
-                st["announced"] = now_map
-                slack_io._write(_STATE, st)
-                return sent
-            moved = [c for c in after
-                     if c.get("opportunityId") and now_map[c["opportunityId"]] != known.get(c["opportunityId"])]
-            posts = [(c, STAGE_TOPIC.get(now_map[c["opportunityId"]].strip().lower())) for c in moved]
-            both = _board_contacts("amt") or set()     # a family also on the AMT board stays out
-            posts = [(c, t) for c, t in posts if t and _room(t) and c.get("contactId") not in both
-                     and not _amt_card(c)]
-            failed = set()
-            for c, topic in posts[:MAX_EVENTS]:
-                was = known.get(c["opportunityId"])
-                # A ZZ test family still posts (marked), so a real GHL move can be checked end to end
-                # without touching a real family. Rosters keep hiding them.
-                text = (("🧪 test family · " if _test(c.get("name")) else "")
-                        + f"<b>{_esc(c['name'])}</b> → {_esc(c['stageName'])}"
-                        + (f" (was {_esc(was)})" if was else " (new)"))
-                if slack_io.send(text, channel=_room(topic),
-                                 buttons=_buttons(topic, c.get("contactId"), location_id),
-                                 dedupe_key=f"room:{c['opportunityId']}:{c.get('stageId')}"):
-                    sent += 1
-                else:
-                    failed.add(c["opportunityId"])       # stays un-announced: retried next read
-            if len(posts) > MAX_EVENTS:
-                slack_io.send(f"…and {len(posts) - MAX_EVENTS} more stage changes this round — see the "
-                              "dashboard board.", channel=slack_io.chat_for("daycare"))
-            st["announced"] = {k: (known[k] if k in failed and k in known else v)
-                               for k, v in now_map.items() if k not in failed or k in known}
-            slack_io._write(_STATE, st)
-        return sent
+        sent = _seed() + _moves(after, location_id)
     except Exception as e:  # noqa: BLE001 — a room post never blocks the pipeline lane
         print(f"[slack_rooms] on_refresh failed: {type(e).__name__}", flush=True)
-        return 0
+        sent = 0
+    try:
+        import slack_briefs
+        sent += slack_briefs.tick()
+    except Exception as e:  # noqa: BLE001
+        print(f"[slack_rooms] briefs failed: {type(e).__name__}", flush=True)
+    return sent
+
+
+def _moves(after, location_id) -> int:
+    amt = _board_contacts("amt")
+    if amt is None:                            # AMT board never read: cannot prove anyone is ATOB yet. Wait:
+        return 0                               # nothing is announced, so the moves post once it has been read.
+    sent = 0
+    with _LOCK:
+        st = slack_io._read(_STATE)
+        known = st.get("announced")
+        now_map = {c["opportunityId"]: (c.get("stageName") or "") for c in after if c.get("opportunityId")}
+        if known is None:                      # first run: nothing to compare against
+            st["announced"] = now_map
+            slack_io._write(_STATE, st)
+            return 0
+        posts = []
+        for c in after:
+            oid = c.get("opportunityId")
+            if not oid or now_map[oid] == known.get(oid) or now_map[oid].strip().lower() not in STAGE_TOPIC:
+                continue
+            site = _card_site(c)               # one ATOB loc- tag, no AMT mark
+            if not site or c.get("contactId") in amt:
+                continue
+            ch, topic = site_target(site, now_map[oid])
+            if ch:
+                posts.append((c, ch, topic))
+        failed = set()
+        for c, ch, topic in posts[:MAX_EVENTS]:
+            was = known.get(c["opportunityId"])
+            # A ZZ test family still posts (marked), so a real GHL move can be checked end to end
+            # without touching a real family. Rosters and briefs keep hiding them.
+            text = (("🧪 test family · " if _test(c.get("name")) else "")
+                    + f"<b>{_esc(c['name'])}</b> → {_esc(c['stageName'])}"
+                    + (f" (was {_esc(was)})" if was else " (new)"))
+            if slack_io.send(text, channel=ch, buttons=_buttons(topic, c.get("contactId"), location_id),
+                             dedupe_key=f"room:{c['opportunityId']}:{c.get('stageId')}"):
+                sent += 1
+            else:
+                failed.add(c["opportunityId"])           # stays un-announced: retried next read
+        if len(posts) > MAX_EVENTS:
+            slack_io.send(f"…and {len(posts) - MAX_EVENTS} more stage changes this round — see the "
+                          "dashboard board.", channel=slack_io.chat_for("daycare"))
+        st["announced"] = {k: (known[k] if k in failed and k in known else v)
+                           for k, v in now_map.items() if k not in failed or k in known}
+        slack_io._write(_STATE, st)
+    return sent
 
 
 def _seed() -> int:
-    """Post each room's roster once, the first time that room has a channel. A failed post (bot
-    not in the channel, archived) is retried at most once an hour."""
+    """Post each site channel's roster once, the first time it has a channel. The shared rooms are
+    brief-only and are not seeded. A failed post (bot not in the channel, archived) is retried at most
+    once an hour."""
     import time
     sent, now = 0, time.time()
     with _LOCK:
         st = slack_io._read(_STATE)
         seeded, tried = st.setdefault("seeded", {}), st.setdefault("seedTried", {})
         dirty = False
-        for topic in TITLE:
-            room = _room(topic)
+        for topic in [x for site in SITE_TITLE for x in (site, *(f"{site}-{u}" for u in SUB_STAGE))]:
+            room = slack_io.topic_channel(f"daycare-{topic}")
             if not room or seeded.get(topic) == room or now - (tried.get(topic) or 0) < 3600:
                 continue
             text, buttons = roster(topic)
+            if "Can't prove" in text:            # boards not read yet: try again on a later read
+                continue
             if slack_io.send(text, channel=room, buttons=buttons):
                 seeded[topic] = room
                 sent += 1

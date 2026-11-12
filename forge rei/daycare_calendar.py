@@ -652,7 +652,7 @@ def view(now=None):
         upcoming.append({"kind": r.get("kind"), "date": r["when"], "time": at, "center": r.get("center"),
                          "tag": CENTERS.get(r.get("center"), {}).get("tag"), "link": r.get("link") or None,
                          "reminded": done.get("stage") if at and done.get("start") == at else None,
-                         "who": _WHO.get(key)})
+                         "who": _WHO.get(key), "contactId": key.split("|", 1)[1] if "|" in key else None})
     upcoming.sort(key=lambda u: (u["date"], u["time"] or ""))
     return {"ok": True, "mode": "qa" if qa else "live", "lastRunAt": st.get("lastRunAt"), "error": err,
             "events": sum(1 for r in rows if r.get("hash") and not r.get("scrubbed")),

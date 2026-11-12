@@ -75,25 +75,35 @@ Rooms (private, owner-only, created by `forge-slack/bootstrap_channels.py`, ids 
 | `#daycare-starting` | start dates to confirm |
 | `#daycare-enrolled` | families entering **Enrolled** |
 
-### Site channels (added 2026-11-12)
+### Site channels (added 2026-11-12, reorganized the same day)
 
-| Channel | Id | Env key | Gets |
-|---|---|---|---|
-| `#daycare-921` | `C0CJ19VS2E4` | `SLACK_CHANNEL_DAYCARE_ATOB_ONE` | ATOB 921 N 18th: lead, parent-reply, tour-reminder, start-date alerts |
-| `#daycare-2318` | `C0CHAKJKBU4` | `SLACK_CHANNEL_DAYCARE_ATOB_TWO` | ATOB 2 at 2318 Cecil B. Moore: same alerts |
-| `#amt-1923` | `C0CGRH7KTEK` | `SLACK_CHANNEL_DAYCARE_AMT` | A Mother's Touch (separate entity): alerts for families on the AMT board only |
+**Owner layout:** the main chat and the shared rooms are the overview (briefs only); the site channels are the specifics.
 
-- Site is proven from the boards, never from alert text (`slack_rooms.site_of`): ATOB = room_ok passes and the family's ATOB card has exactly one ATOB `loc-` tag and no AMT mark; AMT = contact on the AMT board and not the ATOB one. Site wins over the topic room. Topic rooms keep stage moves, rosters and alerts with no provable site. Can't prove it → `#forge-daycare`.
-- AMT guard: a card with any `1923` `loc-` tag or `entity-amt` (cards carry `centers` + `amt`) never enters an ATOB room, site channel or stage-move post.
-- `/forge roster` in `#daycare-921` / `#daycare-2318` lists that site's ATOB families by stage (Lost skipped; same proof as `site_of`: one ATOB `loc-` tag, no AMT mark, not on the AMT board). `/forge roster atob-one|atob-two` works from any room. No roster in `#amt-1923`.
-- `#amt-1923` is NOT a room: no Solomon chat, no taps there (so no ATOB data can be pulled into it). `#daycare-921`/`#daycare-2318` are rooms (Solomon answers, ✅ cards tap).
+| Channel | Env key | Gets |
+|---|---|---|
+| `#forge-daycare` | `SLACK_CHANNEL_DAYCARE` | Per-site brief at 8 AM + 6 PM ET (921, 2318, AMT counts, no-site-tag warning), plus urgent / unprovable-site alerts |
+| `#daycare-alerts` `-tours` `-quotes` `-starting` `-enrolled` | `SLACK_CHANNEL_DAYCARE_<TOPIC>` | All-sites brief for that topic at 8 AM + 6 PM ET. **No single events.** |
+| `#daycare-921` (`C0CJ19VS2E4`) | `SLACK_CHANNEL_DAYCARE_ATOB_ONE` | ATOB 921 N 18th: new leads, parent replies, New Lead stage moves |
+| `#921-tours` / `#921-quotes` / `#921-enrolled` | `SLACK_CHANNEL_DAYCARE_ATOB_ONE_TOURS` / `_QUOTES` / `_ENROLLED` | 921: tours + reminders / Application Sent / Enrolled + start dates |
+| `#daycare-2318` (`C0CHAKJKBU4`) | `SLACK_CHANNEL_DAYCARE_ATOB_TWO` | ATOB 2318 Cecil B. Moore: same as 921 |
+| `#2318-tours` / `#2318-quotes` / `#2318-enrolled` | `SLACK_CHANNEL_DAYCARE_ATOB_TWO_TOURS` / `_QUOTES` / `_ENROLLED` | 2318: same three |
+| `#amt-1923` (`C0CGRH7KTEK`) | `SLACK_CHANNEL_DAYCARE_AMT` | A Mother's Touch (separate entity): alerts for families on the AMT board only |
+| `#forge-knowledge` | `SLACK_CHANNEL_KNOWLEDGE` | Agents' knowledge base (`slack_knowledge.py`) |
+
+- Site is proven from the boards, never from alert text (`slack_rooms.site_of` / `_card_site`): ATOB = room_ok passes and the family's ATOB card has exactly one ATOB `loc-` tag and no AMT mark; AMT = contact on the AMT board and not the ATOB one. A sub-channel that isn't bound falls back to its site channel; no provable site → `#forge-daycare` (alerts) or no line at all (stage moves; the brief counts them).
+- AMT guard: a card with any `1923` `loc-` tag or `entity-amt` never enters an ATOB channel. Stage moves wait while the AMT board has never been read (fail closed), then post.
+- `#amt-1923` and `#forge-knowledge` are NOT rooms: no Solomon chat, no taps there. Every ATOB site channel and sub-channel is a room (Solomon answers, ✅ cards tap).
+- Rosters: `/forge roster` in any site channel or sub-channel lists that site (or that stage at that site); `/forge roster atob-one-tours` works from anywhere. Each site channel gets its roster once when first bound (`slack_rooms._seed`, waits until both boards were read).
+- Briefs: `slack_briefs.tick()` runs after every pipeline read (`slack_rooms.on_refresh`), posts each slot once in the 4 hours after 8:00 / 18:00 ET. State `marcus_state/slack_briefs.json` (`done`, `snap`); delete a slot id from `done` to re-post it. Zero Claude, GHL or n8n calls.
+- Create channels: `python3 forge-slack/bootstrap_channels.py --dry-run`, then without the flag (creates the 7 new private channels, sets every purpose, rewrites `slack-channels.env`). Copy the new `SLACK_CHANNEL_*` lines to the box `/opt/forge/forge-slack/config/slack-channels.env` and restart.
+- Knowledge: `python3 forge-slack/seed_knowledge.py --dry-run` → read the preview → run without the flag. Agents read with `GET /api/knowledge?q=` and write with `POST /api/knowledge/post` (exception in `CLAUDE.md` §2). Needs bot scope `groups:history` (verified 2026-11-12).
 - Box ids: `/opt/forge/forge-slack/config/slack-channels.env` (backup `.bak-sites-20261112`).
-- Owner sidebar sections (owner-level, set via the web client's `users.channelSections.*`): HQ · Daycare · all sites (#forge-daycare + 5 rooms) · Daycare · ATOB 921 · Daycare · ATOB 2318 · Daycare · AMT 1923 · Agency · Wholesale. No reorder API found; they sit under Agents, drag the block up if wanted.
+- Owner sidebar sections (owner-level, set via the web client's `users.channelSections.*`): HQ · Daycare · all sites (#forge-daycare + 5 rooms) · Daycare · ATOB 921 · Daycare · ATOB 2318 · Daycare · AMT 1923 · Agency · Wholesale. No reorder API found; they sit under Agents, drag the block up if wanted. Add each new site channel to its site's section.
 
-- Code: `forge rei/slack_rooms.py` (stage moves, rosters, seed, site_of), topic + site routing in `slack_io._deliver`. Zero Claude, GHL or n8n calls: it reads the box lanes' own state.
-- **A Touch of Blessings only.** An alert enters a room only when a contact id in its dedupe key is on the ATOB board and the AMT board has been read and does not hold it. Anything else stays in `#forge-daycare`.
+- Code: `forge rei/slack_rooms.py` (stage moves, rosters, seed, site_of, site_target), `forge rei/slack_briefs.py` (briefs), `forge rei/slack_knowledge.py` (knowledge), site routing in `slack_io.site_channel`. Zero Claude, GHL or n8n calls: it reads the box lanes' own state.
+- **A Touch of Blessings only.** An alert enters an ATOB site channel only when a contact id in its dedupe key is on the ATOB board, the AMT board has been read and does not hold it, and the card proves the site. Anything else stays in `#forge-daycare`.
 - A room is its business: talk to Solomon in any of them; ✅ cards tap there.
-- Unbound room = its alerts fall back to `#forge-daycare`. Rebind: `/forge bind daycare-tours` inside the channel.
+- Unbound site sub-channel = its posts fall back to the site channel; unbound site channel = alerts go to `#forge-daycare`, stage moves post nothing. Rebind inside the channel: `/forge bind daycare-atob-one-tours` (keys: `daycare-atob-one|atob-two[-tours|-quotes|-enrolled]`, `daycare-alerts|tours|quotes|starting|enrolled`).
 - State: `marcus_state/slack_rooms.json` (`seeded`, `announced`). Delete `seeded` to re-post rosters; delete `announced` to re-snapshot (no posts).
 - Commands: every Telegram command as `/forge <cmd>` or its own slash command (`forge-slack/slash-commands.yaml`, applied with `add_slash_commands.py` + a one-time App Configuration Token). Plus `/forge roster [room]`, `/forge menu` (buttons), `/forge chats`. `/roster` and `/menu` are not registered as their own commands yet.
 - Buttons that never consume their card: `cmd:<command>` and `draft:<contactId>` (`slack_io.LIVE_ACTIONS`). Draft reply asks Solomon; any send still comes back as a ✅ card.

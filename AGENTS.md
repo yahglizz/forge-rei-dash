@@ -11,7 +11,7 @@ own. One agent per business (three active, one archived) + the CEO, Orion.*
 > then this. (This replaced an older Codex-era operating-manual copy; the
 > operating-manual content is canonical in `CLAUDE.md`, not duplicated here.)
 
-*Last updated: 2026-11-11.*
+*Last updated: 2026-11-12.*
 
 > **Per-agent cards live in [`agents/`](agents/), one file per agent, filed by
 > business.** This file is the single-page overview and is current as of 2026-11-11
@@ -28,7 +28,7 @@ reversible tags** (HOT-lead triage tags), read the brain, write their own learne
 playbook back to the brain, and post on the agent bus. Everything outward —
 texting a seller, moving pipeline, launching an ad, sending an invoice, posting
 social — is gated behind the operator's one-tap approval. Documented exceptions
-(HOT-lead auto-tag; opt-in, default-OFF autopilot bumps, ACE, and daycare reply auto-send) are listed in `CLAUDE.md` §2.
+(HOT-lead auto-tag; #forge-knowledge notes; opt-in, default-OFF autopilot bumps, ACE, and daycare reply auto-send) are listed in `CLAUDE.md` §2.
 
 **Every agent can self-improve (scheduled self-improvement is OFF since 2026-09-30; manual "Learn" buttons work):** after N real encounters it reflects
 (`learn()`), rewrites its own playbook into the brain (git-committed), and reloads
@@ -96,6 +96,18 @@ loop-down/recovered, receipts — goes ONLY to that business's chat or channel. 
 (Anthropic credits/auth, clock, sync, graph builder) and Orion. A card can be tapped in either app; the
 first tap wins and the other app's buttons are refused. Details: `CLAUDE.md` §5 and
 `docs/runbooks/slack-cutover.md`.
+
+**Daycare in Slack is organized by site (2026-11-12).** `#forge-daycare` and the shared rooms
+(`#daycare-alerts/-tours/-quotes/-starting/-enrolled`) carry the overview: the 8 AM and 6 PM Eastern
+briefs only (`slack_briefs.py`, zero Claude calls). The specifics live per A Touch of Blessings site:
+`#daycare-921` / `#daycare-2318` (leads, parent replies) and `#921-` / `#2318-tours`, `-quotes`,
+`-enrolled` (`slack_rooms.site_target`). Site comes from the board's location tag, never from text;
+A Mother's Touch stays in `#amt-1923`. Solomon's map: `forge-solomon/skills/solomon-slack-channels.md`.
+
+**#forge-knowledge = the agents' Slack brain.** Every agent reads it (`GET /api/knowledge?q=`);
+Solomon, Marcus, Dyson and Orion add notes on their own (`POST /api/knowledge/post`, chat AUTO tier,
+a ✅ card once their context holds outside text). No names, phones, emails or keys. Exception and
+gates: `CLAUDE.md` §2.
 
 ---
 

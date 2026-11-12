@@ -14,10 +14,32 @@ CHANNELS = {"HQ": "forge-hq", "DAYCARE": "forge-daycare", "AGENCY": "forge-agenc
             "DAYCARE_ALERTS": "daycare-alerts", "DAYCARE_TOURS": "daycare-tours", "DAYCARE_QUOTES": "daycare-quotes",
             "DAYCARE_STARTING": "daycare-starting", "DAYCARE_ENROLLED": "daycare-enrolled",
             # one channel per daycare site (slack_rooms.site_of). AMT = separate legal entity.
-            "DAYCARE_ATOB_ONE": "daycare-921", "DAYCARE_ATOB_TWO": "daycare-2318", "DAYCARE_AMT": "amt-1923"}
+            "DAYCARE_ATOB_ONE": "daycare-921", "DAYCARE_ATOB_TWO": "daycare-2318", "DAYCARE_AMT": "amt-1923",
+            # each ATOB site's specifics (slack_rooms.site_target); the shared rooms above get briefs only
+            "DAYCARE_ATOB_ONE_TOURS": "921-tours", "DAYCARE_ATOB_ONE_QUOTES": "921-quotes",
+            "DAYCARE_ATOB_ONE_ENROLLED": "921-enrolled",
+            "DAYCARE_ATOB_TWO_TOURS": "2318-tours", "DAYCARE_ATOB_TWO_QUOTES": "2318-quotes",
+            "DAYCARE_ATOB_TWO_ENROLLED": "2318-enrolled",
+            # the agents' knowledge base (slack_knowledge)
+            "KNOWLEDGE": "forge-knowledge"}
 PURPOSE = {"DAYCARE_ATOB_ONE": "A Touch of Blessings, 921 N 18th St: this site's leads, parent replies, tours, start dates.",
            "DAYCARE_ATOB_TWO": "A Touch of Blessings 2, 2318 Cecil B. Moore: this site's leads, parent replies, tours, start dates.",
-           "DAYCARE_AMT": "A Mother's Touch, 1923 Cecil B. Moore (separate entity): its alerts only. No ATOB data here."}
+           "DAYCARE_AMT": "A Mother's Touch, 1923 Cecil B. Moore (separate entity): its alerts only. No ATOB data here.",
+           "DAYCARE_ATOB_ONE_TOURS": "ATOB 921 N 18th: tours booked and tour reminders.",
+           "DAYCARE_ATOB_ONE_QUOTES": "ATOB 921 N 18th: application / tuition quote sent.",
+           "DAYCARE_ATOB_ONE_ENROLLED": "ATOB 921 N 18th: new enrollments and start dates to confirm.",
+           "DAYCARE_ATOB_TWO_TOURS": "ATOB 2318 Cecil B. Moore: tours booked and tour reminders.",
+           "DAYCARE_ATOB_TWO_QUOTES": "ATOB 2318 Cecil B. Moore: application / tuition quote sent.",
+           "DAYCARE_ATOB_TWO_ENROLLED": "ATOB 2318 Cecil B. Moore: new enrollments and start dates to confirm.",
+           "KNOWLEDGE": "FORGE knowledge base: business facts, site notes, parent FAQ, agent playbooks and lessons. "
+                        "Agents read and add notes. No names, phones, emails or keys."}
+# The shared rooms become all-sites brief chats (slack_briefs): their purpose is reset on every run.
+PURPOSE.update({"DAYCARE_ALERTS": "All sites: new-lead brief at 8 AM and 6 PM. Single leads go to each site's channel.",
+                "DAYCARE_TOURS": "All sites: tours brief at 8 AM and 6 PM. Details in #921-tours / #2318-tours.",
+                "DAYCARE_QUOTES": "All sites: quotes brief at 8 AM and 6 PM. Details in #921-quotes / #2318-quotes.",
+                "DAYCARE_STARTING": "All sites: start-dates brief at 8 AM and 6 PM. Details in each site's -enrolled channel.",
+                "DAYCARE_ENROLLED": "All sites: enrolled brief at 8 AM and 6 PM. Details in #921-enrolled / #2318-enrolled.",
+                "DAYCARE": "Daycare main chat: the per-site brief at 8 AM and 6 PM, plus anything urgent or not tied to a site."})
 DIR = pathlib.Path(os.environ.get("FORGE_SLACK_CONFIG_DIR") or pathlib.Path(__file__).parent / "config")
 
 
@@ -90,6 +112,8 @@ def main(dry):
                 sys.exit(f"REFUSING to reuse existing #{name}: {why}. Rename or archive it, then re-run.")
             ids[key] = have[name]
             print(f"exists   #{name} (verified: private, created by the bot, owner-only)")
+            if key in PURPOSE and not dry:
+                call(token, "conversations.setPurpose", channel=ids[key], purpose=PURPOSE[key])
             continue
         if dry:
             print(f"would create private #{name}")

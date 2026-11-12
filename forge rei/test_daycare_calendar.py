@@ -984,10 +984,10 @@ class Upcoming(Base):
         self.assertEqual(dc.view(NOW)["upcoming"], [
             {"kind": "tour", "date": "2026-11-04", "time": "2026-11-04T10:00:00-05:00", "center": "loc-921-n-18th",
              "tag": "[921]", "link": f"https://calendar.example/{dc.event_id('tour|c1')}", "reminded": None,
-             "who": "Zuri D."},
+             "who": "Zuri D.", "contactId": "c1"},
             {"kind": "first", "date": "2026-11-09", "time": None, "center": "loc-2318-cecil-b-moore",
              "tag": "[2318]", "link": f"https://calendar.example/{dc.event_id('first|c2')}", "reminded": None,
-             "who": "Ada L."}])
+             "who": "Ada L.", "contactId": "c2"}])
 
     def test_the_name_lives_in_memory_only(self):
         self.booked()

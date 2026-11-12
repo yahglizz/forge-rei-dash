@@ -61,15 +61,25 @@ BUSINESSES = ("wholesale", "agency", "daycare", "dropship")
 # Rooms inside a business: its own channel per kind of news. Key "<business>-<topic>" in
 # slack.json, env SLACK_CHANNEL_<BUSINESS>_<TOPIC>. An unbound room falls back to the business
 # channel. A room IS its business for chat (Solomon answers in #daycare-tours) and for taps.
-# atob-one / atob-two = the A Touch of Blessings sites (921 N 18th, 2318 Cecil B Moore): that site's
-# alerts. AMT_KEY = A Mother's Touch (1923), a separate legal entity: alerts only, NOT a room (no
-# agent chat, no taps there), so nothing about ATOB can land in it.
-TOPICS = {"daycare": ("alerts", "tours", "quotes", "starting", "enrolled", "atob-one", "atob-two")}
+# The shared rooms (alerts, tours, quotes, starting, enrolled) are the ALL-SITES brief chats: the 8 AM
+# and 6 PM briefs only (slack_briefs). Specifics live per site: atob-one / atob-two = the A Touch of
+# Blessings sites (921 N 18th, 2318 Cecil B Moore): new leads + parent replies; atob-<n>-tours /
+# -quotes / -enrolled = that site's tours, quotes, and enrolled families + start dates.
+# AMT_KEY = A Mother's Touch (1923), a separate legal entity: alerts only, NOT a room (no agent chat,
+# no taps there), so nothing about ATOB can land in it. KNOWLEDGE_KEY = #forge-knowledge, the agents'
+# Slack brain (slack_knowledge): not a room either (no chat, no taps).
+SITES = ("atob-one", "atob-two")
+SITE_SUBS = ("tours", "quotes", "enrolled")
+TOPICS = {"daycare": ("alerts", "tours", "quotes", "starting", "enrolled")
+          + SITES + tuple(f"{s}-{t}" for s in SITES for t in SITE_SUBS)}
 TOPIC_KEYS = tuple(f"{b}-{t}" for b, ts in TOPICS.items() for t in ts)
 AMT_KEY = "daycare-amt"
-# Which room a mirrored alert lands in, by its dedupe_key prefix (the senders' own keys).
+KNOWLEDGE_KEY = "knowledge"
+# Which kind of news a mirrored alert is, by its dedupe_key prefix (the senders' own keys), and the
+# site sub-channel it goes to (None = the site channel itself).
 _TOPIC_BY_KEY = (("daycare-lead:", "daycare-alerts"), ("dcreply:", "daycare-alerts"),
                  ("cal-remind:", "daycare-tours"), ("daycare-start:", "daycare-starting"))
+_SITE_SUB = {"daycare-alerts": None, "daycare-tours": "tours", "daycare-starting": "enrolled"}
 _DEDUPE_WINDOW = 15 * 60
 _DEDUPE_MAX = 200
 _CARD_TTL = 7 * 86400                     # ad concepts live 3 days; keep a margin
@@ -204,9 +214,27 @@ def _env_channel(key) -> str | None:
     return (os.environ.get(f"SLACK_CHANNEL_{key.upper().replace('-', '_')}") or "").strip() or None
 
 
+def site_channel(business, dedupe_key, html_text) -> str | None:
+    """Where a mirrored daycare alert goes: the proven site's sub-channel (tours, enrolled), else that
+    site's channel; A Mother's Touch to its own channel. None = no provable site (or that channel is not
+    bound): the caller falls back to the business channel, the main chat. The shared rooms get briefs
+    only, never single alerts. Fails closed: any error = None."""
+    room = next((k for pre, k in _TOPIC_BY_KEY if str(dedupe_key or "").startswith(pre)
+                 and k.startswith(business + "-")), None)
+    try:                                       # A Mother's Touch never enters an ATOB channel (fail closed)
+        import slack_rooms
+        site = slack_rooms.site_of(dedupe_key, html_text)
+    except Exception:  # noqa: BLE001
+        return None
+    if not site:
+        return None
+    sub = _SITE_SUB.get(room) if site != "amt" else None
+    return (sub and topic_channel(f"{business}-{site}-{sub}")) or topic_channel(f"{business}-{site}")
+
+
 def topic_channel(key) -> str | None:
     """The room's own channel ("daycare-tours"), or None while it has none (bound, then env)."""
-    if key not in TOPIC_KEYS + (AMT_KEY,) or os.environ.get("SLACK_ONLY_TEST") == "1":
+    if key not in TOPIC_KEYS + (AMT_KEY, KNOWLEDGE_KEY) or os.environ.get("SLACK_ONLY_TEST") == "1":
         return None
     with _LOCK:
         st = _read("slack.json")
@@ -522,17 +550,8 @@ def _deliver(html_text, business, buttons, dedupe_key, image_url=None,
     if mode() == "telegram" and not channel:
         return False
     token = _token()
-    if not channel and business in TOPICS:     # a mirrored alert goes to its site, else its room
-        room = next((k for pre, k in _TOPIC_BY_KEY if str(dedupe_key or "").startswith(pre)
-                     and k.startswith(business + "-")), None)
-        try:                                   # A Mother's Touch never enters an ATOB room (fail closed)
-            import slack_rooms
-            site = slack_rooms.site_of(dedupe_key, html_text)
-            channel = topic_channel(f"{business}-{site}") if site else None
-            if not channel and site != "amt":
-                channel = topic_channel(room) if room and slack_rooms.room_ok(dedupe_key, html_text) else None
-        except Exception:  # noqa: BLE001
-            channel = None
+    if not channel and business in TOPICS:     # a mirrored alert goes to its site's channel, else main
+        channel = site_channel(business, dedupe_key, html_text)
     channel = channel or chat_for(business)
     if not token:
         return _fail("not configured (no SLACK_BOT_TOKEN)", channel)

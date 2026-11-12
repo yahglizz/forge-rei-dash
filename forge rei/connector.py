@@ -3261,6 +3261,9 @@ def api_owner_actions(_q):
 
 
 ROUTES["/api/owner-actions"] = api_owner_actions
+# #forge-knowledge (slack_knowledge): the agents' knowledge base in Slack. GET = read (DATA, it taints
+# chat writes like any outside text); POST /api/knowledge/post is in do_POST (chat AUTO tier).
+ROUTES["/api/knowledge"] = lambda q: __import__("slack_knowledge").read((q.get("q", [""]) or [""])[0])
 NO_CACHE.add("/api/owner-actions")
 ROUTES["/api/mac/status"] = lambda q: mac_link.status()   # the same facts as the mac_status tool
 NO_CACHE.add("/api/mac/status")
@@ -3833,6 +3836,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "/api/stripe/link", "/api/agency/billing/send",
                                    "/api/graphify/rebuild",
                                    "/api/coach/broadcast",
+                                   "/api/knowledge/post",
                                    "/api/coach/ask",
                                    "/api/goals/update",
                                    "/api/goals/monthly/update",
@@ -4141,6 +4145,11 @@ class Handler(BaseHTTPRequestHandler):
                 # vault; writes only the graph file). Handy after a big code change.
                 import graphify_build
                 result = graphify_build.build_graph()
+            elif parsed.path == "/api/knowledge/post":
+                # One note into Slack #forge-knowledge. Chat stamps the real agent id (dash_live._write);
+                # the dashboard UI posts as the owner. PII / key-shaped text is refused in slack_knowledge.
+                import slack_knowledge
+                result = slack_knowledge.post(body.get("text"), body.get("agent") or "owner")
             elif parsed.path == "/api/coach/broadcast":
                 # An agent shares a transferable INSIGHT (text) with a peer/business/all.
                 result = agents_hub.coach_broadcast(body.get("from"), body.get("insight"),
