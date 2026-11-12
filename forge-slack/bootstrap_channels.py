@@ -12,7 +12,12 @@ import json, os, pathlib, sys, urllib.parse, urllib.request
 CHANNELS = {"HQ": "forge-hq", "DAYCARE": "forge-daycare", "AGENCY": "forge-agency", "WHOLESALE": "forge-wholesale",
             # daycare rooms (slack_io.TOPICS): one channel per kind of enrollment news
             "DAYCARE_ALERTS": "daycare-alerts", "DAYCARE_TOURS": "daycare-tours", "DAYCARE_QUOTES": "daycare-quotes",
-            "DAYCARE_STARTING": "daycare-starting", "DAYCARE_ENROLLED": "daycare-enrolled"}
+            "DAYCARE_STARTING": "daycare-starting", "DAYCARE_ENROLLED": "daycare-enrolled",
+            # one channel per daycare site (slack_rooms.site_of). AMT = separate legal entity.
+            "DAYCARE_ATOB_ONE": "daycare-921", "DAYCARE_ATOB_TWO": "daycare-2318", "DAYCARE_AMT": "amt-1923"}
+PURPOSE = {"DAYCARE_ATOB_ONE": "A Touch of Blessings, 921 N 18th St: this site's leads, parent replies, tours, start dates.",
+           "DAYCARE_ATOB_TWO": "A Touch of Blessings 2, 2318 Cecil B. Moore: this site's leads, parent replies, tours, start dates.",
+           "DAYCARE_AMT": "A Mother's Touch, 1923 Cecil B. Moore (separate entity): its alerts only. No ATOB data here."}
 DIR = pathlib.Path(os.environ.get("FORGE_SLACK_CONFIG_DIR") or pathlib.Path(__file__).parent / "config")
 
 
@@ -94,6 +99,8 @@ def main(dry):
             sys.exit(f"create #{name} failed: {r.get('error')} {r.get('needed', '')}")
         ids[key] = r["channel"]["id"]
         print(f"created  #{name}")
+        if key in PURPOSE:
+            call(token, "conversations.setPurpose", channel=ids[key], purpose=PURPOSE[key])
     if dry:
         return
     for key, cid in ids.items():

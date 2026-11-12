@@ -175,6 +175,7 @@ def card_from(opp, stages):
     by_slug = {s["slug"]: s for s in stages}
     contact = opp.get("contact") if isinstance(opp.get("contact"), dict) else {}
     tags = contact.get("tags") or []
+    locs = {str(t).strip().lower() for t in tags if str(t).strip().lower().startswith("loc-")}
     stage = by_id.get(str(opp.get("pipelineStageId") or ""))
     slug = proposed_slug(tags, by_slug)
     prop = by_slug.get(slug) if slug else None
@@ -193,6 +194,7 @@ def card_from(opp, stages):
         "proposedStageId": prop["id"] if prop else None,
         "proposedStageName": prop["name"] if prop else None,
         "proposeTags": proposal_tags(tags),
+        "center": locs.pop() if len(locs) == 1 else "",      # the site's loc- tag; "" = none or several
     }
 
 

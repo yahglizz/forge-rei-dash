@@ -146,6 +146,15 @@ def test_view_makes_no_network_call():
     assert v["ok"] and v["configured"] and v["total"] == 1 and not v["stale"]
 
 
+def test_card_carries_its_single_site_tag():
+    stages = [{"id": "s1", "name": "New Lead", "slug": "new-lead"}]
+    def opp(tags):
+        return {"id": "o", "contactId": "c", "pipelineStageId": "s1", "contact": {"tags": tags}}
+    assert dp.card_from(opp(["LOC-921-N-18th", "x"]), stages)["center"] == "loc-921-n-18th"
+    assert dp.card_from(opp(["loc-921-n-18th", "loc-1923-cecil-b-moore"]), stages)["center"] == ""
+    assert dp.card_from(opp([]), stages)["center"] == ""
+
+
 def test_proposal_tag_parsing():
     slugs = {"new-lead", "contacted", "tour-scheduled", "application-sent", "enrolled", "lost"}
     assert dp.proposed_slug(["website-lead", "pipe-propose:tour-scheduled"], slugs) == "tour-scheduled"

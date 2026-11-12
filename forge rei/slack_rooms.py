@@ -13,7 +13,11 @@ hold (daycare_pipeline state, daycare_calendar.view, /starts) and posts to Slack
                 room is created posts that room's roster once (seed).
   roster()      the current list for a room: `/forge roster` in the room, or the Roster button.
   draft()       the "Draft reply" button: asks Solomon; his text comes back as a ✅ card.
-A Touch of Blessings board only. A Mother's Touch is a separate legal entity: never posted here.
+Site channels (site_of): #daycare-921 / #daycare-2318 get that ATOB site's alerts (lead, parent
+reply, tour reminder, start date) when the family's board card proves the site; those win over
+the rooms above. #amt-1923 gets alerts for families on the AMT board only.
+A Touch of Blessings board only. A Mother's Touch is a separate legal entity: never posted in an
+ATOB room or site channel.
 Slack-only (rooms don't exist in Telegram); inert while FORGE_CHAT_TRANSPORT=telegram.
 """
 from __future__ import annotations
@@ -157,9 +161,32 @@ def room_ok(dedupe_key, text) -> bool:
         return False
     ids = set(re.findall(r"[A-Za-z0-9]{12,}", str(dedupe_key or "")))
     atob, amt = _board_contacts(BOARD), _board_contacts("amt")
-    if not ids or atob is None or amt is None:
+    if not ids or atob is None or amt is None or not ids & atob or ids & amt:
         return False
-    return bool(ids & atob) and not ids & amt
+    import daycare_pipeline                    # an AMT site tag on an ATOB card still fails closed
+    return not any("1923" in str(c.get("center") or "") for c in daycare_pipeline._load(BOARD).get("cards") or []
+                   if c.get("contactId") in ids)
+
+
+SITE_BY_CENTER = {"loc-921-n-18th": "atob-one", "loc-2318-cecil-b-moore": "atob-two"}
+
+
+def site_of(dedupe_key, text) -> str | None:
+    """Which site channel a daycare alert belongs in, proven from the boards, never from its text
+    (a parent's quoted words can name any address): "amt" when its contact is on the AMT board and
+    not the ATOB one; "atob-one"/"atob-two" when room_ok passes and the family's ATOB card carries
+    exactly that site's loc- tag. None = cannot prove it (it stays in its room / #forge-daycare)."""
+    ids = set(re.findall(r"[A-Za-z0-9]{12,}", str(dedupe_key or "")))
+    atob, amt = _board_contacts(BOARD), _board_contacts("amt")
+    if not ids or atob is None or amt is None:
+        return None
+    if ids & amt and not ids & atob:
+        return "amt"
+    if not room_ok(dedupe_key, text):
+        return None
+    import daycare_pipeline
+    centers = {c.get("center") for c in daycare_pipeline._load(BOARD).get("cards") or [] if c.get("contactId") in ids}
+    return SITE_BY_CENTER.get(centers.pop()) if len(centers) == 1 else None
 
 
 # ── stage moves + first-run seed ──────────────────────────────────────────────
@@ -183,7 +210,8 @@ def on_refresh(after, location_id=None, board=BOARD) -> int:
                      if c.get("opportunityId") and now_map[c["opportunityId"]] != known.get(c["opportunityId"])]
             posts = [(c, STAGE_TOPIC.get(now_map[c["opportunityId"]].strip().lower())) for c in moved]
             both = _board_contacts("amt") or set()     # a family also on the AMT board stays out
-            posts = [(c, t) for c, t in posts if t and _room(t) and c.get("contactId") not in both]
+            posts = [(c, t) for c, t in posts if t and _room(t) and c.get("contactId") not in both
+                     and "1923" not in str(c.get("center") or "")]
             failed = set()
             for c, topic in posts[:MAX_EVENTS]:
                 was = known.get(c["opportunityId"])

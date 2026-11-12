@@ -61,8 +61,12 @@ BUSINESSES = ("wholesale", "agency", "daycare", "dropship")
 # Rooms inside a business: its own channel per kind of news. Key "<business>-<topic>" in
 # slack.json, env SLACK_CHANNEL_<BUSINESS>_<TOPIC>. An unbound room falls back to the business
 # channel. A room IS its business for chat (Solomon answers in #daycare-tours) and for taps.
-TOPICS = {"daycare": ("alerts", "tours", "quotes", "starting", "enrolled")}
+# atob-one / atob-two = the A Touch of Blessings sites (921 N 18th, 2318 Cecil B Moore): that site's
+# alerts. AMT_KEY = A Mother's Touch (1923), a separate legal entity: alerts only, NOT a room (no
+# agent chat, no taps there), so nothing about ATOB can land in it.
+TOPICS = {"daycare": ("alerts", "tours", "quotes", "starting", "enrolled", "atob-one", "atob-two")}
 TOPIC_KEYS = tuple(f"{b}-{t}" for b, ts in TOPICS.items() for t in ts)
+AMT_KEY = "daycare-amt"
 # Which room a mirrored alert lands in, by its dedupe_key prefix (the senders' own keys).
 _TOPIC_BY_KEY = (("daycare-lead:", "daycare-alerts"), ("dcreply:", "daycare-alerts"),
                  ("cal-remind:", "daycare-tours"), ("daycare-start:", "daycare-starting"))
@@ -202,7 +206,7 @@ def _env_channel(key) -> str | None:
 
 def topic_channel(key) -> str | None:
     """The room's own channel ("daycare-tours"), or None while it has none (bound, then env)."""
-    if key not in TOPIC_KEYS or os.environ.get("SLACK_ONLY_TEST") == "1":
+    if key not in TOPIC_KEYS + (AMT_KEY,) or os.environ.get("SLACK_ONLY_TEST") == "1":
         return None
     with _LOCK:
         st = _read("slack.json")
@@ -518,12 +522,15 @@ def _deliver(html_text, business, buttons, dedupe_key, image_url=None,
     if mode() == "telegram" and not channel:
         return False
     token = _token()
-    if not channel and business in TOPICS:     # a mirrored alert goes to its room when it has one
+    if not channel and business in TOPICS:     # a mirrored alert goes to its site, else its room
         room = next((k for pre, k in _TOPIC_BY_KEY if str(dedupe_key or "").startswith(pre)
                      and k.startswith(business + "-")), None)
-        try:                                   # A Mother's Touch never enters a room (fail closed)
+        try:                                   # A Mother's Touch never enters an ATOB room (fail closed)
             import slack_rooms
-            channel = topic_channel(room) if room and slack_rooms.room_ok(dedupe_key, html_text) else None
+            site = slack_rooms.site_of(dedupe_key, html_text)
+            channel = topic_channel(f"{business}-{site}") if site else None
+            if not channel and site != "amt":
+                channel = topic_channel(room) if room and slack_rooms.room_ok(dedupe_key, html_text) else None
         except Exception:  # noqa: BLE001
             channel = None
     channel = channel or chat_for(business)

@@ -248,7 +248,7 @@ def _chats() -> str:
         ch = slack_io.chat_for(b) if b != "hq" else slack_io.chat_for(None)
         own = b == "hq" or slack_io.business_of(ch) == b
         lines.append(f"{b} — " + (f"✅ <code>{ch}</code>" if ch and own else "→ HQ (not bound)"))
-    for k in slack_io.TOPIC_KEYS:
+    for k in slack_io.TOPIC_KEYS + (slack_io.AMT_KEY,):
         ch = slack_io.topic_channel(k)
         lines.append(f"  {k} — " + (f"✅ <code>{ch}</code>" if ch else f"→ {k.split('-')[0]} channel"))
     lines.append("\nIn a private channel with me: <code>/forge bind daycare</code> (agency · wholesale · dropship · hq).")
