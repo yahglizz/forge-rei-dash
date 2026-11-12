@@ -44,16 +44,44 @@ def existing(token):
             return found
 
 
+def untrusted_reason(token, cid, bot_id, owners):
+    """Why an EXISTING channel must not be reused as a FORGE channel (name-squatting guard), or ''.
+    Reuse only a channel this bot created, that is private and unshared, whose members are the
+    owner(s) plus the bot. Fails closed on any API error."""
+    r = call(token, "conversations.info", channel=cid)
+    c = r.get("channel") or {}
+    if not r.get("ok"):
+        return f"cannot inspect ({r.get('error')})"
+    if not c.get("is_private") or c.get("is_im") or c.get("is_mpim"):
+        return "not a private channel"
+    if any(c.get(k) for k in ("is_shared", "is_ext_shared", "is_org_shared", "is_pending_ext_shared")):
+        return "shared outside the workspace"
+    if c.get("creator") != bot_id:
+        return "was not created by the FORGE bot"
+    m = call(token, "conversations.members", channel=cid, limit="200")
+    if not m.get("ok") or (m.get("response_metadata") or {}).get("next_cursor"):
+        return "member list unavailable or too long"
+    strangers = [u for u in m.get("members", []) if u != bot_id and u not in owners]
+    return f"{len(strangers)} unexpected member(s)" if strangers else ""
+
+
 def main(dry):
     env = load("slack.env")
-    token, owners = env.get("SLACK_BOT_TOKEN", ""), [u for u in env.get("SLACK_ALLOWED_USER_IDS", "").split(",") if u.strip()]
+    token, owners = env.get("SLACK_BOT_TOKEN", ""), [u.strip() for u in env.get("SLACK_ALLOWED_USER_IDS", "").split(",") if u.strip()]
     if not token.startswith("xoxb-") or not owners:
         sys.exit("need SLACK_BOT_TOKEN and SLACK_ALLOWED_USER_IDS in slack.env")
+    auth = call(token, "auth.test")
+    if not auth.get("ok"):
+        sys.exit(f"auth.test failed: {auth.get('error')}")
+    bot_id = auth["user_id"]
     have, ids = existing(token), {}
     for key, name in CHANNELS.items():
         if name in have:
+            why = untrusted_reason(token, have[name], bot_id, owners)
+            if why:
+                sys.exit(f"REFUSING to reuse existing #{name}: {why}. Rename or archive it, then re-run.")
             ids[key] = have[name]
-            print(f"exists   #{name}")
+            print(f"exists   #{name} (verified: private, created by the bot, owner-only)")
             continue
         if dry:
             print(f"would create private #{name}")
