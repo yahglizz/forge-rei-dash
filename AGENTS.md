@@ -11,10 +11,10 @@ own. One agent per business (three active, one archived) + the CEO, Orion.*
 > then this. (This replaced an older Codex-era operating-manual copy; the
 > operating-manual content is canonical in `CLAUDE.md`, not duplicated here.)
 
-*Last updated: 2026-09-30.*
+*Last updated: 2026-11-11.*
 
 > **Per-agent cards live in [`agents/`](agents/), one file per agent, filed by
-> business.** This file is the single-page overview and is current as of 2026-09-30
+> business.** This file is the single-page overview and is current as of 2026-11-11
 > (one agent per business + Orion). `CLAUDE.md` §2 and §5 remain canonical for autonomy.
 > Checked by `forge rei/test_agents_docs.py`.
 
@@ -87,10 +87,15 @@ process from the agent's own folder, loads that folder's files with a recorded h
 Anthropic key. Workflows name a fixed task; owner chat has dashboard-chat tools and gates. Details:
 `CLAUDE.md` §8a.
 
-### Telegram routing
-Each business has its own chat (`/bind daycare|agency|wholesale|dropship`); everything about a
-business — alerts, pings, loop-down/recovered, receipts — goes ONLY to that chat. HQ keeps
-system alerts (Anthropic credits/auth, clock, sync, graph builder) and Orion.
+### Chat routing (Telegram + Slack)
+Each business has its own Telegram chat (`/bind daycare|agency|wholesale|dropship`). When
+`FORGE_CHAT_TRANSPORT` is `both` or `slack`, Slack runs beside it: one private, owner-only channel per
+business (`#forge-hq`, `#forge-daycare`, `#forge-agency`, `#forge-wholesale`; dropship has none while
+archived), bound with `/forge bind <business>`. Everything about a business — alerts, pings,
+loop-down/recovered, receipts — goes ONLY to that business's chat or channel. HQ keeps system alerts
+(Anthropic credits/auth, clock, sync, graph builder) and Orion. A card can be tapped in either app; the
+first tap wins and the other app's buttons are refused. Details: `CLAUDE.md` §5 and
+`docs/runbooks/slack-cutover.md`.
 
 ---
 

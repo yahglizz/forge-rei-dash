@@ -105,7 +105,7 @@ Business-truth for the daycare lives **outside** this repo in the private
 | Tailscale Serve / Funnel | box | Serve → :7799 (tailnet only). Funnel :8443 → portal :10000 (public); `/gateway` → agent gateway 127.0.0.1:10001 (public, keyed; n8n's door to the agents, see `CLAUDE.md` §8a). |
 | ufw | box | deny incoming except 22/tcp + `tailscale0`. |
 | **Runs on the Mac (dev box)** | launchd | `com.forge.autosync` (code → GitHub), `com.agentic.brain-sync` (vault box→Mac, every 6 h), `com.graphify.brain-sync`. `~/Desktop/LeadScraper` (Apify) is Mac-only. **If the Mac is closed, production keeps running**; only vault mirroring to the Mac and lead scraping pause. |
-| Not present | — | No n8n on the box (n8n Cloud `atob.app.n8n.cloud` calls in through the gateway), no cron jobs, no Docker, no queue system, no inbound webhooks (Telegram is long-poll). cloudflared binary present but unused/stale. |
+| Not present | — | No n8n on the box (n8n Cloud `atob.app.n8n.cloud` calls in through the gateway; the Slack DM path runs in n8n Cloud too, see §12), no cron jobs, no Docker, no queue system, no inbound webhooks on the box (Telegram is long-poll; Slack is Socket Mode, outbound WebSocket only). cloudflared binary present but unused/stale. |
 
 ## 8. Businesses — active vs archive
 
@@ -152,3 +152,36 @@ Independent review: Codex CLI (gpt-6-astra) confirmed the two HIGH trust-model f
 ## 11. Reusable systems (do not rebuild)
 
 `sms_guard` (single outbound SMS gate) · `marcus_engine._no_price_over_text` (pattern for a `_no_unverified_fact` guard) · `scout_triage` (poll → score → bucket → reversible tag) · `followup` · `autopilot.maybe_send` gates · `telegram_io` tap-to-approve · `forge_heartbeat` + watchdog · `cost_tracker` thread attribution · `agent_bus` + `agents_hub` tasks · `agent_creed` (un-rewritable evidence discipline) · `brain_io` · `mission_control` snapshot · `daily_brief` / `daily_recap` · `daycare_ghl` (lead vs enrolled, contact→child ledger) · `daycare_supabase` capacity reads · `agency_callsheet` + `agency_calls` (call queue + tally) · `agency_approvals_io` · website `/api/enroll` + GHL speed-to-lead workflow (private brand-kit repo).
+
+## 12. Slack transport (2026-11-11)
+
+Slack runs beside Telegram. `FORGE_CHAT_TRANSPORT` = `telegram` (default) | `both` | `slack`, set in the box EnvironmentFile `/etc/default/forge-reios`. Listener flag `FORGE_SLACK=1` (needs `FORGE_MARCUS=1`, box only). Per the fact sheet, live now: `FORGE_SLACK=1`, `FORGE_CHAT_TRANSPORT=both`, soak from 2026-11-12 00:30 UTC.
+
+| Piece | Where | Role |
+|---|---|---|
+| Socket Mode client, sends, cards, taps, claim | `forge rei/slack_io.py` | App A listener |
+| `/forge` router, channel chat, DM chat | `forge rei/slack_inbound.py` | Same router as Telegram ops |
+| Mirror hooks | `forge rei/telegram_io.py` | `send` / `send_photo` / `_send_to` mirror; claim on taps |
+| Selftest, listener start, health | `forge rei/connector.py` | `slackselftest` action; listener in the `LOOPS_ENABLED` block; slack status in `/api/health` |
+| Smoke test, channel bootstrap | `forge-slack/` | `smoke_test.py`, `bootstrap_channels.py`; `config/*.env` gitignored |
+
+**Two apps, one workspace:**
+- App A "claude" (A0CGH3MHL15): Socket Mode, on the box. Channels, alerts, tap cards, `/forge`.
+- App B "Forge Agents" (A0CH2JN94LC): owner DMs through n8n. Events API → n8n webhook.
+One Slack app cannot run Socket Mode and an HTTP events URL at once. That is the same reason Telegram has two bots. Socket Mode is outbound only, so the box takes no inbound Slack traffic.
+
+**Channels** (private, owner-only): `#forge-hq`, `#forge-daycare`, `#forge-agency`, `#forge-wholesale`. Dropship has none while archived. Ids live in `forge-slack/config/slack-channels.env` (gitignored) and on the box in `/opt/forge/forge-slack/config/`. `/forge bind <business>` rebinds a channel. It accepts only a private, unshared channel and, for HQ, only owner and bot members. `#forge-hq` must stay owner-only, because Mac command output is copied there.
+
+**Tap rules:** a Slack tap runs only if the user is in `SLACK_ALLOWED_USER_IDS`, the channel is HQ or a bound business channel, the click channel equals the card's channel, and the card is unused. A mirrored card has one live button across Telegram and Slack; the first tap claims it. Unknown or expired cards return "expired". Mac cards can run only from an id in `FORGE_GATEWAY_OWNER_IDS` (Telegram numeric ids), so Slack cannot run them. That fails safe.
+
+**Commands:** `/forge help|bind|today|hot|status|...` uses the same router as Telegram ops. Wholesale commands run in the wholesale channel, or in HQ while wholesale has none. Free text in a business channel goes to that business's agent. In HQ or a DM, start with an agent name (solomon, marcus, atlas, dyson, eco, scout, midas, orion). Not ported: `/task`, `/agents`, `/ace`, `/menu`, plain-English ops outside `/forge`, and the agent_gateway owner path.
+
+**n8n:** workflow "FORGE Slack Agent Chat" (id IdaV0FLI0JFFCTMD, published) has a Slack Trigger on App B with an owner-only DM filter, and calls the unchanged "FORGE Agent Dispatch" (XNvR287qpWUR6xPk). The live Telegram workflow "FORGE Agent Chat" (tEvB32PbQepvq9gl) is untouched until cutover. At cutover its Telegram trigger is deactivated, not deleted. Known caveat: the box gateway accepts only the owner's Telegram numeric id as `sender_id`, so the Slack workflow sends that id. The real gate is the owner-only filter plus the Slack signing secret.
+
+**Security:** two independent reviews (`docs/superpowers/plans/refs/08` and `09`), no critical or high findings open. Never put `FORGE_CHAT_TRANSPORT` or `SLACK_ONLY_TEST` in config files; the loader ignores them.
+
+**Tests:** 163 across 13 modules (`test_slack_io`, `test_slack_mirror`, `test_slack_taps`, `test_slack_claim`, `test_slack_listener`, `test_slack_inbound`, `test_slack_hardening`, `test_tap_idempotency`, `test_telegram_ace`, `test_telegram_agent`, `test_daycare_ads_tg`, `test_watchdog_alerts`, `test_telegram_biz_chats`). Run: `cd "forge rei" && FORGE_MARCUS=0 python3 -m unittest <modules>`.
+
+**Deploy:** the live source is `~/forge rei dash`, and the box pulls from GitHub `main` every 60 s. The AgentDrive checkout can be far behind, so run `git fetch origin main` first. Box: Python 3.12, `slack_sdk==3.46.0` (installed with `pip3 install --break-system-packages`).
+
+**Cutover and rollback:** `docs/runbooks/slack-cutover.md`.
