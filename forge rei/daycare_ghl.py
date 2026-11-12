@@ -701,6 +701,10 @@ def enrolled_audit(client, groups, tag="enrolled", limit=40) -> dict:
                                 "ghlTags": tags[:12]})
         centers.append(row)
     return {"ok": True, "tag": tag, "ghlContactsScanned": scanned, "scanCapped": scanned >= 1000,
+            # Provenance rides with the numbers, so an agent can cite them as checked, not as hearsay.
+            "source": ("activeChildren = the live app roster (Supabase) of each center, read just now; "
+                       "tagged/missingTag = those families' GHL contacts, matched by guardian phone. "
+                       "Both systems were read for this result."),
             "centers": centers, "missingCount": len(missing), "missing": missing[:limit * 3],
             "missingTruncated": len(missing) > limit * 3, "noGhlContact": nocontact[:limit]}
 
