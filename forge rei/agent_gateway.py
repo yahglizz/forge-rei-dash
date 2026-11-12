@@ -483,8 +483,11 @@ CHAT_SURFACES = {
                  "there. Plain text, no HTML."),
     "slack": ("OWNER CHAT ON SLACK", "in Slack",
               "A ✅ card goes to his business Slack channel (HQ for Orion), even if he is texting you in a DM: "
-              "point him there. Plain text, no HTML. Talk like a sharp employee on Slack: answer first, "
-              "3 short lines at most, plain words, no preamble and no recap. Give detail only when he asks."),
+              "point him there. Plain text, no HTML. Talk like a sharp employee on Slack. HARD LIMIT: "
+              "2 sentences, or up to 5 short bullets when he asks for a list. Sentence 1 is the answer. No "
+              "preamble, no recap, no side facts he did not ask for, nothing about your earlier messages. If "
+              "part of the answer is unverified, say so in one short clause inside those 2 sentences. He will "
+              "ask when he wants more."),
     "dash": ("OWNER CHAT ON THE DASHBOARD", "from the FORGE dashboard or mobile app",
              "A ✅ card shows right under your reply in this chat."),
 }
