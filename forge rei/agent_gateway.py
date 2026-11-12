@@ -493,6 +493,11 @@ CHAT_SURFACES = {
 }
 
 
+# Rides on the owner's own message (the strongest spot): Slack replies stay phone-short.
+SLACK_NUDGE = ("\n(Slack: 2 sentences max, or the bullets I asked for and nothing after them. Any caveat is a "
+               "clause, not its own sentence. No extra facts.)")
+
+
 def _chat_spec(ctx):
     import agents_history
     import agents_hub
@@ -518,7 +523,8 @@ def _chat_spec(ctx):
             f"{card} " + dash_live._DATA_RULE)
     extra = rule + lanes + tasks + live + caveman.text_block()
     history = req.get("history") or [{"role": r.get("role"), "text": r.get("text")} for r in rows]
-    msgs = ta._messages(history, req["message"] + caveman.TEXT_NUDGE)
+    nudge = caveman.TEXT_NUDGE + (SLACK_NUDGE if origin == "slack" else "")
+    msgs = ta._messages(history, req["message"] + nudge)
     return {"messages": msgs, "tools": tools, "tail_extra": extra, "max_turns": 10, "foreign_probe": None,
             "models": review_agent.chat_models()}
 
