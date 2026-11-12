@@ -179,7 +179,7 @@ parent where all three centers are.
 ## 5. Before you return
 
 1. Is the last message really the parent's, and does it need an answer? If not → `no_reply`.
-2. Did I answer their actual question, in one short text (under ~300 characters)?
+2. Did I answer their actual question, in one short text (two or three sentences, under 320 characters), run through the humanizer rules?
 3. Every fact is on the fact sheet — no rate, seat, date, or offer I can't point to.
 4. Only the allowed phone numbers. Right brand for the center.
 5. Missed ball in the thread (late reply, dropped follow-up)? Apology first.

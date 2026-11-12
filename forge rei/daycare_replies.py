@@ -85,7 +85,7 @@ KEYWORDS = {"stop", "stopall", "unsubscribe", "cancel", "end", "quit", "start", 
 OUR_SIGNATURES = ("this is management over at", "this is yahjair over at")
 # The only numbers a draft may carry (fact sheet in daycare-parent-reply.md).
 ALLOWED_PHONES = {"2152365439", "2157870100", "8884615437"}   # 1-888-461-KIDS
-MAX_CHARS = 480                        # 3 SMS segments
+MAX_CHARS = 320                        # 2 SMS segments: owner rule 2026-11-12, short and straight
 
 _PHONE_RE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?(?:\d{4}|KIDS)", re.I)
 _MONEY_RE = re.compile(r"\$\s?\d")
@@ -424,14 +424,17 @@ def _system():
     import daycare_context
     rubric = daycare_context.load_skill("daycare-parent-reply.md").strip()
     voice = daycare_context.load_skill("daycare-voice.md").strip()
-    if not rubric or not voice:
-        raise RuntimeError("daycare-parent-reply.md / daycare-voice.md missing — no draft")
+    human = daycare_context.load_skill("daycare-humanizer.md").strip()
+    if not rubric or not voice or not human:
+        raise RuntimeError("daycare-parent-reply.md / daycare-voice.md / daycare-humanizer.md missing — no draft")
     return ("You are Solomon's family-comms desk at A Touch of Blessings. You draft the next "
             "text back to a parent; the owner approves and sends it. Output JSON only."
             + agent_creed.block("daycare")
             + daycare_context.context_block(6000)
             + "\n\n=== PARENT REPLY RUBRIC + VERIFIED FACT SHEET (facts here win) ===\n" + rubric
-            + "\n\n=== HOW ATOB TEXTS (voice) ===\n" + voice)
+            + "\n\n=== HOW ATOB TEXTS (voice) ===\n" + voice
+            + "\n\n=== HUMANIZER: SHORT, STRAIGHT, POLITE (apply to every draft; wins on style, never on facts) ===\n"
+            + human)
 
 
 def _child_age(contact, now):

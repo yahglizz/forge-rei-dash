@@ -359,6 +359,14 @@ def test_age_from_website_form():
     assert dr._is_ccis({"tags": ["pay-ccis-subsidy"]}) and not dr._is_ccis({"tags": ["pay-private-pay"]})
 
 
+def test_humanizer_rules_ride_every_draft():
+    """Owner rule 2026-11-12: every parent reply is humanized, short, straight and polite."""
+    sysmsg = dr._system()
+    assert "HUMANIZER" in sysmsg and "sorry for the wait" in sysmsg and "under 320 characters" in sysmsg
+    assert sysmsg.index("HOW ATOB TEXTS") < sysmsg.index("HUMANIZER")         # humanizer has the last word
+    assert dr.MAX_CHARS == 320 and "long" in dr.flags("x" * 321) and "long" not in dr.flags("x" * 300)
+
+
 def test_owner_handoff():
     sent = []
     import telegram_io
@@ -419,5 +427,6 @@ if __name__ == "__main__":
     test_send_quote_button_end_to_end()
     test_pricing_card_layout_and_retry()
     test_age_from_website_form()
+    test_humanizer_rules_ride_every_draft()
     test_ai_down_stops_sweep()
     print("test_daycare_replies: all passed")
