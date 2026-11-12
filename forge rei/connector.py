@@ -2493,6 +2493,11 @@ telegram_io.set_actions({
     "startsend": lambda cid: (
         {"error": "Agents are clocked out. Clock them in first."} if forge_ops.paused()
         else daycare_starts.send_login(cid, DAYCARE_GHL, _daycare_start_session, _daycare_start_mint)),
+    # Solomon · Replies: the owner's tap on a "Send quote" card. The only path that texts a rate quote
+    # (owner rule 2026-11-12); refuses a draft that changed since the card.
+    "quotesend": lambda arg: (
+        {"error": "Agents are clocked out. Clock them in first."} if forge_ops.paused()
+        else daycare_replies.send_quote_tap(DAYCARE_GHL, arg)),
     # Clock the agent crew out / in from a Telegram button tap.
     "opspause": lambda _a=None: forge_ops.set_paused(True),
     "opsresume": lambda _a=None: forge_ops.set_paused(False),

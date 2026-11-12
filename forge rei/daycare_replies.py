@@ -30,6 +30,7 @@ a family-facing message. Stdlib only.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -233,21 +234,51 @@ def notify_owner(d):
         parts = [f"{head}\n{e(who)}" + (f" · {e(d['center'])}" if d.get("center") else "") + f" texted:\n“{e((d.get('inboundText') or '')[:300])}”"]
         if unknowns:
             parts.append("He didn't state: " + e("; ".join(u[:120] for u in unknowns[:4])))
+        buttons = None
         if quote and not unknowns and d.get("action") != "escalate":
             parts.append(f"Basis: {e(d.get('quoteBasis') or 'none')}")
             parts.append(f"Quote draft (NOT sent — only your tap sends it): “{e(d['draft'][:480])}”")
-            parts.append("Approve or edit: Messages tab. Nothing goes out until you tap.")
+            if "money_unverified" in (d.get("flags") or []):
+                parts.append("⚠ A dollar figure here is not on the rate sheet for this child. No send button: fix it in the Messages tab.")
+            else:
+                parts.append("Tap Send quote to text exactly this draft, or edit it in the Messages tab. Nothing goes out until you tap.")
+                buttons = [[{"text": "💲 Send quote", "callback_data": f"quotesend:{d.get('contactId')}:{quote_token(d.get('draft'))}"}]]
         else:
             if d.get("draft"):
                 parts.append(("Holding line " + ("auto-sent" if d.get("autoEligible") and AUTO else "drafted")
                               + f": “{e(d['draft'][:240])}”"))
             parts.append("Step in: Messages tab (or reply in GHL — he stops as soon as you do).")
-        telegram_io.send_biz("daycare", "\n".join(parts),
+        telegram_io.send_biz("daycare", "\n".join(parts), buttons=buttons,
                              dedupe_key=f"dcreply:{d.get('contactId')}:{d.get('inboundId')}")
         return True
     except Exception as e:  # noqa: BLE001
         print(f"[daycare_replies] notify_owner: {type(e).__name__}: {str(e)[:120]}")
         return False
+
+
+def quote_token(draft):
+    """8 hex chars of the draft text. The Send quote button carries it, so a tap sends only the
+    exact text the owner read on the card, never a newer redraft."""
+    return hashlib.sha1((draft or "").strip().encode("utf-8")).hexdigest()[:8]
+
+
+def send_quote_tap(client, arg, now=None):
+    """The Send quote button (Slack or Telegram), arg = "<contactId>:<token>". The ONLY way a
+    rate quote goes out without the owner typing it. Same gates as approve(): live thread re-check,
+    opt-out, 8am-9pm ET. Refuses a draft that changed since the card, or one carrying a dollar
+    figure the rate sheet does not give for this child."""
+    cid, _, tok = str(arg or "").rpartition(":")
+    d = (_load().get("drafts") or {}).get(cid)
+    if not cid or not d or d.get("status") != "pending":
+        return {"ok": False, "error": "no pending quote for that parent (already sent, dismissed, or answered)"}
+    if tok != quote_token(d.get("draft")):
+        return {"ok": False, "error": "that draft changed since the card. Review the new one in the Messages tab."}
+    if "money_unverified" in (d.get("flags") or []) or not d.get("quoteBasis"):
+        return {"ok": False, "error": "this quote is not backed by the rate sheet. Edit it in the Messages tab."}
+    res = approve(client, cid, text=d["draft"], now=now)
+    if res.get("ok"):
+        res = dict(res, message="Quote sent.")
+    return res
 
 
 def auto_eligible(res, kind):

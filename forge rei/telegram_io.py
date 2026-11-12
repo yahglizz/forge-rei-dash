@@ -728,6 +728,7 @@ def _result_text(action, result):
         "reqdismiss": "\U0001f5d1 Request dismissed",
         "dysongo": "✅ Approved — shipping",
         "dysonno": "\U0001f5d1 Plan rejected",
+        "quotesend": "💲 Quote sent",
     }
     return labels.get(action, "✅ Done")
 
@@ -738,7 +739,8 @@ _TAP_AGENT = (("approve", "marcus", "wholesale"), ("mdismiss", "marcus", "wholes
               ("ace", "ace", "wholesale"), ("dyson", "dyson", "agency"),
               ("reqdismiss", "dyson", "agency"), ("skill", "skill_forge", None),
               ("ops", "operator", None), ("pgo", "partner", None), ("pno", "partner", None),
-              ("ads", "solomon", "daycare"), ("startsend", "solomon", "daycare"))   # daycare_ads_tg cards (2026-10-17)
+              ("ads", "solomon", "daycare"), ("startsend", "solomon", "daycare"),
+              ("quotesend", "solomon", "daycare"))   # daycare_ads_tg cards (2026-10-17)
 
 
 def _foreign_mac_tap(tok, from_id):
