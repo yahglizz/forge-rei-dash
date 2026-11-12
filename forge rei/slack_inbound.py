@@ -42,6 +42,12 @@ def _ops_commands() -> list[str]:
     return m.group(1).split("|") if m else []
 
 
+def _COMMANDS() -> set:
+    """Every word that works as /<word> or /forge <word>."""
+    return {"forge", "help", "bind", "agents", "who", "ace", "chats", "whoami", "id", "menu", "task",
+            *_QUICK, *_AGENTS, *_ops_commands()}
+
+
 def help_text() -> str:
     ops = " · ".join(f"`{c}`" for c in _ops_commands())
     return ("*FORGE in Slack* — `/forge <command>`\n"
@@ -169,7 +175,7 @@ def _slash(p):
     biz = slack_io.business_of(channel)
     if not dm and biz is None:
         return _eph("Use /forge in a FORGE channel (bind it first) or in a DM with me.")
-    _handle_text(text, channel, None if biz in (None, "hq") else biz, None, slash=True, user=user)
+    _handle_text(text, channel, None if biz in (None, "hq") else biz, p.get("thread_ts"), slash=True, user=user)
     return {}
 
 
@@ -193,6 +199,15 @@ def _message(ev):
     biz = slack_io.business_of(channel)
     if ev.get("channel_type") != "im" and biz is None:
         return                                  # not a FORGE channel
+    first, _, rest = text.partition(" ")
+    if first.startswith("/") and first[1:].lower() in _COMMANDS():
+        # Slack runs no slash commands in threads, on some phones, or when its popup swallowed the
+        # command: the literal "/task x" arrives as a message. Run it as the command it is.
+        body = _slash({"command": first, "text": rest, "user_id": user, "channel_id": channel,
+                       "thread_ts": ev.get("thread_ts")})
+        if body.get("text"):
+            _poster(channel, ev.get("thread_ts"))(body["text"])
+        return
     _handle_text(text, channel, None if biz in (None, "hq") else biz,
                  ev.get("thread_ts"), slash=False, user=user)
 

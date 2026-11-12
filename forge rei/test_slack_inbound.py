@@ -316,6 +316,22 @@ class InboundTests(unittest.TestCase):
             self.assertTrue(agent_gateway.is_owner(OWNER))
             self.assertFalse(agent_gateway.is_owner("UMATE1"))       # teammate: allowlisted, not owner
 
+    def test_literal_slash_message_runs_as_the_command(self):
+        """Threads / phones / a swallowed popup deliver "/task x" as a plain message."""
+        hub = mock.MagicMock(send_task=mock.MagicMock(return_value={"ok": True}))
+        with mock.patch.dict(sys.modules, {"agents_hub": hub}):
+            slack_inbound.handle_message_event(msg("/task call the Smith family", channel=DAYCARE, thread_ts="7.7"))
+        hub.send_task.assert_called_once_with("solomon", "call the Smith family")
+        self.assertEqual(self.posts()[0][1], "7.7")                    # answered in the thread
+        slack_inbound.handle_message_event(msg("/forge agents", channel=DAYCARE))
+        slack_inbound.handle_message_event(msg("/solomon how many tours?", channel=HQ))
+        self.assertIn(("solomon", "how many tours?", f"slack:{HQ}"), self.chats)
+        n = len(self.chats)
+        slack_inbound.handle_message_event(msg("/home/user/file.txt is odd", channel=DAYCARE))
+        self.assertEqual(len(self.chats), n + 1)                       # not a command: plain chat
+        slack_inbound.handle_message_event(msg("/task x", channel=DAYCARE, user=STRANGER))
+        self.assertEqual(len(self.chats), n + 1)                       # strangers still ignored
+
 
 if __name__ == "__main__":
     unittest.main()
