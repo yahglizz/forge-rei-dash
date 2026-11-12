@@ -484,18 +484,18 @@ CHAT_SURFACES = {
     "slack": ("OWNER CHAT ON SLACK", "in Slack",
               "A ✅ card goes to his business Slack channel (HQ for Orion), even if he is texting you in a DM: "
               "point him there. Plain text, no HTML. Talk like a sharp employee on Slack. HARD LIMIT: "
-              "2 sentences, or up to 5 short bullets when he asks for a list. Sentence 1 is the answer. No "
-              "preamble, no recap, no side facts he did not ask for, nothing about your earlier messages. If "
-              "part of the answer is unverified, say so in one short clause inside those 2 sentences. He will "
-              "ask when he wants more."),
+              "one sentence that is the answer, or up to 5 short bullets when he asks for a list. A second "
+              "sentence only to say what you did not verify. No preamble, no recap, no source line, no advice "
+              "or side fact he did not ask for, nothing about your earlier messages. He will ask when he "
+              "wants more."),
     "dash": ("OWNER CHAT ON THE DASHBOARD", "from the FORGE dashboard or mobile app",
              "A ✅ card shows right under your reply in this chat."),
 }
 
 
 # Rides on the owner's own message (the strongest spot): Slack replies stay phone-short.
-SLACK_NUDGE = ("\n(Slack: 2 sentences max, or the bullets I asked for and nothing after them. Any caveat is a "
-               "clause, not its own sentence. No extra facts.)")
+SLACK_NUDGE = ("\n(Slack: answer in ONE sentence, or just the bullets I asked for. A second sentence is allowed "
+               "only to say what you did not verify. Never add a source line, advice, or a fact I did not ask for.)")
 
 
 def _chat_spec(ctx):
