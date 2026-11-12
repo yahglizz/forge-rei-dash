@@ -523,8 +523,7 @@ def _chat_spec(ctx):
             f"{card} " + dash_live._DATA_RULE)
     extra = rule + lanes + tasks + live + caveman.text_block()
     history = req.get("history") or [{"role": r.get("role"), "text": r.get("text")} for r in rows]
-    nudge = caveman.TEXT_NUDGE + (SLACK_NUDGE if origin == "slack" else "")
-    msgs = ta._messages(history, req["message"] + nudge)
+    msgs = ta._messages(history, req["message"] + caveman.TEXT_NUDGE + (SLACK_NUDGE if origin == "slack" else ""))
     return {"messages": msgs, "tools": tools, "tail_extra": extra, "max_turns": 10, "foreign_probe": None,
             "models": review_agent.chat_models()}
 
