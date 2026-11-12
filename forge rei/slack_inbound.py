@@ -138,6 +138,8 @@ def _slash(p):
     cmd = str(p.get("command") or "/forge").strip().lower().lstrip("/")
     if cmd and cmd != "forge":                  # /today x == /forge today x
         text = f"{cmd} {text}".strip()
+    print(f"[slack] slash /{cmd} verb={text.split(' ')[0][:20].lower()!r} user={user or '?'} "
+          f"channel={channel or '?'} owner={_owner(user)}", flush=True)     # ids + verb only, never the text
     if not _owner(user):
         print(f"[slack] /forge REFUSED user={user or '?'} channel={channel or '?'}", flush=True)
         return _eph("Not authorized")
