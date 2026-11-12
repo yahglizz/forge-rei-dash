@@ -155,7 +155,10 @@ def site_roster(site) -> tuple[str, list]:
     try:
         import daycare_pipeline
         v = daycare_pipeline.view(board=BOARD)
-        amt = _board_contacts("amt") or set()
+        amt, atob = _board_contacts("amt"), _board_contacts(BOARD)
+        if amt is None or atob is None:               # fail closed, like site_of: an unread board proves nothing
+            return (f"<b>{SITE_TITLE[site]}</b>\n⚠️ Can't prove which families are ATOB yet (a board hasn't been "
+                    "read). Tap Refresh on the dashboard board, then try again.", [])
         lines, total = [], 0
         for col in v.get("stages") or []:
             if col["name"].strip().lower() in _SITE_SKIP:

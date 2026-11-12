@@ -241,6 +241,11 @@ class RoomTests(unittest.TestCase):
         self.assertIn("Ben", two)
         self.assertNotIn("Ava", two)
         self.assertEqual(btn[0][0]["callback_data"], "cmd:roster atob-two")
+        with mock.patch.object(daycare_pipeline, "view", lambda board=None: view), \
+                mock.patch.object(daycare_pipeline, "_load", lambda b=None: {"cards": []}):    # boards never read
+            unread = slack_rooms.roster("atob-one")[0]
+        self.assertIn("Can't prove", unread)
+        self.assertNotIn("Ava", unread)
 
     def test_flood_is_capped_and_unroomed_moves_take_no_slot(self):
         slack_rooms.on_refresh([card(str(i), f"K{i}", "Contacted") for i in range(30)])
