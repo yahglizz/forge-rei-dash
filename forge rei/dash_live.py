@@ -819,7 +819,7 @@ _HINT = {
     "daycare": "- AD NUMBERS: before quoting any Meta ad figure, api_get /api/daycare/ads/feed and cite "
                "the window + 'Meta via Pipeboard'. unknown:true = Unknown, never 0.\n"
                f"- {ta.MAIL_HINT}\n",
-    "daycare_w": "- ENROLLED-TAG AUDIT: api_get /api/daycare/ghl/enrolled-audit?tag=enrolled gives per-center counts + the contacts missing the tag in ONE call (compact, server-side match by guardian phone) — use it instead of pulling children lists. Adding `enrolled` is AUTO; touching form/lead/family/location tags is a tap card.\n"
+    "daycare_w": "- ENROLLED-TAG AUDIT: api_get /api/daycare/ghl/enrolled-audit?tag=enrolled gives per-center counts + the contacts missing the tag in ONE call (compact, server-side match by guardian phone) — use it instead of pulling children lists. Its counts ARE the active app roster (Supabase) of each center matched against GHL tags, so one call has read both sources: cite it as 'roster + GHL, enrolled-audit' and never say you still need to cross-check the roster. Adding `enrolled` is AUTO; touching form/lead/family/location tags is a tap card.\n"
                  "- TAGGING FAMILIES: api_get /api/daycare/ghl/contacts?tag=<tag> (rows: id, name, parent, "
                  "phone, center, locTag) to find them, then ONE api_post_batch of /api/daycare/ghl/tag "
                  "{contact_id, add:[…], remove:[…]}. 1923 A Mother's Touch is a SEPARATE business — check "
