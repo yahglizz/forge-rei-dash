@@ -130,6 +130,7 @@ class KnowledgeTests(unittest.TestCase):
         self.assertIn("over", slack_knowledge.post("x" * 900, "dyson")["error"])
         self.assertIsNone(slack_knowledge.check("Risk-level rubric: ask-for-confirmation-before-planning steps", "dyson")[1])
         self.assertEqual(self.posts(), [])
+        self.assertIn("refused", slack_knowledge.check("call 215-555<@U1>-0142", "orion")[1])   # split by a mention
         clean, _ = slack_knowledge.check("heads up <!channel> @here 921 is closed Friday", "orion")
         self.assertNotIn("channel>", clean)
         self.assertNotIn("@here", clean)
@@ -151,6 +152,15 @@ class KnowledgeTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"SLACK_CHANNEL_KNOWLEDGE": ""}):
             self.assertIn("not bound", slack_knowledge.post("a fact", "solomon")["error"])
             self.assertFalse(slack_knowledge.read()["ok"])
+
+    def test_history_rows_carry_kclean_only_when_asked(self):
+        import agents_history
+        with mock.patch.object(agents_history, "STATE", Path(self.tmp.name) / "hist.json"):
+            agents_history.record("dyson", "q1", "a1", kclean=True)
+            agents_history.record("dyson", "q2", "a2")                     # a tainted turn: no mark
+            rows = agents_history.history("dyson")["history"]
+        self.assertEqual([bool(r.get("kclean")) for r in rows], [True, True, False, False])
+        self.assertFalse(all(r.get("kclean") for r in rows))                # gateway: thread not clean
 
     def test_route_is_shared_and_its_read_taints(self):
         self.assertTrue(any(p == "/api/knowledge" for p in ta._SHARED))

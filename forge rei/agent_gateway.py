@@ -525,7 +525,10 @@ def _chat_spec(ctx):
         and not lanes and not tasks and not req.get("history") and all(r.get("clean") for r in rows))
     # #forge-knowledge notes run AUTO only from a prompt with no lane state, open tasks, caller history
     # or n8n sender (outside text the taint flag can't see); every other path files a card (fail-closed).
-    col["promptClean"] = not (lanes or tasks or req.get("history") or origin == "n8n")
+    # Every replayed row must carry kclean too (transitive, like the Mac gate's clean): an injected line
+    # from an earlier turn can't ride the thread into an AUTO note once the 30-min taint has run out.
+    col["promptClean"] = not (lanes or tasks or req.get("history") or origin == "n8n") \
+        and all(r.get("kclean") for r in rows)
     dash_live._TL.c = col                 # tools()/live_block() look at this thread's collector
     try:
         tools, live = dash_live.tools(agent), dash_live.live_block(agent)
@@ -719,7 +722,9 @@ def _after(ctx, result, status, error):
             import dash_live
             agents_history.record(job["agent"], ctx["req"]["message"], job["reply"], via=job["origin"],
                                   clean=dash_live.mac_clean_turn(ctx["col"], job["agent"]),
-                                  reads=ctx["col"].get("reads") or [])
+                                  reads=ctx["col"].get("reads") or [],
+                                  kclean=bool(ctx["col"].get("promptClean")) and not ctx["col"].get("tainted")
+                                  and not dash_live._recently_tainted(job["agent"]))
         steps.append(history)
     if status == "failed" and job["task"] != "chat":
         def alert():

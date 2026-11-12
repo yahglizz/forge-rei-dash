@@ -39,7 +39,7 @@ def _save(data):
     forge_atomic.atomic_write_json(STATE, data)
 
 
-def record(agent_id, user_text, reply_text, via="dash", clean=False, reads=None):
+def record(agent_id, user_text, reply_text, via="dash", clean=False, reads=None, kclean=False):
     """Append one operator turn + one agent turn. Best-effort, never raises. clean=True only from
     agent_gateway._after, on a turn that stayed free of outside text: the Mac gate reads it, and a row
     without it (every other writer, every old row) counts as outside text."""
@@ -49,7 +49,9 @@ def record(agent_id, user_text, reply_text, via="dash", clean=False, reads=None)
         with _LOCK:
             data = _load()
             thread = list(data["threads"].get(aid) or [])
-            flag = {"clean": True} if clean else {}
+            # kclean = the #forge-knowledge gate's own mark (agent_gateway): no outside text in the prompt
+            # and no outside read this turn. Like clean, a row without it counts as outside text.
+            flag = {**({"clean": True} if clean else {}), **({"kclean": True} if kclean else {})}
             if str(user_text or "").strip():
                 thread.append({"role": "user", "text": str(user_text).strip(),
                                "ts": now, "via": via, **flag})

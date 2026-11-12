@@ -61,7 +61,7 @@ def check(text, agent):
     who = _agent(agent)
     if who not in WRITERS + ("owner",):
         return None, f"{who or 'this agent'} can't write to #forge-knowledge (only {', '.join(WRITERS)})"
-    text = str(text or "").strip()
+    text = _MENTION.sub("", str(text or "")).strip()      # normalize FIRST: checks see what gets posted
     if not text:
         return None, "empty note"
     if len(text) > MAX_CHARS:
@@ -70,7 +70,7 @@ def check(text, agent):
         if rx.search(text):
             return None, (f"refused: the note has {what}. #forge-knowledge holds facts and lessons, never a "
                           "person's contact details or a secret. Rewrite it without that.")
-    return _MENTION.sub("", text), None
+    return text, None
 
 
 def _today(now):
