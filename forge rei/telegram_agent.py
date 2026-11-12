@@ -459,7 +459,8 @@ def _family_name(contact_id):
         for board in ("enrollment", "amt"):
             for c in daycare_pipeline._load(board).get("cards") or []:
                 if c.get("contactId") == contact_id and c.get("name"):
-                    return str(c["name"])
+                    import daycare_center_tag
+                    return daycare_center_tag._clean_name(c["name"])   # no control / bidi chars, one line, clipped
     except Exception:  # noqa: BLE001
         pass
     return None

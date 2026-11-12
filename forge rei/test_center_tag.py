@@ -3,6 +3,7 @@ Run: FORGE_MARCUS=0 python3 -m unittest test_center_tag   (no network: GHL clien
 import os
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -35,7 +36,8 @@ class FakeGHL:
     def get(self, path, params=None, retries=3):
         if path.endswith("/customFields"):
             return {"customFields": [{"id": "F1", "name": "Preferred Location"}, {"id": "F2", "name": "Tour Location"},
-                                     {"id": "F3", "name": "Child DOB"}]}
+                                     {"id": "F3", "name": "Child DOB"}, {"id": "F4", "name": "Pickup Location"},
+                                     {"id": "F5", "name": "SMS Center"}]}
         cid = path.rsplit("/", 1)[-1]
         return {"contact": self.contacts.get(cid) or {}}
 
@@ -49,13 +51,15 @@ class FakeGHL:
 
 class FakeLive(FakeGHL):
     """The live GHL read used by the agents' gate: any contact not listed is a clean untagged one."""
-    def __init__(self, live):
+    def __init__(self, live, field="2318"):
         super().__init__({})
-        self.live = live
+        self.live, self.field = live, field
 
     def get(self, path, params=None, retries=3):
+        if path.endswith("/customFields"):
+            return FakeGHL.get(self, path)
         cid = path.rsplit("/", 1)[-1]
-        return {"contact": self.live.get(cid, {"firstName": "Ava", "lastName": "L", "tags": []})}
+        return {"contact": self.live.get(cid) or contact({"F1": self.field})}
 
 
 def contact(fields=None, tags=(), first="Ava"):
@@ -68,16 +72,20 @@ class CenterTagTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.cards, self.amt = [], []
         self.live = {}                                  # contactId -> live GHL contact ({} = clean default)
-        boards = lambda b=None: {"fetchedAt": 1, "cards": self.amt if b == "amt" else self.cards}
+        self.field = "2318"                             # what a clean live contact's Preferred Location says
+        self.age = 0                                    # seconds old the boards are
+        boards = lambda b=None: {"fetchedAt": (time.time() - self.age) * 1000, "stageSource": "live", "error": None,
+                                 "cards": self.amt if b == "amt" else self.cards}
         env = {k: v for k, v in os.environ.items() if not k.startswith("SLACK_") and k != "FORGE_DAYCARE_AUTO_CENTER"}
         self.patches = [mock.patch.object(slack_io, "STATE", Path(self.tmp.name)),
                         mock.patch.dict(os.environ, env, clear=True),
                         mock.patch.object(daycare_pipeline, "_load", boards),
                         mock.patch.dict(sys.modules, {"action_log": mock.MagicMock()}),
-                        mock.patch.object(ct, "_live_client", lambda: FakeLive(self.live))]
+                        mock.patch.object(ct, "_live_client", lambda: FakeLive(self.live, self.field))]
         for p in self.patches:
             p.start()
         ct._FIELDS.update(at=0.0, ids={})
+        ct._RESERVED.clear()
 
     def tearDown(self):
         for p in reversed(self.patches):
@@ -86,10 +94,17 @@ class CenterTagTests(unittest.TestCase):
 
     # center_from_text ----------------------------------------------------------------
     def test_center_from_text_needs_exactly_one_atob_center(self):
-        cases = {"2318 Cecil B. Moore Ave": "atob-two", "the 921 one": "atob-one", "N 18th": "atob-one",
+        cases = {"2318 Cecil B. Moore Ave": "atob-two", "the 921 one": "atob-one", "921 N 18th St": "atob-one",
                  "A Touch of Blessings 2 & 3 — 2318 Cecil B. Moore Ave.": "atob-two",
                  "921 or 2318": None, "1923 Cecil B. Moore": None, "AMT": None, "Cecil B Moore": None,
-                 "921 (A Mother's Touch)": None, "": None, None: None, "the 9210 building": None}
+                 "921 (A Mother's Touch)": None, "": None, None: None, "the 9210 building": None,
+                 # parent-typed text that merely contains the digits: not a center answer
+                 "N 18th": None, "1456 N 18th St": None, "215-555-2318": None, "Suite 921": None, "Apt 921": None,
+                 "call 267-916-0166 about 921": None, "https://x.com/921": None, "me@921.com": None,
+                 "x" * 90 + " 921": None,
+                 # AMT in any spelling / width
+                 "ＡＭＴ 921": None, "A.M.T. 921": None, "a m t 921": None, "921 mothers touch": None,
+                 "921 Mom's Touch": None, "921 ENTITY-AMT": None, "1923": None, "2318 Cecil": "atob-two"}
         for text, want in cases.items():
             self.assertEqual(ct.center_from_text(text), want, text)
 
@@ -98,6 +113,7 @@ class CenterTagTests(unittest.TestCase):
         self.cards = [card("c1"), card("c2", centers=[L921]), card("c3", amt=True), card("c4", centers=[L921, L1923]),
                       card("c5", name="ZZ Test"), card("c6"), card("c7", centers=[L1923])]
         self.amt = [card("c6")]
+        self.assertFalse(ct.safe_to_add("c1", L2318.upper())[0])     # exact tag string only
         yes = ct.safe_to_add("c1", L2318)
         self.assertEqual(yes, (True, ""))
         for cid in ("c2", "c3", "c4", "c5", "c6", "c7", "nobody"):
@@ -109,18 +125,94 @@ class CenterTagTests(unittest.TestCase):
 
     def test_safe_to_add_rereads_the_live_contact_and_fails_closed(self):
         self.cards = [card("c1"), card("c2"), card("c3")]
-        self.live = {"c1": {"firstName": "Ava", "tags": [L2318]},                 # stale board: GHL already tagged
-                     "c2": {"firstName": "Bo", "tags": ["entity-amt"]},
-                     "c3": {"firstName": "Cy", "tags": ["website-lead"]}}
+        f = {"F1": "921"}
+        self.live = {"c1": contact(f, tags=[L2318]),                              # stale board: GHL already tagged
+                     "c2": contact(f, tags=["entity-amt"]),
+                     "c3": contact(f, tags=["website-lead"])}
         self.assertFalse(ct.safe_to_add("c1", L921)[0])
         self.assertFalse(ct.safe_to_add("c2", L921)[0])
         self.assertTrue(ct.safe_to_add("c3", L921)[0])
+        ct._RESERVED.clear()
         with mock.patch.object(ct, "_live_client", lambda: None):                # no GHL client: a card
             self.assertFalse(ct.safe_to_add("c3", L921)[0])
         boom = FakeLive({})
         boom.get = mock.Mock(side_effect=RuntimeError("GHL down"))
         with mock.patch.object(ct, "_live_client", lambda: boom):
             self.assertFalse(ct.safe_to_add("c3", L921)[0])
+
+    def test_a_second_auto_write_for_the_same_family_is_a_card_until_the_claim_expires(self):
+        self.cards = [card("c1")]
+        self.field = "921"
+        self.assertTrue(ct.safe_to_add("c1", L921)[0])                    # first writer claims the family
+        self.assertEqual(ct.safe_to_add("c1", L921), (False, "another center tag for this family is already in flight"))
+        n, g = self._run({"c1": contact({"F1": "921"})}, keep=True)       # the box loop waits too
+        self.assertEqual((n, g.posts), (0, []))
+        ct._RESERVED["c1"] -= ct.RESERVE_SEC + 1                          # claim expired: the live re-read decides
+        self.assertTrue(ct.safe_to_add("c1", L921)[0])
+
+    def test_agent_needs_the_same_field_evidence_as_the_loop(self):
+        self.cards = [card("c1"), card("c2"), card("c3")]
+        self.live = {"c1": contact({}),                                           # chat said 921, the form says nothing
+                     "c2": contact({"F1": "921"}),                               # the form names the OTHER center
+                     "c3": contact({"F1": "2318", "F2": "921"})}                 # conflicting fields
+        self.assertEqual(ct.safe_to_add("c1", L921), (False, "the family's own fields do not name this center"))
+        self.assertFalse(ct.safe_to_add("c2", L2318)[0])
+        self.assertFalse(ct.safe_to_add("c3", L2318)[0])
+        self.assertTrue(ct.safe_to_add("c2", L921)[0])
+
+    def test_boards_must_be_fresh_live_and_clean_for_both_paths(self):
+        self.cards = [card("c1")]
+        self.age = ct.FRESH_SEC + 60                                              # stale
+        self.assertFalse(ct.safe_to_add("c1", L2318)[0])
+        self.assertEqual(self._run({"c1": contact({"F1": "2318"})})[0], 0)
+        self.age = 0
+        real = daycare_pipeline._load
+        for bad in ({"error": "boom"}, {"stageSource": "cached"}, {"fetchedAt": 0}):
+            with mock.patch.object(daycare_pipeline, "_load", lambda b=None, bad=bad: {**real(b), **bad}):
+                self.assertFalse(ct.safe_to_add("c1", L2318)[0], bad)
+                self.assertEqual(self._run({"c1": contact({"F1": "2318"})})[0], 0, bad)
+        self.assertTrue(ct.safe_to_add("c1", L2318)[0])
+
+    def test_kill_switch_stops_the_agent_path_too(self):
+        self.cards = [card("c1")]
+        os.environ["FORGE_DAYCARE_AUTO_CENTER"] = "0"
+        self.assertEqual(ct.safe_to_add("c1", L2318), (False, "automatic center tags are off"))
+        del os.environ["FORGE_DAYCARE_AUTO_CENTER"]
+
+    def test_unreadable_live_tags_are_not_an_untagged_family(self):
+        self.cards = [card("c1")]
+        no_tags = {"firstName": "Ava", "lastName": "L", "customFields": [{"id": "F1", "value": "2318"}]}
+        self.live = {"c1": no_tags}
+        self.assertFalse(ct.safe_to_add("c1", L2318)[0])
+        self.assertEqual(self._run({"c1": no_tags})[0], 0)
+
+    def test_daily_caps_hold_for_both_paths_and_the_loop_says_so_once(self):
+        self.cards = [card(f"c{i}") for i in range(4)]
+        with mock.patch.object(ct, "DAILY", {"loop": 2, "agent": 1}), mock.patch.object(slack_io, "send") as send, \
+                mock.patch.object(slack_io, "chat_for", lambda b=None: "CH"):
+            self.assertTrue(ct.safe_to_add("c0", L2318)[0])
+            self.assertEqual(ct.safe_to_add("c1", L2318),
+                             (False, "today's automatic center-tag cap for agents is spent"))
+            n, _ = self._run({f"c{i}": contact({"F1": "2318"}) for i in range(4)})
+            self.assertEqual(n, 2)                                                # loop cap, separate from the agent cap
+            caps = [c for c in send.call_args_list if "paused for today" in c.args[0]]
+            self.assertEqual(len(caps), 1)
+
+    def test_only_exact_center_field_names_count(self):
+        self.cards = [card("c1"), card("c2")]
+        n, g = self._run({"c1": contact({"F4": "921"}),                            # "Pickup Location": not read
+                          "c2": contact({"F5": "2318"})})                          # "SMS Center": read
+        self.assertEqual((n, [p for p, _ in g.posts]), (1, ["/contacts/c2/tags"]))
+
+    def test_any_ambiguous_field_vetoes_the_family(self):
+        self.cards = [card("c1")]
+        n, g = self._run({"c1": contact({"F1": "2318", "F2": "1923 Cecil B. Moore"})})
+        self.assertEqual((n, g.posts), (0, []))
+
+    def test_names_shown_to_the_owner_are_one_clean_line(self):
+        self.assertEqual(ct._clean_name("Ava\u202e\n\x00 Smith"), "Ava Smith")
+        self.assertEqual(len(ct._clean_name("x" * 500)), 60)
+        self.assertEqual(ct._clean_name(None), "a family")
 
     def test_dash_live_gate_is_auto_only_for_the_safe_single_center_add(self):
         self.cards = [card("c1"), card("c2", centers=[L921])]
@@ -136,6 +228,9 @@ class CenterTagTests(unittest.TestCase):
 
     # the loop ------------------------------------------------------------------------
     def _run(self, contacts, **kw):
+        if not kw.pop("keep", False):
+            slack_io._write(ct._STATE, {})               # no cool-down / claim left from an earlier pass
+            ct._RESERVED.clear()
         g = FakeGHL(contacts)
         return ct.run(self.cards, g, force=True, **kw), g
 
@@ -153,7 +248,7 @@ class CenterTagTests(unittest.TestCase):
         n, g = self._run(contacts)
         self.assertEqual(n, 1)
         self.assertEqual(g.posts, [("/contacts/c1/tags", {"tags": [L2318]})])
-        n2, g2 = self._run(contacts)                                               # cooled down: no re-read
+        n2, g2 = self._run(contacts, keep=True)                                    # cooled down: no re-read
         self.assertEqual((n2, g2.posts), (0, []))
 
     def test_run_rechecks_contact_before_writing_and_respects_switches(self):

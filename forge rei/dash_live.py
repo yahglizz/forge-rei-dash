@@ -494,6 +494,8 @@ def _write(name, inp, agent_id, col):
                 seen[key] = seen.get(key, 0) + 1
         if any(n > 1 for n in seen.values()):
             tap, why_tap = True, "more than one center-tag edit for the same family in one batch"
+        elif sum(seen.values()) > 10:      # ten families at once is an import, not a chat edit
+            tap, why_tap = True, "more than 10 center-tag edits in one batch"
     if not tap and "/api/knowledge/post" in paths and not col.get("promptClean"):
         tap, why_tap = True, "outside text (leads, tasks, history) is in this prompt, so a knowledge note needs your tap"
     if not tap and any(c["path"] == "/api/hub/task" and _task_cross_business(c["body"], biz) for c in calls):
