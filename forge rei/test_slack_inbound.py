@@ -185,13 +185,16 @@ class InboundTests(unittest.TestCase):
         self.assertEqual([p[0] for p in self.posts()], [HQ, DM])
 
     def test_wrong_business_alias_in_business_channel_refused(self):
-        slack_inbound.handle_message_event(msg("solomon, ratios?", channel=WHOLESALE))
+        with mock.patch.object(telegram_ops, "route", return_value=False):
+            slack_inbound.handle_message_event(msg("solomon, ratios?", channel=WHOLESALE))
         slack_inbound.handle_message_event(msg("orion: what's down?", channel=DAYCARE))
         self.assertEqual(self.chats, [])
         texts = [p[2] for p in self.posts()]
         self.assertIn("own channel", texts[0])
         self.assertIn("HQ channel", texts[1])
-        slack_inbound.handle_message_event(msg("any hot sellers?", channel=WHOLESALE))
+        with mock.patch.object(telegram_ops, "route", return_value=False) as route:
+            slack_inbound.handle_message_event(msg("any hot sellers?", channel=WHOLESALE))
+        route.assert_called_once()                  # Telegram parity: plain English tries ops first
         self.assertEqual(self.chats, [("marcus", "any hot sellers?", f"slack:{WHOLESALE}")])
 
     def test_confirm_card_chat_string_matches_tap_chat_string(self):
@@ -219,6 +222,99 @@ class InboundTests(unittest.TestCase):
         self.assertEqual(issued, {f"slack:{DAYCARE}", f"slack:{DM}"})
         self.assertEqual(tapped, issued)            # telegram_agent.confirm gets the chat it queued for
         self.assertTrue(any("posted in HQ" in p[2] for p in self.posts() if p[0] == DM))
+
+    # Telegram parity (2026-11-11) ---------------------------------------------------
+    def test_registered_slash_command_equals_forge_prefix(self):
+        seen = []
+        with mock.patch.object(telegram_ops, "route", lambda t, c, send: seen.append(t) or True):
+            out = slack_inbound.handle_slash(dict(slash(""), command="/today"))
+            slack_inbound.handle_slash(dict(slash("arthur: I can call at 3"), command="/text"))
+        self.assertEqual(out, {})
+        self.assertEqual(seen, ["/today", "/text arthur: I can call at 3"])
+        slack_inbound.handle_slash(dict(slash("how many tours?", channel=HQ), command="/solomon"))
+        self.assertEqual(self.chats, [("solomon", "how many tours?", f"slack:{HQ}")])
+        self.assertEqual(slack_inbound.handle_slash(dict(slash("", user=STRANGER), command="/today"))["text"],
+                         "Not authorized")
+
+    def test_plain_english_ops_in_wholesale_channel(self):
+        seen = []
+        with mock.patch.object(telegram_ops, "route", lambda t, c, send: seen.append((t, c)) or True):
+            slack_inbound.handle_message_event(msg("text arthur I can call at 3", channel=WHOLESALE))
+            slack_inbound.handle_message_event(msg("text arthur hi", channel=HQ))   # wholesale has its own
+        self.assertEqual(seen, [("text arthur I can call at 3", f"slack:{WHOLESALE}")])
+        self.assertEqual(self.chats, [("orion", "text arthur hi", f"slack:{HQ}")])
+
+    def test_agents_roster_scoped_to_channel(self):
+        slack_inbound.handle_slash(slash("agents", channel=DAYCARE))
+        slack_inbound.handle_slash(slash("agents", channel=HQ))
+        day, hq = self.posts()[0][2], self.posts()[1][2]
+        self.assertIn("solomon", day)
+        self.assertNotIn("marcus", day)
+        for a in ("marcus", "solomon", "dyson", "orion"):
+            self.assertIn(a, hq)
+        self.assertIn("active", day)
+
+    def test_ace_status_and_set(self):
+        fake = mock.MagicMock(status=lambda: {"mode": "off", "sentToday": 2},
+                              set_mode=lambda m: {"mode": m} if m == "shadow" else {"error": "bad mode"})
+        with mock.patch.dict(sys.modules, {"ace": fake}):
+            slack_inbound.handle_slash(slash("ace"))
+            slack_inbound.handle_slash(slash("ace shadow"))
+            slack_inbound.handle_slash(slash("ace nope"))
+        texts = [p[2] for p in self.posts()]
+        self.assertIn("*OFF*", texts[0])
+        self.assertIn("*SHADOW*", texts[1])
+        self.assertIn("bad mode", texts[2])
+        self.assertEqual(self.chats, [])
+
+    def test_task_files_for_active_agent_then_answers(self):
+        hub = mock.MagicMock(send_task=mock.MagicMock(return_value={"ok": True}))
+        with mock.patch.dict(sys.modules, {"agents_hub": hub}):
+            slack_inbound.handle_slash(slash("task call the Smith family", channel=DAYCARE))
+        hub.send_task.assert_called_once_with("solomon", "call the Smith family")
+        self.assertIn("Filed for Solomon", self.posts()[0][2])
+        self.assertEqual(self.chats, [("solomon", "call the Smith family", f"slack:{DAYCARE}")])
+
+    def test_task_for_agency_agent_queues_on_agency_board(self):
+        tfn = mock.MagicMock(return_value={"plan": "1. edit hero"})
+        tg._AGENT_SESS[f"slack:{HQ}"] = {"agent": "dyson", "history": []}
+        with mock.patch.dict(tg._AGENCY_TASK, {"fn": tfn}):
+            slack_inbound.handle_slash(slash("task fix the hero copy", channel=HQ))
+        tfn.assert_called_once_with("dyson", "fix the hero copy")
+        self.assertIn("Queued for Dyson", self.posts()[0][2])
+        self.assertEqual(self.chats, [])
+
+    def test_owner_turn_goes_through_gateway(self):
+        import agent_gateway
+        calls = []
+
+        def local(agent, text, origin, history=None):
+            calls.append((agent, text, origin))
+            return {"reply": "Pong.", "agent": "Orion", "job": "j1"}
+        with mock.patch.object(agent_gateway, "chat_local", local):
+            slack_inbound.handle_message_event(msg("ping", channel=HQ))
+            slack_inbound.handle_message_event(msg("ping", channel=HQ, user=STRANGER))
+        self.assertEqual(calls, [("orion", "ping", "slack")])
+        self.assertEqual(self.chats, [])                       # gateway answered: no old path
+        self.assertIn("Pong.", self.posts()[0][2])
+        sys.modules["agents_history"].record.assert_not_called()   # the gateway job records itself
+        with mock.patch.object(agent_gateway, "chat_local", return_value=None):
+            slack_inbound.handle_message_event(msg("ping", channel=HQ))
+        self.assertEqual(self.chats, [("orion", "ping", f"slack:{HQ}")])   # fallback
+
+    def test_is_owner_accepts_slack_owner_only(self):
+        import agent_gateway
+        with mock.patch.dict(os.environ, {"FORGE_GATEWAY_OWNER_IDS": "12345"}):
+            self.assertTrue(agent_gateway.is_owner("12345"))
+            self.assertTrue(agent_gateway.is_owner(OWNER))
+            self.assertFalse(agent_gateway.is_owner(STRANGER))
+            self.assertFalse(agent_gateway.is_owner(""))
+            self.assertEqual(agent_gateway._owner_ids(), {"12345"})   # Mac output DMs stay Telegram-only
+        with mock.patch.dict(os.environ, {"SLACK_ALLOWED_USER_IDS": ""}):
+            self.assertFalse(agent_gateway.is_owner(OWNER))
+        with mock.patch.dict(os.environ, {"SLACK_ALLOWED_USER_IDS": f"{OWNER},UMATE1", "SLACK_OWNER_IDS": OWNER}):
+            self.assertTrue(agent_gateway.is_owner(OWNER))
+            self.assertFalse(agent_gateway.is_owner("UMATE1"))       # teammate: allowlisted, not owner
 
 
 if __name__ == "__main__":

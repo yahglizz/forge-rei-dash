@@ -1,0 +1,111 @@
+# App A ("claude", A0CGH3MHL15) -> App Manifest -> merge under features:. Socket Mode: no url needed.
+# Skipped (Slack built-ins): /status /help /who /pin -> use /forge status, /forge pin <name>.
+  slash_commands:
+    - command: /forge
+      description: "FORGE commands + agents (help, today, agents, task, solomon …)"
+      should_escape: false
+    - command: /today
+      description: "Today's battle plan"
+      should_escape: false
+    - command: /done
+      description: "FORGE done"
+      should_escape: false
+    - command: /hot
+      description: "Hot leads to text back now"
+      should_escape: false
+    - command: /sweep
+      description: "FORGE sweep"
+      should_escape: false
+    - command: /screen
+      description: "FORGE screen"
+      should_escape: false
+    - command: /find
+      description: "FORGE find"
+      should_escape: false
+    - command: /text
+      description: "FORGE text"
+      should_escape: false
+    - command: /send
+      description: "FORGE send"
+      should_escape: false
+    - command: /checkback
+      description: "FORGE checkback"
+      should_escape: false
+    - command: /proposals
+      description: "Pending reply approvals"
+      should_escape: false
+    - command: /report
+      description: "Ops snapshot"
+      should_escape: false
+    - command: /directives
+      description: "FORGE directives"
+      should_escape: false
+    - command: /orders
+      description: "FORGE orders"
+      should_escape: false
+    - command: /ops
+      description: "FORGE ops"
+      should_escape: false
+    - command: /autopilot
+      description: "Re-engage autopilot on/off"
+      should_escape: false
+    - command: /prep
+      description: "FORGE prep"
+      should_escape: false
+    - command: /pause
+      description: "FORGE pause"
+      should_escape: false
+    - command: /resume
+      description: "FORGE resume"
+      should_escape: false
+    - command: /clockin
+      description: "FORGE clockin"
+      should_escape: false
+    - command: /clockout
+      description: "FORGE clockout"
+      should_escape: false
+    - command: /clock
+      description: "Clock the crew in/out"
+      should_escape: false
+    - command: /agents
+      description: "The crew roster"
+      should_escape: false
+    - command: /task
+      description: "Hand the active agent a job"
+      should_escape: false
+    - command: /ace
+      description: "ACE autonomy mode"
+      should_escape: false
+    - command: /starts
+      description: "Daycare start dates"
+      should_escape: false
+    - command: /logins
+      description: "Daycare login lookup"
+      should_escape: false
+    - command: /board
+      description: "Solomon's daycare board (top 8 open)"
+      should_escape: false
+    - command: /marcus
+      description: "Chat with Marcus (acquisitions)"
+      should_escape: false
+    - command: /scout
+      description: "Chat with Scout (triage)"
+      should_escape: false
+    - command: /atlas
+      description: "Chat with Atlas (underwriting)"
+      should_escape: false
+    - command: /dyson
+      description: "Chat with Dyson (agency builds)"
+      should_escape: false
+    - command: /eco
+      description: "Chat with Eco (agency ads)"
+      should_escape: false
+    - command: /solomon
+      description: "Chat with Solomon (daycare director)"
+      should_escape: false
+    - command: /midas
+      description: "Chat with Midas (dropship director)"
+      should_escape: false
+    - command: /orion
+      description: "Chat with Orion (HQ health + cost)"
+      should_escape: false

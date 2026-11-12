@@ -74,7 +74,7 @@ _LOCK = threading.Lock()
 # Config files may only carry these Slack keys. Flags that change routing or turn the transport
 # on (FORGE_CHAT_TRANSPORT, FORGE_SLACK, SLACK_ONLY_TEST) are read from the real env only.
 _ENV_KEYS = {"SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "SLACK_AGENTS_BOT_TOKEN", "SLACK_SIGNING_SECRET",
-             "SLACK_AGENTS_SIGNING_SECRET", "SLACK_ALLOWED_USER_IDS", "SLACK_TEST_CHANNEL_ID"}
+             "SLACK_AGENTS_SIGNING_SECRET", "SLACK_ALLOWED_USER_IDS", "SLACK_OWNER_IDS", "SLACK_TEST_CHANNEL_ID"}
 _ENV_CHANNEL_RE = re.compile(r"SLACK_CHANNEL_[A-Z]+")
 
 

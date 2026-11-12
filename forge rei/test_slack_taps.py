@@ -180,8 +180,8 @@ class TapTests(unittest.TestCase):
 
     def test_mac_card_needs_owner(self):
         slack_io.register_card("mac", DAYCARE, "6.6", ["pgo:tokM"], origin_chat="-100555")
-        # The REAL owner check: owner ids are Telegram ids, so a Slack user id is never the owner
-        # and a Mac card is always refused from Slack (refs/08 L1, fails closed).
+        # The REAL owner check. Owner decision 2026-11-11: a Slack id on SLACK_ALLOWED_USER_IDS is the
+        # owner (agent_gateway.is_owner), so his Mac card runs from Slack; anyone else stays refused.
         import json
         import telegram_agent
         pending = Path(self.tmp.name) / "pending.json"
@@ -189,17 +189,21 @@ class TapTests(unittest.TestCase):
                                                 "mac": {"command": "echo hi"}}}))
         with mock.patch.object(tg, "_foreign_mac_tap", REAL_FOREIGN_MAC), \
                 mock.patch.object(telegram_agent, "STATE", pending), \
-                mock.patch.dict(os.environ, {"FORGE_GATEWAY_OWNER_IDS": "7001"}):
+                mock.patch.dict(os.environ, {"FORGE_GATEWAY_OWNER_IDS": "7001", "SLACK_OWNER_IDS": OWNER}):
             self.assertTrue(telegram_agent.is_mac_card("tokM"))
-            out = slack_io.handle_interaction(tap("pgo:tokM", card="mac"))
-        self.assertEqual(out["result"], "Only the owner can run a Mac command")
-        self.assertFalse(slack_io.get_card("mac")["consumed"])       # stays for the owner
+            self.assertTrue(tg._foreign_mac_tap("tokM", "UOTHER9"))      # allowlisted teammate, not owner
+            self.assertFalse(tg._foreign_mac_tap("tokM", OWNER))
 
-        def boom(tok, uid):
-            raise RuntimeError("state unreadable")
-        with mock.patch.object(tg, "_foreign_mac_tap", boom):         # can't tell = refuse
-            self.assertFalse(slack_io.handle_interaction(tap("pgo:tokM", card="mac"))["ok"])
-        self.assertEqual(self.ran, [])
+            def boom(tok, uid):
+                raise RuntimeError("state unreadable")
+            with mock.patch.object(tg, "_foreign_mac_tap", boom):     # can't tell = refuse
+                out = slack_io.handle_interaction(tap("pgo:tokM", card="mac"))
+            self.assertEqual(out["result"], "Only the owner can run a Mac command")
+            self.assertFalse(slack_io.get_card("mac")["consumed"])   # stays for the owner
+            self.assertEqual(self.ran, [])
+            out = slack_io.handle_interaction(tap("pgo:tokM", card="mac", trigger="T-mac2"))
+        self.assertTrue(out["ok"], out)
+        self.assertEqual(self.ran, [("pgo", "tokM", "-100555")])
 
 
 class ConnectorSelfTestAction(unittest.TestCase):

@@ -155,7 +155,21 @@ def _owner_ids():
 
 
 def is_owner(sender_id):
-    return str(sender_id or "") in _owner_ids()
+    """Telegram owner ids (FORGE_GATEWAY_OWNER_IDS), or a Slack owner id (owner decision 2026-11-11:
+    Slack gets the same gates): SLACK_OWNER_IDS when set, else SLACK_ALLOWED_USER_IDS. Set
+    SLACK_OWNER_IDS before allowlisting a teammate, or they get owner powers (Mac commands). Slack
+    ids are U…/W…, never numeric, so the lists can't collide. Mac output still DMs _owner_ids() only."""
+    sid = str(sender_id or "")
+    if sid in _owner_ids():
+        return True
+    if sid[:1] not in ("U", "W"):
+        return False
+    try:
+        import slack_io                      # its import loads slack.env into the environment
+        owners = {u.strip() for u in (os.environ.get("SLACK_OWNER_IDS") or "").split(",") if u.strip()}
+        return sid in (owners or slack_io._allowed_users())
+    except Exception:  # noqa: BLE001 — cannot tell, so not the owner
+        return False
 
 
 # ── job store ────────────────────────────────────────────────────────────────
@@ -467,6 +481,9 @@ CHAT_SURFACES = {
     "telegram": ("OWNER CHAT ON TELEGRAM", "in Telegram",
                  "A ✅ card goes to his business Telegram chat, even if he is texting you in a DM: point him "
                  "there. Plain text, no HTML."),
+    "slack": ("OWNER CHAT ON SLACK", "in Slack",
+              "A ✅ card goes to his business Slack channel (HQ for Orion), even if he is texting you in a DM: "
+              "point him there. Plain text, no HTML."),
     "dash": ("OWNER CHAT ON THE DASHBOARD", "from the FORGE dashboard or mobile app",
              "A ✅ card shows right under your reply in this chat."),
 }
@@ -833,8 +850,8 @@ def chat_on():
 def chat_local(agent, message, origin, history=None):
     """One owner turn run in-process at 0 n8n executions: the job POST /v1/chat runs, same folder, same
     gates. Blocks WALL_SECONDS + STOP_GRACE at most, then stops the job. Never raises.
-    origin "dash" or "telegram". history = the caller's context, else the shared thread.
-    -> {reply, agent, job} (+ actions/done/consults for "dash"; "telegram" cards already went out), or
+    origin "dash", "telegram" or "slack". history = the caller's context, else the shared thread.
+    -> {reply, agent, job} (+ actions/done/consults for "dash"; "telegram"/"slack" cards already went out), or
     None = the caller runs its old path: flag off, refused, or the job failed before anything ran."""
     if not chat_on():
         return None
