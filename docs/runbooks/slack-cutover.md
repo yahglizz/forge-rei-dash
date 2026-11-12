@@ -85,6 +85,7 @@ Rooms (private, owner-only, created by `forge-slack/bootstrap_channels.py`, ids 
 
 - Site is proven from the boards, never from alert text (`slack_rooms.site_of`): ATOB = room_ok passes and the family's ATOB card has exactly one ATOB `loc-` tag and no AMT mark; AMT = contact on the AMT board and not the ATOB one. Site wins over the topic room. Topic rooms keep stage moves, rosters and alerts with no provable site. Can't prove it → `#forge-daycare`.
 - AMT guard: a card with any `1923` `loc-` tag or `entity-amt` (cards carry `centers` + `amt`) never enters an ATOB room, site channel or stage-move post.
+- `/forge roster` in `#daycare-921` / `#daycare-2318` lists that site's ATOB families by stage (Lost skipped; same proof as `site_of`: one ATOB `loc-` tag, no AMT mark, not on the AMT board). `/forge roster atob-one|atob-two` works from any room. No roster in `#amt-1923`.
 - `#amt-1923` is NOT a room: no Solomon chat, no taps there (so no ATOB data can be pulled into it). `#daycare-921`/`#daycare-2318` are rooms (Solomon answers, ✅ cards tap).
 - Box ids: `/opt/forge/forge-slack/config/slack-channels.env` (backup `.bak-sites-20261112`).
 - Owner sidebar sections (owner-level, set via the web client's `users.channelSections.*`): HQ · Daycare · all sites (#forge-daycare + 5 rooms) · Daycare · ATOB 921 · Daycare · ATOB 2318 · Daycare · AMT 1923 · Agency · Wholesale. No reorder API found; they sit under Agents, drag the block up if wanted.

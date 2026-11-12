@@ -86,6 +86,8 @@ def roster(topic, now=None) -> tuple[str, list]:
     """-> (Telegram-HTML text, buttons) for one room. Never raises."""
     import time
     topic = str(topic or "").strip().lower()
+    if topic in SITE_TITLE:
+        return site_roster(topic)
     if topic not in TITLE:
         return ("Which room? <code>/forge roster tours</code> (alerts · tours · quotes · starting · enrolled)", [])
     now_ms = int((now or time.time()) * 1000)
@@ -134,6 +136,44 @@ def roster(topic, now=None) -> tuple[str, list]:
     if note:
         lines.append(f"⚠️ {_esc(str(note)[:160])}")
     return ("\n".join([head] + (lines or ["Nobody here right now."])), _buttons(topic))
+
+
+SITE_TITLE = {"atob-one": "🏠 ATOB · 921 N 18th", "atob-two": "🏠 ATOB · 2318 Cecil B. Moore"}
+_SITE_SKIP = ("lost", "not interested")           # closed-out stages are not a site's working list
+
+
+def _card_site(c):
+    """The ATOB site a board card proves (exactly one ATOB loc- tag, no AMT mark), else None."""
+    tags = {x for x in (c.get("centers") or [c.get("center")]) if x}
+    return SITE_BY_CENTER.get(next(iter(tags))) if len(tags) == 1 and not _amt_card(c) else None
+
+
+def site_roster(site) -> tuple[str, list]:
+    """-> (text, buttons): the ATOB families at ONE site, by stage. A card counts only when its
+    single ATOB loc- tag is this site's, it has no AMT mark, and the AMT board (if read) does not
+    hold the contact: same proof as site_of, so AMT/unknown families never show. Never raises."""
+    try:
+        import daycare_pipeline
+        v = daycare_pipeline.view(board=BOARD)
+        amt = _board_contacts("amt") or set()
+        lines, total = [], 0
+        for col in v.get("stages") or []:
+            if col["name"].strip().lower() in _SITE_SKIP:
+                continue
+            mine = [c for c in col.get("cards") or [] if not _test(c.get("name"))
+                    and c.get("contactId") not in amt and _card_site(c) == site]
+            if not mine:
+                continue
+            total += len(mine)
+            names = ", ".join(_esc(c["name"]) for c in mine[:6]) + (f" +{len(mine) - 6}" if len(mine) > 6 else "")
+            lines.append(f"• <b>{_esc(col['name'])}</b> {len(mine)} — {names}")
+        note = v.get("error") if v.get("stale") or v.get("error") else None
+        if note:
+            lines.append(f"⚠️ {_esc(str(note)[:160])}")
+        return ("\n".join([f"<b>{SITE_TITLE[site]}</b> — {total} families"] + (lines or ["Nobody here right now."])),
+                [[{"text": "📋 Roster", "callback_data": f"cmd:roster {site}"}]])
+    except Exception as e:  # noqa: BLE001
+        return (f"<b>{SITE_TITLE[site]}</b>\n⚠️ Couldn't read it ({type(e).__name__}).", [])
 
 
 # ── A Mother's Touch never enters a room ──────────────────────────────────────

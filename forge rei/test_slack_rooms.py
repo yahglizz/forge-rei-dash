@@ -210,6 +210,38 @@ class RoomTests(unittest.TestCase):
         for bad in ("Amt Kid", "Nowhere Kid", "Lost Kid", "Old Kid"):
             self.assertNotIn(bad, tours + start)
 
+    def test_site_roster_lists_only_that_sites_atob_families(self):
+        import daycare_pipeline
+        def k(oid, name, stage, **kw):
+            return dict(card(oid, name, stage, cid="CID" + oid + "x" * 10), **kw)
+        cards = [k("1", "Ava", "New Lead", center="loc-921-n-18th", centers=["loc-921-n-18th"]),
+                 k("2", "Ben", "Tour Scheduled", centers=["loc-2318-cecil-b-moore"]),
+                 k("3", "ZZ Test", "New Lead", centers=["loc-921-n-18th"]),
+                 k("4", "Cy", "New Lead", centers=["loc-921-n-18th", "loc-1923-cecil-b-moore"]),
+                 k("5", "Di", "New Lead", centers=["loc-921-n-18th"], amt=True),
+                 k("6", "Ed", "New Lead", centers=["loc-921-n-18th"]),      # also on the AMT board
+                 k("7", "Fay", "Lost", centers=["loc-921-n-18th"]),
+                 k("8", "Gus", "New Lead", centers=[])]                       # no site proof
+        cols = [{"id": "s" + n, "name": n, "slug": n, "cards": [c for c in cards if c["stageName"] == n]}
+                for n in ("New Lead", "Tour Scheduled", "Lost")]
+        view = {"ok": True, "stages": cols, "error": None, "stale": False}
+        amtb = {"fetchedAt": 1, "cards": [cards[5]]}
+        slack_io.bind("daycare-atob-one", "CSITE1")
+        with mock.patch.object(daycare_pipeline, "view", lambda board=None: view), \
+                mock.patch.object(daycare_pipeline, "_load", lambda b=None: amtb):
+            one, _ = slack_rooms.roster("atob-one")
+            two, btn = slack_rooms.roster("atob-two")
+            slack_inbound.handle_slash({"command": "/forge", "text": "roster", "user_id": OWNER, "channel_id": "CSITE1"})
+        self.assertEqual(self.posts()[0][0], "CSITE1")             # bare /forge roster in a site channel
+        self.assertIn("Ava", self.posts()[0][1])
+        self.assertIn("— 1 families", one)
+        self.assertIn("Ava", one)
+        for bad in ("ZZ", "Cy", "Di", "Ed", "Fay", "Gus", "Ben"):
+            self.assertNotIn(bad, one)
+        self.assertIn("Ben", two)
+        self.assertNotIn("Ava", two)
+        self.assertEqual(btn[0][0]["callback_data"], "cmd:roster atob-two")
+
     def test_flood_is_capped_and_unroomed_moves_take_no_slot(self):
         slack_rooms.on_refresh([card(str(i), f"K{i}", "Contacted") for i in range(30)])
         after = [card(str(i), f"K{i}", "Lost") for i in range(10)] + [card(str(i), f"K{i}", "Enrolled") for i in range(10, 30)]
