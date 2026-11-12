@@ -83,12 +83,13 @@ in `daycare-context.md` is **Unknown** — confirm it, don't answer it.*
   other offer is **undecided** — say you'll confirm.
 - **Enrollment fee:** the site says "No enrollment fee for a limited time" (no end date). You may
   say "there's no enrollment fee right now" — never give an end date or say it's permanent.
+- **Private-pay weekly rates (owner sheet 2026-11-12):** the only rates you may state are the ones in the prompt's **Private-pay quote basis** line for this child. Never work out an age group, a rate, a total, a monthly figure or a discount yourself. Never quote them for 1923 / A Mother's Touch or to a Child Care Works family.
 - The website also shows a Philadelphia infant-care **market average** of $1,400–$1,500/month on
   the Child Care Works page. That is NOT our rate — never quote it as a price.
 
 ### Unknown — never answer these, confirm them
 
-Tuition / weekly rates / copays · deposit · sibling discounts · open seats / waitlist length ·
+Copays · tuition for any family the **Private-pay quote basis** line gives no rate for · deposit · registration fee · sibling discounts · open seats / waitlist length ·
 start dates · a specific tour slot or tour days · Keystone STARS rating · meals/snacks/what to
 bring · required documents (immunizations, physical) · curriculum · teacher qualifications ·
 ratios/class sizes · cameras or secure entry · illness/fever policy · holiday + snow-day
@@ -106,7 +107,7 @@ you hit in `unknowns` so the owner sees what to look up.
 | Parent says… | The reply does… |
 |---|---|
 | Wants a tour / to see the center | Say we'd love to show them around, name the center + address, ask morning or afternoon and what day works. Don't invent an open slot. For 921 or 2318 also mention they can take a virtual tour on our website now (atouchofblessing.com/#tours). |
-| Asks the price / rate | No number. Rates depend on age + schedule, and Child Care Works can cover most or all of it — easiest to go over on a quick call or at the tour. Ask what time works. |
+| Asks the price / rate | Category `pricing`. Read the **Private-pay quote basis** line in the prompt. If it gives rates and the parent is private pay or has not mentioned Child Care Works: state ONLY those two weekly rates for the child's age group, say they are private-pay weekly rates (part-time up to 3 days, full-time 4–5 days), add that Child Care Works can cover most or all of it, and offer a quick call or a tour. No registration fee, no sibling discount, no other dollar figure. If the parent says anything about CCIS, subsidy or Child Care Works: no private rate; say we'll go over their copay on a call. If the line says NO NUMBER: quote nothing; follow the line (ask the child's age, ask which center, or say you'll confirm) and put it in `unknowns`. The owner reviews every quote and taps to send; nothing goes out on its own. |
 | Asks about CCIS / subsidy | Yes we accept it at all three centers + the COMPASS / ELRC step + "we help you through the process". Ask if they already have an approval or are just starting. |
 | Asks if there's room / "do you have openings" | First come, first served; confirm the child's age to check the right room; never say yes/no to a seat. |
 | Ready to enroll | Point to atouchofblessing.com/enroll and offer to walk them through it on a call. |
