@@ -221,6 +221,65 @@ def test_quote_only_on_owner_tap():
     assert pings and "quote waiting for your tap" in pings[0] and "NOT sent" in pings[0] and "$135" in pings[0]
 
 
+def test_send_quote_button_end_to_end():
+    """Parent asks price -> draft + owner card with ONE Send quote button -> nothing sent until the
+    tap -> tap sends exactly the text on the card, once. Stale / unbacked / off-hours taps send nothing."""
+    import telegram_io, slack_io
+    cid = "Abc123XyZ789dEf456gH"                      # a realistic 20-char GHL contact id
+    dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
+    dr.daycare_leads.in_hours = lambda now: True
+    dr._contact = lambda client, c: {"id": c, "tags": ["loc-921-n-18th", "form-type-new-inquiry"]}
+    conv = {"id": "v1", "contactId": cid, "lastMessageDirection": "inbound",
+            "lastMessageDate": int((NOW - 3 * MIN) * 1000)}
+    parent = [msg(1, "inbound", "how much is infant care?", 3 * MIN)]
+    cl = FakeClient([conv], parent)
+    cards = []
+    telegram_io.send_biz = lambda biz, text, **kw: cards.append((text, kw)) or {"ok": True}
+    text = "Infants are $135/week part-time or $195/week full-time."
+    mk = lambda body, fl=None: (lambda contact, ev, now: {
+        "action": "draft", "category": "pricing", "flags": fl if fl is not None else ["money"], "why": "",
+        "draft": body, "unknowns": [], "quoteBasis": "Infants (6 weeks-12 months): ...", "model": "t"})
+    dr.AUTO = True                                   # even with auto-send ON, only the tap sends
+    try:
+        assert dr.run_once(cl, now=NOW, drafter=mk(text))["drafted"] == 1
+    finally:
+        dr.AUTO = False
+    assert cl.sent == [], "nothing goes out before the tap"
+    body, kw = cards[0]
+    btn = kw["buttons"][0][0]
+    assert btn["text"] == "💲 Send quote" and len(kw["buttons"]) == 1 and len(kw["buttons"][0]) == 1
+    cb = btn["callback_data"]
+    assert cb.startswith("quotesend:" + cid + ":") and len(cb.encode()) <= 64         # Slack + Telegram limit
+    assert slack_io.render_blocks(body, kw["buttons"], "c1")[-1]["elements"][0]["value"] == cb   # survives in Slack
+    arg = cb.split(":", 1)[1]
+    # a tap on a card whose draft was since replaced sends nothing
+    assert "changed" in dr.send_quote_tap(cl, cid + ":deadbeef")["error"] and cl.sent == []
+    # outside 8am-9pm ET: nothing, draft stays pending
+    dr.daycare_leads.in_hours = lambda now: False
+    assert "8am" in dr.send_quote_tap(cl, arg, now=NOW)["error"] and cl.sent == []
+    dr.daycare_leads.in_hours = lambda now: True
+    # the tap: exactly one SMS, exactly the card's text
+    r = dr.send_quote_tap(cl, arg, now=NOW)
+    assert r["ok"] and r["message"] == "Quote sent." and len(cl.sent) == 1
+    assert text in str(cl.sent[0]) and dr.view(NOW)["auto"]["sentToday"] == 0       # owner tap, not auto
+    assert dr.send_quote_tap(cl, arg, now=NOW)["ok"] is False and len(cl.sent) == 1  # double tap = no resend
+    # a quote with a figure the sheet did not give: card has NO button, the tap path refuses anyway
+    cards.clear()
+    conv["lastMessageDate"] = int((NOW - 2 * MIN) * 1000)
+    cl.msgs = parent + [msg(2, "outbound", "sent", 10 * MIN), msg(3, "inbound", "and toddlers?", 2 * MIN)]
+    bad = mk("Infants are $250/week.", ["money", "money_unverified"])
+    assert dr.run_once(cl, now=NOW, drafter=bad)["drafted"] == 1
+    assert "buttons" not in cards[0][1] or not cards[0][1]["buttons"]
+    assert "not on the rate sheet" in cards[0][0]
+    assert "not backed" in dr.send_quote_tap(cl, cid + ":" + dr.quote_token("Infants are $250/week."))["error"]
+    assert len(cl.sent) == 1
+    # wiring: the connector registers the tap and Telegram/Slack know its audit label
+    src = Path(__file__).with_name("connector.py").read_text(encoding="utf-8")
+    assert '"quotesend": lambda arg' in src and "daycare_replies.send_quote_tap(DAYCARE_GHL, arg)" in src
+    assert telegram_io._result_text("quotesend", {"ok": True}) == "💲 Quote sent"
+    assert any(k == "quotesend" for k, _, _ in telegram_io._TAP_AGENT)
+
+
 def test_owner_handoff():
     sent = []
     import telegram_io
@@ -278,5 +337,6 @@ if __name__ == "__main__":
     test_auto_send()
     test_owner_handoff()
     test_quote_only_on_owner_tap()
+    test_send_quote_button_end_to_end()
     test_ai_down_stops_sweep()
     print("test_daycare_replies: all passed")
