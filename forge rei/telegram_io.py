@@ -738,7 +738,7 @@ _TAP_AGENT = (("approve", "marcus", "wholesale"), ("mdismiss", "marcus", "wholes
               ("ace", "ace", "wholesale"), ("dyson", "dyson", "agency"),
               ("reqdismiss", "dyson", "agency"), ("skill", "skill_forge", None),
               ("ops", "operator", None), ("pgo", "partner", None), ("pno", "partner", None),
-              ("ads", "solomon", "daycare"))   # daycare_ads_tg cards (2026-10-17)
+              ("ads", "solomon", "daycare"), ("startsend", "solomon", "daycare"))   # daycare_ads_tg cards (2026-10-17)
 
 
 def _foreign_mac_tap(tok, from_id):

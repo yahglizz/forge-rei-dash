@@ -380,8 +380,8 @@ function DldLeadDesk() {
 
 // --- STARTS --- Solomon · Starts (daycare_starts.py → /api/daycare/starts). The start date
 // agreed in the family's texts, proposed here + on their GHL contact. Confirm (prompted 2 days
-// before) enrolls the child with no text; on the start day the lane texts the app login + guide.
-const DST_STATUS = { proposed: "Needs your confirm", confirmed: "Confirmed · login texts that morning", sending: "Sending…", sent: "Login sent", failed: "Send failed" };
+// before) enrolls the child with no text; on the start day Slack gets a Send login card; the text goes out only on your tap.
+const DST_STATUS = { proposed: "Needs your confirm", confirmed: "Confirmed · tap Send login in Slack on the day", sending: "Sending…", sent: "Login sent", failed: "Send failed" };
 const DST_NEEDS = { email: ["Parent email", "email"], child_dob: ["Child birth date", "date"], child_first: ["Child first name", "text"], child_last: ["Child last name", "text"], location_id: ["Center", "center"] };
 const DST_CENTERS = [["11111111-1111-1111-1111-111111111111", "A Touch of Blessings (921 N 18th)"], ["22222222-2222-2222-2222-222222222222", "A Touch of Blessings 2 (2318 Cecil B. Moore)"], ["44444444-4444-4444-4444-444444444444", "A Mother's Touch (1923 Cecil B. Moore)"]];
 
@@ -412,7 +412,7 @@ function DstRow(props) {
     } catch (error) { setNote(error.message); } finally { setBusy(""); }
   };
   const open = r.status === "proposed";
-  const confirmAsk = "Confirm " + (r.childFirst || "this child") + " starts " + date + "?\n\nThis enrolls the child (start date " + date + ") and makes sure the parent has an app login — nothing is texted now. On " + date + " after 8am, the parent is texted their login + how to get the app.";
+  const confirmAsk = "Confirm " + (r.childFirst || "this child") + " starts " + date + "?\n\nThis enrolls the child (start date " + date + ") and makes sure the parent has an app login — nothing is texted now. On " + date + " you get a Send login card in Slack; the parent is texted only when you tap it.";
   return <div style={{ alignItems: "flex-start" }}>
     <span className={"dc-severity " + (r.status === "failed" ? "danger" : r.confirmOpen ? "warning" : r.status === "proposed" ? "info" : "success")}/>
     <div style={{ flex: 1 }}>
@@ -449,7 +449,7 @@ function DstStartDates(props) {
     ? [["Date passed · did they start?", past], ["Coming up", rows.filter((r) => !past.includes(r))]]
     : [["", rows.slice(0, 5)]];
   return <div className="card card-pad dc-panel">
-    <div className="dc-panel-head"><div><div className="card-title">Start dates</div><div className="faint">From their texts · confirm 2 days before · the app login + guide texts on the start day{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div>{page ? <b>{waiting}</b> : <button className="link" onClick={() => window.GoTo("Starts")}>Open all {rows.length} →</button>}</div>
+    <div className="dc-panel-head"><div><div className="card-title">Start dates</div><div className="faint">From their texts · confirm 2 days before · you tap Send login in Slack on the start day{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div>{page ? <b>{waiting}</b> : <button className="link" onClick={() => window.GoTo("Starts")}>Open all {rows.length} →</button>}</div>
     {data.error && <div className="dc-error-text" role="alert">{data.error}</div>}
     {res.loading ? <div className="dc-inline-empty">Loading start dates…</div>
       : !rows.length ? <div className="dc-inline-empty">No start dates waiting.</div>
@@ -461,7 +461,7 @@ function DstStartDates(props) {
 }
 
 function DaycareStartDates() {
-  return <div className="dc-page"><DcxPageHead title="Start Dates" copy="Families whose start date showed up in their texts or form. Confirm enrolls the child; the parent gets their app login on the start morning. Not a start date drops it."/><DstStartDates page/></div>;
+  return <div className="dc-page"><DcxPageHead title="Start Dates" copy="Families whose start date showed up in their texts or form. Confirm enrolls the child; the app login goes out only when you tap Send login in Slack on the start day. Not a start date drops it."/><DstStartDates page/></div>;
 }
 // --- /STARTS ---
 

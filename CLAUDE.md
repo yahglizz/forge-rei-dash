@@ -979,9 +979,13 @@ key on the box. New migrations go in BOTH migration folders.
   `start-date-proposed`, and lists it on the Dashboard "Start dates" card / mobile Families →
   Start dates. From 2 days before, it is an Owner Actions APPROVE row + one Telegram ping. The
   owner's **Confirm** enrolls the child (`enrollment_date` = start) + ensures a parent login with
-  NO text; that tap is the approval for ONE text: on the start day after 8am ET the lane mints a
-  fresh PIN and sends the login + get-app guide (`daycare_ghl.start_day_text`, via
-  `send_manual`'s gates). A date changed in the thread reopens it. Card: `agents/daycare/solomon.md` §12.
+  NO text. **Since 2026-11-12 Confirm is NOT approval for the text** (the lane texted two
+  families by itself that morning): on the start day after 8am ET `prompt_due` posts ONE Slack/
+  Telegram card "📲 Send login" per confirmed family (dedupe key `daycare-start:send:<cid>:<date>`,
+  site-channel routing by `slack_rooms`), and only the owner's tap (`startsend:<cid>` →
+  `daycare_starts.send_login`) mints a fresh PIN and sends the login + get-app guide
+  (`daycare_ghl.start_day_text`, via `send_manual`'s gates). `send_login` is the only code path that
+  texts a family. A missed day stays tappable. A date changed in the thread reopens it. Card: `agents/daycare/solomon.md` §12.
 - **Contact-Form intake = owner Create login click + family YES (since 2026-10-29).** Either
   order; a form alone never makes a login. Click after YES enrolls + texts now; click before
   YES is stored and `daycare_auto_enroll.py` (every 5 min, `FORGE_DAYCARE_AUTO_ENROLL=0` = off)

@@ -12,9 +12,12 @@ Flow (spec: docs/superpowers/specs/2026-09-29-daycare-start-date-design.md):
   3. confirm() — the OWNER's tap (prompted from 2 days before the date). Enrolls/updates the
      child in Supabase with enrollment_date = start date and makes sure a parent login exists
      (via the connector's enroll path, NO text). State `confirmed`.
-  4. send_due() — on the start day (first tick inside 8am–9pm ET) mints a fresh PIN (never
-     stored) and texts the login + the get-app guide. The owner's confirm tap IS the approval
-     for that one text; opt-out / DND / window are re-checked by daycare_replies.send_manual.
+  4. prompt_due() — on the start day (first tick inside 8am–9pm ET) posts ONE Slack/Telegram
+     card "Send login" per confirmed family. NOTHING is texted by the loop (owner rule
+     2026-11-12: Confirm is no longer the approval for the text).
+  5. send_login() — the owner's tap on that card. Mints a fresh PIN (never stored) and texts the
+     login + the get-app guide; opt-out / DND / window are re-checked by
+     daycare_replies.send_manual. The only code path that texts a family.
 
 Disk: marcus_state/daycare_starts.json holds dates, names and a ≤160-char evidence quote
 from the thread (so the owner can check it before confirming). Never a PIN, phone or email.
@@ -469,7 +472,7 @@ def dismiss(contact_id, now=None, client=None):
 def confirm(contact_id, value, enroll_fn, client=None, extras=None, now=None):
     """The owner's Confirm tap. enroll_fn(entry, start_date, extras) → {ok, childId,
     needs?, error?} enrolls/updates the child + makes sure a parent login exists WITHOUT
-    texting. The start-day text then goes out automatically (this tap is its approval)."""
+    texting. On the start day a "Send login" card is posted; the text goes out only on that tap."""
     now = now or time.time()
     cid = str(contact_id or "")
     e = (_load().get("entries") or {}).get(cid)
@@ -501,31 +504,82 @@ def confirm(contact_id, value, enroll_fn, client=None, extras=None, now=None):
 
 
 # --------------------------------------------------------------------------- start day
-def send_due(client, session_fn, mint_fn, now=None, send_fn=None):
-    """Text every confirmed family whose start day is TODAY. Marked `sending` under the lock
-    BEFORE anything outward, and every result write is conditional on still being `sending`,
-    so an owner's dismiss / date change is never overwritten. Once send_fn has been called,
-    an exception means the result is unknown → `failed` (never re-sent, never a 2nd PIN)."""
+def _send_card(e):
+    """The start-day card: one tap (Slack or Telegram) sends the app login. Nothing is texted
+    until the owner taps. The dedupe key carries the contact id, so slack_rooms routes it to the
+    right site channel only when the board proves the site (AMT never lands in an ATOB room)."""
+    import telegram_io
+    who = html.escape(str(e.get("parentFirst") or "the parent"))
+    text = (f"🚀 <b>{html.escape(display_name(e))}</b> starts today · {html.escape(str(e.get('center') or ''))}\n"
+            f"Tap to text {who} the app login. Nothing goes out until you tap.")
+    res = telegram_io.send_biz("daycare", text,
+                               buttons=[[{"text": "📲 Send login", "callback_data": f"startsend:{e['contactId']}"}]],
+                               dedupe_key=f"daycare-start:send:{e['contactId']}:{e.get('startDate')}")
+    if not isinstance(res, dict) or res.get("error"):
+        raise RuntimeError((res or {}).get("error") or "card not sent")
+
+
+def prompt_due(now=None, prompt_fn=None):
+    """Start day, first tick inside 8am-9pm ET: post ONE tap card per confirmed family. This
+    sends NO text to a family (owner rule 2026-11-12: the login goes out only on the owner's
+    tap). The card is marked before it is posted; a card that fails to post is unmarked so the
+    next tick retries. Also fails a `sending` row whose result was never recorded."""
     now = now or time.time()
-    if send_fn is None:
-        import daycare_replies
-        send_fn = lambda cid, text: daycare_replies.send_manual(client, cid, text, now=now, close_draft=False)  # noqa: E731
     in_hours = daycare_leads.in_hours(now)
     with _LOCK:
         st = _load()
         due = []
         for e in (st.get("entries") or {}).values():
-            left = _days_until(e, now)
             if e.get("status") == "sending" and _ms(now) - (e.get("sendingAt") or 0) > SENDING_STALE_SEC * 1000:
                 e.update(status="failed", lastError="send result unknown — check the thread before resending")
-            elif e.get("status") == "confirmed" and left is not None and left < 0:
-                e.update(status="failed", lastError="the start day passed before the login text went out")
-            elif e.get("status") == "confirmed" and left == 0 and in_hours:
-                e.update(status="sending", sendingAt=_ms(now))
+            elif (e.get("status") == "confirmed" and in_hours and _days_until(e, now) == 0
+                  and e.get("tapCardFor") != e.get("startDate")):
+                e["tapCardFor"] = e.get("startDate")
                 due.append(dict(e))
         _save(st)
-    if not due:
-        return []
+    posted = []
+    for e in due:
+        try:
+            (prompt_fn or _send_card)(e)
+            posted.append(e["contactId"])
+        except Exception:  # noqa: BLE001 — best effort: unmark, retry next tick
+            _patch_if(e["contactId"], lambda x: x.get("tapCardFor") == e.get("startDate"), tapCardFor=None)
+    return posted
+
+
+def send_login(contact_id, client, session_fn, mint_fn, now=None, send_fn=None):
+    """The owner's tap: text ONE confirmed family their app login now. The only sender. Marked
+    `sending` under the lock BEFORE anything outward and every result write is conditional on
+    still being `sending`, so a double tap or a dismiss/date change is never overwritten. Once
+    send_fn has been called, an exception means the result is unknown -> `failed` (never
+    re-sent, never a 2nd PIN). A gate that says no (hours/opt-out/DND/PIN) puts the row back to
+    `confirmed` so the owner can tap again."""
+    now = now or time.time()
+    cid = str(contact_id or "")
+    if send_fn is None:
+        import daycare_replies
+        send_fn = lambda c, text: daycare_replies.send_manual(client, c, text, now=now, close_draft=False)  # noqa: E731
+    if not daycare_leads.in_hours(now):
+        return {"ok": False, "error": "Texts go out 8am-9pm ET only. Tap again then."}
+    with _LOCK:
+        st = _load()
+        e = (st.get("entries") or {}).get(cid)
+        if not e:
+            return {"ok": False, "error": "no start date on file for that family"}
+        if e.get("status") in ("sent", "sending"):
+            return {"ok": False, "error": "The app login already went out."}
+        if e.get("status") != "confirmed":
+            return {"ok": False, "error": f"Confirm the start date first (status: {e.get('status')})."}
+        e.update(status="sending", sendingAt=_ms(now))
+        due = [dict(e)]
+        _save(st)
+    res = _send_entries(due, client, session_fn, mint_fn, now, send_fn)[0]
+    if res["ok"]:
+        return {"ok": True, "message": "App login sent."}
+    return {"ok": False, "error": res.get("error") or "send failed"}
+
+
+def _send_entries(due, client, session_fn, mint_fn, now, send_fn):
     still_sending = lambda x: x.get("status") == "sending"   # noqa: E731
     session, session_err = None, None
     if any(not e.get("loginExisted") for e in due):
@@ -597,7 +651,7 @@ def _ping_confirm_window(pings):
                            {"contactId": e["contactId"], "startDate": e["startDate"]})
             import telegram_io
             telegram_io.send_biz("daycare", html.escape(f"📅 Confirm {display_name(e)}'s start date — {when}. "
-                                         "Tap Confirm on the daycare dashboard; the app login goes out that morning."),
+                                         "Tap Confirm on the daycare dashboard. On the day you get a Send login card to tap; nothing is texted before that."),
                              dedupe_key="daycare-start:" + key)
         except Exception:  # noqa: BLE001 — a ping never blocks the lane
             pass
@@ -613,12 +667,9 @@ def tick(client, session_fn, mint_fn, now=None):
         code = getattr(e, "code", None)
         error = f"GHL read failed: {type(e).__name__}{f' {code}' if code else ''}"
     try:
-        sent = send_due(client, session_fn, mint_fn, now)
-        bad = [r for r in sent if not r["ok"]]
-        if bad:
-            error = f"{len(bad)} start-day text(s) failed"
+        prompt_due(now)
     except Exception as e:  # noqa: BLE001
-        error = f"send failed: {type(e).__name__}"
+        error = f"tap card failed: {type(e).__name__}"
     with _LOCK:
         st = _load()
         pings = _confirm_pings(st, now)

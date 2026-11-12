@@ -2488,6 +2488,11 @@ telegram_io.set_actions({
     # Remote-control confirm gates: ✅ fires the queued outward send, ❌ drops it.
     "opsgo": telegram_ops.confirm,
     "opsno": telegram_ops.cancel,
+    # Solomon · Starts: the owner's tap on the start-day "Send login" card (Slack or Telegram).
+    # The only code path that texts a family their app login (owner rule 2026-11-12).
+    "startsend": lambda cid: (
+        {"error": "Agents are clocked out. Clock them in first."} if forge_ops.paused()
+        else daycare_starts.send_login(cid, DAYCARE_GHL, _daycare_start_session, _daycare_start_mint)),
     # Clock the agent crew out / in from a Telegram button tap.
     "opspause": lambda _a=None: forge_ops.set_paused(True),
     "opsresume": lambda _a=None: forge_ops.set_paused(False),

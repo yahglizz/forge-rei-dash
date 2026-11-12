@@ -191,27 +191,78 @@ class StartDateTests(unittest.TestCase):
         self.assertEqual((res["ok"], res["needs"]), (False, ["email"]))
         self.assertEqual(ds.view(now)["starts"][0]["status"], "proposed")
 
-    def test_start_day_send_only_on_the_day_in_hours_and_never_stores_pin(self):
+    def test_start_day_only_posts_a_card_and_texts_only_on_the_tap(self):
         now = ts(2026, 10, 3)
         ghl = self._confirmed(now)
         self.assertIn(("/contacts/a/tags", [ds.TAG_CONFIRMED]), ghl.tag_adds)
-        sent = []
+        sent, cards = [], []
         mint = lambda session, e: {"login_id": "Ana Lopez", "pin": "482913"}  # noqa: E731
         send = lambda cid, text: sent.append((cid, text)) or {"ok": True}      # noqa: E731
-        self.assertEqual(ds.send_due(ghl, lambda: "S", mint, now=now, send_fn=send), [])          # 2 days early
-        self.assertEqual(ds.send_due(ghl, lambda: "S", mint, now=ts(2026, 10, 5, 6), send_fn=send), [])  # 6am
+        card = lambda e: cards.append(e["contactId"])                          # noqa: E731
+        self.assertEqual(ds.prompt_due(now, prompt_fn=card), [])                        # 2 days early
+        self.assertEqual(ds.prompt_due(ts(2026, 10, 5, 6), prompt_fn=card), [])         # 6am
+        self.assertEqual(ds.prompt_due(ts(2026, 10, 6, 10), prompt_fn=card), [])        # day after
+        self.assertEqual(cards, [])
+        self.assertEqual(ds.prompt_due(ts(2026, 10, 5, 8, 5), prompt_fn=card), ["a"])   # the day: ONE card
+        self.assertEqual(ds.prompt_due(ts(2026, 10, 5, 8, 20), prompt_fn=card), [])     # never twice
+        self.assertEqual((cards, sent), (["a"], []))                                    # NO text from the loop
         self.assertEqual(ds.view(now)["starts"][0]["status"], "confirmed")
-        out = ds.send_due(ghl, lambda: "S", mint, now=ts(2026, 10, 5, 8, 5), send_fn=send)
-        self.assertEqual(out, [{"contactId": "a", "ok": True, "error": None}])
+        # the owner's tap is the only sender
+        out = ds.send_login("a", ghl, lambda: "S", mint, now=ts(2026, 10, 5, 8, 30), send_fn=send)
+        self.assertEqual(out["ok"], True)
         self.assertEqual(len(sent), 1)
         self.assertIn("482913", sent[0][1])
         self.assertIn("atouchofblessing.com/get-app", sent[0][1])
         self.assertEqual(ds.view(now)["starts"][0]["status"], "sent")
         self.assertIn(("/contacts/a/tags", [ds.TAG_SENT]), ghl.tag_adds)
         self.assertNotIn("482913", ds.STATE.read_text())
-        # sent is final: never again
-        self.assertEqual(ds.send_due(ghl, lambda: "S", mint, now=ts(2026, 10, 5, 9), send_fn=send), [])
+        # sent is final: a second tap sends nothing
+        again = ds.send_login("a", ghl, lambda: "S", mint, now=ts(2026, 10, 5, 9), send_fn=send)
+        self.assertFalse(again["ok"])
         self.assertEqual(len(sent), 1)
+
+    def test_loop_tick_never_texts_a_family(self):
+        now = ts(2026, 10, 3)
+        ghl = self._confirmed(now)
+        sent = []
+        with mock.patch.object(ds, "_send_card", lambda e: None), \
+                mock.patch("daycare_replies.send_manual", lambda *a, **k: sent.append(a) or {"ok": True}):
+            ds.tick(ghl, lambda: "S", lambda s, e: {"pin": "1"}, now=ts(2026, 10, 5, 9))
+        self.assertEqual(sent, [])
+        self.assertEqual(ds.view(now)["starts"][0]["status"], "confirmed")
+
+    def test_card_that_fails_to_post_is_retried_next_tick(self):
+        now = ts(2026, 10, 3)
+        self._confirmed(now)
+        def boom(e):
+            raise RuntimeError("slack down")
+        self.assertEqual(ds.prompt_due(ts(2026, 10, 5, 9), prompt_fn=boom), [])
+        self.assertEqual(ds.prompt_due(ts(2026, 10, 5, 9, 15), prompt_fn=lambda e: None), ["a"])
+
+    def test_tap_outside_hours_sends_nothing_and_mints_nothing(self):
+        ghl = self._confirmed(ts(2026, 10, 3))
+        minted = []
+        out = ds.send_login("a", ghl, lambda: "S", lambda s, e: minted.append(1) or {"pin": "1"},
+                            now=ts(2026, 10, 5, 22), send_fn=lambda c, t: self.fail("must not send"))
+        self.assertFalse(out["ok"])
+        self.assertEqual(minted, [])
+        self.assertEqual(ds.view(ts(2026, 10, 3))["starts"][0]["status"], "confirmed")
+
+    def test_tap_needs_a_confirmed_family(self):
+        now = ts(2026, 10, 3)
+        ghl = FakeGHL({"a": contact("a")}, {"a": thread(("start 10/5", now - 60))})
+        ds.sweep(ghl, now)                               # proposed, not confirmed
+        out = ds.send_login("a", ghl, lambda: "S", lambda s, e: {"pin": "1"}, now=ts(2026, 10, 5, 9),
+                            send_fn=lambda c, t: self.fail("must not send"))
+        self.assertFalse(out["ok"])
+        self.assertFalse(ds.send_login("nope", ghl, lambda: "S", None, now=ts(2026, 10, 5, 9))["ok"])
+
+    def test_late_tap_after_the_start_day_still_works(self):
+        ghl = self._confirmed(ts(2026, 10, 3))
+        sent = []
+        out = ds.send_login("a", ghl, lambda: "S", lambda s, e: {"login_id": "x", "pin": "7"},
+                            now=ts(2026, 10, 7, 9), send_fn=lambda c, t: sent.append(c) or {"ok": True})
+        self.assertEqual((out["ok"], sent), (True, ["a"]))
 
     def test_failed_send_retries_then_fix_row(self):
         now = ts(2026, 10, 3)
@@ -219,8 +270,8 @@ class StartDateTests(unittest.TestCase):
         mint = lambda session, e: {"login_id": "Ana Lopez", "pin": "1"}   # noqa: E731
         bad = lambda cid, text: {"ok": False, "error": "parent opted out — not sent"}  # noqa: E731
         for i in range(ds.MAX_TRIES):
-            out = ds.send_due(ghl, lambda: "S", mint, now=ts(2026, 10, 5, 9, i), send_fn=bad)
-            self.assertFalse(out[0]["ok"])
+            out = ds.send_login("a", ghl, lambda: "S", mint, now=ts(2026, 10, 5, 9, i), send_fn=bad)
+            self.assertFalse(out["ok"])
         row = ds.view(now)["starts"][0]
         self.assertEqual((row["status"], row["tries"]), ("failed", ds.MAX_TRIES))
         self.assertEqual(ds.confirm_due(ts(2026, 10, 5, 10))[0]["status"], "failed")
@@ -230,10 +281,11 @@ class StartDateTests(unittest.TestCase):
         ghl = self._confirmed(now)
         ds._patch("a", status="sending", sendingAt=int(ts(2026, 10, 5, 8) * 1000))
         sent = []
-        out = ds.send_due(ghl, lambda: "S", lambda s, e: {"pin": "1"}, now=ts(2026, 10, 5, 9),
-                          send_fn=lambda c, t: sent.append(c) or {"ok": True})
+        out = ds.prompt_due(ts(2026, 10, 5, 9), prompt_fn=lambda e: sent.append(e))
         self.assertEqual((out, sent), ([], []))
         self.assertEqual(ds.view(now)["starts"][0]["status"], "failed")
+        self.assertFalse(ds.send_login("a", ghl, lambda: "S", lambda s, e: {"pin": "1"}, now=ts(2026, 10, 5, 9),
+                                       send_fn=lambda c, t: self.fail("never resend"))["ok"])
 
     def _proposed(self, now):
         ds._save({"entries": {"c1": {"contactId": "c1", "status": "proposed", "startDate": "2026-10-12",
@@ -285,8 +337,9 @@ class StartDateTests(unittest.TestCase):
         ds.sweep(ghl, later + 60)
         row = ds.view(later)["starts"][0]
         self.assertEqual((row["status"], row["startDate"], row["reopened"]), ("proposed", "2026-10-12", True))
-        self.assertEqual(ds.send_due(ghl, lambda: "S", lambda s, e: {"pin": "1"}, now=ts(2026, 10, 5, 9),
-                                     send_fn=lambda c, t: {"ok": True}), [])
+        self.assertEqual(ds.prompt_due(ts(2026, 10, 5, 9), prompt_fn=lambda e: self.fail("no card")), [])
+        self.assertFalse(ds.send_login("a", ghl, lambda: "S", lambda s, e: {"pin": "1"}, now=ts(2026, 10, 5, 9),
+                                       send_fn=lambda c, t: self.fail("stale date must not send"))["ok"])
 
     def test_owner_edit_and_dismiss_beat_older_evidence(self):
         now = ts(2026, 10, 1)
@@ -315,12 +368,29 @@ class StartDateTests(unittest.TestCase):
         ds.sweep(ghl, now)
         ds.confirm("a", None, lambda e, d, x: {"ok": True, "childId": "c1", "loginExisted": True}, now=now)
         minted, sent = [], []
-        out = ds.send_due(ghl, lambda: self.fail("no session needed"), lambda s, e: minted.append(1),
-                          now=ts(2026, 10, 5, 8, 30), send_fn=lambda c, t: sent.append(t) or {"ok": True})
-        self.assertEqual((out[0]["ok"], minted), (True, []))
+        out = ds.send_login("a", ghl, lambda: self.fail("no session needed"), lambda s, e: minted.append(1),
+                            now=ts(2026, 10, 5, 8, 30), send_fn=lambda c, t: sent.append(t) or {"ok": True})
+        self.assertEqual((out["ok"], minted), (True, []))
         self.assertIn("your PIN", sent[0])
         self.assertNotIn("PIN:", sent[0])
         self.assertIn("atouchofblessing.com/get-app", sent[0])
+
+    def test_card_has_one_send_button_routes_to_the_starting_room_and_holds_no_pin(self):
+        self._confirmed(ts(2026, 10, 3))
+        e = dict(ds._load()["entries"]["a"])
+        calls = []
+        with mock.patch("telegram_io.send_biz", lambda biz, text, buttons=None, dedupe_key=None:
+                        calls.append((biz, text, buttons, dedupe_key)) or {"ok": True}):
+            ds._send_card(e)
+        biz, text, buttons, key = calls[0]
+        self.assertEqual(biz, "daycare")
+        self.assertEqual(buttons, [[{"text": "📲 Send login", "callback_data": "startsend:a"}]])
+        self.assertTrue(key.startswith("daycare-start:"))     # slack_io maps this prefix to #daycare-starting
+        self.assertIn("Nothing goes out until you tap", text)
+        self.assertLess(len(buttons[0][0]["callback_data"].encode()) + 20, 64)   # real contact ids are 20 chars
+        with mock.patch("telegram_io.send_biz", lambda *a, **k: {"error": "slack down"}):
+            with self.assertRaises(RuntimeError):
+                ds._send_card(e)
 
     def test_start_day_text(self):
         t = daycare_ghl.start_day_text("Ana", "Mia", "Ana Lopez", "482913", "11111111-1111")
