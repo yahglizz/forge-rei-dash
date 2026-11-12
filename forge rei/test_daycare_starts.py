@@ -392,6 +392,21 @@ class StartDateTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 ds._send_card(e)
 
+    def test_amt_card_key_has_no_provable_id_so_it_stays_in_the_main_chat(self):
+        import re
+        self._confirmed(ts(2026, 10, 3))
+        e = dict(ds._load()["entries"]["a"], contactId="Abcdefghij1234567890", centerTag="loc-1923-cecil-b-moore",
+                 locationId=daycare_ghl.LOCATION_ID_BY_TAG["loc-1923-cecil-b-moore"])
+        keys = []
+        with mock.patch("telegram_io.send_biz", lambda biz, text, buttons=None, dedupe_key=None:
+                        keys.append((dedupe_key, buttons)) or {"ok": True}):
+            ds._send_card(e)
+            ds._send_card(dict(e, contactId="Zyxwvutsrq0987654321", centerTag="loc-921-n-18th", locationId="x"))
+        amt_key, amt_buttons = keys[0]
+        self.assertEqual(re.findall(r"[A-Za-z0-9]{12,}", amt_key), [])          # slack_rooms finds no id to prove
+        self.assertEqual(amt_buttons[0][0]["callback_data"], "startsend:Abcdefghij1234567890")  # the tap still has the full id
+        self.assertEqual(re.findall(r"[A-Za-z0-9]{12,}", keys[1][0]), ["Zyxwvutsrq0987654321"])  # ATOB keeps site routing
+
     def test_start_day_text(self):
         t = daycare_ghl.start_day_text("Ana", "Mia", "Ana Lopez", "482913", "11111111-1111")
         self.assertLessEqual(len(t), 480)

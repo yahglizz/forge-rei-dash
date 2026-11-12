@@ -510,11 +510,17 @@ def _send_card(e):
     right site channel only when the board proves the site (AMT never lands in an ATOB room)."""
     import telegram_io
     who = html.escape(str(e.get("parentFirst") or "the parent"))
+    cid = str(e["contactId"])
+    # A Mother's Touch (1923): slack_io's AMT channel takes no taps, so a card routed there would have
+    # a dead button. Split the contact id so no 12+ char id is in the key: slack_rooms cannot "prove"
+    # a site, and the card stays in the main daycare chat, where the button works.
+    amt = str(e.get("locationId") or "").startswith(daycare_ghl.AMT_LOCATION_PREFIX) or "1923" in str(e.get("centerTag") or "")
+    cid_key = f"{cid[:10]}-{cid[10:]}" if amt else cid
     text = (f"🚀 <b>{html.escape(display_name(e))}</b> starts today · {html.escape(str(e.get('center') or ''))}\n"
             f"Tap to text {who} the app login. Nothing goes out until you tap.")
     res = telegram_io.send_biz("daycare", text,
                                buttons=[[{"text": "📲 Send login", "callback_data": f"startsend:{e['contactId']}"}]],
-                               dedupe_key=f"daycare-start:send:{e['contactId']}:{e.get('startDate')}")
+                               dedupe_key=f"daycare-start:send:{cid_key}:{e.get('startDate')}")
     if not isinstance(res, dict) or res.get("error"):
         raise RuntimeError((res or {}).get("error") or "card not sent")
 
