@@ -856,7 +856,8 @@ def _handle_callback(cq, token=None, agent_chat=False):
     try:
         _api("answerCallbackQuery",
              {"callback_query_id": cq_id, "text": summary[:200],
-              "show_alert": bool(isinstance(result, dict) and result.get("retry"))}, timeout=10, token=token)
+              **({"show_alert": True} if isinstance(result, dict) and result.get("retry") else {})},
+             timeout=10, token=token)
     except Exception:  # noqa: BLE001
         pass
 

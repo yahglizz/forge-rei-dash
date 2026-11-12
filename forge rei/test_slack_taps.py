@@ -124,6 +124,28 @@ class TapTests(unittest.TestCase):
         # Card registry survives a "restart": it is read from disk every time.
         self.assertTrue(slack_io.handle_interaction(tap("approve:p1"))["ok"])
 
+    def test_retryable_failure_keeps_card_and_buttons(self):
+        """A transient refusal (outside texting hours, GHL hiccup) must not burn the card: the owner
+        gets a private note and can tap the same button again. A real result still consumes it."""
+        slack_io.register_card("cardq", DAYCARE, "3.3", ["quotesend:c1:abc"])
+        results = [{"ok": False, "retry": True, "error": "Texts go out 8am-9pm ET only. Tap again after 8am."},
+                   {"ok": True, "message": "Quote sent."}]
+        self.actions["quotesend"] = lambda arg: self.ran.append(("quotesend", arg)) or results.pop(0)
+        first = tap("quotesend:c1:abc", card="cardq")
+        out = slack_io.handle_interaction(first)
+        self.assertFalse(out["ok"])
+        self.assertNotIn("chat.update", self.methods())                      # card + buttons untouched
+        self.assertFalse(slack_io.get_card("cardq")["consumed"])
+        self.assertIn("8am", self.calls[-1][1]["text"])                      # private note says why
+        self.assertEqual(self.calls[-1][0], "chat.postEphemeral")
+        second = tap("quotesend:c1:abc", card="cardq")
+        second["actions"][0]["action_ts"] = "10.1"
+        out = slack_io.handle_interaction(second)
+        self.assertTrue(out["ok"])
+        self.assertEqual(self.ran, [("quotesend", "c1:abc")] * 2)
+        self.assertIn("chat.update", self.methods())
+        self.assertTrue(slack_io.get_card("cardq")["consumed"])
+
     def test_second_tap_same_card_refused(self):
         out = slack_io.handle_interaction(tap("slackselftest:x"))
         self.assertTrue(out["ok"])

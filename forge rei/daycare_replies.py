@@ -242,6 +242,9 @@ def pricing_card(d, esc):
         lines.append(f"<b>Rates:</b> {esc(d['quoteRates'])}")
     elif d.get("noNumber"):
         lines.append(f"<b>Why no number:</b> {esc(d['noNumber'][:200])}")
+    more = [u for u in (d.get("unknowns") or []) if u][:3]
+    if more:
+        lines.append("<b>Also to confirm:</b> " + esc("; ".join(u[:90] for u in more)))
     lines += ["", f"<b>Draft (NOT sent):</b> “{esc((d.get('draft') or '')[:480])}”", ""]
     buttons = None
     if quote and not unverified:

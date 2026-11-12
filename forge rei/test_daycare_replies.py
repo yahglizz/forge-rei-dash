@@ -218,7 +218,7 @@ def test_quote_only_on_owner_tap():
         assert r["drafted"] == 1 and cl.sent == [] and r["auto"]["sent"] == 0
     finally:
         dr.AUTO = False
-    assert pings and "quote waiting for your tap" in pings[0] and "NOT sent" in pings[0] and "$135" in pings[0]
+    assert pings and "Quote ready" in pings[0] and "NOT sent" in pings[0] and "$135" in pings[0]
 
 
 def test_send_quote_button_end_to_end():
@@ -280,6 +280,53 @@ def test_send_quote_button_end_to_end():
     assert any(k == "quotesend" for k, _, _ in telegram_io._TAP_AGENT)
 
 
+def test_pricing_card_layout_and_retry():
+    """One organized card for every price question: same sections, in order, and a button only when
+    the figures are on the sheet. A transient send failure keeps the draft tappable."""
+    esc = lambda x: str(x or "")
+    base = {"contactId": "c1", "parentName": "Tasha", "center": "921 N 18th St", "inboundText": "how much is infant?",
+            "childAge": "8 months", "quoteGroup": "Infants (6 weeks-12 months)",
+            "quoteRates": "part-time $135 · full-time $195 per week (private pay)", "flags": ["money"],
+            "draft": "Infants are $135/week part-time or $195/week full-time.", "unknowns": ["open infant seats"]}
+    text, btn = dr.pricing_card(base, esc)
+    order = [text.index(k) for k in ("Quote ready", "Parent:", "Child:", "Asked:", "Rates:", "Also to confirm:",
+                                     "Draft (NOT sent):", "Next:")]
+    assert order == sorted(order) and btn[0][0]["text"] == "💲 Send quote"
+    assert btn[0][0]["callback_data"] == f"quotesend:c1:{dr.quote_token(base['draft'])}"
+    text, btn = dr.pricing_card(dict(base, flags=["money", "money_unverified"], quoteRates=""), esc)
+    assert btn is None and "needs a fix" in text and "not on the rate sheet" in text
+    text, btn = dr.pricing_card(dict(base, draft="how old is your little one?", flags=[], quoteRates="", quoteGroup="",
+                                     childAge="not on file", noNumber="child's age unknown. Ask how old the child is."), esc)
+    assert btn is None and "Price question: no number yet" in text and "Why no number:" in text and "date of birth" in text
+    # transient failures keep the card tappable; a final refusal does not
+    dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
+    dr.daycare_leads.in_hours = lambda now: True
+    dr._contact = lambda client, c: {"id": c, "tags": ["loc-921-n-18th", "form-type-new-inquiry"]}
+    conv = {"id": "v1", "contactId": "c1", "lastMessageDirection": "inbound", "lastMessageDate": int((NOW - 3 * MIN) * 1000)}
+    cl = FakeClient([conv], [msg(1, "inbound", "how much is infant care?", 3 * MIN)])
+    import telegram_io
+    telegram_io.send_biz = lambda biz, text, **kw: {"ok": True}
+    q = {"action": "draft", "category": "pricing", "flags": ["money"], "why": "", "unknowns": [], "model": "t",
+         "draft": base["draft"], "quoteBasis": "Infants..."}
+    dr.run_once(cl, now=NOW, drafter=lambda c, e, n: dict(q))
+    arg = "c1:" + dr.quote_token(base["draft"])
+    dr.daycare_leads.in_hours = lambda now: False
+    r = dr.send_quote_tap(cl, arg, now=NOW)
+    assert not r["ok"] and r["retry"] is True and cl.sent == []                 # 9:30pm: keep the button
+    dr.daycare_leads.in_hours = lambda now: True
+    real = dr.daycare_ghl.send_sms
+    dr.daycare_ghl.send_sms = lambda *a, **k: {"ok": False, "error": "GHL 500"}
+    try:
+        r = dr.send_quote_tap(cl, arg, now=NOW)
+        assert not r["ok"] and r["retry"] is True                                # GHL hiccup: keep the button
+    finally:
+        dr.daycare_ghl.send_sms = real
+    r = dr.send_quote_tap(cl, arg, now=NOW)
+    assert r["ok"] and len(cl.sent) == 1 and "retry" not in r                   # second tap goes out once
+    r = dr.send_quote_tap(cl, arg, now=NOW)
+    assert not r["ok"] and not r.get("retry") and len(cl.sent) == 1             # sent: final, no resend
+
+
 def test_owner_handoff():
     sent = []
     import telegram_io
@@ -338,5 +385,6 @@ if __name__ == "__main__":
     test_owner_handoff()
     test_quote_only_on_owner_tap()
     test_send_quote_button_end_to_end()
+    test_pricing_card_layout_and_retry()
     test_ai_down_stops_sweep()
     print("test_daycare_replies: all passed")
