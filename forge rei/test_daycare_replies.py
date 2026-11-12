@@ -298,6 +298,12 @@ def test_pricing_card_layout_and_retry():
     text, btn = dr.pricing_card(dict(base, draft="how old is your little one?", flags=[], quoteRates="", quoteGroup="",
                                      childAge="not on file", noNumber="child's age unknown. Ask how old the child is."), esc)
     assert btn is None and "Price question: no number yet" in text and "Why no number:" in text and "date of birth" in text
+    text, _ = dr.pricing_card(dict(base, draft="we'll go over your copay", flags=[], quoteRates="", childAge="2 years",
+                                   noNumber="the form says Child Care Works (CCIS), so private-pay rates don't apply."), esc)
+    assert "date of birth" not in text and "Child Care Works family" in text            # right next step
+    text, _ = dr.pricing_card(dict(base, draft="let me confirm", flags=[], quoteRates="", childAge="13 years",
+                                   noNumber="child's age is outside the rate sheet"), esc)
+    assert "date of birth" not in text and "by hand" in text
     # transient failures keep the card tappable; a final refusal does not
     dr.STATE = Path(tempfile.mkdtemp()) / "replies.json"
     dr.daycare_leads.in_hours = lambda now: True

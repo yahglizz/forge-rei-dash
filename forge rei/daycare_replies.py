@@ -272,8 +272,12 @@ def pricing_card(d, esc):
         buttons = [[{"text": "💲 Send quote", "callback_data": f"quotesend:{d.get('contactId')}:{quote_token(d.get('draft'))}"}]]
     elif quote:
         lines.append("<b>Next:</b> a dollar figure here is not on the rate sheet for this child. No send button. Fix it in the Messages tab.")
+    elif "Child Care Works" in (d.get("noNumber") or ""):
+        lines.append("<b>Next:</b> Child Care Works family, so no private rate. Send or edit the copay reply in the Messages tab.")
+    elif (d.get("childAge") or "not on file").startswith("not on file"):
+        lines.append("<b>Next:</b> no age on file. Add the child's date of birth in GHL so the next text drafts a quote, or answer by hand in the Messages tab.")
     else:
-        lines.append("<b>Next:</b> no rate can be quoted yet. Add the child's date of birth in GHL so the next text drafts a quote, or answer by hand in the Messages tab.")
+        lines.append("<b>Next:</b> no rate fits this case. Answer by hand in the Messages tab.")
     return "\n".join(lines), buttons
 
 
