@@ -109,3 +109,9 @@
     - command: /orion
       description: "Chat with Orion (HQ health + cost)"
       should_escape: false
+    - command: /roster
+      description: "Daycare room list (tours, quotes, starting, enrolled, alerts)"
+      should_escape: false
+    - command: /menu
+      description: "Quick-tap buttons"
+      should_escape: false

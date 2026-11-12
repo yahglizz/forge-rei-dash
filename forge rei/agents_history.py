@@ -39,7 +39,7 @@ def _save(data):
     forge_atomic.atomic_write_json(STATE, data)
 
 
-def record(agent_id, user_text, reply_text, via="dash", clean=False):
+def record(agent_id, user_text, reply_text, via="dash", clean=False, reads=None):
     """Append one operator turn + one agent turn. Best-effort, never raises. clean=True only from
     agent_gateway._after, on a turn that stayed free of outside text: the Mac gate reads it, and a row
     without it (every other writer, every old row) counts as outside text."""
@@ -54,8 +54,11 @@ def record(agent_id, user_text, reply_text, via="dash", clean=False):
                 thread.append({"role": "user", "text": str(user_text).strip(),
                                "ts": now, "via": via, **flag})
             if str(reply_text or "").strip():
+                # reads = the tools this answer actually ran (agent_gateway). Replayed with the row so
+                # the next turn knows what was verified and neither re-claims nor retracts it blindly.
+                extra = {"reads": [str(x)[:80] for x in reads][:8]} if reads is not None else {}
                 thread.append({"role": "ai", "text": str(reply_text).strip(),
-                               "ts": now, "via": via, **flag})
+                               "ts": now, "via": via, **flag, **extra})
             data["threads"][aid] = thread[-MAX_PER_AGENT:]
             _save(data)
     except Exception:  # noqa: BLE001 — history must never break a chat reply

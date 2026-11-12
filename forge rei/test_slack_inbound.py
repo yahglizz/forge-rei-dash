@@ -344,6 +344,8 @@ class InboundTests(unittest.TestCase):
         bl = "Top three:\n1. A thing\n2. B thing\n3. C thing"
         self.assertEqual(c(bl), bl)
         self.assertEqual(c(bl + "\nI only read the top of the board."), bl + " (more: just ask)")
+        fat = "Lead line. Second lead sentence.\n- One. Two. Three.\n- Short one."
+        self.assertEqual(c(fat), "Lead line.\n- One. Two.\n- Short one. (more: just ask)")
         many = "\n".join(f"• item {i}" for i in range(8))
         self.assertEqual(c(many).count("•"), 5)
         self.assertTrue(c(many).endswith("(more: just ask)"))

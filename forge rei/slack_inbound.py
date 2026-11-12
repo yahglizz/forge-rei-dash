@@ -440,7 +440,10 @@ def clamp(reply) -> str:
         bullets = [ln for ln, b in zip(lines[first:], marks[first:]) if b]
         last = len(lines) - 1 - marks[::-1].index(True)
         cut = len(bullets) > MAX_BULLETS or last < len(lines) - 1 or first > 1
-        return "\n".join(lead + bullets[:MAX_BULLETS]) + (_MORE if cut else "")
+        short = [" ".join(_sentences(b)[:MAX_SENTENCES]) for b in bullets[:MAX_BULLETS]]
+        cut = cut or short != bullets[:MAX_BULLETS]
+        lead = [" ".join(_sentences(ln)[:1]) for ln in lead]
+        return "\n".join(lead + short) + (_MORE if cut else "")
     sents = _sentences(" ".join(lines))
     if len(sents) <= MAX_SENTENCES:
         return text
