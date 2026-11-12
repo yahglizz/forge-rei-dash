@@ -436,18 +436,32 @@ function DstRow(props) {
   </div>;
 }
 
-function DstStartDates() {
+function DstStartDates(props) {
+  const page = Boolean(props && props.page);
   const res = DcxUseResource("/starts", null, 60000);
   const data = res.data && !Array.isArray(res.data) ? res.data : {};
-  const rows = (data.starts || []).filter((r) => r.status !== "sent" || (r.daysUntil ?? -99) >= -3);
+  const rows = (data.starts || []).filter((r) => r.status !== "sent" || (r.daysUntil ?? -99) >= -3)
+    .slice().sort((a, b) => (a.daysUntil ?? 999) - (b.daysUntil ?? 999));
   const waiting = rows.filter((r) => r.confirmOpen || r.status === "failed").length;
-  if (!res.loading && !rows.length && !data.error) return null;
+  if (!page && !res.loading && !rows.length && !data.error) return null;
+  const past = rows.filter((r) => r.status === "proposed" && (r.daysUntil ?? 0) < 0);
+  const groups = page
+    ? [["Date passed · did they start?", past], ["Coming up", rows.filter((r) => !past.includes(r))]]
+    : [["", rows.slice(0, 5)]];
   return <div className="card card-pad dc-panel">
-    <div className="dc-panel-head"><div><div className="card-title">Start dates</div><div className="faint">From their texts · confirm 2 days before · the app login + guide texts on the start day{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div><b>{waiting}</b></div>
+    <div className="dc-panel-head"><div><div className="card-title">Start dates</div><div className="faint">From their texts · confirm 2 days before · the app login + guide texts on the start day{data.lastRunAt ? " · updated " + DcxDate(data.lastRunAt, true) : ""}</div></div>{page ? <b>{waiting}</b> : <button className="link" onClick={() => window.GoTo("Starts")}>Open all {rows.length} →</button>}</div>
     {data.error && <div className="dc-error-text" role="alert">{data.error}</div>}
     {res.loading ? <div className="dc-inline-empty">Loading start dates…</div>
-      : <div className="dc-alert-list">{rows.map((row) => <DstRow key={row.contactId + row.startDate + row.status} row={row} onDone={res.refresh}/>)}</div>}
+      : !rows.length ? <div className="dc-inline-empty">No start dates waiting.</div>
+      : groups.filter((g) => g[1].length).map(([label, list]) => <div key={label || "all"}>
+          {label && <div className="faint" style={{ margin: "12px 0 4px", fontWeight: 600 }}>{label} · {list.length}</div>}
+          <div className="dc-alert-list">{list.map((row) => <DstRow key={row.contactId + row.startDate + row.status} row={row} onDone={res.refresh}/>)}</div>
+        </div>)}
   </div>;
+}
+
+function DaycareStartDates() {
+  return <div className="dc-page"><DcxPageHead title="Start Dates" copy="Families whose start date showed up in their texts or form. Confirm enrolls the child; the parent gets their app login on the start morning. Not a start date drops it."/><DstStartDates page/></div>;
 }
 // --- /STARTS ---
 
@@ -638,5 +652,5 @@ function DaycareSettings() {
 Object.assign(window, {
   DCX_ACCENT, DcxRequest, DcxUnwrap, DcxName, DcxChildName, DcxMoney, DcxDate, DcxToday,
   DcxUseResource, DcxPageHead, DcxKpi, DcxState, DcxModal, DcxConfirm, DcxField,
-  DaycareWorkspace, DaycareDashboard, DaycareSettings,
+  DaycareWorkspace, DaycareDashboard, DaycareSettings, DaycareStartDates,
 });
