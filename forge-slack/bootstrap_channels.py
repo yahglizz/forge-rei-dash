@@ -9,7 +9,10 @@ Needs bot scopes groups:write, groups:read (and channels:read for the lookup).
 """
 import json, os, pathlib, sys, urllib.parse, urllib.request
 
-CHANNELS = {"HQ": "forge-hq", "DAYCARE": "forge-daycare", "AGENCY": "forge-agency", "WHOLESALE": "forge-wholesale"}
+CHANNELS = {"HQ": "forge-hq", "DAYCARE": "forge-daycare", "AGENCY": "forge-agency", "WHOLESALE": "forge-wholesale",
+            # daycare rooms (slack_io.TOPICS): one channel per kind of enrollment news
+            "DAYCARE_ALERTS": "daycare-alerts", "DAYCARE_TOURS": "daycare-tours", "DAYCARE_QUOTES": "daycare-quotes",
+            "DAYCARE_STARTING": "daycare-starting", "DAYCARE_ENROLLED": "daycare-enrolled"}
 DIR = pathlib.Path(os.environ.get("FORGE_SLACK_CONFIG_DIR") or pathlib.Path(__file__).parent / "config")
 
 

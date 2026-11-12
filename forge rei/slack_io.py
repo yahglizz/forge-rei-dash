@@ -58,6 +58,14 @@ STATE = HERE / "marcus_state"            # dir; files below are resolved at call
 API_BASE = "https://slack.com/api"
 
 BUSINESSES = ("wholesale", "agency", "daycare", "dropship")
+# Rooms inside a business: its own channel per kind of news. Key "<business>-<topic>" in
+# slack.json, env SLACK_CHANNEL_<BUSINESS>_<TOPIC>. An unbound room falls back to the business
+# channel. A room IS its business for chat (Solomon answers in #daycare-tours) and for taps.
+TOPICS = {"daycare": ("alerts", "tours", "quotes", "starting", "enrolled")}
+TOPIC_KEYS = tuple(f"{b}-{t}" for b, ts in TOPICS.items() for t in ts)
+# Which room a mirrored alert lands in, by its dedupe_key prefix (the senders' own keys).
+_TOPIC_BY_KEY = (("daycare-lead:", "daycare-alerts"), ("dcreply:", "daycare-alerts"),
+                 ("cal-remind:", "daycare-tours"), ("daycare-start:", "daycare-starting"))
 _DEDUPE_WINDOW = 15 * 60
 _DEDUPE_MAX = 200
 _CARD_TTL = 7 * 86400                     # ad concepts live 3 days; keep a margin
@@ -75,7 +83,7 @@ _LOCK = threading.Lock()
 # on (FORGE_CHAT_TRANSPORT, FORGE_SLACK, SLACK_ONLY_TEST) are read from the real env only.
 _ENV_KEYS = {"SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "SLACK_AGENTS_BOT_TOKEN", "SLACK_SIGNING_SECRET",
              "SLACK_AGENTS_SIGNING_SECRET", "SLACK_ALLOWED_USER_IDS", "SLACK_OWNER_IDS", "SLACK_TEST_CHANNEL_ID"}
-_ENV_CHANNEL_RE = re.compile(r"SLACK_CHANNEL_[A-Z]+")
+_ENV_CHANNEL_RE = re.compile(r"SLACK_CHANNEL_[A-Z_]+")
 
 
 def _load_env_file(p):
@@ -178,7 +186,7 @@ def bind(business: str, channel_id: str) -> None:
     """Point `business` (or "hq") at a Slack channel id. ValueError on bad input."""
     b = str(business or "").strip().lower()
     cid = str(channel_id or "").strip()
-    if b not in BUSINESSES + ("hq",):
+    if b not in BUSINESSES + ("hq",) + TOPIC_KEYS:
         raise ValueError(f"unknown business: {b!r}")
     if not re.fullmatch(r"[CDG][A-Z0-9]{2,}", cid):
         raise ValueError("bad channel id")
@@ -189,7 +197,22 @@ def bind(business: str, channel_id: str) -> None:
 
 
 def _env_channel(key) -> str | None:
-    return (os.environ.get(f"SLACK_CHANNEL_{key.upper()}") or "").strip() or None
+    return (os.environ.get(f"SLACK_CHANNEL_{key.upper().replace('-', '_')}") or "").strip() or None
+
+
+def topic_channel(key) -> str | None:
+    """The room's own channel ("daycare-tours"), or None while it has none (bound, then env)."""
+    if key not in TOPIC_KEYS or os.environ.get("SLACK_ONLY_TEST") == "1":
+        return None
+    with _LOCK:
+        st = _read("slack.json")
+    return st.get(key) or _env_channel(key)
+
+
+def topic_of(channel_id) -> str | None:
+    """"tours" for the daycare-tours room, None for any other channel."""
+    cid = str(channel_id or "").strip()
+    return next((k.split("-", 1)[1] for k in TOPIC_KEYS if cid and cid == topic_channel(k)), None)
 
 
 def chat_for(business: str | None) -> str | None:
@@ -211,7 +234,7 @@ def _channels() -> set:
     """Every channel a tap may come from: HQ + each business channel (bound or env)."""
     with _LOCK:
         st = _read("slack.json")
-    out = {st.get(k) or _env_channel(k) for k in BUSINESSES + ("hq",)}
+    out = {st.get(k) or _env_channel(k) for k in BUSINESSES + ("hq",) + TOPIC_KEYS}
     if os.environ.get("SLACK_ONLY_TEST") == "1":
         out.add((os.environ.get("SLACK_TEST_CHANNEL_ID") or "").strip())
     return {c for c in out if c}
@@ -227,6 +250,9 @@ def business_of(channel_id) -> str | None:
     for k in BUSINESSES + ("hq",):
         if cid == (st.get(k) or _env_channel(k)):
             return k
+    for k in TOPIC_KEYS:                       # a room is its business
+        if cid == (st.get(k) or _env_channel(k)):
+            return k.split("-", 1)[0]
     if os.environ.get("SLACK_ONLY_TEST") == "1" and cid == (os.environ.get("SLACK_TEST_CHANNEL_ID") or "").strip():
         return "hq"
     return None
@@ -456,6 +482,12 @@ def render_blocks(text: str, buttons: list[list[dict]] | None, card_id: str | No
     for i, row in enumerate(buttons or []):
         elems = []
         for b in row or []:
+            url = str((b or {}).get("url") or "")
+            if url.startswith("https://"):     # link button: opens the page, runs nothing
+                elems.append({"type": "button", "text": {"type": "plain_text", "emoji": True,
+                                                         "text": str(b.get("text") or "Open")[:75]},
+                              "url": url[:3000], "action_id": f"url{i}-{len(elems)}"})
+                continue
             cb = str((b or {}).get("callback_data") or "")
             if not cb or len(cb.encode()) > 64:
                 continue
@@ -486,6 +518,10 @@ def _deliver(html_text, business, buttons, dedupe_key, image_url=None,
     if mode() == "telegram" and not channel:
         return False
     token = _token()
+    if not channel and business in TOPICS:     # a mirrored alert goes to its room when it has one
+        room = next((k for pre, k in _TOPIC_BY_KEY if str(dedupe_key or "").startswith(pre)
+                     and k.startswith(business + "-")), None)
+        channel = topic_channel(room) if room else None
     channel = channel or chat_for(business)
     if not token:
         return _fail("not configured (no SLACK_BOT_TOKEN)", channel)
@@ -510,7 +546,7 @@ def _deliver(html_text, business, buttons, dedupe_key, image_url=None,
         if last and card_id:
             ch, ts = res.get("channel") or channel, str(res.get("ts") or "")
             if register_card(card_id, ch, ts,
-                             [e["value"] for b in blocks if b["type"] == "actions" for e in b["elements"]],
+                             [e["value"] for b in blocks if b["type"] == "actions" for e in b["elements"] if "value" in e],
                              origin_chat=origin_chat, tg_message_id=tg_message_id,
                              tg_chat_id=tg_chat_id, tg_bot=tg_bot):
                 # Tapped in Telegram before this copy landed: drop the Slack buttons (best effort).
@@ -643,6 +679,8 @@ def _interaction(payload, envelope_id):
     value = str(act.get("value") or "")
     card_id = str(act.get("block_id") or "").split("#")[0]
     action, _, arg = value.partition(":")
+    if not value and str(act.get("action_id") or "").startswith("url"):
+        return {"ok": True, "result": "link"}      # a link button: Slack opened the page itself
 
     if not authorized(user, channel, None):
         print(f"[slack] tap REFUSED user={user or '?'} channel={channel or '?'}", flush=True)
@@ -655,6 +693,11 @@ def _interaction(payload, envelope_id):
     if not authorized(user, channel, card) or value not in (card.get("actions") or []):
         print(f"[slack] tap REFUSED user={user} channel={channel} card={card_id}", flush=True)
         return _refuse(channel, user, "Not authorized")
+    if action in LIVE_ACTIONS:            # menu / room buttons: every tap runs, the card stays
+        import slack_inbound                # own thread: an agent turn must not hold the tap pool
+        threading.Thread(target=slack_inbound.handle_button, args=(action, arg, user, channel),
+                         daemon=True, name="slack-button").start()
+        return {"ok": True, "result": action}
     if card.get("consumed"):
         return _refuse(channel, user, "Already handled.", "already handled")
 
@@ -720,6 +763,9 @@ def _interaction(payload, envelope_id):
 #   4. systemctl restart forge-reios; grep the log for "[slack] listener connected" and
 #      "[slack] listener" errors; GET /api/health -> "slack": {"connected": true, ...}
 _ROUTED = ("interactive", "slash_commands", "events_api")
+# Buttons that never consume their card: "cmd:<command>" runs that command, "draft:<contactId>"
+# asks the channel's agent for a reply draft (which itself comes back as a ✅ card).
+LIVE_ACTIONS = ("cmd", "draft")
 _ENV_TTL = 10 * 60
 _ENV_MAX = 500
 _BACKOFF_MIN, _BACKOFF_MAX = 1.0, 60.0

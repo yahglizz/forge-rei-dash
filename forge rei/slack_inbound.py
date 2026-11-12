@@ -29,7 +29,7 @@ import threading
 import slack_io
 
 _QUICK = ("status", "starts", "logins", "pin", "board")      # telegram_agent.quick, zero Claude
-_BIND = slack_io.BUSINESSES + ("hq",)
+_BIND = slack_io.BUSINESSES + ("hq",) + slack_io.TOPIC_KEYS
 _AGENTS = ("scout", "marcus", "atlas", "dyson", "eco", "solomon", "midas", "orion")
 _MENTION = re.compile(r"^\s*<@[A-Z0-9]+>\s*")
 _CHAT_LOCKS = {}
@@ -44,7 +44,7 @@ def _ops_commands() -> list[str]:
 
 def _COMMANDS() -> set:
     """Every word that works as /<word> or /forge <word>."""
-    return {"forge", "help", "bind", "agents", "who", "ace", "chats", "whoami", "id", "menu", "task",
+    return {"forge", "help", "bind", "agents", "who", "ace", "chats", "whoami", "id", "menu", "task", "roster",
             *_QUICK, *_AGENTS, *_ops_commands()}
 
 
@@ -55,7 +55,8 @@ def help_text() -> str:
             "  e.g. `/forge today` · `/forge text arthur: I can call at 3` · `/forge done 3`\n"
             "*No AI*: " + " · ".join(f"`{c}`" for c in _QUICK) + " (`logins`/`pin` take a name)\n"
             "*Crew*: `agents` roster · `task <job>` files a real job for the active agent · "
-            "`ace` (off|shadow|supervised|full) · `chats` · `whoami`\n"
+            "`ace` (off|shadow|supervised|full) · `chats` · `whoami` · `menu` (buttons) · "
+            "`roster` (in a daycare room)\n"
             "Each also works as its own command (`/today`, `/task …`, `/solomon …`) once it's in the app's "
             "Slash Commands.\n"
             "*Agents*: in a business channel just talk to its partner. In HQ or a DM start with a name — "
@@ -168,7 +169,7 @@ def _slash(p):
             return _eph(f"Bind failed: {e}")
         print(f"[slack] bound {biz} -> {channel}", flush=True)
         import telegram_io as tio
-        partner = "Orion" if biz == "hq" else tio._BIZ_AGENT[biz].title()
+        partner = "Orion" if biz == "hq" else tio._BIZ_AGENT[biz.split("-")[0]].title()
         return _eph(f"✅ This channel is now *{biz}*. Its alerts and ✅ cards land here; "
                     f"plain messages go to *{partner}*.")
     dm = channel.startswith("D")
@@ -246,6 +247,9 @@ def _chats() -> str:
         ch = slack_io.chat_for(b) if b != "hq" else slack_io.chat_for(None)
         own = b == "hq" or slack_io.business_of(ch) == b
         lines.append(f"{b} — " + (f"✅ <code>{ch}</code>" if ch and own else "→ HQ (not bound)"))
+    for k in slack_io.TOPIC_KEYS:
+        ch = slack_io.topic_channel(k)
+        lines.append(f"  {k} — " + (f"✅ <code>{ch}</code>" if ch else f"→ {k.split('-')[0]} channel"))
     lines.append("\nIn a private channel with me: <code>/forge bind daycare</code> (agency · wholesale · dropship · hq).")
     return "\n".join(lines)
 
@@ -281,6 +285,32 @@ def _task(chat, agent_id, title, post) -> bool:
     return True
 
 
+_MENU = {"daycare": ("board", "starts", "roster tours", "roster quotes", "roster enrolled"),
+         "wholesale": ("today", "hot", "proposals", "report"),
+         None: ("status", "agents", "chats")}
+
+
+def _menu(chat_biz):
+    """Quick-tap buttons (Telegram's /menu keyboard). Each runs its command; the card stays."""
+    cmds = _MENU.get(chat_biz) or _MENU[None]
+    return ("<b>Quick taps</b> — or just tell me what you need.",
+            [[{"text": c.title(), "callback_data": f"cmd:{c}"} for c in cmds]])
+
+
+def handle_button(action, arg, user, channel) -> None:
+    """A LIVE_ACTIONS tap (slack_io already checked owner + channel + card). Never raises."""
+    try:
+        if action == "draft":
+            import slack_rooms
+            slack_rooms.draft(arg, channel, user)
+            return
+        body = _slash({"command": "/forge", "text": arg, "user_id": user, "channel_id": channel})
+        if body.get("text"):
+            _poster(channel)(body["text"])
+    except Exception as e:  # noqa: BLE001
+        print(f"[slack] button {action} failed: {type(e).__name__}", flush=True)
+
+
 def _wholesale_here(chat_biz) -> bool:
     """Telegram's rule: ops run in the wholesale channel, or in HQ/a DM while wholesale has none."""
     return chat_biz == "wholesale" or (
@@ -310,7 +340,11 @@ def _handle_text(text, channel, chat_biz, thread, slash, user=""):
             post(f"channel: <code>{channel}</code>\nyour id: <code>{user}</code>")
             return
         elif word == "menu":
-            post(help_text())
+            post(*_menu(chat_biz))
+            return
+        elif word == "roster":
+            import slack_rooms
+            post(*slack_rooms.roster(arg.lower() or slack_io.topic_of(channel) or ""))
             return
         elif word == "task":
             if not arg:

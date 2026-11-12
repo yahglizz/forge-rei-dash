@@ -279,8 +279,10 @@ def refresh(client, now=None, board=DEFAULT_BOARD):
             error = f"GHL read failed: {_err(e)}"
         finally:
             lock.release()
+    before = None
     with _LOCK:
         st = _load(board)
+        before = list(st.get("cards") or []) if st.get("fetchedAt") else None
         st["lastRunAt"], st["configured"], st["error"] = _ms(now), configured, error
         if got:
             pid, stages, source, cards = got
@@ -292,6 +294,12 @@ def refresh(client, now=None, board=DEFAULT_BOARD):
         _save(st, board)
     print(f"[daycare_pipeline] refresh {board}: {len(got[3]) if got else 'n/a'} opportunities"
           + (f", error: {error}" if error else ""))
+    if got:                                # Slack rooms: stage moves + first-run rosters (never raises)
+        try:
+            import slack_rooms
+            slack_rooms.on_refresh(before, st.get("cards") or [], getattr(client, "location_id", None), board)
+        except Exception:  # noqa: BLE001
+            pass
     return {"ok": error is None, "error": error, "total": st.get("total", 0)}
 
 
