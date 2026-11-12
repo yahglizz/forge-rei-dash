@@ -482,6 +482,18 @@ def _write(name, inp, agent_id, col):
         tap, why_tap = True, "that tag edit touches intake / login / center tags"
     if not tap and (col.get("tainted") or _recently_tainted(agent_id)):
         tap, why_tap = True, "third-party text (email / parent / form) is in context, so writes need your tap"
+    if not tap:                            # two loc- tag edits for ONE family in a batch: the gate saw each alone
+        seen = {}
+        for c in calls:
+            if c["path"] != "/api/daycare/ghl/tag":
+                continue
+            add, rem = c["body"].get("add") or [], c["body"].get("remove") or []
+            if isinstance(add, list) and isinstance(rem, list) and any(
+                    str(t).strip().lower().startswith("loc-") for t in add + rem):
+                key = str(c["body"].get("contact_id") or "")
+                seen[key] = seen.get(key, 0) + 1
+        if any(n > 1 for n in seen.values()):
+            tap, why_tap = True, "more than one center-tag edit for the same family in one batch"
     if not tap and "/api/knowledge/post" in paths and not col.get("promptClean"):
         tap, why_tap = True, "outside text (leads, tasks, history) is in this prompt, so a knowledge note needs your tap"
     if not tap and any(c["path"] == "/api/hub/task" and _task_cross_business(c["body"], biz) for c in calls):

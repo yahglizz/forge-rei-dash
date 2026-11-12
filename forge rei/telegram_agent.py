@@ -465,14 +465,22 @@ def _family_name(contact_id):
     return None
 
 
+def _only(body, allowed):
+    """True when the body has no key the template would hide."""
+    return isinstance(body, dict) and set(body) <= set(allowed)
+
+
 def describe(path, body):
     """One plain line built from the REQUEST itself (never the model's words), so what the owner reads is
-    exactly what the tap runs. None = no template for this route (the card shows the model's summary and a
-    short detail line instead)."""
+    exactly what the tap runs: every field the handler acts on is shown in full, never cut. A body with a key
+    the template does not show gets no template (None): the card falls back to the model's summary plus the
+    full compact route and arguments."""
     body = body if isinstance(body, dict) else {}
     path = str(path or "")
     if path == "/api/daycare/ghl/tag":
-        who = _family_name(str(body.get("contact_id") or "")) or "a contact"
+        if not _only(body, ("contact_id", "add", "remove")):
+            return None
+        who = _family_name(str(body.get("contact_id") or "")) or f"contact {body.get('contact_id')}"
         add, rem = body.get("add") or [], body.get("remove") or []
         if not isinstance(add, list) or not isinstance(rem, list):
             return None
@@ -484,10 +492,11 @@ def describe(path, body):
         if rem:
             out.append(f"Remove tag {', '.join(map(str, rem))} from {who}")
         return " · ".join(out) or None
-    if path == "/api/hub/task":
-        return f"Task for {str(body.get('agentId') or 'an agent').title()}: {str(body.get('title') or '')[:140]}"
-    if path == "/api/knowledge/post":
-        return f"Add a note to #forge-knowledge: “{str(body.get('text') or '')[:140]}”"
+    if path == "/api/hub/task" and _only(body, ("agentId", "title", "note")):
+        return (f"Task for {str(body.get('agentId') or 'an agent').title()}: {body.get('title') or ''}"
+                + (f" — {body['note']}" if body.get("note") else ""))
+    if path == "/api/knowledge/post" and _only(body, ("text", "agent")):
+        return f"Add a note to #forge-knowledge: “{body.get('text') or ''}”"
     return None
 
 
@@ -497,7 +506,7 @@ def _compact(path, body):
     for k, v in (body if isinstance(body, dict) else {}).items():
         v = ", ".join(map(str, v)) if isinstance(v, list) else (json.dumps(v, default=str) if isinstance(v, dict) else v)
         bits.append(f"{k}: {v}")
-    return (str(path).replace("/api/", "", 1) + (" · " + ", ".join(bits) if bits else ""))[:200]
+    return str(path).replace("/api/", "", 1) + (" · " + ", ".join(bits) if bits else "")   # never cut: it is what the tap runs
 
 
 def line(path, body):

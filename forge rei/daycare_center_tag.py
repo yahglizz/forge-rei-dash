@@ -78,9 +78,21 @@ def eligible(card, amt_ids) -> bool:
         and not _amt_card(card) and card["contactId"] not in amt_ids and not _test(card.get("name"))
 
 
+def _live_client():
+    """The box's daycare GHL client (connector runs in this process), or None. Tests patch this."""
+    try:
+        import connector
+        c = connector.DAYCARE_GHL
+        return c if getattr(c, "configured", False) else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def safe_to_add(contact_id, tag) -> tuple[bool, str]:
     """The agents' gate (dash_live): may an agent ADD this one center tag to this contact without a card?
-    Only a center tag of an ATOB site, only to a family the boards prove is untagged ATOB."""
+    Only a center tag of an ATOB site, only to a family the boards prove is untagged ATOB, AND the live GHL
+    contact (read right now, the boards are minutes old) still has no loc- tag and no AMT mark. Any doubt,
+    any error, no GHL client = a card."""
     if str(tag or "").strip().lower() not in TAG_SITE:
         return False, "not an A Touch of Blessings center tag"
     try:
@@ -95,6 +107,15 @@ def safe_to_add(contact_id, tag) -> tuple[bool, str]:
         return False, "family is not on the ATOB board"
     if not all(eligible(c, amt_ids) for c in mine):
         return False, "family already has a center tag, an AMT mark, or is a test family"
+    client = _live_client()
+    if client is None:
+        return False, "GHL is not reachable for the live check"
+    try:
+        contact = (client.get(f"/contacts/{contact_id}") or {}).get("contact") or {}
+    except Exception:  # noqa: BLE001
+        return False, "live GHL read failed"
+    if not contact or not _contact_clean(contact):
+        return False, "the live contact already has a center tag, an AMT mark, or is a test family"
     return True, ""
 
 

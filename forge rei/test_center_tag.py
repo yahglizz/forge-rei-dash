@@ -47,6 +47,17 @@ class FakeGHL:
         raise AssertionError("the tagger never removes a tag")
 
 
+class FakeLive(FakeGHL):
+    """The live GHL read used by the agents' gate: any contact not listed is a clean untagged one."""
+    def __init__(self, live):
+        super().__init__({})
+        self.live = live
+
+    def get(self, path, params=None, retries=3):
+        cid = path.rsplit("/", 1)[-1]
+        return {"contact": self.live.get(cid, {"firstName": "Ava", "lastName": "L", "tags": []})}
+
+
 def contact(fields=None, tags=(), first="Ava"):
     return {"firstName": first, "lastName": "L", "tags": list(tags),
             "customFields": [{"id": k, "value": v} for k, v in (fields or {}).items()]}
@@ -56,12 +67,14 @@ class CenterTagTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.cards, self.amt = [], []
+        self.live = {}                                  # contactId -> live GHL contact ({} = clean default)
         boards = lambda b=None: {"fetchedAt": 1, "cards": self.amt if b == "amt" else self.cards}
         env = {k: v for k, v in os.environ.items() if not k.startswith("SLACK_") and k != "FORGE_DAYCARE_AUTO_CENTER"}
         self.patches = [mock.patch.object(slack_io, "STATE", Path(self.tmp.name)),
                         mock.patch.dict(os.environ, env, clear=True),
                         mock.patch.object(daycare_pipeline, "_load", boards),
-                        mock.patch.dict(sys.modules, {"action_log": mock.MagicMock()})]
+                        mock.patch.dict(sys.modules, {"action_log": mock.MagicMock()}),
+                        mock.patch.object(ct, "_live_client", lambda: FakeLive(self.live))]
         for p in self.patches:
             p.start()
         ct._FIELDS.update(at=0.0, ids={})
@@ -93,6 +106,21 @@ class CenterTagTests(unittest.TestCase):
         self.assertFalse(ct.safe_to_add("c1", "family-contact-form")[0])
         with mock.patch.object(daycare_pipeline, "_load", lambda b=None: {}):   # boards never read
             self.assertFalse(ct.safe_to_add("c1", L921)[0])
+
+    def test_safe_to_add_rereads_the_live_contact_and_fails_closed(self):
+        self.cards = [card("c1"), card("c2"), card("c3")]
+        self.live = {"c1": {"firstName": "Ava", "tags": [L2318]},                 # stale board: GHL already tagged
+                     "c2": {"firstName": "Bo", "tags": ["entity-amt"]},
+                     "c3": {"firstName": "Cy", "tags": ["website-lead"]}}
+        self.assertFalse(ct.safe_to_add("c1", L921)[0])
+        self.assertFalse(ct.safe_to_add("c2", L921)[0])
+        self.assertTrue(ct.safe_to_add("c3", L921)[0])
+        with mock.patch.object(ct, "_live_client", lambda: None):                # no GHL client: a card
+            self.assertFalse(ct.safe_to_add("c3", L921)[0])
+        boom = FakeLive({})
+        boom.get = mock.Mock(side_effect=RuntimeError("GHL down"))
+        with mock.patch.object(ct, "_live_client", lambda: boom):
+            self.assertFalse(ct.safe_to_add("c3", L921)[0])
 
     def test_dash_live_gate_is_auto_only_for_the_safe_single_center_add(self):
         self.cards = [card("c1"), card("c2", centers=[L921])]
@@ -152,6 +180,32 @@ class CenterTagTests(unittest.TestCase):
         self.assertEqual(len(g.posts), ct.MAX_TAGS)
 
 
+class BatchGateTests(unittest.TestCase):
+    """dash_live._write: a batch that edits a family's loc- tags more than once is one card."""
+    def test_two_center_adds_for_one_family_in_a_batch_become_a_card(self):
+        col = {"actions": [], "done": [], "auto": 0}
+        dash_live._TL.c = col
+        calls = [{"path": "/api/daycare/ghl/tag", "body": {"contact_id": "c1", "add": [L921]}},
+                 {"path": "/api/daycare/ghl/tag", "body": {"contact_id": "c1", "add": [L2318]}}]
+        with mock.patch.object(ct, "safe_to_add", lambda cid, tag: (True, "")), \
+                mock.patch.object(ta, "allowed", lambda b, m, p: (True, "")), \
+                mock.patch.object(ta, "_queue", lambda *a, **k: "tok"), \
+                mock.patch.object(dash_live, "_reserve_day", lambda *a, **k: True), \
+                mock.patch.object(dash_live, "write_business", lambda a: "daycare"), \
+                mock.patch.object(dash_live, "_recently_tainted", lambda a: False):
+            out = dash_live._write("api_post_batch", {"calls": calls, "summary": "s"}, "solomon", col)
+            self.assertTrue(out.get("queued"))
+            self.assertIn("more than one center-tag edit", out["note"])
+            col2 = {"actions": [], "done": [], "auto": 0}
+            dash_live._TL.c = col2
+            with mock.patch.object(ta, "_http", lambda *a, **k: {"ok": True}):
+                ok = dash_live._write("api_post_batch", {"calls": calls[:1] + [
+                    {"path": "/api/daycare/ghl/tag", "body": {"contact_id": "c2", "add": [L2318]}}], "summary": "s"},
+                    "solomon", col2)
+            self.assertTrue(ok.get("done"))                               # two DIFFERENT families: both auto
+        dash_live._TL.c = None
+
+
 class CardWordingTests(unittest.TestCase):
     def test_tag_card_is_one_plain_line_with_no_route_or_json(self):
         with mock.patch.object(ta, "_family_name", lambda cid: "Seara Peterson"):
@@ -185,6 +239,27 @@ class CardWordingTests(unittest.TestCase):
                 mock.patch.object(ta.forge_atomic, "atomic_write_json"):
             out = ta.confirm("t", "dash")
         self.assertEqual(out, {"ok": True, "message": "Tag Seara → 921 N 18th"})
+
+    def test_card_never_hides_or_cuts_what_the_tap_runs(self):
+        long_note = "n" * 400
+        text, _ = ta.card({"agent": "solomon", "tok": "t", "path": "/api/hub/task", "summary": "model",
+                           "body": {"agentId": "marcus", "title": "T" * 300, "note": long_note}})
+        self.assertIn("T" * 300, text)
+        self.assertIn(long_note, text)                                                 # full, not cut at 140
+        extra, _ = ta.card({"agent": "solomon", "tok": "t", "path": "/api/hub/task", "summary": "benign words",
+                            "body": {"agentId": "marcus", "title": "x", "business": "wholesale"}})
+        self.assertIn("benign words", extra)                                           # key the template hides: no template
+        self.assertIn("business: wholesale", extra)                                    # ...and the field is on the card
+        tag_extra, _ = ta.card({"agent": "solomon", "tok": "t", "path": "/api/daycare/ghl/tag", "summary": "Tag Ava",
+                                "body": {"contact_id": "c1", "add": [L921], "remove": ["enrolled"], "force": True}})
+        self.assertIn("force: True", tag_extra)
+        note, _ = ta.card({"agent": "orion", "tok": "t", "path": "/api/knowledge/post", "summary": "x",
+                           "body": {"text": "k" * 700, "agent": "orion"}})
+        self.assertIn("k" * 700, note)
+        with mock.patch.object(ta, "_family_name", lambda cid: None):
+            unknown, _ = ta.card({"agent": "solomon", "tok": "t", "path": "/api/daycare/ghl/tag", "summary": "x",
+                                  "body": {"contact_id": "zz9", "add": [L921]}})
+        self.assertIn("contact zz9", unknown)                                          # an id, not "a contact"
 
     def test_batch_rows_are_plain_lines(self):
         with mock.patch.object(ta, "_family_name", lambda cid: "Ava"):
