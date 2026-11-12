@@ -69,11 +69,12 @@ class RoomTests(unittest.TestCase):
 
     # routing ---------------------------------------------------------------------
     def test_alert_lands_in_its_room_by_dedupe_key(self):
-        slack_io.send("lead", business="daycare", dedupe_key="daycare-lead:1")
-        slack_io.send("tour", business="daycare", dedupe_key="cal-remind:k:24h:x")
-        slack_io.send("start", business="daycare", dedupe_key="daycare-start:1")      # no starting room bound
-        slack_io.send("ads", business="daycare", dedupe_key="ads-2026")
-        slack_io.send("lead", business="wholesale", dedupe_key="daycare-lead:2")      # other business: untouched
+        with mock.patch.object(slack_rooms, "room_ok", lambda k, t: True):
+            slack_io.send("lead", business="daycare", dedupe_key="daycare-lead:1")
+            slack_io.send("tour", business="daycare", dedupe_key="cal-remind:k:24h:x")
+            slack_io.send("start", business="daycare", dedupe_key="daycare-start:1")      # no starting room bound
+            slack_io.send("ads", business="daycare", dedupe_key="ads-2026")
+            slack_io.send("lead", business="wholesale", dedupe_key="daycare-lead:2")      # other business: untouched
         self.assertEqual([p[0] for p in self.posts()], [ALERTS, TOURS, DAYCARE, DAYCARE, HQ])
 
     def test_room_is_its_business_for_chat_and_taps(self):
@@ -126,17 +127,42 @@ class RoomTests(unittest.TestCase):
             self.assertEqual(slack_rooms.on_refresh(after), 0)
         self.assertEqual(self.posts(), [])
 
-    def test_amt_alerts_stay_out_of_rooms(self):
+    def _boards(self, atob_read=True, amt_read=True):
+        atob = {"fetchedAt": 1, "cards": [card("1", "A", "New Lead", cid="ATOBcontact00001")]} if atob_read else {}
+        amt = {"fetchedAt": 1, "cards": [card("9", "K", "New Lead", cid="AMTcontact000001")]} if amt_read else {}
+        return lambda b=None: amt if b == "amt" else atob
+
+    def test_only_provably_atob_alerts_enter_a_room(self):
         import daycare_pipeline
-        amt = {"cards": [card("9", "Kid", "New Lead", cid="AMTcontact000001")]}
-        with mock.patch.object(daycare_pipeline, "_load", lambda b=None: amt if b == "amt" else {}):
-            slack_io.send("lead at 1923 Cecil B Moore (AMT)", business="daycare", dedupe_key="daycare-lead:x1:a")
-            slack_io.send("Tour reminder [1923 AMT]: 10am", business="daycare", dedupe_key="cal-remind:tour|c:24h:x")
+        with mock.patch.object(daycare_pipeline, "_load", self._boards()):
+            slack_io.send("a parent replied", business="daycare", dedupe_key="dcreply:ATOBcontact00001:i1")   # room
+            slack_io.send("lead at 1923 Cecil B Moore (AMT)", business="daycare", dedupe_key="daycare-lead:ATOBcontact00001:a")
             slack_io.send("a parent replied", business="daycare", dedupe_key="dcreply:AMTcontact000001:i1")
-            slack_io.send("a parent replied", business="daycare", dedupe_key="dcreply:ATOBcontact00001:i1")
-        with mock.patch.object(slack_rooms, "room_ok", side_effect=RuntimeError):      # cannot tell = main channel
-            slack_io.send("lead", business="daycare", dedupe_key="daycare-lead:x2:a")
-        self.assertEqual([p[0] for p in self.posts()], [DAYCARE, DAYCARE, DAYCARE, ALERTS, DAYCARE])
+            slack_io.send("a parent replied", business="daycare", dedupe_key="dcreply:UNKNOWNcontact01:i1")  # on no board
+            slack_io.send("start date", business="daycare", dedupe_key="daycare-start:x")                    # no id
+        with mock.patch.object(daycare_pipeline, "_load", self._boards(amt_read=False)):                     # AMT never read
+            slack_io.send("a parent replied", business="daycare", dedupe_key="dcreply:ATOBcontact00001:i2")
+        with mock.patch.object(slack_rooms, "room_ok", side_effect=RuntimeError):                            # cannot tell
+            slack_io.send("lead", business="daycare", dedupe_key="daycare-lead:ATOBcontact00001:b")
+        self.assertEqual([p[0] for p in self.posts()], [ALERTS] + [DAYCARE] * 6)
+
+    def test_rosters_list_only_atob_centers(self):
+        import daycare_calendar
+        import daycare_starts
+        up = [{"kind": "tour", "date": "2026-11-13", "time": "2026-11-13T10:00:00", "center": "loc-2318-cecil-b-moore", "tag": "[2318]", "who": "Ayries A."},
+              {"kind": "tour", "date": "2026-11-14", "time": None, "center": "loc-1923-cecil-b-moore", "tag": "[1923 AMT]", "who": "Amt Kid"},
+              {"kind": "tour", "date": "2026-11-15", "time": None, "center": None, "tag": None, "who": "Nowhere Kid"}]
+        starts = [{"childName": "Ok Kid", "startDate": "2026-11-20", "status": "proposed", "center": "2318 Cecil B Moore"},
+                  {"childName": "Amt Kid", "startDate": "2026-11-20", "status": "proposed", "center": "1923 Cecil B Moore (AMT)"},
+                  {"childName": "Lost Kid", "startDate": "2026-11-20", "status": "proposed", "center": "Center unknown"}]
+        with mock.patch.object(daycare_calendar, "view", lambda now=None: {"upcoming": up}), \
+                mock.patch.object(daycare_starts, "view", lambda now=None: {"starts": starts}), \
+                mock.patch.object(slack_rooms, "_stage_cards", lambda s: ([], None)):
+            tours, start = slack_rooms.roster("tours")[0], slack_rooms.roster("starting")[0]
+        self.assertIn("Ayries A.", tours)
+        self.assertIn("Ok Kid", start)
+        for bad in ("Amt Kid", "Nowhere Kid", "Lost Kid"):
+            self.assertNotIn(bad, tours + start)
 
     def test_flood_is_capped_and_unroomed_moves_take_no_slot(self):
         slack_rooms.on_refresh([card(str(i), f"K{i}", "Contacted") for i in range(30)])

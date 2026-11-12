@@ -91,7 +91,8 @@ def roster(topic, now=None) -> tuple[str, list]:
             import daycare_starts
             v = daycare_starts.view()
             rows = [r for r in (v.get("starts") if isinstance(v, dict) else v) or []
-                    if r.get("status") != "sent" and not _AMT_TEXT.search(str(r.get("center") or ""))
+                    if r.get("status") != "sent" and _ATOB_CENTER.search(str(r.get("center") or ""))
+                    and not _AMT_TEXT.search(str(r.get("center") or ""))
                     and not _test(r.get("childName") or r.get("parentName"))]
             lines = [f"• {_esc(r.get('childName') or r.get('parentName') or '?')} — {_esc(r.get('startDate') or '?')} "
                      f"({_esc(r.get('status') or '?')})" for r in rows[:MAX_ROWS]]
@@ -101,6 +102,7 @@ def roster(topic, now=None) -> tuple[str, list]:
             import daycare_calendar
             v = daycare_calendar.view()
             for u in [u for u in v.get("upcoming") or [] if u.get("kind") == "tour"
+                      and _ATOB_CENTER.search(f"{u.get('center')} {u.get('tag')}")
                       and not _AMT_TEXT.search(f"{u.get('center')} {u.get('tag')}")][:MAX_ROWS]:
                 at = (u.get("time") or "")[11:16]
                 lines.append(f"• {_esc(u['date'])}{' ' + at if at else ''} {_esc(u.get('tag') or '')} "
@@ -128,19 +130,30 @@ def roster(topic, now=None) -> tuple[str, list]:
 _AMT_TEXT = re.compile(r"\bAMT\b|\b1923\b|Mother.{0,3}s Touch", re.I)
 
 
-def _amt_contacts() -> set:
+_ATOB_CENTER = re.compile(r"\b(921|2318)\b")      # A Touch of Blessings centers; anything else is not provably ATOB
+
+
+def _board_contacts(board):
+    """-> the board's contact ids, or None when that board has never been read (cannot tell)."""
     import daycare_pipeline
-    return {c.get("contactId") for c in daycare_pipeline._load("amt").get("cards") or []}
+    st = daycare_pipeline._load(board)
+    if not st.get("fetchedAt"):
+        return None
+    return {c.get("contactId") for c in st.get("cards") or [] if c.get("contactId")}
 
 
 def room_ok(dedupe_key, text) -> bool:
-    """May this mirrored daycare alert go to a room? No when it names AMT / 1923, or when a contact
-    id inside its dedupe key (leads, replies, tours carry one) is on the AMT board. Raises = caller
-    keeps it in the main daycare channel (fail closed)."""
+    """May this mirrored daycare alert go to a room? Only when it is PROVABLY A Touch of Blessings:
+    a contact id inside its dedupe key (leads, replies, tours carry one) is on the ATOB board, the
+    AMT board has been read and does not hold it, and the text names neither AMT nor 1923.
+    Anything else (no id, unread board, unknown family) stays in the main daycare channel."""
     if _AMT_TEXT.search(str(text or "")):
         return False
     ids = set(re.findall(r"[A-Za-z0-9]{12,}", str(dedupe_key or "")))
-    return not (ids and ids & _amt_contacts())
+    atob, amt = _board_contacts(BOARD), _board_contacts("amt")
+    if not ids or atob is None or amt is None:
+        return False
+    return bool(ids & atob) and not ids & amt
 
 
 # ── stage moves + first-run seed ──────────────────────────────────────────────
@@ -163,7 +176,9 @@ def on_refresh(after, location_id=None, board=BOARD) -> int:
             moved = [c for c in after
                      if c.get("opportunityId") and now_map[c["opportunityId"]] != known.get(c["opportunityId"])]
             posts = [(c, STAGE_TOPIC.get(now_map[c["opportunityId"]].strip().lower())) for c in moved]
-            posts = [(c, t) for c, t in posts if t and _room(t) and not _test(c.get("name"))]
+            both = _board_contacts("amt") or set()     # a family also on the AMT board stays out
+            posts = [(c, t) for c, t in posts if t and _room(t) and not _test(c.get("name"))
+                     and c.get("contactId") not in both]
             failed = set()
             for c, topic in posts[:MAX_EVENTS]:
                 was = known.get(c["opportunityId"])
