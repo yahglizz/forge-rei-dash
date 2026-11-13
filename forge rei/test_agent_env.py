@@ -75,6 +75,15 @@ class AgentEnvTest(unittest.TestCase):
         os.environ.pop("FORGE_MASTER_ENV")
         self.assertEqual(agent_env.load_agent_env("WHOLESALE"), {})
 
+    def test_n8n_forge_label(self):
+        self.path.write_text(MASTER + "N8N_API_KEY__FORGE_N8N=n8nk\n"
+                             "N8N_BASE_URL__FORGE_N8N=https://n8n.example\n"
+                             "N8N_API_KEY__DRAFT=otherk\n")
+        n = agent_env.load_agent_env("FORGE_N8N")
+        self.assertEqual(n, {"N8N_API_KEY": "n8nk", "N8N_BASE_URL": "https://n8n.example"})
+        w = agent_env.load_agent_env("WHOLESALE")
+        self.assertNotIn("N8N_API_KEY", w)                   # other label's n8n key never leaks
+
     def test_bad_label(self):
         with self.assertRaises(ValueError):
             agent_env.load_agent_env("WHOLESALE__AGENCY")

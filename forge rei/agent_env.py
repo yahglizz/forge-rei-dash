@@ -19,7 +19,7 @@ import os
 import sys
 from pathlib import Path
 
-LABELS = ("WHOLESALE", "AGENCY", "DAYCARE", "DROPSHIP", "SHARED")
+LABELS = ("WHOLESALE", "AGENCY", "DAYCARE", "DROPSHIP", "SHARED", "FORGE_N8N")
 
 # TELEGRAM_AGENT_BOT_TOKEN is left out on purpose: it is unset on the box (n8n owns that bot's
 # webhook, ENV-MAP). Set it in the real env if a process must poll it.
@@ -28,6 +28,7 @@ _ALL = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "TELEGRAM_ALLOWED_IDS")
 # Unlabelled master names each label may see (ENV-MAP rows + what each business file held).
 SHARED = {
     "SHARED": _ALL,
+    "FORGE_N8N": (),
     "WHOLESALE": _ALL + ("RETELL_API_KEY", "TWILIO_AUTH_TOKEN"),
     "AGENCY": _ALL + ("HIGGSFIELD_API_KEY", "HIGGSFIELD_API_SECRET"),
     "DAYCARE": _ALL + ("NEXT_PUBLIC_SUPABASE_ANON_KEY", "DAYCARE_TEST_ADMIN_PIN",
@@ -45,6 +46,7 @@ SHARED = {
 # business file too (absent, never a file fallback).
 LABELLED = {
     "SHARED": (),
+    "FORGE_N8N": ("N8N_API_KEY", "N8N_BASE_URL"),   # forge's own n8n instance (master __FORGE_N8N)
     "WHOLESALE": ("ANTHROPIC_API_KEY", "GHL_API_KEY", "GHL_LOCATION_ID"),
     "AGENCY": ("ANTHROPIC_API_KEY", "GHL_API_KEY", "GHL_LOCATION_ID", "STRIPE_SECRET_KEY"),
     "DAYCARE": ("ANTHROPIC_API_KEY", "GHL_API_KEY", "STRIPE_SECRET_KEY", "META_ACCESS_TOKEN",

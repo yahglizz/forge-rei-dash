@@ -266,6 +266,11 @@ def _inject_env(label, exclude_prefixes=()):
             os.environ[k] = v
 
 
+# N8N keys come from master (label FORGE_N8N) first, so they win over any copy in a business file.
+import agent_env as _agent_env  # noqa: E402
+for _k, _v in _agent_env.load_agent_env("FORGE_N8N").items():
+    if _k not in os.environ:
+        os.environ[_k] = _v
 _inject_env("AGENCY")  # agency's own keys (incl its META/GHL) — unchanged
 # Also expose the OTHER businesses' shared APP keys (RETELL, APIFY, TWILIO,
 # HIGGSFIELD, STRIPE, GOOGLE, N8N, RESEND, OPENAI…) process-wide so ANY agent can
