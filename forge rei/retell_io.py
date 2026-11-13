@@ -41,6 +41,9 @@ def _conf(name):
     k = os.environ.get(name, "").strip()
     if k:
         return k
+    import agent_env   # keys (RETELL_API_KEY) come from master.env only; ghl.env keeps config ids
+    if name in agent_env.owned("WHOLESALE"):
+        return agent_env.load_agent_env("WHOLESALE").get(name, "") if _ENV_FILES else ""
     for p in _ENV_FILES:
         if not p.exists():
             continue

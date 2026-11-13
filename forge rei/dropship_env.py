@@ -40,7 +40,8 @@ def read_env() -> dict:
                 break
         except Exception:
             continue
-    return cfg
+    import agent_env   # keys come from master.env (DROPSHIP label); the file keeps config only
+    return agent_env.with_master("DROPSHIP", cfg)
 
 
 def get(key: str, default: str = "") -> str:

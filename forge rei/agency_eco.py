@@ -683,18 +683,9 @@ def _hf_creds():
     """Higgsfield id+secret for the agency side: env → agency.env → shared scan (daycare.env
     via higgsfield_io). One Higgsfield account serves every ad agent, so this falls back to
     wherever the operator pasted the single pair. Returns {HIGGSFIELD_API_KEY, HIGGSFIELD_API_SECRET}."""
-    creds = {}
-    for p in AGENCY_ENV_CANDIDATES:
-        try:
-            if p.is_file():
-                for line in p.read_text().splitlines():
-                    line = line.strip()
-                    for var in ("HIGGSFIELD_API_KEY", "HIGGSFIELD_API_SECRET"):
-                        if line.startswith(var + "=") and not line.startswith("#"):
-                            creds[var] = line.split("=", 1)[1].strip()
-                break
-        except Exception:
-            continue
+    import agent_env   # master.env (AGENCY label's shared Higgsfield pair); agency.env is not read
+    a = agent_env.load_agent_env("AGENCY")
+    creds = {k: a[k] for k in ("HIGGSFIELD_API_KEY", "HIGGSFIELD_API_SECRET") if a.get(k)}
     try:
         import higgsfield_io
         return {"HIGGSFIELD_API_KEY": higgsfield_io.resolve_key(creds),

@@ -72,7 +72,10 @@ def _load_env_file(p):
         pass
 
 
-_load_env_file(TG_DIR / "config" / "telegram.env")
+# Telegram keys come from master.env only (agent_env, shared names); telegram.env is not read.
+import agent_env  # noqa: E402
+for _k, _v in agent_env.load_agent_env("SHARED").items():
+    os.environ.setdefault(_k, _v)
 
 
 # ── config resolvers ──────────────────────────────────────────────────────────

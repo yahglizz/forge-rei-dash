@@ -76,18 +76,20 @@ _SHARED_PREFIXES = ("META_", "GHL_")
 def _load_env_file(p):
     """Fold forge-dropship/config/dropship.env into the environment (real env wins),
     EXCEPT shared-namespace keys, which stay file-only to prevent cross-workspace leaks."""
+    cfg = {}
     try:
         if p.exists():
             for line in p.read_text().splitlines():
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     k, v = line.split("=", 1)
-                    k = k.strip()
-                    if any(k.startswith(pre) for pre in _SHARED_PREFIXES):
-                        continue
-                    os.environ.setdefault(k, v.strip())
+                    cfg[k.strip()] = v.strip()
     except Exception:
         pass
+    import agent_env   # keys from master.env (DROPSHIP label only); the file keeps config + knobs
+    for k, v in agent_env.with_master("DROPSHIP", cfg).items():
+        if not any(k.startswith(pre) for pre in _SHARED_PREFIXES):
+            os.environ.setdefault(k, v)
 
 
 _load_env_file(DROPSHIP_DIR / "config" / "dropship.env")

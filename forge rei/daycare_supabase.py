@@ -74,6 +74,16 @@ class DaycareError(Exception):
 
 
 def _read_env(paths=ENV_CANDIDATES) -> dict[str, str]:
+    """daycare.env config with every daycare key replaced from master.env (agent_env, DAYCARE
+    label). A caller-supplied path list (tests) gets the file only."""
+    cfg = _read_file(paths)
+    if paths is ENV_CANDIDATES:
+        import agent_env
+        cfg = agent_env.with_master("DAYCARE", cfg)
+    return cfg
+
+
+def _read_file(paths) -> dict[str, str]:
     for path in paths:
         try:
             if not path.is_file():

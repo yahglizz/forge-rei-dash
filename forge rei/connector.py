@@ -77,6 +77,15 @@ DAYCARE_ENV_CANDIDATES = [
 ]
 
 
+def _biz_env(label):
+    """A business's config: its env file for non-secret config, every key from master.env
+    (agent_env, that label only). Business env files are not a key source."""
+    import agent_env
+    paths = {"WHOLESALE": ENV_CANDIDATES, "AGENCY": AGENCY_ENV_CANDIDATES,
+             "DAYCARE": DAYCARE_ENV_CANDIDATES}[label]
+    return agent_env.with_master(label, _load_env(paths))
+
+
 def _load_env(paths):
     cfg = {}
     for p in paths:
@@ -223,9 +232,9 @@ class GHLClient:
         return self._req("DELETE", endpoint, body=body, retries=retries)
 
 
-WHOLESALE = GHLClient(_load_env(ENV_CANDIDATES), "wholesale")
-AGENCY = GHLClient(_load_env(AGENCY_ENV_CANDIDATES), "agency")
-DAYCARE_GHL = GHLClient(_load_env(DAYCARE_ENV_CANDIDATES), "daycare")
+WHOLESALE = GHLClient(_biz_env("WHOLESALE"), "wholesale")
+AGENCY = GHLClient(_biz_env("AGENCY"), "agency")
+DAYCARE_GHL = GHLClient(_biz_env("DAYCARE"), "daycare")
 
 # Family Contact Form GHL location tag -> Supabase center id. The public form tags
 # each submission with its center (submit.js); this maps that tag to the Supabase
@@ -244,7 +253,7 @@ _SHARED_ISOLATED = ("GHL_", "ANTHROPIC", "AGENCY_ANTHROPIC",
                     "META_", "METRICOOL_", "DAYCARE_", "NEXT_PUBLIC_", "SUPABASE")
 
 
-def _inject_env(paths, exclude_prefixes=()):
+def _inject_env(label, exclude_prefixes=()):
     """Inject env-file keys into os.environ without clobbering real shell/systemd
     vars (first-writer-wins). exclude_prefixes skips per-business/isolated families.
 
@@ -252,19 +261,19 @@ def _inject_env(paths, exclude_prefixes=()):
     key) are visible to all modules via os.environ.get() — the credential-guard
     pattern every M2/M3 module uses.
     """
-    for k, v in _load_env(paths).items():
+    for k, v in _biz_env(label).items():
         if v and k not in os.environ and not (exclude_prefixes and k.startswith(exclude_prefixes)):
             os.environ[k] = v
 
 
-_inject_env(AGENCY_ENV_CANDIDATES)  # agency's own keys (incl its META/GHL) — unchanged
+_inject_env("AGENCY")  # agency's own keys (incl its META/GHL) — unchanged
 # Also expose the OTHER businesses' shared APP keys (RETELL, APIFY, TWILIO,
 # HIGGSFIELD, STRIPE, GOOGLE, N8N, RESEND, OPENAI…) process-wide so ANY agent can
 # call an app whose key lives in another folder. Per-business families
 # (GHL_/META_/METRICOOL_/ANTHROPIC/daycare-internal) stay isolated; first-writer-
 # wins keeps agency's values authoritative for anything genuinely shared.
-_inject_env(DAYCARE_ENV_CANDIDATES, exclude_prefixes=_SHARED_ISOLATED)
-_inject_env(ENV_CANDIDATES, exclude_prefixes=_SHARED_ISOLATED)
+_inject_env("DAYCARE", exclude_prefixes=_SHARED_ISOLATED)
+_inject_env("WHOLESALE", exclude_prefixes=_SHARED_ISOLATED)
 
 # Back-compat: the rest of the app (marcus_engine, analytics, brain, etc.) uses
 # these module-level WHOLESALE handles. Behavior unchanged.
@@ -1386,7 +1395,7 @@ def api_followup_status(_q):
 import do_today  # noqa: E402
 DO_TODAY = do_today.DoTodayEngine(
     SCOUT, SCREENER, MARCUS, ghl_get, ghl_post, LOCATION_ID,
-    _load_env(ENV_CANDIDATES).get("GHL_USER_EMAIL", ""),
+    _biz_env("WHOLESALE").get("GHL_USER_EMAIL", ""),
     ghl_tasks_fn=lambda: api_tasks({"scan": ["60"]}))
 
 
@@ -5440,7 +5449,7 @@ class Handler(BaseHTTPRequestHandler):
             "/api/daycare/app-tracking": lambda session: self._daycare_app_tracking(
                 session, q.get("center", [""])[0]),
             "/api/daycare/family-forms": lambda session: daycare_family_forms.view(
-                _load_env(DAYCARE_ENV_CANDIDATES)),
+                _biz_env("DAYCARE")),
             "/api/daycare/family-forms/pdf": lambda session: None,  # streamed below, not JSON
             "/api/daycare/login-queue": lambda session: daycare_login_queue.view(),
             "/api/daycare/auto-enroll": lambda session: daycare_auto_enroll.view(),
@@ -5562,7 +5571,7 @@ class Handler(BaseHTTPRequestHandler):
         the caller; the path is matched against the exact stored shape before any fetch."""
         form_path = (q.get("path", [""])[0] or "")
         try:
-            body = daycare_family_forms.fetch_pdf(_load_env(DAYCARE_ENV_CANDIDATES), form_path)
+            body = daycare_family_forms.fetch_pdf(_biz_env("DAYCARE"), form_path)
         except daycare_family_forms.FormsError as e:
             return self._send_json({"ok": False, "error": e.message, "code": "family_form_error"}, e.status)
         disposition = "attachment" if q.get("download", [""])[0] == "1" else "inline"

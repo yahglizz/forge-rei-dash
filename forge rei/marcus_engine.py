@@ -560,15 +560,9 @@ class MarcusEngine:
 
     # -- persistence ---------------------------------------------------------
     def _key_from_env_file(self):
-        for p in [HERE.parent / "marcus-wholesale-agent" / "config" / "ghl.env",
-                  Path.home() / "Desktop" / "marcus-wholesale-agent" / "config" / "ghl.env"]:
-            if p.exists():
-                for line in p.read_text().splitlines():
-                    if line.strip().startswith("ANTHROPIC_API_KEY="):
-                        v = line.split("=", 1)[1].strip()
-                        if v and not v.startswith("sk-ant-..."):
-                            return v
-        return None
+        import agent_env   # master.env ANTHROPIC_API_KEY__WHOLESALE; ghl.env is not read for keys
+        v = agent_env.load_agent_env("WHOLESALE").get("ANTHROPIC_API_KEY", "")
+        return v if v and not v.startswith("sk-ant-...") else None
 
     def _load_config(self):
         """The enabled state persists across restarts; auto-send remains disabled."""

@@ -58,7 +58,8 @@ def load_env(path):
     return cfg
 
 
-ENV = load_env(ENV_PATH)
+import agent_env  # noqa: E402 — keys from master.env (WHOLESALE); ghl.env keeps config
+ENV = agent_env.with_master("WHOLESALE", load_env(ENV_PATH))
 API_KEY = ENV["GHL_API_KEY"]
 LOCATION_ID = ENV["GHL_LOCATION_ID"]
 BASE_URL = ENV.get("GHL_BASE_URL", "https://services.leadconnectorhq.com")

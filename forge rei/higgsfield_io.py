@@ -53,18 +53,13 @@ _ENV_CANDIDATES = [
 
 
 def _scan_env_files(var: str) -> str:
-    for p in _ENV_CANDIDATES:
-        try:
-            if not p.is_file():
-                continue
-            for line in p.read_text().splitlines():
-                line = line.strip()
-                if line.startswith(var + "=") and not line.startswith("#"):
-                    v = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    if v:
-                        return v
-        except Exception:
-            continue
+    """The shared (unlabelled) Higgsfield pair from master.env; business env files are not read."""
+    import agent_env
+    for label in ("DAYCARE", "AGENCY", "DROPSHIP"):     # same order the old file scan used
+        if var in agent_env.SHARED[label]:
+            v = agent_env.load_agent_env(label).get(var, "")
+            if v:
+                return v
     return ""
 
 

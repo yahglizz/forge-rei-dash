@@ -59,16 +59,11 @@ def _secret_key() -> str:
     k = os.environ.get("AGENCY_STRIPE_SECRET_KEY", "").strip()
     if k:
         return k
-    for p in AGENCY_ENV_CANDIDATES:
-        try:
-            if not p.exists():
-                continue
-            for raw in p.read_text().splitlines():
-                s = raw.strip()
-                if s.startswith("STRIPE_SECRET_KEY=") and not s.startswith("#"):
-                    return s.split("=", 1)[1].strip().strip('"').strip("'")
-        except OSError:
-            continue
+    if AGENCY_ENV_CANDIDATES:   # tests blank this list to mean "no agency key on disk"
+        import agent_env        # master.env STRIPE_SECRET_KEY__AGENCY; agency.env is not read
+        k = agent_env.load_agent_env("AGENCY").get("STRIPE_SECRET_KEY", "")
+        if k:
+            return k
     # 2026-09-30 owner decision: ONE Stripe key across the dashboard. The agency reuses the
     # daycare's unless it has its own above, or FORGE_STRIPE_SHARED=0 keeps them separate.
     if os.environ.get("FORGE_STRIPE_SHARED", "1") != "0":
@@ -187,8 +182,8 @@ def link_for_client(client_id: str, email: str = "") -> dict:
         return {"ok": False, "detail": "client id required"}
     if not configured():
         return {"ok": False, "detail":
-                "Stripe isn't configured. Add STRIPE_SECRET_KEY to "
-                "forge-agency/config/agency.env (the AGENCY account, not the "
+                "Stripe isn't configured. Add STRIPE_SECRET_KEY__AGENCY to "
+                "~/.agent-keys/master.env (the AGENCY account, not the "
                 "daycare's), then reload."}
 
     plan = _plan()
@@ -219,7 +214,7 @@ def status() -> dict:
     """Cheap health check for the UI, with no Stripe call when unconfigured."""
     if not configured():
         return {"ok": True, "configured": False,
-                "detail": "No STRIPE_SECRET_KEY in forge-agency/config/agency.env"}
+                "detail": "No STRIPE_SECRET_KEY__AGENCY in master.env"}
     plan = _plan()
     return {"ok": True, "configured": True, "plan": plan["name"],
             "display": plan["display"],
@@ -319,7 +314,7 @@ if __name__ == "__main__":
     globals()["_secret_key"] = lambda: ""
     assert configured() is False
     r = link_for_client("c7_123")
-    assert r["ok"] is False and "agency.env" in r["detail"], r
+    assert r["ok"] is False and "master.env" in r["detail"], r
     assert status()["configured"] is False
     assert link_for_client("")["detail"] == "client id required"
 

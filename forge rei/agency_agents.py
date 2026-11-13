@@ -98,14 +98,10 @@ def _agency_key():
     k = os.environ.get("AGENCY_ANTHROPIC_API_KEY")
     if k:
         return k, "agency-env"
-    for p in AGENCY_ENV_CANDIDATES:
-        if p.exists():
-            for line in p.read_text().splitlines():
-                s = line.strip()
-                if s.startswith("ANTHROPIC_API_KEY=") and not s.startswith("#"):
-                    v = s.split("=", 1)[1].strip()
-                    if v and not v.startswith("sk-ant-..."):
-                        return v, "agency"
+    import agent_env   # master.env ANTHROPIC_API_KEY__AGENCY; agency.env is not read for keys
+    v = agent_env.load_agent_env("AGENCY").get("ANTHROPIC_API_KEY", "")
+    if v and not v.startswith("sk-ant-..."):
+        return v, "agency"
     wholesale = review_agent._api_key()
     if wholesale:
         return wholesale, "wholesale"
