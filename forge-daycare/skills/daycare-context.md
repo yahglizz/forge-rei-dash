@@ -22,7 +22,7 @@ Grow enrollment. That's the one metric this agent exists to move. Every idea, ad
 - **Director:** Regina Price
 - **Owner / operator:** Yahjair Dixon-Mack (legal entity representative on DHS filings)
 - **Ages served:** 6 weeks – 12 years
-- **Hours:** Monday–Friday, 6:00 AM – 6:00 PM (extended hours on request)
+- **Hours (by location, owner confirmed 2026-11-13):** **2318 Cecil B. Moore Ave = open 24 hours a day, 7 days a week** (nights + weekends). 921 N 18th St and 1923 Cecil B. Moore (A Mother's Touch) = Monday–Friday, 6:00 AM – 6:00 PM (extended hours on request). Never claim 24/7 for 921 or 1923.
 - **Licensing:** Licensed and DHS-compliant. Accepts CCIS/Child Care Works subsidy alongside private pay — this is a major trust signal, work it into messaging naturally, don't bury it.
 - **Website:** atouchofblessing.com
 - **Ops email:** management@atouchofblessing.com
