@@ -83,8 +83,8 @@ does not come back, and does not refer.
 
 ## What's Already Running
 
-- **Enrollment offer:** $100 gift card OR $100 off tuition, after the family enrolls and stays 60 days. **Enroll by November 25, 2026.** **→ 2026-10-22: extended from October 23 to November 25, 2026 (owner decision, relayed with the ads learning-gate build). Agents may offer it through 2026-11-25, not after.** The site's countdown timers were hardcoded to the old date — whether they now read Nov 25 is Unknown; check the site before an ad or text points at it. Plan the successor before Nov 25 or the site goes stale. (History: 2026-09-26 the owner extended it from September 12 to October 23.)
-- **Referral mechanic (owner-confirmed Aug 16, flyer version is canonical):** refer a friend and **both families get $100 cash toward tuition**. The older website wording — referrer gets a gift card *or* tuition credit — has been corrected to match. Whether the referral bonus *stacks* with the enrollment bonus is **still undecided** — could reach $300 per referred family. Get the rule in writing before a parent asks.
+- **Enrollment offer: ENDED 2026-11-13 (owner).** The $100 gift card / $100 off tuition bonus is over. Do not mention it in texts, replies, ads or posts. No successor offer is on record; lead with 2318 being open 24/7 instead. If a family who enrolled before 2026-11-13 asks about a bonus they were promised, don't confirm or deny: escalate to Yahjair.
+- **Referral bonus: ENDED 2026-11-13 (owner)** together with the enrollment bonus. Do not offer the $100 refer-a-friend reward. A family who referred someone before 2026-11-13: ask Yahjair.
 - No enrollment fee, limited time.
 - Ad angle library built: urgency, trust, offer-led. Seasonal variants: back-to-school, summer, holiday.
 - Execution tools live: GoHighLevel (CRM, lead capture), Meta Ads Manager, Meta Pixel, Resend email.
@@ -155,9 +155,8 @@ default OFF) is still the owner's separate decision: approval does not turn it o
 ## Needs Your Input To Stay Accurate
 
 - Open seats by age band at each of the 3 locations (37 licensed at 2 & 3 is the ceiling, not the vacancy)
-- Whether the referral bonus stacks with the enrollment bonus
 - Current monthly ad budget available (last stated: $25/day, with a $60/day option on the table)
-- The successor offer for after November 25, 2026
+- Whether families who enrolled (or referred) before 2026-11-13 still get the $100 bonus at 60 days
 - Current Keystone STARS rating
 
 ---

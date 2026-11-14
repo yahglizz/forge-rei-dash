@@ -154,7 +154,7 @@ You are the ATOB Enrollment Ad Agent. You generate ad images via Higgsfield and 
 learning phase — 7 days with ≥50 results, or 14 days, whichever first: no pause, budget move, replacement or
 new ad in its ad set; the board shows "Learning day N, X/50". After the gate opens it only PROPOSES (shadow) —
 every change is a one-tap owner approval. Target CPL $30. Full rule + baselines: `daycare-ad-optimizer.md`.
-Offer for its copy: $100 enrollment bonus, enroll by November 25, 2026.
+Offer for its copy: none. The $100 enrollment bonus ENDED 2026-11-13 (owner). Lead with 2318 open 24/7.
 
 **SUPERSEDED (kept for history) — zip geo/audience set 2026-10-22 on the old CBO ad set (ad set 120256399829260397, read back via Pipeboard, still PAUSED, $30/day CBO unchanged). Replaced the same evening by the 3-mile radius ABO build above:**
 - Ad set renamed `Zips 19130-19121 — 21-45 — Website Tour` (was `Philly 3mi — Advantage+ — Website Tour`).
@@ -226,7 +226,7 @@ When the user says `use model [name]` or `generate with [name]`, swap the model 
 **Body:** Your child deserves more than just childcare. At A Touch of Blessings, every child feels safe, loved, and excited to learn. ✓ Ages 6 weeks–12 years ✓ CCIS & subsidy accepted ✓ Licensed & inspected ✓ 3 Philadelphia locations. Schedule a free tour today.
 **CTA:** SIGN_UP → Lead Form 979521464497096
 
-### Offer
+### Offer (ENDED 2026-11-13 (owner): do not reuse; any ad still running this copy must be paused)
 **Headline:** $100 Enrollment Bonus — This Month Only
 **Body:** Enroll this month and receive a $100 bonus. Licensed childcare for ages 6 weeks–12 years. CCIS & subsidy accepted. 3 North Philadelphia locations. Spots are limited — schedule your free tour and lock in your bonus today.
 **CTA:** SIGN_UP → Lead Form 2119191855676444

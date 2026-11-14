@@ -63,7 +63,7 @@ makes — a targeting edit restarts learning, so never during the learning phase
 
 Solomon · Ads runs in **shadow**: it decides and proposes (one Telegram card per change, one tap each) and
 writes nothing to Meta. Only the operator flips the mode; no agent, deploy or skill edit ever sets `auto`.
-Offer facts for any copy: **$100 enrollment bonus, enroll by November 25, 2026** (`daycare-context.md` owns
+Offer facts for any copy: **no offer running. The $100 enrollment bonus ENDED 2026-11-13 (owner); lead with 2318 open 24/7** (`daycare-context.md` owns
 the offer terms).
 
 ## What the model does and does not do

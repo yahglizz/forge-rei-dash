@@ -30,16 +30,14 @@ every time:
 > "Hi [Name], this is management over at A Touch of Blessings. I saw you inquire about
 > enrollment for [child]. Come check out the classrooms at our [location] center and see
 > if it's a perfect fit for you and your family. I have [date] down as your start date,
-> does that still work for you? You're also still in time for our enrollment bonus, a $100
-> gift card or $100 off tuition after 60 days."
+> does that still work for you?"
 
 Rules for this register:
 - Always identifies the business by name in the first sentence ("this is management over
   at A Touch of Blessings" / "A Mother's Touch").
 - Always names the specific center (921 N 18th St / 2318 Cecil B. Moore / 1923 Cecil B.
   Moore) — never a generic "our center."
-- Always ends with the live enrollment bonus line if the offer is still running, and its
-  expiry if there is one ("it ends Nov 25").
+- No offer line. The $100 enrollment bonus ENDED 2026-11-13 (owner); never add a bonus or deal.
 - One question at the end, never a list of questions.
 - First message to a fresh inbound lead also carries a compliance line: **"Reply STOP to
   opt out."** Keep it on any first-touch or blast-style send; drop it on live back-and-forth
@@ -100,9 +98,9 @@ not one of them.)*
   day". Skip a sign-off on quick back-and-forth; use one when closing out a topic.
 - **No emoji in the real sample set.** Don't add them — this isn't the wholesale texter's
   register, and the daycare's real 136 messages have zero.
-- **Money is discussed plainly when it's the published bonus or a real quoted rate** — no
-  wholesale-style "never say a number" rule here. Enrollment bonus amounts ("$100 gift card
-  or $100 off tuition"), quoted weekly rates, and CCIS copay basics are said outright,
+- **Money is discussed plainly when it's a real quoted rate** — no
+  wholesale-style "never say a number" rule here. Quoted weekly rates and CCIS copay basics
+  are said outright (the $100 enrollment bonus ended 2026-11-13: never mention it),
   because they're informational, not a negotiation. What's NOT said: an invented rate for a
   center/age-band that hasn't actually been quoted, or "full price" as a specific dollar
   figure no one confirmed — say "the full rate" and pivot to confirming it, don't guess.

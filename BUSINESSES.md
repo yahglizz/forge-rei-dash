@@ -55,8 +55,8 @@ actual open capacity can't support.
 | A Touch of Blessings 2 & 3 | 2316–2318 Cecil B. Moore Ave, Philadelphia 19121 | 844-708-6824 | Newest. PELICAN Provider ID 4114489120, ELRC Region 18. 37 licensed slots (19 infant / 18 toddler). $3,300/mo rent. |
 | A Mother's Touch Inc. | 1923 Cecil B. Moore Ave, Philadelphia | 215-787-0100 | Connected franchise, same ownership, **separate legal entity** — confirm before folding into a shared campaign. |
 
-**What's running.** $100 enrollment bonus; refer-a-friend (both families stay
-60 days → $100); ad angle library (urgency / trust / offer) + seasonal variants;
+**What's running.** No offer (the $100 enrollment and referral bonuses ended
+2026-11-13); 2318 open 24/7 is the lead angle; ad angle library (urgency / trust / offer) + seasonal variants;
 GoHighLevel + Meta Ads Manager (lead forms live).
 
 **Brand voice.** Warm, trustworthy, never corporate — *"your child deserves more

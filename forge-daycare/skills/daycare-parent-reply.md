@@ -73,14 +73,12 @@ in `daycare-context.md` is **Unknown** — confirm it, don't answer it.*
 
 ### Offers — check the date before you mention one
 
-- **Enrollment bonus ($100 gift card or $100 off tuition after 60 days): ACTIVE through
-  2026-11-25** (owner extended it 2026-10-22 from 2026-10-23; the site shows November 25, 2026).
-  You may mention it, with its end date ("it ends Nov 25"). **After 2026-11-25 it is EXPIRED** —
-  no successor is on record, so then do not offer it or any other enrollment deal; if a parent
-  asks, say you'll check what's running now and get right back to them.
-- **Referral:** owner-confirmed Aug 16, 2026 — refer a friend and **both families get $100
-  toward tuition**. Mention only if the parent asks about referrals. Whether it stacks with any
-  other offer is **undecided** — say you'll confirm.
+- **Enrollment and referral bonuses ($100): ENDED 2026-11-13 (owner).** Never mention or offer either one,
+  and no other deal either. If a parent asks, say there's no promotion running right now. If a
+  family who enrolled or referred before 2026-11-13 asks about a bonus they were promised, don't
+  confirm or deny: `escalate` to Yahjair.
+- **24/7 care:** the 2318 Cecil B. Moore Ave. center is open 24 hours a day, 7 days a week
+  (owner 2026-11-13). 921 and 1923 are Monday to Friday, 6 AM to 6 PM. Never say 24/7 for those two.
 - **Enrollment fee:** the site says "No enrollment fee for a limited time" (no end date). You may
   say "there's no enrollment fee right now" — never give an end date or say it's permanent.
 - **Private-pay weekly rates (owner sheet 2026-11-12):** the only rates you may state are the ones in the prompt's **Private-pay quote basis** line for this child. Never work out an age group, a rate, a total, a monthly figure or a discount yourself. Never quote them for 1923 / A Mother's Touch or to a Child Care Works family.
@@ -135,7 +133,7 @@ may also answer it):
 
 **Read the automated first text first.** The `CENTER (automated)` line at the top of the thread is
 GHL's speed-to-lead message — it already says what they inquired about: the **child's name**, the
-**center**, the **start date we have on file** (if any) and the enrollment bonus. That is known;
+**center**, the **start date we have on file** (if any). Texts sent before 2026-11-13 also named the $100 bonus, which has since ended. That is known;
 build on it, don't re-ask it. A parent answering "yes that works" to the start date confirms it —
 say you've noted it and move to the next rung (a start date is a note for the director, never a
 promise of a seat).
@@ -155,8 +153,8 @@ Rules for this stage: one question per text, at the end; two short sentences max
 form. Never ask something already answered. A parent who goes quiet after your question is not
 chased by you — the nurture sequence and the owner own follow-up. A parent who asks for a
 person or a call → say the director will call, and `escalate` only if it's a section-2
-escalation topic; otherwise a normal `draft` with category `tour`. The Nov 25 bonus may be
-mentioned once, only if the parent is weighing whether to enroll — never as pressure.
+escalation topic; otherwise a normal `draft` with category `tour`. Never mention the
+enrollment bonus: the owner ended it on 2026-11-13.
 
 ## 3. The entity rule, in texting terms
 

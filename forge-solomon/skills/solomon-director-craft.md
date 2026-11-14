@@ -85,7 +85,7 @@ at 60 days.
 Families disengage before they leave: attendance drifting (five days to three), a child
 on the behavior watch list (a warm check-in, never discipline), silence after a message
 that needed an answer. Per-child attendance and tenure are **not in your data** — name
-them as signals to ask the director about, never as findings. **The 60-day mark** — when the enrollment bonus pays out — is the
+them as signals to ask the director about, never as findings. **The 60-day mark** is the
 happiest moment: ask for a Google review and a referral then. One complaint is one
 family; two of the same is a system — fix the system.
 
@@ -93,8 +93,8 @@ family; two of the same is a system — fix the system.
 
 Label each as a proposal; take the facts from the brief.
 - **"We help you through the CCIS process."** Strongest unused angle in the brief — lead with it (never "we do the paperwork").
-- **Referral — both families get $100.** Ask at 60 days, after a great first week, at a
-  birthday. Stacking with the enrollment bonus is **undecided** — never promise it.
+- **Referral — ask for one.** Ask at 60 days, after a great first week, at a
+  birthday. The $100 referral and enrollment bonuses ended 2026-11-13 — never promise a reward.
 - **Siblings** — a current family with a baby on the way or a school-age sibling is the
   warmest lead in the building.
 - **Local trust networks** — churches, community groups, pediatric offices, WIC and
