@@ -5401,7 +5401,7 @@ class Handler(BaseHTTPRequestHandler):
                 session, q.get("id", [None])[0]),
             "/api/daycare/notifications": lambda session: daycare_supabase.get_notifications(session),
             # ?location_id= (optional) reads another center without switching (the board's watches)
-            "/api/daycare/billing": lambda session: _daycare_at(session, q, daycare_supabase.get_billing),
+            "/api/daycare/billing": lambda session: _daycare_at(session, q, daycare_supabase.get_billing_page),
             "/api/daycare/billing/fees": lambda session: daycare_fees.list_fees(session, q),
             "/api/daycare/payroll": lambda session: daycare_supabase.get_payroll(session),
             "/api/daycare/reports": lambda session: daycare_supabase.get_reports(
@@ -6300,6 +6300,16 @@ def main():
                              daemon=True, name="daycare_billing_reminders").start()
         else:
             forge_heartbeat.retire("daycare_billing_reminders")
+        # Billing · Payment streak feed: one line per confirmed payment in #daycare-payments. Posts nothing
+        # until that channel is bound (SLACK_CHANNEL_DAYCARE_PAYMENTS) and a center's streak_mode is on.
+        # FORGE_DAYCARE_STREAK_SLACK=0 = loop off.
+        if os.environ.get("FORGE_DAYCARE_STREAK_SLACK", "1") != "0":
+            print("   Billing · Payment streak feed: every 5 min, only when #daycare-payments is bound")
+            import daycare_streak_slack     # here, not at module level: it imports slack_io
+            threading.Thread(target=daycare_streak_slack.run_forever, args=(_daycare_start_session,),
+                             daemon=True, name="daycare_streak_slack").start()
+        else:
+            forge_heartbeat.retire("daycare_streak_slack")
         # Solomon · Auto-enroll: every READY Family Contact Form card becomes a child + parent
         # login at its center, no click (owner decision 2026-10-07). Odd cards are held with a
         # reason. PIN texts wait on FORGE_DAYCARE_AUTO_ENROLL_TEXT=1. FORGE_DAYCARE_AUTO_ENROLL=0 = off.

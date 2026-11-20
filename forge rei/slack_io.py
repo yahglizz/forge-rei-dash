@@ -70,7 +70,7 @@ BUSINESSES = ("wholesale", "agency", "daycare", "dropship")
 # Slack brain (slack_knowledge): not a room either (no chat, no taps).
 SITES = ("atob-one", "atob-two")
 SITE_SUBS = ("tours", "quotes", "enrolled")
-TOPICS = {"daycare": ("alerts", "tours", "quotes", "starting", "enrolled")
+TOPICS = {"daycare": ("alerts", "tours", "quotes", "starting", "enrolled", "payments")
           + SITES + tuple(f"{s}-{t}" for s in SITES for t in SITE_SUBS)}
 TOPIC_KEYS = tuple(f"{b}-{t}" for b, ts in TOPICS.items() for t in ts)
 AMT_KEY = "daycare-amt"
@@ -78,7 +78,11 @@ KNOWLEDGE_KEY = "knowledge"
 # Which kind of news a mirrored alert is, by its dedupe_key prefix (the senders' own keys), and the
 # site sub-channel it goes to (None = the site channel itself).
 _TOPIC_BY_KEY = (("daycare-lead:", "daycare-alerts"), ("dcreply:", "daycare-alerts"),
-                 ("cal-remind:", "daycare-tours"), ("daycare-start:", "daycare-starting"))
+                 ("cal-remind:", "daycare-tours"), ("daycare-start:", "daycare-starting"),
+                 ("daycare-pay:", "daycare-payments"))
+# A feed with its own channel and no per-site split (daycare_streak_slack: confirmed payments, ATOB
+# only, filtered by its sender). Unbound = the business channel, like any other alert.
+_DIRECT_ROOMS = ("daycare-payments",)
 _SITE_SUB = {"daycare-alerts": None, "daycare-tours": "tours", "daycare-starting": "enrolled"}
 _DEDUPE_WINDOW = 15 * 60
 _DEDUPE_MAX = 200
@@ -221,6 +225,8 @@ def site_channel(business, dedupe_key, html_text) -> str | None:
     only, never single alerts. Fails closed: any error = None."""
     room = next((k for pre, k in _TOPIC_BY_KEY if str(dedupe_key or "").startswith(pre)
                  and k.startswith(business + "-")), None)
+    if room in _DIRECT_ROOMS:
+        return topic_channel(room)
     try:                                       # A Mother's Touch never enters an ATOB channel (fail closed)
         import slack_rooms
         site = slack_rooms.site_of(dedupe_key, html_text)

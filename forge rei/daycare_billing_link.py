@@ -326,6 +326,7 @@ def timeline(session, invoice_id, ghl) -> dict:
         data = data["billing_invoice_timeline"]      # PostgREST wraps a scalar jsonb return
     if "reminders" not in data:                       # overdue reminders: kind/status/sent_at/amount_cents/error
         data = {**data, "reminders": daycare_supabase.billing_reminder_rows(session, inv_id)}
+    data = {**data, "streak_events": daycare_supabase.streak_event_rows(session, inv_id)}
     return {"ok": True, **data}
 
 

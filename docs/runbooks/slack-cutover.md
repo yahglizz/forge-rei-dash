@@ -88,6 +88,7 @@ Rooms (private, owner-only, created by `forge-slack/bootstrap_channels.py`, ids 
 | `#daycare-2318` (`C0CHAKJKBU4`) | `SLACK_CHANNEL_DAYCARE_ATOB_TWO` | ATOB 2318 Cecil B. Moore: same as 921 |
 | `#2318-tours` / `#2318-quotes` / `#2318-enrolled` | `SLACK_CHANNEL_DAYCARE_ATOB_TWO_TOURS` / `_QUOTES` / `_ENROLLED` | 2318: same three |
 | `#amt-1923` (`C0CGRH7KTEK`) | `SLACK_CHANNEL_DAYCARE_AMT` | A Mother's Touch (separate entity): alerts for families on the AMT board only |
+| `#daycare-payments` (`C0CK6QE38EB`) | `SLACK_CHANNEL_DAYCARE_PAYMENTS` | ATOB only: one line per confirmed Stripe payment with the family's on-time streak (`daycare_streak_slack`, every 5 min). Not created by `bootstrap_channels.py`: add the id line to `slack-channels.env` by hand. Unbound = nothing is posted. Kill: `FORGE_DAYCARE_STREAK_SLACK=0` |
 | `#forge-knowledge` | `SLACK_CHANNEL_KNOWLEDGE` | Agents' knowledge base (`slack_knowledge.py`) |
 
 - Site is proven from the boards, never from alert text (`slack_rooms.site_of` / `_card_site`): ATOB = room_ok passes and the family's ATOB card has exactly one ATOB `loc-` tag and no AMT mark; AMT = contact on the AMT board and not the ATOB one. A sub-channel that isn't bound falls back to its site channel; no provable site → `#forge-daycare` (alerts) or no line at all (stage moves; the brief counts them).

@@ -12,6 +12,7 @@ which is outside the dashboard web root and is shipped separately by push.sh.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import secrets
@@ -1790,6 +1791,8 @@ _BILLING_RPCS = frozenset({
     # overdue reminders (billing P2 slice)
     "billing_reminders_owed", "billing_reminder_claim", "billing_reminder_result",
     "billing_reminder_staff_review", "billing_mark_overdue",
+    # on-time payment streaks (daycare_streak_slack feed + the invoice discount)
+    "streak_events_unposted", "streak_mark_posted", "streak_effective_discount",
 })
 
 
@@ -1998,6 +2001,116 @@ def billing_send_rows(session: Session, invoice_id: Any, statuses=("sent",)) -> 
         session, "GET", "billing_link_sends",
         query={"invoice_id": f"eq.{inv_id}", "status": f"in.({','.join(statuses)})",
                "select": "id,ghl_message_id", "order": "created_at.desc", "limit": "5"}))
+
+
+# ── on-time payment streaks ─────────────────────────────────────────────────────
+# The database owns the math (family_streaks, payment_streak_events, streak_effective_discount).
+# Everything here is a read that fails to "off / empty / 0": a center with streak_mode off, or a
+# database without the migration, behaves exactly as before.
+DEFAULT_STREAK_TIERS = ((6, Decimal("10")), (15, Decimal("25")))    # owner's milestones: 6 -> 10%, 15 -> 25%
+STREAK_NOTE = "On-time discount"
+_streak_log = logging.getLogger("daycare_supabase")
+
+
+def _pct_text(value: Any) -> str:
+    """10.00 -> '10', 12.50 -> '12.5'."""
+    return f"{Decimal(str(value)).normalize():f}"
+
+
+def _streak_pct(result: Any) -> Decimal:
+    """streak_effective_discount's answer in any shape PostgREST returns it; 0 unless 0 < pct < 100."""
+    value = result[0] if isinstance(result, list) and result else result
+    if isinstance(value, dict):
+        value = value.get("streak_effective_discount")
+    try:
+        pct = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal(0)
+    return pct if pct.is_finite() and 0 < pct < 100 else Decimal(0)
+
+
+def streak_discount_pct(session: Session, guardian_id: Any, location_id: Any) -> Decimal:
+    """The family's live on-time discount percent (0 unless that center's streak_mode is live).
+    Any failure = 0: the invoice bills full price and the reason is logged."""
+    try:
+        return _streak_pct(billing_rpc(session, "streak_effective_discount",
+                                       {"p_guardian": guardian_id, "p_location": location_id}, write=False))
+    except Exception as error:  # noqa: BLE001 — fail open to full price, never block an invoice
+        _streak_log.warning("streak discount unreadable, billing full price: %s", type(error).__name__)
+        return Decimal(0)
+
+
+def streak_mode(session: Session, location_id: Any) -> str:
+    """billing_settings.streak_mode for one center. Anything unreadable = 'off'."""
+    try:
+        rows = _rows(BRIDGE.rest(
+            session, "GET", "billing_settings",
+            query={"location_id": f"eq.{require_uuid(location_id, 'location_id')}",
+                   "select": "streak_mode", "limit": "1"}))
+    except DaycareError:
+        return "off"
+    mode = str((rows[0] if rows else {}).get("streak_mode") or "off").lower()
+    return mode if mode in ("off", "dry_run", "live") else "off"
+
+
+def streak_tiers(session: Session, location_id: Any) -> list[tuple[int, Decimal]]:
+    """[(min_streak, discount_pct)] for one center, lowest first. Unreadable or empty = the defaults."""
+    try:
+        rows = _rows(BRIDGE.rest(
+            session, "GET", "streak_tiers",
+            query={"location_id": f"eq.{require_uuid(location_id, 'location_id')}",
+                   "select": "min_streak,discount_pct", "order": "min_streak.asc", "limit": "20"}))
+        tiers = sorted((int(r["min_streak"]), Decimal(str(r["discount_pct"]))) for r in rows)
+    except Exception:  # noqa: BLE001
+        tiers = []
+    return tiers or list(DEFAULT_STREAK_TIERS)
+
+
+def get_streaks(session: Session) -> dict[str, Any]:
+    """The Billing page's Streaks panel for the active center. streak_mode off (or unreadable) =
+    one settings read and nothing else."""
+    loc = active_location(session)
+    mode = streak_mode(session, loc)
+    if mode == "off":
+        return {"mode": "off", "tiers": [], "families": []}
+    tiers = streak_tiers(session, loc)
+    try:
+        rows = _rows(BRIDGE.rest(
+            session, "GET", "family_streaks",
+            query={"location_id": f"eq.{loc}",
+                   "select": "guardian_id,current_streak,best_streak,tier_pct,last_on_time_at",
+                   "order": "current_streak.desc", "limit": "1000"}))
+    except DaycareError:
+        rows = []
+    families = []
+    for row in rows:
+        current, best = int(row.get("current_streak") or 0), int(row.get("best_streak") or 0)
+        nxt = next(((k, pct) for k, pct in tiers if k > current), None)
+        families.append({
+            "guardian_id": row.get("guardian_id"), "current_streak": current, "best_streak": best,
+            "tier_pct": _pct_text(row.get("tier_pct") or 0), "last_on_time_at": row.get("last_on_time_at"),
+            "next": {"at": nxt[0], "pct": _pct_text(nxt[1])} if nxt else None,
+            "broken": current == 0 and best > 0})
+    return {"mode": mode, "tiers": [[k, _pct_text(pct)] for k, pct in tiers], "families": families}
+
+
+def get_billing_page(session: Session) -> dict[str, Any]:
+    """GET /api/daycare/billing: the invoices plus the Streaks panel. Other get_billing callers
+    (overview, reports, watches) do not pay for the streak reads."""
+    return {**get_billing(session), "streaks": get_streaks(session)}
+
+
+def streak_event_rows(session: Session, invoice_id: Any) -> list[dict[str, Any]]:
+    """The invoice's streak event for the Timeline (at most one row per invoice). Unreadable = []."""
+    inv_id = require_uuid(invoice_id, "invoice_id")
+    cols = ("on_time", "streak_after", "tier_pct_after", "paid_amount", "click_at", "due_on", "week_of",
+            "slack_posted_at")
+    try:
+        return [{k: r.get(k) for k in cols} for r in _rows(BRIDGE.rest(
+            session, "GET", "payment_streak_events",
+            query={"invoice_id": f"eq.{inv_id}", "select": ",".join(cols), "limit": "5"}))]
+    except DaycareError:
+        return []
 
 
 def get_payroll(session: Session) -> dict[str, Any]:
@@ -3144,7 +3257,22 @@ def save_invoice(session: Session, body: dict[str, Any]) -> dict[str, Any]:
         rows = BRIDGE.rest(session, "PATCH", "invoices", query={"id": f"eq.{invoice['id']}"}, body=record, prefer="return=representation")
     else:
         record["location_id"] = active_location(session)
+        # On-time discount: only here, at creation (no pay link can exist yet), so the saved amount is
+        # the amount every later link charges. The owner sees the lowered amount and the note on the
+        # invoice row before sending anything. An edit never re-applies it.
+        discount = None
+        if record["status"] in ("draft", "due") and STREAK_NOTE not in record["description"]:
+            pct = streak_discount_pct(session, guardian["id"], record["location_id"])
+            if pct:
+                full = Decimal(str(record["amount"]))
+                lowered = (full * (100 - pct) / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                note = f" · {STREAK_NOTE} {_pct_text(pct)}%"
+                record["description"] = record["description"][:1000 - len(note)] + note
+                record["amount"] = float(lowered)
+                discount = {"pct": _pct_text(pct), "original_amount": f"{full:.2f}", "amount": f"{lowered:.2f}"}
         rows = BRIDGE.rest(session, "POST", "invoices", body=record, prefer="return=representation")
+        if discount:
+            return {"ok": True, "invoice": _single(rows, "Invoice"), "discount": discount}
     return {"ok": True, "invoice": _single(rows, "Invoice")}
 
 
