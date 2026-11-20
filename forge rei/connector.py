@@ -4625,16 +4625,18 @@ class Handler(BaseHTTPRequestHandler):
                     "hostedInvoiceUrl": invoice.get("hosted_invoice_url")}
         amount_paid = (invoice.get("amount_paid") or 0) / 100.0
         stripe_id = invoice.get("id")
-        daycare_supabase.record_invoice_payment(session, {
-            "invoice_id": ctx["invoice_id"],
-            "payment": {
-                "amount": amount_paid,
-                "method_label": "Stripe",
-                "provider": "stripe",
-                "provider_reference": stripe_id,
-                "idempotency_key": f"stripe:{stripe_id}",
-            },
-        })
+        payment = {
+            "amount": amount_paid,
+            "method_label": "Stripe",
+            "provider": "stripe",
+            "provider_reference": stripe_id,
+            "idempotency_key": f"stripe:{stripe_id}",
+        }
+        # When the parent actually paid (Stripe's clock), not when the owner pressed Sync.
+        paid_at = (invoice.get("status_transitions") or {}).get("paid_at")
+        if paid_at:
+            payment["paid_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(int(paid_at)))
+        daycare_supabase.record_invoice_payment(session, {"invoice_id": ctx["invoice_id"], "payment": payment})
         return {"ok": True, "sent": True, "synced": True, "amountPaid": amount_paid,
                 "status": invoice.get("status")}
 

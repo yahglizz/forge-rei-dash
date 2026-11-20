@@ -205,11 +205,14 @@ def find_invoice(daycare_invoice_id: str, key: str | None = None) -> dict | None
     try:
         result = _req("GET", "/invoices/search", {
             "query": f"metadata['daycare_invoice_id']:'{daycare_invoice_id}'",
-            "limit": 1,
+            "limit": 10,
         }, **_kw(key))
     except StripeError:
         return None
     rows = result.get("data") or []
+    # A voided (stale) invoice can sit next to its replacement: prefer paid, then open, never void.
+    rank = {"paid": 0, "open": 1, "draft": 2, "uncollectible": 3, "void": 9}
+    rows = sorted(rows, key=lambda r: rank.get(r.get("status"), 5))
     return rows[0] if rows else None
 
 
@@ -249,7 +252,13 @@ def send_invoice(ctx: dict) -> dict:
         raise StripeError(400, "Invoice amount must be positive", "validation_error")
 
     existing = find_invoice(str(ctx.get("invoice_id")), **_kw(key))
-    if existing and existing.get("status") in ("open", "paid"):
+    if existing and existing.get("status") == "open" and int(existing.get("amount_due") or 0) != amount:
+        # The daycare invoice was edited after this one was created (e.g. on-time discount):
+        # void the stale one so the parent is never charged the old amount (as ensure_hosted_invoice).
+        _req("POST", f"/invoices/{existing['id']}/void", {}, **_kw(key))
+        _log.info("voided stale Stripe invoice %s for %s (due %s, amount now %s)",
+                  existing["id"], ctx.get("invoice_id"), existing.get("amount_due"), amount)
+    elif existing and existing.get("status") in ("open", "paid"):
         return {"ok": True, "reused": True, **_public(existing)}
 
     customer_id = _ensure_customer(

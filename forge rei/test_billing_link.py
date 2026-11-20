@@ -197,6 +197,53 @@ class HostedInvoice(unittest.TestCase):
                                     "guardian": {"id": "g1", "name": "D"}})
         self.assertTrue(fake.calls and all(c[3] == "sk_test_abc" for c in fake.calls))
 
+    def run_send(self, existing, amount=25):
+        fake = FakeStripe({existing["id"]: existing})
+        with mock.patch.object(stripe_io, "_req", fake), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"), \
+                mock.patch.object(stripe_io, "find_invoice", return_value=existing):
+            out = stripe_io.send_invoice({"invoice_id": INV, "amount": amount, "location_id": QA,
+                                          "guardian": {"id": "g1", "name": "D"}})
+        return fake, out
+
+    def test_send_invoice_voids_open_invoice_with_old_amount(self):
+        fake, out = self.run_send(open_inv("in_old", 2500), amount=22.50)   # discount applied after
+        self.assertIn(("POST", "/invoices/in_old/void"), fake.paths())
+        self.assertFalse(out["reused"])
+        self.assertEqual("in_new1", out["stripeInvoiceId"])
+        self.assertEqual(2250, [p for m, path, p, _ in fake.calls if path == "/invoiceitems"][0]["amount"])
+
+    def test_send_invoice_reuses_open_same_amount_and_paid(self):
+        for existing in (open_inv("in_old", 2500), open_inv("in_old", 0, status="paid", amount_paid=9999)):
+            fake, out = self.run_send(existing)
+            self.assertTrue(out["reused"])
+            self.assertEqual([], [c for c in fake.calls if c[0] != "GET"])   # nothing voided or created
+
+
+class SyncPaymentPaidAt(unittest.TestCase):
+    def sync(self, invoice):
+        import connector
+        with mock.patch.object(daycare_supabase, "stripe_invoice_context",
+                               return_value={"invoice_id": INV, "location_id": QA}), \
+                mock.patch.object(stripe_io, "key_for_location", return_value="sk_test_abc"), \
+                mock.patch.object(stripe_io, "find_invoice", return_value=invoice), \
+                mock.patch.object(daycare_supabase, "record_invoice_payment") as record:
+            connector.Handler._daycare_stripe_sync_payment(None, object(), {"invoice_id": INV})
+        return record.call_args.args[1]["payment"]
+
+    def test_stripe_paid_time_is_passed(self):
+        payment = self.sync({"id": "in_1", "paid": True, "amount_paid": 2500, "status": "paid",
+                             "status_transitions": {"paid_at": 1794841200}})
+        self.assertEqual("2026-11-16T15:00:00Z", payment["paid_at"])
+        self.assertEqual("stripe", payment["provider"])
+        self.assertEqual("stripe:in_1", payment["idempotency_key"])
+
+    def test_no_paid_time_from_stripe_falls_back(self):
+        for transitions in ({}, {"paid_at": None}, None):
+            payment = self.sync({"id": "in_1", "paid": True, "amount_paid": 2500,
+                                 "status_transitions": transitions})
+            self.assertNotIn("paid_at", payment)
+
 class Compose(unittest.TestCase):
     def text(self, **over):
         return bl.compose_text(facts(**over), TODAY)
@@ -822,5 +869,15 @@ class Routes(unittest.TestCase):
         self.assertIn("/api/daycare/billing/timeline", get)
 
 
+class FindInvoicePrefersLive(unittest.TestCase):
+    def test_void_never_wins(self):
+        rows = {"data": [{"id": "in_v", "status": "void"}, {"id": "in_o", "status": "open"}, {"id": "in_p", "status": "paid"}]}
+        with mock.patch.object(stripe_io, "_req", return_value=rows):
+            self.assertEqual("in_p", stripe_io.find_invoice("x", "sk_test_abc")["id"])
+        with mock.patch.object(stripe_io, "_req", return_value={"data": rows["data"][:2]}):
+            self.assertEqual("in_o", stripe_io.find_invoice("x", "sk_test_abc")["id"])
+
+
 if __name__ == "__main__":
     unittest.main()
+
